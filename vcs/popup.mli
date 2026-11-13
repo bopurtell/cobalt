@@ -1,10 +1,10 @@
 (** The popup ("transient") model: a titled set of switches, toggled with [-] then the
     switch's key, and actions, run with a single key. Running an action builds the
     backend's action from the enabled switches, so the popup needs no knowledge of
-    what the switches mean. Phase 5's commit popup ([c] commit, [a] amend, [e]
-    extend; [-n] [--no-verify], [-s] [--signoff], [-e] [--allow-empty]) and phase 6's
+    what the switches mean. The commit popup ([c] commit, [a] amend, [e]
+    extend; [-n] [--no-verify], [-s] [--signoff], [-e] [--allow-empty]) and the
     push and pull popups are values of this type, built by the backend. Rendering, key
-    routing and [Escape] belong to the popup float (phase 5).
+    routing and [Escape] belong to the popup float.
 
     Keys are printable ASCII other than space; ['-'] (the switch prefix), ['q'] (close)
     and ['?'] (help) are reserved. A switch and an action may share a key ([-e] and

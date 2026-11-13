@@ -1,10 +1,10 @@
 open! Core
-open Ches_core
-open Ches_screen
-module Feedback = Ches_error.Error
+open Cobalt_core
+open Cobalt_screen
+module Feedback = Cobalt_error.Error
 module History = Feedback.History
-module Controller = Ches_app.Controller
-module View_id = Ches_tile.View_id
+module Controller = Cobalt_app.Controller
+module View_id = Cobalt_tile.View_id
 
 let note ?(history = true) ?(severity = Feedback.Severity.Info) text : Feedback.update =
   Notify { source = "editor"; scope = Some "a"; severity; text; history }
@@ -106,7 +106,7 @@ let%expect_test "problem lifecycle is recorded, independent of active problems" 
 ;;
 
 let%expect_test "real failures, recovery, and UI chatter through the application" =
-  let dir = Core_unix.mkdtemp "/tmp/ches-history" in
+  let dir = Core_unix.mkdtemp "/tmp/cobalt-history" in
   Exn.protect
     ~finally:(fun () ->
       ignore (Core_unix.system ("rm -rf " ^ Filename.quote dir) : _ Result.t))

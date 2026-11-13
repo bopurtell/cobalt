@@ -1,7 +1,7 @@
 # Navigation preview screen/host contract
 
 The screen exposes these stable, non-draining operations (Model is
-`Ches_navigation_preview_model.Model`):
+`Cobalt_navigation_preview_model.Model`):
 
 ```ocaml
 val navigation_preview_request : t -> Model.request option
@@ -27,7 +27,7 @@ Thus A→B→A cannot reuse the first A's reply.
 Rendering and selection do not read file contents. Destination acceptance uses
 bounded file metadata (device/inode/size/mtime/ctime), captured at results arrival
 and checked at disk-preview delivery and acceptance, instead of whole-file digests.
-The disk-delivery check is metadata only, via `Ches_app.Navigation_file_stamp`;
+The disk-delivery check is metadata only, via `Cobalt_app.Navigation_file_stamp`;
 the payload's serialized observation must also match the stamp captured at results
 arrival, so a window collected from another version cannot install merely because
 the original path has since been restored. Stamps follow symlinks to regular files

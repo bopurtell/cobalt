@@ -2,8 +2,8 @@
    motions on them, typed through the default bindings of a headless controller. *)
 
 open! Core
-open Ches_core
-open Ches_app
+open Cobalt_core
+open Cobalt_app
 
 let of_string_exn s =
   Text_buffer.of_string s
@@ -217,7 +217,7 @@ let create ?(line = 0) s =
 let run t keys =
   List.fold (Key_notation.keys keys) ~init:t ~f:(fun t input ->
     let t, views, _ = Controller.handle_input t input in
-    List.iter views ~f:(fun view -> print_s [%sexp View (view : Ches_input.View_command.t)]);
+    List.iter views ~f:(fun view -> print_s [%sexp View (view : Cobalt_input.View_command.t)]);
     t)
 ;;
 
@@ -232,10 +232,10 @@ let show_position t =
     (Editor.cursor_line editor)
     (Editor.cursor_column editor)
     (if Editor.is_dirty editor then " dirty" else "")
-    (match Ches_input.Keymap.pending keymap with
+    (match Cobalt_input.Keymap.pending keymap with
      | None -> ""
      | Some pending -> sprintf " pending=%S" pending)
-    (match Ches_input.Keymap.notice keymap with
+    (match Cobalt_input.Keymap.notice keymap with
      | None -> ""
      | Some notice -> sprintf " notice=%S" notice)
     (match Editor.message editor with

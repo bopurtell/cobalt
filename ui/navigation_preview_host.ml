@@ -1,6 +1,6 @@
 open! Core
 open! Async
-module Model = Ches_navigation_preview_model.Model
+module Model = Cobalt_navigation_preview_model.Model
 type pending = { request : Model.request; mutable ready : bool }
 type active =
   { cancelled : bool Atomic.t; finished : unit Ivar.t
@@ -14,7 +14,7 @@ type t =
   ; mutable wait_timer : (unit -> unit) option
   ; mutable change : unit Ivar.t; mutable stopped : bool }
 let equal_request (a : Model.request) (b : Model.request) =
-  a.generation = b.generation && Ches_error.Language_query.equal_target a.target b.target
+  a.generation = b.generation && Cobalt_error.Language_query.equal_target a.target b.target
 let notify t = let old = t.change in t.change <- Ivar.create (); Ivar.fill_if_empty old ()
 let snapshot t = t.snapshot
 let changed t = Ivar.read t.change

@@ -1,5 +1,5 @@
 open! Core
-open Ches_input
+open Cobalt_input
 
 let action_of_target : Bindings.Target.t -> Keymap.Action.t option = function
   | Editor command -> Some (Editor command)

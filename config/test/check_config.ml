@@ -1,6 +1,6 @@
 open Core
 open Async
-open Ches_config_runtime
+open Cobalt_config_runtime
 
 let () =
   let path = match Sys.get_argv () with

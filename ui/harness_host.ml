@@ -1,7 +1,7 @@
 open! Core
 open! Async
-module Protocol = Ches_harness.Protocol
-module Vcd = Ches_harness.Vcd
+module Protocol = Cobalt_harness.Protocol
+module Vcd = Cobalt_harness.Vcd
 
 type t = { mutable process : Process.t option; mutable stopped : bool }
 let create () = { process = None; stopped = false }
@@ -28,7 +28,7 @@ let executable () =
 
 let scratch language =
   let root = absolute (Option.value_or_thunk (env "QH_SCRATCH_ROOT")
-    ~default:(fun () -> Filename.concat (home ()) "scratch/ches")) in
+    ~default:(fun () -> Filename.concat (home ()) "scratch/cobalt")) in
   Core_unix.mkdir_p root;
   (* Reserve a unique container atomically. qh itself refuses an existing target. *)
   let container = Filename_unix.temp_dir ~in_dir:root ("qh-" ^ language ^ "-") "" in

@@ -2,9 +2,9 @@
 
 Public libraries:
 
-- `ches_terminal`, wrapped `Ches_terminal`, exposes `Model` (no Async dependency).
-- `ches_terminal_host`, wrapped `Ches_terminal_host`, exposes `Runtime`.
-- `ches_terminal_emulator` contains the libvterm adapter, independently testable
+- `cobalt_terminal`, wrapped `Cobalt_terminal`, exposes `Model` (no Async dependency).
+- `cobalt_terminal_host`, wrapped `Cobalt_terminal_host`, exposes `Runtime`.
+- `cobalt_terminal_emulator` contains the libvterm adapter, independently testable
   without a shell or scheduler. Frontends only need the first two libraries.
 
 `Model.mli` and `host/runtime.mli` define the frontend contract. Submit `Start`

@@ -1,8 +1,8 @@
-(** The history the Commits panel lists (phase 2; scopes, refs and the log popup in
-    phase 8), from a bounded [git log]. *)
+(** The history the Commits panel lists, including scopes, refs and the log popup,
+    from a bounded [git log]. *)
 
 open! Core
-open Ches_vcs
+open Cobalt_vcs
 
 module Commit : sig
   type t =
@@ -50,7 +50,7 @@ val command : cwd:string -> Log_scope.t -> Exec.Spec.t
     incomplete final record is dropped. *)
 val parse : cut:bool -> string -> Commit.t list Or_error.t
 
-(** {2 The log popup (phase 8)} *)
+(** {2 The log popup} *)
 
 (** Which log a popup action asks for. *)
 module Target : sig

@@ -1,7 +1,7 @@
 (** One external command a backend wants run, and what a runner hands back. A spec is
     data: an argument vector (never a shell string), extra environment, a working
     directory, and how the runner must treat it. Backends build specs; a runner
-    ([Ches_vcs_host.Runner]) executes them; backends parse the results. *)
+    ([Cobalt_vcs_host.Runner]) executes them; backends parse the results. *)
 
 open! Core
 
@@ -16,7 +16,7 @@ module Kind : sig
         one at a time, in submission order, and are never cancelled implicitly.
       - [Network] talks to a remote. Serialized with mutations (it may update refs and
         the work tree) and run with the runner's non-interactive authentication
-        environment; see [Ches_vcs_host.Auth]. *)
+        environment; see [Cobalt_vcs_host.Auth]. *)
   type t =
     | Read
     | Mutate
@@ -29,12 +29,12 @@ module Kind : sig
 end
 
 module Stdin : sig
-  (** The child's standard input. Never the terminal: Ches owns it.
+  (** The child's standard input. Never the terminal: Cobalt owns it.
 
       - [Null]: end of file at once (the runner closes the pipe immediately), as if
         from [/dev/null].
       - [Data text]: [text] is written, then the pipe is closed (e.g. a patch for
-        [git apply --cached] in phase 3). *)
+        [git apply --cached]). *)
   type t =
     | Null
     | Data of string
@@ -56,7 +56,7 @@ module Spec : sig
     ; env : (string * string) list
     (** Set over the inherited environment, later entries winning. The runner may
         still add or force entries for the kind (authentication); see
-        [Ches_vcs_host.Auth]. *)
+        [Cobalt_vcs_host.Auth]. *)
     ; kind : Kind.t
     ; stdin : Stdin.t
     ; timeout : Time_ns.Span.t option

@@ -1,5 +1,5 @@
 open! Core
-open Ches_screen
+open Cobalt_screen
 
 let show s =
   Array.iter (Cell_map.glyphs s) ~f:(fun { pos; col; width; text; kind } ->

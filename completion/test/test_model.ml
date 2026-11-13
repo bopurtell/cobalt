@@ -1,6 +1,6 @@
 open! Core
-open Ches_core
-open Ches_completion.Model
+open Cobalt_core
+open Cobalt_completion.Model
 
 let text s = Text_buffer.of_string s |> Result.ok |> Option.value_exn
 let token = { Token.resource = "/example.ml"; generation = 3; revision = 0; request = 1 }
@@ -25,7 +25,7 @@ let string = Text_buffer.to_string
 
 let%test_unit "missing words permit immediate providers; eventual words are exact and freeze" =
   let base = text "f foobar" in
-  let t, request = Ches_completion.Model.start ~token ~text:base ~cursor:1 ~limit:100 ()
+  let t, request = Cobalt_completion.Model.start ~token ~text:base ~cursor:1 ~limit:100 ()
       |> Option.value_exn in
   assert (List.is_empty (candidates t));
   let t = reply t [candidate "lsp" ~start:0 ~stop:1 "far"] in
@@ -42,12 +42,12 @@ let%test_unit "missing words permit immediate providers; eventual words are exac
 
 let%test_unit "local snippet preference reverses source priority and survives provider rebuilds" =
   let base = text "f foobar" in
-  let template = Ches_completion.Snippet.parse "${1:foo}$0" |> Or_error.ok_exn in
+  let template = Cobalt_completion.Snippet.parse "${1:foo}$0" |> Or_error.ok_exn in
   let local = { (candidate "local" ~start:0 ~stop:1 "foo") with
     source = Snippet; snippet = Some template; sort_text = "zzz" } in
   let lsp = candidate "lsp" ~start:0 ~stop:1 "far" in
   List.iter [true; false] ~f:(fun prefer_local_snippets ->
-    let t, _ = Ches_completion.Model.start ~prefer_local_snippets ~token ~text:base ~cursor:1
+    let t, _ = Cobalt_completion.Model.start ~prefer_local_snippets ~token ~text:base ~cursor:1
         ~words:(Buffer_words.create base) ~limit:100 () |> Option.value_exn in
     let t = receive t { token; source = "local"; candidates = [local]; incomplete = false } in
     let t = reply t [lsp] in
@@ -124,7 +124,7 @@ let%test_unit "invalid UTF boundaries, overlap and inserted cursor are rejected"
 ;;
 
 let%test_unit "snippet candidates require expanded primary text and preserve snippet identity" =
-  let snippet = Ches_completion.Snippet.parse "${1:foo}$0" |> Or_error.ok_exn in
+  let snippet = Cobalt_completion.Snippet.parse "${1:foo}$0" |> Or_error.ok_exn in
   let plain = candidate "plain" ~start:0 ~stop:1 "foo" in
   let bad = { plain with id = "bad"; primary = { plain.primary with text = "raw" }
                        ; snippet = Some snippet } in
@@ -231,6 +231,6 @@ let%test_unit "whole-buffer words, UTF prefix, lexical order regardless of proxi
       ~cursor:(Text_buffer.length base) ~limit:100 in
   assert (List.equal String.equal (List.map items ~f:(fun c -> c.Candidate.label))
     [ "alpha" ]);
-  assert (Option.is_none (Ches_completion.Model.start ~token ~text:base ~cursor:5000
+  assert (Option.is_none (Cobalt_completion.Model.start ~token ~text:base ~cursor:5000
       ~words:(Buffer_words.create base) ~limit:100 ()))
 ;;

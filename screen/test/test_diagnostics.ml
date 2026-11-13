@@ -1,5 +1,5 @@
 open! Core
-module Feedback = Ches_error.Error
+module Feedback = Cobalt_error.Error
 module Diagnostics = Feedback.Diagnostics
 
 let finding ?(severity = Feedback.Severity.Error) ?line message : Diagnostics.Finding.t =

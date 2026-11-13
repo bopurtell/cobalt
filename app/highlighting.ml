@@ -1,8 +1,8 @@
 open! Core
-open Ches_core
-open Ches_highlight
+open Cobalt_core
+open Cobalt_highlight
 
-module Provider = Ches_highlight_tree_sitter.Provider
+module Provider = Cobalt_highlight_tree_sitter.Provider
 
 module Policy = struct
   let max_bytes = 64 * 1024

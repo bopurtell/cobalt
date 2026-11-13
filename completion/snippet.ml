@@ -1,5 +1,5 @@
 open! Core
-open Ches_core
+open Cobalt_core
 module B = Text_buffer
 
 type range = { start : int; stop : int } [@@deriving sexp_of, equal, compare]

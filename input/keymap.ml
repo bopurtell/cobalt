@@ -1,6 +1,6 @@
-module Editor_command = Ches_core.Command
+module Editor_command = Cobalt_core.Command
 open! Core
-open Ches_core
+open Cobalt_core
 module Command = Editor_command
 
 module Input = struct
@@ -62,7 +62,7 @@ type t =
   ; escape_started : bool
   (** The previous input inserted the first character of [config.insert_escape]. *)
   ; notice : string option
-  ; find : (Ches_core.Motion.Find.direction * bool) option
+  ; find : (Cobalt_core.Motion.Find.direction * bool) option
   ; search_prompt : (bool * string) option
   }
 [@@deriving sexp_of]

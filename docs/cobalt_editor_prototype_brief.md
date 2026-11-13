@@ -1,4 +1,4 @@
-# Ches Editor Prototype Brief
+# Cobalt Editor Prototype Brief
 
 ## Goal
 
@@ -78,7 +78,7 @@ input
   |
   v
 +----------------------+
-|      ches_core        |
+|      cobalt_core        |
 |----------------------|
 | Buffer               |
 | Cursor               |
@@ -92,7 +92,7 @@ input
            |
            v
 +----------------------+
-|      ches_ui          |
+|      cobalt_ui          |
 |----------------------|
 | Bonsai               |
 | Bonsai_term          |
@@ -134,7 +134,7 @@ The editor should still avoid deeply coupling the text engine to Bonsai.
 Good boundary:
 
 ```text
-ches_core
+cobalt_core
   -> immutable / persistent logical editor state
   -> Bonsai UI derives visible state
   -> Bonsai_term renders it
@@ -405,10 +405,10 @@ A persistent buffer model may later allow undo to reference prior buffer states 
 # Suggested Project Layout
 
 ```text
-ches/
+cobalt/
 ├── dune-project
 ├── bin/
-│   └── ches.ml
+│   └── cobalt.ml
 │
 ├── core/
 │   ├── buffer.ml
@@ -462,7 +462,7 @@ The first demo should be intentionally small.
 
 - launch from terminal:
   ```bash
-  ches some_file.ml
+  cobalt some_file.ml
   ```
 
 - load a text file
@@ -582,7 +582,7 @@ Do not use Bonsai as the implementation of:
 - edit transactions
 - undo semantics
 
-Those belong in `ches_core`.
+Those belong in `cobalt_core`.
 
 Potential UI structure:
 
@@ -739,11 +739,11 @@ Bonsai creates an interesting path toward multiple frontends.
 Potential architecture:
 
 ```text
-                 ches_core
+                 cobalt_core
                     |
              shared editor model
                     |
-               ches_bonsai
+               cobalt_bonsai
                 /     \
                /       \
       Bonsai_term    Bonsai_web
@@ -826,7 +826,7 @@ I/O such as saving should be represented explicitly as effects/actions where pra
 
 ## UI Independence
 
-`ches_core` should compile and test without Bonsai_term.
+`cobalt_core` should compile and test without Bonsai_term.
 
 ---
 
@@ -870,7 +870,7 @@ terminal output buffers
 
 # Agent Implementation Request
 
-Build a minimal working prototype called **Ches**.
+Build a minimal working prototype called **Cobalt**.
 
 Prioritize correctness and clean architecture over feature count.
 
@@ -885,7 +885,7 @@ The first milestone should:
 7. save
 8. quit
 9. show mode/file/line/column in a status bar
-10. keep all editor semantics in a UI-independent `ches_core`
+10. keep all editor semantics in a UI-independent `cobalt_core`
 
 Do not implement LSP, Tree-sitter, plugins, multiple panes, Git, or an embedded terminal yet.
 

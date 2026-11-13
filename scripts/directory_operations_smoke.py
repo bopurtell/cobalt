@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Phase-8 terminal copy/delete/recover/move checks, isolated fixture only."""
+"""Terminal copy/delete/recover/move checks, isolated fixture only."""
 import fcntl
 import os
 import pty
@@ -15,10 +15,10 @@ from pathlib import Path
 
 def main():
     executable = Path(sys.argv[1] if len(sys.argv) > 1 else
-                        Path(__file__).resolve().parents[1] / "_build/default/bin/ches.exe").resolve()
+                        Path(__file__).resolve().parents[1] / "_build/default/bin/cobalt.exe").resolve()
     # Under /tmp whatever TMPDIR is: checks match messages that show this path on
     # a fixed-width screen, so it must stay short.
-    root = Path(tempfile.mkdtemp(prefix="directory-phase8-pty-", dir="/tmp"))
+    root = Path(tempfile.mkdtemp(prefix="directory-operations-pty-", dir="/tmp"))
     (root / "a").write_text("original\n")
     (root / "zdir").mkdir()
     master, slave = pty.openpty()
@@ -66,11 +66,11 @@ def main():
         assert (root / "copy").read_text() == "original\n"
         send(b" q")
         assert proc.wait(timeout=5) == 0
-        assert not list(root.rglob(".ches-*"))
+        assert not list(root.rglob(".cobalt-*"))
         print("PASS: explicit copy/delete, missing-save refusal, palette recovery, cross-directory move and next-save")
         print("Fixture:", root)
     finally:
-        Path("/tmp/directory-phase8-pty.log").write_bytes(capture)
+        Path("/tmp/directory-operations-pty.log").write_bytes(capture)
         if proc.poll() is None:
             proc.terminate()
             proc.wait(timeout=5)

@@ -8,7 +8,7 @@ Status: phases 0–9 implemented; final integration checks recorded below. Scope
 
 ## Goal
 
-Give Ches an Oil/Dired-style filesystem editing surface, backed by ordinary text
+Give Cobalt an Oil/Dired-style filesystem editing surface, backed by ordinary text
 editing, with persistent open file buffers and tabs. Support directory browsing in
 either the major editor tile or a minor side tile, and opening files individually,
 from a visual selection, or from a non-contiguous marked set.
@@ -18,7 +18,7 @@ and UI; “Oil” describes the interaction inspiration rather than a dependency
 
 ## Agreed interaction model
 
-- `ches .` opens the current directory. File arguments retain their existing meaning.
+- `cobalt .` opens the current directory. File arguments retain their existing meaning.
 - `Space o` from a file opens its parent directory and selects that file.
 - `Space o` from the directory returns to the previously active file, if one exists.
 - `Enter` on a file opens it in the target editor group, reusing its existing tab.
@@ -38,7 +38,7 @@ and UI; “Oil” describes the interaction inspiration rather than a dependency
 Example:
 
 ```text
-ches . → directory buffer
+cobalt . → directory buffer
 Enter on main.ml → [main.ml]
 Space o → directory buffer, main.ml selected
 Enter on config.ml → [main.ml] [config.ml]
@@ -62,7 +62,7 @@ These are recommendations, not additional user-approved keybindings or policies.
   opens its existing backing path until commit; a new row requires saving first.
 - Closing the last file shows the remembered directory, or the startup directory.
 - Closing a modified buffer and quitting a modified session require explicit handling
-  through Ches's command/feedback conventions. Quit checks hidden directory buffers too.
+  through Cobalt's command/feedback conventions. Quit checks hidden directory buffers too.
 - After successful directory save, refresh the baseline and start a fresh text undo
   history. Filesystem undo is a future feature, not an implication of ordinary `u`.
 - Initially retain visited directory buffers for the session. Eviction is future work;
@@ -199,7 +199,7 @@ Acceptance:
 Dependencies: phases 0–2.
 
 Tasks:
-- Add typed startup handling for files/directories; make `ches .` work.
+- Add typed startup handling for files/directories; make `cobalt .` work.
 - Load baseline directory entries into a buffer-backed, initially read-only surface.
 - Render directory path, entry kinds, and an empty-directory state. Define sorting and
   hidden-file display consistently; keep path/header decoration outside editable rows.
@@ -210,7 +210,7 @@ Tasks:
 - Report unreadable directories and unsupported files without destroying the current view.
 
 Acceptance:
-- The complete `ches .` → A → `Space o` → B workflow works with A and B in tabs.
+- The complete `cobalt .` → A → `Space o` → B workflow works with A and B in tabs.
 - Navigating up/down restores the expected entry and viewport.
 - `Space o` with no previous file is well-defined and harmless.
 - Returning from directory presentation restores the previous file's cursor/scroll.
@@ -407,7 +407,7 @@ Next-phase integration notes:
   and give genuinely new/external replacement entries new IDs.
 - Chosen mechanism: explicit identity tokens, protected **by validation**, rather
   than edit-tracked invisible metadata. Existing row syntax is
-  `@ches[ID]<TAB>ENCODED_NAME`, with `/` after directory names only. Tokens are ordinary
+  `@cobalt[ID]<TAB>ENCODED_NAME`, with `/` after directory names only. Tokens are ordinary
   visible text in this spike and travel with yank/paste, multiline replacement, and
   the editor's existing undo snapshots. Rendering may style them as a muted prefix
   later, but must not hide a row-number map and claim it is identity. Headers, kind
@@ -569,7 +569,7 @@ Next-phase integration notes:
   per buffer until reuse exists), handle URI alias mapping without merging lexical
   buffers, and never reinterpret a late version against a different document. The
   frontend's single `?source`/`Source.stop` wiring in `ui/editor_view.ml` and source
-  startup in `bin/ches.ml` must become session lifecycle wiring as well.
+  startup in `bin/cobalt.ml` must become session lifecycle wiring as well.
 - `tile/host.mli` already owns focus, capture prefix and paste start owner by `View_id`.
   The document view ID stays constant across file tabs, so paste ownership must also
   capture the starting **buffer ID/context generation**: tab change/close during paste
@@ -583,7 +583,7 @@ Next-phase integration notes:
   Real side placement waits for phase 5. `Ui_state.view_layout`/`view_available` have
   explicit floating-layer parameters from floating phase 1; preserve that seam.
   `docs/plans/floating_tiles.md` currently has only phase 1 implemented; no shared screen
-  modules were changed here. `bin/ches.ml` has one required PATH and calls
+  modules were changed here. `bin/cobalt.ml` has one required PATH and calls
   `Controller.open_file`; `File_io.read` rejects directories. Typed file/directory
   startup belongs to phase 3, not this spike. No additional CLI syntax chosen.
 
@@ -621,7 +621,7 @@ Next-phase integration notes:
 
 #### Implemented behavior
 
-- Added `Ches_app.Session`: session-local abstract `Buffer_id`/`Group_id`, an actual
+- Added `Cobalt_app.Session`: session-local abstract `Buffer_id`/`Group_id`, an actual
   lexical-resource index, ordered persistent file controllers, one editor group,
   open-or-activate, addressed activation/close, explicit force-close, save-current,
   save-all and guarded/forced session quit. Failed opens preserve the presentation;
@@ -654,7 +654,7 @@ Next-phase integration notes:
 #### Changed modules and public contracts
 
 - New `app/session.ml` / `.mli`, `app/buffer_id`, `app/group_id`, and `core/resource`
-  (re-exported as `Ches_app.Resource`). Resource normalization is the phase-0 lexical
+  (re-exported as `Cobalt_app.Resource`). Resource normalization is the phase-0 lexical
   absolute policy, used for actual file IO too. Symlink aliases remain distinct.
 - `core/editor`: narrow `with_path` and effect-only `request_save` APIs, preserving
   text/history/cursor; filesystem IO remains in the controller. `app/controller`:
@@ -679,7 +679,7 @@ Next-phase integration notes:
   use lexical normalization (no realpath alias merging); LSP saves and closes are
   resource-addressed, and close clears its document/revision-text state. Synthetic
   close invalidates pending timers. Event-queue coalescing respects owner lifetime.
-  `bin/ches` creates the source manager; `ui/editor_view` disposes session highlights
+  `bin/cobalt` creates the source manager; `ui/editor_view` disposes session highlights
   and all diagnostic drivers on exit/deactivation, including shutdown without keys.
 
 #### Policy decisions and scope
@@ -713,7 +713,7 @@ Next-phase integration notes:
   unknown diagnostic revisions, held-list release, late close/reopen events, round-trip
   paste invalidation, addressed source saves and runtime cleanup. Earlier tests pass;
   only intentional named-quit feedback and initial source-open expectations changed.
-- PTY smoke of `_build/default/bin/ches.exe --no-lsp TEMP/a.txt`: passed startup,
+- PTY smoke of `_build/default/bin/cobalt.exe --no-lsp TEMP/a.txt`: passed startup,
   Insert editing, dirty `Space q` refusal without implicit save, `Space w` disk write,
   and clean `Space q` exit (status 0), using an isolated `/tmp/opencode` fixture.
 - `opam exec --switch=5.2.0+ox -- dune runtest`: still fails only on the documented
@@ -802,7 +802,7 @@ Next-phase integration notes:
   last-file fallback/reopen, deterministic overflow/dirty markers, exact span widths,
   zen/strip visibility, offset allocations and exhaustive small terminal geometry.
   Earlier session, diagnostic, paste and highlight lifetime tests also pass.
-- PTY smoke of `_build/default/bin/ches.exe --no-lsp TEMP/file.txt`: passed Insert
+- PTY smoke of `_build/default/bin/cobalt.exe --no-lsp TEMP/file.txt`: passed Insert
   editing, dirty `Space b c` refusal, `Space b C` returning to no-file with a directory
   target, explicit SIGWINCH resize to 8x2 and restoration to 80x16, then clean no-file
   `Space q` exit (0). The discarded edit never reached disk. Capture:
@@ -839,7 +839,7 @@ Next-phase integration notes:
 
 #### Implemented behavior
 
-- `ches .` and other directory PATHs start a read-only, buffer-backed major directory
+- `cobalt .` and other directory PATHs start a read-only, buffer-backed major directory
   presentation with zero file tabs. `Startup` classifies normalized paths and checks
   readability; `Controller.Kind` carries explicit file/directory startup identity
   rather than guessing from arbitrary text-controller paths. Missing file arguments
@@ -887,7 +887,7 @@ Next-phase integration notes:
   controller, monotonic next-entry ID and lstat fingerprints. No screen/tile types or
   filesystem mutation depend on its placement.
 - New `app/startup.ml` / `.mli`, `Controller.Kind` and optional `Controller.create
-  ~kind`: explicit file/directory classification before frontend startup. `bin/ches`
+  ~kind`: explicit file/directory classification before frontend startup. `bin/cobalt`
   uses it and mentions the phase-3 navigation keys in CLI help.
 - `app/session`: retained directory ownership, `show_directory`, `directory_buffer`,
   `context_id`, `has_buffer` and typed `find_resource_buffer`. Existing `buffers`,
@@ -1254,7 +1254,7 @@ Next-phase integration notes:
   include dangling symlinks. Normal refresh retains entry IDs by device/inode/kind,
   not mutable file size/times; recheck fingerprints are refreshed separately.
 - Every rename source is first staged to a collision-checked immediate-child
-  `.ches-stage-PID-counter` name, then placed at its final destination. This handles
+  `.cobalt-stage-PID-counter` name, then placed at its final destination. This handles
   dependencies, swaps and longer cycles, including creation into a vacated source
   name. Staging skips disk occupants, desired row names, and open/cached resource
   paths. New files use `O_CREAT|O_EXCL`; new directories use `mkdir`. Creation modes
@@ -1380,13 +1380,13 @@ Next-phase integration notes:
   an addressed, exclusive application API for recovery to a different path, reindexes
   the same buffer and refreshes its clean destination listing. There is no interactive
   path-prompt/save-as palette command in this phase; recreate is the user-facing action.
-- **Copied-row semantics are deliberate:** yank/paste of an unchanged `@ches[ID]`
+- **Copied-row semantics are deliberate:** yank/paste of an unchanged `@cobalt[ID]`
   still rejects duplicate identities. Change the copied token to `@copy[ID]`, keep
   its TAB separator/kind suffix, and give it a distinct destination. The ID refers
   to that directory baseline's original backing entry, not edited source text or
   another directory's ID. Multiple explicit copies from one source are allowed.
   Copy rows have no open/markable backing identity until committed. Retaining the
-  original `@ches[ID]` keeps the source; omitting it proposes copy **and permanent
+  original `@cobalt[ID]` keeps the source; omitting it proposes copy **and permanent
   delete**. Copies always read disk, not unsaved text in an open file tab.
 - Existing/copy destinations accept relative (`../other/name`, `sub/name`) or absolute
   (`/absolute/name`) lexical paths; slash separates individually byte-encoded components.
@@ -1412,7 +1412,7 @@ Next-phase integration notes:
   set-ID/sticky bits, ownership, timestamps, ACLs, xattrs, sparseness and hard-link
   relationships are not preserved. New ownership is the copying process's; hard-linked
   files become separate byte copies. No filesystem snapshot consistency is promised.
-- Copies are built in an owned `.ches-copy-*` temporary tree **at the destination**,
+- Copies are built in an owned `.cobalt-copy-*` temporary tree **at the destination**,
   then published by no-overwrite rename. They may cross devices because they do not
   move the source. A copy IO/publication failure cleans only its owned private tree;
   previously published copies remain journaled and are not replayed. Destination
@@ -1579,14 +1579,14 @@ Next-phase integration notes:
   cross-directory saves, dirty descendant next-save paths, text-undo boundaries,
   invalid-plan zero mutation, no ordinary leftover private/staging paths and clean
   exit status 0. No human visual sign-off is claimed.
-- CLI `_build/default/bin/ches.exe -help`: passed; output reflects editable directory
+- CLI `_build/default/bin/cobalt.exe -help`: passed; output reflects editable directory
   policy and destructive save behavior. `git diff --check`: passed.
 - `TMPDIR=/tmp/opencode scripts/smoke.sh`: passed all checks (exit 0), including
   editing, save/reload/dirty recovery, startup default tiles, tiny resizes, palette,
   synthetic and fake LSP diagnostics/crash/restart, no surviving language server,
   SIGTERM/SIGHUP/error exits and terminal modes/cursor restoration. Final log:
   `/tmp/opencode/directory-phase9-terminal-pass.log`; review captures:
-  `/tmp/opencode/ches-smoke-screens.psOLHY`. Initial runs identified stale relative-
+  `/tmp/opencode/cobalt-smoke-screens.psOLHY`. Initial runs identified stale relative-
   path/source-name/startup assertions and clipping, not hidden feature failures;
   they were investigated and corrected as described above. `bash -n scripts/smoke.sh`
   also passed. Final post-Tab-fix directory PTY run passed:

@@ -1,5 +1,5 @@
 open! Core
-open Ches_file_picker
+open Cobalt_file_picker
 module I = Interaction
 module M = Model
 

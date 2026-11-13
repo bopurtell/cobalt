@@ -1,14 +1,14 @@
-(* Phase 4 end to end: line selections applied by git in fixture repositories. First an
+(* End-to-end line selections applied by git in fixture repositories. First an
    exhaustive check of Patch.hunks against an independent model, every subset of a file's
    changed lines, forward and reversed; then Backend.plan for Lines targets, printing the
    decisions, running them and showing the index and work tree. *)
 
 open! Core
-open Ches_vcs
-module Fixture = Ches_vcs_fixture.Fixture_repo
-module Git = Ches_vcs_git
-module B = Ches_vcs_git.Backend
-module Patch = Ches_vcs_git.Patch
+open Cobalt_vcs
+module Fixture = Cobalt_vcs_fixture.Fixture_repo
+module Git = Cobalt_vcs_git
+module B = Cobalt_vcs_git.Backend
+module Patch = Cobalt_vcs_git.Patch
 open Test_plan
 
 (* {2 Patch.hunks against a model} *)
@@ -679,7 +679,7 @@ let%expect_test "line refusals and texts" =
     let a = lines t s (Unstaged [ "a.txt" ]) ~path:"a.txt" in
     let staged = lines t s (Staged [ "s.txt" ]) ~path:"s.txt" in
     let untracked = lines t s (Untracked "new.txt") ~path:"new.txt" [ 0, [ 0 ] ] in
-    let decide action = ignore (decide s action : Ches_vcs.Backend.Plan.t option) in
+    let decide action = ignore (decide s action : Cobalt_vcs.Backend.Plan.t option) in
     print_endline "-- untracked";
     decide (Stage untracked);
     decide (Unstage untracked);
@@ -710,7 +710,7 @@ let%expect_test "line refusals and texts" =
     print_endline "-- no longer listed (staged meanwhile)";
     let stale = a [ 0, [ 1 ] ] in
     git t [ "add"; "a.txt" ];
-    ignore (Test_plan.decide (snapshot t) (Stage stale) : Ches_vcs.Backend.Plan.t option));
+    ignore (Test_plan.decide (snapshot t) (Stage stale) : Cobalt_vcs.Backend.Plan.t option));
   [%expect
     {|
     -- untracked
@@ -788,7 +788,7 @@ let%expect_test "conflicted files have no line actions" =
       B.Target.Lines { section = Conflicted; file; hunks = [ 0, Lines [ 0 ] ] }
     in
     List.iter [ B.Stage target; Unstage target; Discard target ] ~f:(fun action ->
-      ignore (decide s action : Ches_vcs.Backend.Plan.t option)));
+      ignore (decide s action : Cobalt_vcs.Backend.Plan.t option)));
   [%expect
     {|
     refused: Resolve conflicts in the editor: Enter opens the file at the conflict, Space x u, l, a or b keeps a side; nothing ran

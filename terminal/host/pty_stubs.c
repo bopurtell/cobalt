@@ -76,11 +76,11 @@ static void finalize(value v) {
   }
 }
 static struct custom_operations ops = {
-  "ches.pty.linux", finalize, custom_compare_default, custom_hash_default,
+  "cobalt.pty.linux", finalize, custom_compare_default, custom_hash_default,
   custom_serialize_default, custom_deserialize_default,
   custom_compare_ext_default, custom_fixed_length_default
 };
-CAMLprim value ches_pty_spawn(value cwd, value rows, value cols) {
+CAMLprim value cobalt_pty_spawn(value cwd, value rows, value cols) {
   CAMLparam3(cwd, rows, cols); CAMLlocal1(v);
   if (memchr(String_val(cwd), 0, caml_string_length(cwd)))
     caml_invalid_argument("terminal cwd contains NUL");
@@ -119,12 +119,12 @@ CAMLprim value ches_pty_spawn(value cwd, value rows, value cols) {
 #endif
       for (int i = 3; i < 65536; i++) close(i);
     if (chdir(directory) < 0) {
-      const char msg[] = "ches terminal: cannot change directory\r\n";
+      const char msg[] = "cobalt terminal: cannot change directory\r\n";
       (void)!write(2, msg, sizeof(msg)-1); _exit(126);
     }
     execve(shell, argv, env);
     execve("/bin/sh", fallback, env);
-    const char msg[] = "ches terminal: cannot exec shell\r\n";
+    const char msg[] = "cobalt terminal: cannot exec shell\r\n";
     (void)!write(2, msg, sizeof(msg)-1); _exit(127);
   }
   free(shell); free(directory); free(env);
@@ -137,7 +137,7 @@ CAMLprim value ches_pty_spawn(value cwd, value rows, value cols) {
   }
   CAMLreturn(v);
 }
-CAMLprim value ches_pty_read(value v) {
+CAMLprim value cobalt_pty_read(value v) {
   CAMLparam1(v); CAMLlocal2(s, some);
   Pty *p = PTY(v); char buf[16384]; ssize_t n = 0;
   if (p->fd >= 0) {
@@ -149,7 +149,7 @@ CAMLprim value ches_pty_read(value v) {
   s = caml_alloc_initialized_string(n, buf);
   some = caml_alloc(1, 0); Store_field(some, 0, s); CAMLreturn(some);
 }
-CAMLprim value ches_pty_write(value v, value data, value offset) {
+CAMLprim value cobalt_pty_write(value v, value data, value offset) {
   CAMLparam3(v, data, offset);
   Pty *p = PTY(v); intnat pos = Long_val(offset);
   size_t len = caml_string_length(data);
@@ -162,14 +162,14 @@ CAMLprim value ches_pty_write(value v, value data, value offset) {
   if (n < 0) fail("write PTY");
   CAMLreturn(Val_int(n));
 }
-CAMLprim value ches_pty_resize(value v, value rows, value cols) {
+CAMLprim value cobalt_pty_resize(value v, value rows, value cols) {
   CAMLparam3(v, rows, cols);
   struct winsize ws = { .ws_row = Int_val(rows), .ws_col = Int_val(cols) };
   if (PTY(v)->fd < 0) caml_failwith("resize closed PTY");
   if (ioctl(PTY(v)->fd, TIOCSWINSZ, &ws) < 0) fail("resize PTY");
   CAMLreturn(Val_unit);
 }
-CAMLprim value ches_pty_poll_exit(value v) {
+CAMLprim value cobalt_pty_poll_exit(value v) {
   CAMLparam1(v); CAMLlocal2(s, some);
   Pty *p = PTY(v);
   if (!p->reaped) {
@@ -203,12 +203,12 @@ CAMLprim value ches_pty_poll_exit(value v) {
   s = caml_copy_string(buf); some = caml_alloc(1, 0);
   Store_field(some, 0, s); CAMLreturn(some);
 }
-CAMLprim value ches_pty_signal(value v, value force) {
+CAMLprim value cobalt_pty_signal(value v, value force) {
   CAMLparam2(v, force);
   if (Bool_val(force) && !PTY(v)->reaped) kill_session(PTY(v));
   signal_group(PTY(v), Bool_val(force) ? SIGKILL : SIGHUP);
   CAMLreturn(Val_unit);
 }
-CAMLprim value ches_pty_close(value v) {
+CAMLprim value cobalt_pty_close(value v) {
   CAMLparam1(v); close_fd(PTY(v)); CAMLreturn(Val_unit);
 }

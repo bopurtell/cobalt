@@ -1,16 +1,16 @@
 open! Core
 open! Async
-open Ches_source
-module U = Ches_screen.Ui_state
-module Model = Ches_completion.Model
-module Editor = Ches_core.Editor
-module Controller = Ches_app.Controller
+open Cobalt_source
+module U = Cobalt_screen.Ui_state
+module Model = Cobalt_completion.Model
+module Editor = Cobalt_core.Editor
+module Controller = Cobalt_app.Controller
 
-let text ui = Ches_core.Text_buffer.to_string (Editor.text (Controller.editor (U.controller ui)))
+let text ui = Cobalt_core.Text_buffer.to_string (Editor.text (Controller.editor (U.controller ui)))
 let revision ui = Editor.revision (Controller.editor (U.controller ui))
 let apply ui inputs = fst (U.apply_all ui ~width:60 ~height:12 inputs)
 let key ui key = apply ui [Key key]
-let chars ui s = String.fold s ~init:ui ~f:(fun ui c -> key ui (Ches_input.Key.Char (Uchar.of_char c)))
+let chars ui s = String.fold s ~init:ui ~f:(fun ui c -> key ui (Cobalt_input.Key.Char (Uchar.of_char c)))
 
 let flush source ui =
   let ui, requests = U.take_source_requests ui in
@@ -27,7 +27,7 @@ let rec pump source ui ~until =
 
 let rec diagnostics source =
   let rec is_diagnostic = function
-    | Ches_error.Source_event.Diagnostics _ -> true
+    | Cobalt_error.Source_event.Diagnostics _ -> true
     | Owned { event; _ } -> is_diagnostic event
     | _ -> false in
   match%bind Clock_ns.with_timeout (Time_ns.Span.of_int_sec 3) (Source.next_batch source) with
@@ -36,7 +36,7 @@ let rec diagnostics source =
 ;;
 
 let with_root f =
-  let root = Filename_unix.realpath (Filename_unix.temp_dir "ches-completion-screen" "") in
+  let root = Filename_unix.realpath (Filename_unix.temp_dir "cobalt-completion-screen" "") in
   Monitor.protect (fun () -> f root)
     ~finally:(fun () -> Process.run ~prog:"rm" ~args:["-rf"; root] () >>| ignore)
 ;;
@@ -46,14 +46,14 @@ let start root args =
     prog = Filename.concat (Core_unix.getcwd ()) "../fake_lsp/fake_lsp.exe";
     args = "-next-completion" :: args } in
   let source = Lsp_client.start ~config ~cell_width:(fun _ -> 1) ~root () in
-  let buffer = Ches_core.Text_buffer.of_string "\nSuffix" |> Result.ok |> Option.value_exn in
+  let buffer = Cobalt_core.Text_buffer.of_string "\nSuffix" |> Result.ok |> Option.value_exn in
   let ui = U.create ~tiles_visible:false ~source_attached:true
     (Controller.create (Editor.create ~path:(Filename.concat root "a.ml") ~cell_width:(fun _ -> 1) buffer)) in
   let ui, _ = flush source ui in
   let%bind () = diagnostics source in
   let ui = chars ui "jifo" in
   let ui, requests = flush source ui in
-  let query = List.find_map_exn requests ~f:(function Ches_error.Source_request.Complete query -> Some query | _ -> None) in
+  let query = List.find_map_exn requests ~f:(function Cobalt_error.Source_request.Complete query -> Some query | _ -> None) in
   let%map ui = pump source ui ~until:(fun ui -> Option.is_some (U.completion_info ui)) in
   source, ui, query
 ;;

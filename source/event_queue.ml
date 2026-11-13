@@ -1,5 +1,5 @@
 open! Core
-module Source_event = Ches_error.Source_event
+module Source_event = Cobalt_error.Source_event
 
 type t =
   { newest_first : Source_event.t list

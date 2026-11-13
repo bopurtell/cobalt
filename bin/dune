@@ -1,7 +1,7 @@
 (executable
- (name ches)
- (public_name ches)
- (libraries ches_app ches_screen ches_source ches_ui core async core_unix core_unix.command_unix
+ (name cobalt)
+ (public_name cobalt)
+ (libraries cobalt_app cobalt_screen cobalt_source cobalt_ui core async core_unix core_unix.command_unix
   core_unix.filename_unix)
  (preprocess
   (pps ppx_jane)))
@@ -9,9 +9,9 @@
 (rule
  (alias runtest)
  (deps test_configuration_cli.py)
- (action (run python3 %{dep:test_configuration_cli.py} %{exe:ches.exe})))
+ (action (run python3 %{dep:test_configuration_cli.py} %{exe:cobalt.exe})))
 
 (rule
  (alias runtest)
  (deps test_harness_cli.py)
- (action (run python3 %{dep:test_harness_cli.py} %{exe:ches.exe})))
+ (action (run python3 %{dep:test_harness_cli.py} %{exe:cobalt.exe})))

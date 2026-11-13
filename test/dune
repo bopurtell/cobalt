@@ -1,13 +1,13 @@
-; Core, input, and app tests. Must not depend on ches_ui or any terminal library.
+; Core, input, and app tests. Must not depend on cobalt_ui or any terminal library.
 
 (library
- (name ches_core_test)
+ (name cobalt_core_test)
  (libraries
-  ches_app
-  ches_core
-   ches_input
-   ches_highlight
-   ches_highlight_tree_sitter
+  cobalt_app
+  cobalt_core
+   cobalt_input
+   cobalt_highlight
+   cobalt_highlight_tree_sitter
   core
   core_unix
   core_unix.filename_unix

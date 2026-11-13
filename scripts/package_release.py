@@ -253,7 +253,7 @@ def output_directory(path, root):
 
 def staged_binary(binary, stage, strip_enabled):
     """Always copy, never hard-link: strip may rewrite or replace its input."""
-    shipped = stage / "ches"
+    shipped = stage / "cobalt"
     input_hash = digest(binary)
     shutil.copyfile(binary, shipped)
     shipped.chmod(0o755)
@@ -286,10 +286,10 @@ def package(args):
     version = version_string(args.version, commit, dirty, epoch)
     if not 1 <= args.jobs <= 20:
         raise ValueError("--jobs must be in 1..20 (default 6)")
-    if not args.no_build and args.binary.resolve() != root / "_build/default/bin/ches.exe":
+    if not args.no_build and args.binary.resolve() != root / "_build/default/bin/cobalt.exe":
         raise ValueError("a custom --binary requires --no-build")
     if not args.no_build:
-        subprocess.run(["opam", "exec", "--", "dune", "build", "-j", str(args.jobs), "bin/ches.exe"],
+        subprocess.run(["opam", "exec", "--", "dune", "build", "-j", str(args.jobs), "bin/cobalt.exe"],
                        cwd=root, check=True)
     binary = args.binary.resolve()
     if not binary.is_file():
@@ -297,13 +297,13 @@ def package(args):
     elf = elf_info(binary)
     prefix = Path(run(["opam", "var", "prefix"])).resolve()
     packages = inventory(prefix)
-    stem = f"ches-{version}-linux-{elf['architecture']}"
-    source_name = f"ches-{version}-source.tar.gz"
+    stem = f"cobalt-{version}-linux-{elf['architecture']}"
+    source_name = f"cobalt-{version}-source.tar.gz"
     artifact_names = [stem + ".tar.gz", source_name, stem + ".manifest.json", stem + ".sha256"]
     if out.exists() and any((out / n).exists() or (out / n).is_symlink() for n in artifact_names):
         raise ValueError("artifacts already exist; choose a fresh output directory/version (never overwritten)")
     sources = source_paths(root, args.include_source)
-    source_entries = [(f"ches-{version}-source/" + str(p.relative_to(root)), p,
+    source_entries = [(f"cobalt-{version}-source/" + str(p.relative_to(root)), p,
                        bool(p.stat().st_mode & stat.S_IXUSR)) for p in sources]
     source_inventory = checksums([(str(p.relative_to(root)), p, False) for p in sources])
     dependency_sources = []
@@ -318,7 +318,7 @@ def package(args):
         raise ValueError("duplicate dependency-source basenames")
     license_entries = notices(root, prefix, packages, args.extra_notices)
     manifest = {
-        "schema_version": 1, "name": "ches", "version": version,
+        "schema_version": 1, "name": "cobalt", "version": version,
         "git_commit": commit, "working_tree_dirty": dirty, "source_date_epoch": epoch,
         "build": {"performed": not args.no_build, "jobs": args.jobs,
                   "binary_source_association": "not attested" if args.no_build else "built from this working tree",
@@ -338,7 +338,7 @@ def package(args):
     }
     # Verify the parent before creation, then stage privately on the same filesystem.
     out.mkdir(exist_ok=True)
-    with tempfile.TemporaryDirectory(prefix=".ches-package-", dir=out) as temp:
+    with tempfile.TemporaryDirectory(prefix=".cobalt-package-", dir=out) as temp:
         stage = Path(temp)
         shipped, input_hash, strip_metadata = staged_binary(binary, stage, args.strip)
         shipped_elf = elf_info(shipped)
@@ -355,14 +355,14 @@ def package(args):
                                                 "sha256": digest(p)} for name, p in sorted(resolved.items())]})
         archive(stage / source_name, source_entries, epoch)
         manifest["source"]["sha256"] = digest(stage / source_name)
-        entries = [("bin/ches", shipped, True)]
+        entries = [("bin/cobalt", shipped, True)]
         if bundles:
-            entries = [("libexec/ches", shipped, True)]
+            entries = [("libexec/cobalt", shipped, True)]
             launcher = ("#!/bin/sh\nset -eu\n"
                         'base=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)\n'
                         'export LD_LIBRARY_PATH="$base/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"\n'
-                        'exec "$base/libexec/ches" "$@"\n').encode()
-            entries.append(("bin/ches", launcher, True))
+                        'exec "$base/libexec/cobalt" "$@"\n').encode()
+            entries.append(("bin/cobalt", launcher, True))
             entries.extend(("lib/" + name, p, False) for name, p in bundles.items())
             # Include transitive bundled objects' glibc requirements, too.
             for p in bundles.values():
@@ -406,7 +406,7 @@ def main():
     parser.add_argument("--output", type=Path, default=ROOT / "dist")
     parser.add_argument("--jobs", "-j", type=int, default=6, help="Dune workers, 1..20 (default 6)")
     parser.add_argument("--no-build", action="store_true", help="package existing executable; source association is not attested")
-    parser.add_argument("--binary", type=Path, default=ROOT / "_build/default/bin/ches.exe")
+    parser.add_argument("--binary", type=Path, default=ROOT / "_build/default/bin/cobalt.exe")
     parser.add_argument("--strip", action="store_true", help="GNU strip symbols from a private copy only; preserve the build executable")
     parser.add_argument("--include-source", action="append", default=[], metavar="RELATIVE_PATH")
     parser.add_argument("--bundle-library", action="append", default=[], metavar="SONAME=PATH")

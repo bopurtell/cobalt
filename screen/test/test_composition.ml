@@ -1,5 +1,5 @@
 open! Core
-open Ches_screen
+open Cobalt_screen
 
 let row style text = Span.of_text text ~style ~special:style
 let text spans = String.concat (List.map spans ~f:(fun (span : Span.t) -> span.text))
@@ -95,7 +95,7 @@ let%test_unit "synthetic shell overlays a complete workspace without mutating al
   let workspace = Ui_state.workspace ui ~width ~height in
   let base = Frame.render ui ~width ~height in
   let layout = Tile_shell.layout Tile_shell.Policy.minor (rect 17 4 30 8) in
-  let layer = synthetic (Ches_tile.View_id.of_string "synthetic") layout in
+  let layer = synthetic (Cobalt_tile.View_id.of_string "synthetic") layout in
   let frame = Frame.render ~floating:layer ui ~width ~height in
   let shell = Tile_shell.render layout ~focused:false layer.content in
   List.iteri frame.rows ~f:(fun y actual ->
@@ -136,7 +136,7 @@ let%test_unit "focused capture owns a content-relative cursor and suppresses doc
 let%test_unit "shell layers clip on all terminal edges, including empty frames" =
   let ui = Helpers.ui "界́abc" in
   List.iter [ rect (-5) (-2) 20 8; rect 35 6 20 8; rect 60 30 20 8 ] ~f:(fun outer ->
-    let layer = synthetic (Ches_tile.View_id.of_string "synthetic")
+    let layer = synthetic (Cobalt_tile.View_id.of_string "synthetic")
         (Tile_shell.layout Tile_shell.Policy.minor outer) in
     List.iter [ 40, 10; 0, 0; 0, 10; 40, 0 ] ~f:(fun (width, height) ->
       let frame = Frame.render ~floating:layer ui ~width ~height in
@@ -148,7 +148,7 @@ let%test_unit "an unfocused opaque shell also occludes the document cursor" =
   let ui = Helpers.ui "first" in
   let base = Frame.render ui ~width:40 ~height:10 in
   let cursor = Option.value_exn base.cursor in
-  let layer = synthetic (Ches_tile.View_id.of_string "synthetic")
+  let layer = synthetic (Cobalt_tile.View_id.of_string "synthetic")
       (Tile_shell.layout Tile_shell.Policy.minor (rect 0 0 40 10)) in
   assert (cursor.x >= 0 && cursor.y >= 0);
   let frame = Frame.render ~floating:layer ui ~width:40 ~height:10 in

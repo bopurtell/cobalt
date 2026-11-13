@@ -1,18 +1,18 @@
 open! Core
 open! Async
-open Ches_file_picker_host
-open Ches_screen
-module Model = Ches_file_picker.Model
-module Interaction = Ches_file_picker.Interaction
-module Controller = Ches_app.Controller
-module Editor = Ches_core.Editor
+open Cobalt_file_picker_host
+open Cobalt_screen
+module Model = Cobalt_file_picker.Model
+module Interaction = Cobalt_file_picker.Interaction
+module Controller = Cobalt_app.Controller
+module Editor = Cobalt_core.Editor
 
 let fake_rg = Filename_unix.realpath "fake_rg/fake_rg.exe"
 let width = 80
 let height = 24
 let ui () = Ui_state.create (Controller.create (Editor.create ~cell_width:Cell_map.width
-  (Ches_core.Text_buffer.of_string "underlying\ntext"
-   |> Result.map_error ~f:Ches_core.Text_buffer.Invalid_text.to_string_hum
+  (Cobalt_core.Text_buffer.of_string "underlying\ntext"
+   |> Result.map_error ~f:Cobalt_core.Text_buffer.Invalid_text.to_string_hum
    |> Result.ok_or_failwith)))
 let apply ui inputs = fst (Ui_state.apply_all ui ~width ~height inputs)
 let key ui key = apply ui [ Key key ]
@@ -31,7 +31,7 @@ let rec remove path =
   | _ -> Core_unix.unlink path
 ;;
 let with_root mode f =
-  let root = Filename_unix.realpath (Filename_unix.temp_dir "ches-host" "") in
+  let root = Filename_unix.realpath (Filename_unix.temp_dir "cobalt-host" "") in
   Out_channel.write_all (root ^ "/mode") ~data:mode;
   Monitor.protect (fun () -> f root) ~finally:(fun () -> remove root; return ())
 ;;
@@ -42,7 +42,7 @@ let drain runtime state = timeout (Runtime.pump runtime ~current:(fun () -> !sta
 let%expect_test "real asynchronous provider -> shared host -> isolated once-only raw consumer" =
   with_root "ordered" (fun root ->
     let runtime = Runtime.create ~prog:fake_rg
-      ~limits:{ Ches_file_discovery.Provider.Limits.default with batch_size = 1 } () in
+      ~limits:{ Cobalt_file_discovery.Provider.Limits.default with batch_size = 1 } () in
     let initial = ui () in
     let state = ref (open_picker runtime initial root) in
     assert (String.is_substring (rendered !state) ~substring:"Loading files");
@@ -50,12 +50,12 @@ let%expect_test "real asynchronous provider -> shared host -> isolated once-only
     assert (Model.Discovery.equal_status (discovery !state).status (Complete { truncated = false }));
     assert (List.length (Model.results (Interaction.model (session !state))) = 4);
     let old_scroll = Ui_state.scroll !state in
-    state := key !state (Ches_input.Key.char 'a');
+    state := key !state (Cobalt_input.Key.char 'a');
     let%bind () = drain runtime state in
     assert (Interaction.prepared_count (session !state) = 4);
     state := key !state Enter;
     assert (Option.is_none (Ui_state.file_picker !state));
-    assert (Ches_tile.View_id.equal (Ui_state.focused_view !state ~width ~height) Ui_state.document_id);
+    assert (Cobalt_tile.View_id.equal (Ui_state.focused_view !state ~width ~height) Ui_state.document_id);
     assert (Scroll.equal old_scroll (Ui_state.scroll !state));
     let next, requests = Ui_state.take_file_requests !state in
     state := next;
@@ -73,7 +73,7 @@ let%expect_test "provider failures, truncation and empty roots appear through th
   Deferred.List.iter ~how:`Sequential [ "partial-failure"; "ordered"; "empty" ] ~f:(fun mode ->
     with_root mode (fun root ->
       let runtime = Runtime.create ~prog:fake_rg
-        ~limits:{ Ches_file_discovery.Provider.Limits.default with max_candidates = 2 } () in
+        ~limits:{ Cobalt_file_discovery.Provider.Limits.default with max_candidates = 2 } () in
       let state = ref (open_picker runtime (ui ()) root) in
       let%bind () = drain runtime state in
       let frame = rendered !state in
@@ -91,10 +91,10 @@ let%expect_test "released acceptance uses session ownership and synchronizes sou
     Out_channel.write_all path ~data:"let accepted = 1\n";
     let runtime = Runtime.create () in
     let initial = Ui_state.create ~source_attached:true
-      (Controller.create (Editor.create ~cell_width:Cell_map.width Ches_core.Text_buffer.empty)) in
+      (Controller.create (Editor.create ~cell_width:Cell_map.width Cobalt_core.Text_buffer.empty)) in
     let state = ref (open_picker runtime initial root) in
     let%bind () = drain runtime state in
-    String.iter "accepted" ~f:(fun c -> state := key !state (Ches_input.Key.char c));
+    String.iter "accepted" ~f:(fun c -> state := key !state (Cobalt_input.Key.char c));
     let%bind () = drain runtime state in
     let picker_session = session !state in
     state := key !state Enter;
@@ -104,39 +104,39 @@ let%expect_test "released acceptance uses session ownership and synchronizes sou
     assert (List.length requests = 1);
     assert (List.is_empty (snd (Ui_state.take_file_requests !state)));
     state := apply !state (List.map requests ~f:(fun r -> Ui_state.Input.File_picker_accept r));
-    assert (List.length (Ches_app.Session.buffers (Ui_state.session !state)) = 2);
+    assert (List.length (Cobalt_app.Session.buffers (Ui_state.session !state)) = 2);
     assert (Option.equal String.equal (Editor.path (Controller.editor (Ui_state.controller !state))) (Some path));
     assert (Controller.highlight_parse_count (Ui_state.controller !state) > 0);
     let ui, source_requests = Ui_state.take_source_requests !state in state := ui;
     assert (List.exists source_requests ~f:(function
-      | Ches_error.Source_request.Document_opened { resource; _ } -> String.equal resource path
+      | Cobalt_error.Source_request.Document_opened { resource; _ } -> String.equal resource path
       | _ -> false));
     assert (List.exists source_requests ~f:(function
-      | Ches_error.Source_request.Document_changed { resource; text; _ } ->
+      | Cobalt_error.Source_request.Document_changed { resource; text; _ } ->
         String.equal resource path && String.equal text "let accepted = 1\n"
       | _ -> false));
     assert (List.is_empty (snd (Ui_state.take_source_requests !state)));
-    let old_generation = Ches_app.Session.source_generation (Ui_state.session !state)
-      (Option.value_exn (Ches_app.Session.active_id (Ui_state.session !state))) |> Option.value_exn in
+    let old_generation = Cobalt_app.Session.source_generation (Ui_state.session !state)
+      (Option.value_exn (Cobalt_app.Session.active_id (Ui_state.session !state))) |> Option.value_exn in
     state := fst (Ui_state.close_current !state ~width ~height ~force:false);
     state := fst (Ui_state.open_file !state ~width ~height path |> Or_error.ok_exn);
-    let stale = Ches_error.Source_event.Owned { resource = path; generation = old_generation;
+    let stale = Cobalt_error.Source_event.Owned { resource = path; generation = old_generation;
       event = Unavailable { source = "stale-picker-test"; root; reason = "STALE" } } in
     state := apply !state [ Source stale ];
     assert (not (String.is_substring (rendered !state) ~substring:"STALE"));
     (* New missing/unsupported files fail without installing any buffer. *)
     let before = Ui_state.session !state in
-    assert (Result.is_error (Ches_app.Session.open_or_activate ~must_exist:true before (root ^ "/missing.ml")));
+    assert (Result.is_error (Cobalt_app.Session.open_or_activate ~must_exist:true before (root ^ "/missing.ml")));
     Out_channel.write_all (root ^ "/invalid.ml") ~data:(String.of_char (Char.of_int_exn 255));
-    assert (Result.is_error (Ches_app.Session.open_or_activate ~must_exist:true before (root ^ "/invalid.ml")));
+    assert (Result.is_error (Cobalt_app.Session.open_or_activate ~must_exist:true before (root ^ "/invalid.ml")));
     Core_unix.mkfifo (root ^ "/fifo") ~perm:0o600;
-    assert (Result.is_error (Ches_app.Session.open_or_activate ~must_exist:true before (root ^ "/fifo")));
-    assert (List.length (Ches_app.Session.buffers before) = 2);
+    assert (Result.is_error (Cobalt_app.Session.open_or_activate ~must_exist:true before (root ^ "/fifo")));
+    assert (List.length (Cobalt_app.Session.buffers before) = 2);
     (* Ordinary startup/new-path semantics remain intentionally permissive. *)
     let new_controller = Controller.open_file ~cell_width:Cell_map.width (root ^ "/new.ml") |> Or_error.ok_exn in
-    assert (String.is_empty (Ches_core.Text_buffer.to_string (Editor.text (Controller.editor new_controller))));
+    assert (String.is_empty (Cobalt_core.Text_buffer.to_string (Editor.text (Controller.editor new_controller))));
     Controller.close new_controller;
-    Ches_app.Session.dispose (Ui_state.session !state);
+    Cobalt_app.Session.dispose (Ui_state.session !state);
     timeout (Runtime.finished runtime))
 ;;
 
@@ -177,8 +177,8 @@ let%expect_test "bounded Async turns allow input; cancellation and queued stale 
     let%bind () = drain runtime state in
     assert (not (String.is_substring (rendered !state) ~substring:"OLD ERROR"));
     assert (String.equal
-      (Ches_core.Text_buffer.to_string (Editor.text (Controller.editor (Ui_state.controller !state))))
-      (Ches_core.Text_buffer.to_string (Editor.text (Controller.editor (Ui_state.controller initial)))));
+      (Cobalt_core.Text_buffer.to_string (Editor.text (Controller.editor (Ui_state.controller !state))))
+      (Cobalt_core.Text_buffer.to_string (Editor.text (Controller.editor (Ui_state.controller initial)))));
     state := key !state Escape;
     timeout (Runtime.finished runtime))
 ;;

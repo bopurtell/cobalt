@@ -1,9 +1,9 @@
-; Pure tests of ches_vcs. Like the library, they use no Async, no Unix, and no
+; Pure tests of cobalt_vcs. Like the library, they use no Async, no Unix, and no
 ; process: specs and reports are built by hand.
 
 (library
- (name ches_vcs_test)
- (libraries ches_vcs core expect_test_helpers_core)
+ (name cobalt_vcs_test)
+ (libraries cobalt_vcs core expect_test_helpers_core)
  ; See core/dune for why this flag is needed.
  (inline_tests
   (flags

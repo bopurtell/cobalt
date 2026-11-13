@@ -15,7 +15,7 @@
     - There is no detection of changes made to the file by other programs. *)
 
 open! Core
-open Ches_core
+open Cobalt_core
 
 module Loaded : sig
   type t =

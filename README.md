@@ -1,8 +1,8 @@
-# Ches
+# Cobalt
 
 **A modal terminal editor with a tile-based workspace.**
 
-Ches brings Vim-style editing, floating shells, code completion, language-server
+Cobalt brings Vim-style editing, floating shells, code completion, language-server
 navigation, and Git into one keyboard-driven workspace. Written in OCaml, with a
 [Bonsai_term](https://github.com/janestreet/bonsai_term) frontend.
 
@@ -13,7 +13,7 @@ and build from source; the direction and design decisions are mine.
 [Configuration](docs/configuration.md) · [Packaging](docs/releases.md) ·
 [Documentation](docs/README.md)
 
-![Ches editing OCaml hardware-design code, with file tabs, a directory browser, status, problems, and notification history.](docs/images/daily-workspace.png)
+![Cobalt editing OCaml hardware-design code, with file tabs, a directory browser, status, problems, and notification history.](docs/images/daily-workspace.png)
 
 *My everyday workspace: OCaml source in the middle, project files on the left,
 and status and diagnostics around the edges.*
@@ -45,7 +45,7 @@ below. Hide the supporting views without leaving your file, then bring them back
 when you need the directory browser, problems, or notification history. For an
 even smaller interface, **`Space v B`** toggles borderless Bare mode.
 
-![Ches in Zen mode editing an OCaml scrambler implementation, with relative line numbers and a bottom status line.](docs/images/daily-zen.png)
+![Cobalt in Zen mode editing an OCaml scrambler implementation, with relative line numbers and a bottom status line.](docs/images/daily-zen.png)
 
 ## Completion in context
 
@@ -54,7 +54,7 @@ cursor, with their sources labeled. LSP entries can also show type information,
 so you can choose a completion without leaving the code. Use **Ctrl-n** in Insert
 mode to request completion manually.
 
-![Ches completion popup in Zen mode, showing LSP suggestions with types alongside buffer-word matches.](docs/images/daily-completion.png)
+![Cobalt completion popup in Zen mode, showing LSP suggestions with types alongside buffer-word matches.](docs/images/daily-completion.png)
 
 ## Tile Terms
 
@@ -78,7 +78,7 @@ and lines, write commits, and browse branches and history without switching to
 another application. Keep the source visible alongside the change you're
 reviewing.
 
-![Ches with OCaml source and completion on the left, Git files, branches and commits in the middle, and a colored README diff on the right.](docs/images/daily-git.png)
+![Cobalt with OCaml source and completion on the left, Git files, branches and commits in the middle, and a colored README diff on the right.](docs/images/daily-git.png)
 
 ## Find code without losing your place
 
@@ -88,7 +88,7 @@ jump when you're ready, and use **Ctrl-o** to return.
 <details>
 <summary><strong>Project navigation</strong> — fuzzy file search with source preview</summary>
 
-![Ches file picker searching for source/lsp_client.ml and previewing its actual source.](docs/images/navigation.png)
+![Cobalt file picker searching for source/lsp_client.ml and previewing its actual source.](docs/images/navigation.png)
 
 </details>
 
@@ -110,24 +110,24 @@ use reproducible terminal-frame captures; see the
 With the [development toolchain](docs/development.md#toolchain) available:
 
 ```sh
-dune build -j 12 bin/ches.exe
-_build/default/bin/ches.exe .
+dune build -j 12 bin/cobalt.exe
+_build/default/bin/cobalt.exe .
 ```
 
 Open a directory to browse a project, or pass a file path to edit it. If you have
-`ches` on your `PATH`:
+`cobalt` on your `PATH`:
 
 ```sh
-ches completion/snippet.ml   # Vim Classic theme, Zen layout
-ches --workspace .           # Full tile workspace
-ches --bare core/editor.ml   # Borderless editing (also --superzen)
-ches --theme glacier .       # Choose a different theme
-ches --list-themes           # Browse available palettes
+cobalt completion/snippet.ml   # Vim Classic theme, Zen layout
+cobalt --workspace .           # Full tile workspace
+cobalt --bare core/editor.ml   # Borderless editing (also --superzen)
+cobalt --theme glacier .       # Choose a different theme
+cobalt --list-themes           # Browse available palettes
 ```
 
 ### Linux packages
 
-Ches can be packaged as an extract-and-run **`.tar.gz`** containing its executable,
+Cobalt can be packaged as an extract-and-run **`.tar.gz`** containing its executable,
 notices, source snapshot, manifest and checksums. Basic editing does **not** require
 an OCaml/opam installation: highlighting assets and terminal emulation are embedded.
 
@@ -171,7 +171,7 @@ this command.
 | `Space v T` | Choose a theme |
 
 The [editor reference](docs/editor_reference.md) covers the full keymap, directory
-operations, and terminal controls. `ches --help` lists command-line options.
+operations, and terminal controls. `cobalt --help` lists command-line options.
 
 ## Documentation
 

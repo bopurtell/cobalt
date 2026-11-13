@@ -1,5 +1,5 @@
 open! Core
-open Ches_error.Language_query
+open Cobalt_error.Language_query
 
 let field = Completion_wire.field
 let string_field = Completion_wire.string_field
@@ -42,7 +42,7 @@ let path uri =
         if i = String.length rest then
           let path = Buffer.contents buffer in
           if String.mem path '\000' || not (Stdlib.String.is_valid_utf_8 path) then bad "Invalid file URI path"
-          else Ok (Ches_core.Resource.normalize ~cwd:"/" path)
+          else Ok (Cobalt_core.Resource.normalize ~cwd:"/" path)
         else if Char.equal rest.[i] '%' then
           if i + 2 >= String.length rest then bad "Invalid file URI escape"
           else (match hex rest.[i+1], hex rest.[i+2] with

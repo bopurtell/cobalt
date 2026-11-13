@@ -1,4 +1,4 @@
-open Ches_config
+open Cobalt_config
 
 (* Copy the declarations you want into config.ml. Named quoted strings let
    choice syntax contain |} without ending the OCaml string. *)

@@ -1,8 +1,8 @@
-# Current-document fuzzy lines (phase 7 software implemented)
+# Current-document fuzzy lines
 
-`Ches_line_picker.Lines` captures the controller's immutable **in-memory** text,
+`Cobalt_line_picker.Lines` captures the controller's immutable **in-memory** text,
 including dirty edits. It performs no IO, project traversal or buffer opening.
-`Ches_screen.Line_picker_tile` uses the shared transient floating host. In Normal
+`Cobalt_screen.Line_picker_tile` uses the shared transient floating host. In Normal
 mode, `Space f l` opens it; the catalog command is **Search current document lines**
 (`document.lines`). `Space f f` opens the production retained-buffer file picker.
 The line command requires no ripgrep, disk reads or buffer manager.

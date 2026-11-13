@@ -12,7 +12,7 @@ from pathlib import Path
 def main():
     scripts = Path(__file__).resolve().parent
     binary = Path(sys.argv[1] if len(sys.argv) > 1 else
-                  scripts.parent / "_build/default/bin/ches.exe").resolve()
+                  scripts.parent / "_build/default/bin/cobalt.exe").resolve()
     if not binary.is_file():
         raise SystemExit("Build first: opam exec --switch=5.2.0+ox -- dune build")
     for name in ("directory_toggle_smoke.py", "directory_side_smoke.py", "directory_editing_smoke.py",

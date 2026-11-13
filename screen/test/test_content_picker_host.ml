@@ -1,7 +1,7 @@
 open! Core
-open Ches_screen
+open Cobalt_screen
 open Ui_state.Input
-module Model = Ches_content_picker.Model
+module Model = Cobalt_content_picker.Model
 let width = 120
 let height = 40
 let run t keys = Helpers.run ~width ~height t (Helpers.keys keys)
@@ -14,8 +14,8 @@ let open_picker ?(release = fun () -> ()) t n =
   Ui_state.open_content_picker t ~width ~height ~snapshot:(snapshot n "") ~release
 let picker t = Option.value_exn (Ui_state.content_picker t)
 let session t = Content_picker_tile.session (picker t)
-let text t = Ches_core.Text_buffer.to_string
-  (Ches_core.Editor.text (Ches_app.Controller.editor (Ui_state.controller t)))
+let text t = Cobalt_core.Text_buffer.to_string
+  (Cobalt_core.Editor.text (Cobalt_app.Controller.editor (Ui_state.controller t)))
 
 let%test_unit "content Tab routing, bounded selection, viewport, query invalidation and acceptance" =
   let t = open_picker (Helpers.ui "unchanged") 70 |> fun t -> run t "needle" in
@@ -71,7 +71,7 @@ let%test_unit "content shared float: zen, workspace/scroll preservation, cursor 
     let frame = Frame.render opened ~width ~height in
     let cursor = Option.value_exn frame.cursor in
     let x, y, shape = Option.value_exn (Ui_state.minor_cursor opened ~width ~height) in
-    assert (cursor.x = x && cursor.y = y && Ches_tile.Cursor.Shape.equal shape Bar);
+    assert (cursor.x = x && cursor.y = y && Cobalt_tile.Cursor.Shape.equal shape Bar);
     assert (List.is_empty frame.smear);
     let allocation : Geometry.Rect.t = { x = 5; y = 2; width = 60; height = 10 } in
     assert (String.equal
@@ -92,7 +92,7 @@ let%test_unit "content paste isolation, resize and focus: no late paste into doc
   let t = Helpers.run ~width:14 ~height:5 t [ Resize ] in
   assert (String.equal (Model.query (session t)) "needle tail");
   let t = run t "<Esc>" in
-  assert (!releases = 1 && Ches_tile.View_id.equal (Ui_state.focused_view t ~width ~height) Problems_tile.id);
+  assert (!releases = 1 && Cobalt_tile.View_id.equal (Ui_state.focused_view t ~width ~height) Problems_tile.id);
   let t = open_picker t 3 ~release:(fun () -> incr releases) in
   let t = apply t (Paste_start :: Helpers.keys "OLD") in
   let refused = ref 0 in

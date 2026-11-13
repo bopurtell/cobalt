@@ -1,6 +1,6 @@
 open! Core
-open Ches_core
-open Ches_input
+open Cobalt_core
+open Cobalt_input
 type t
 type placement = Major | Side
 type directory_presentation =
@@ -84,7 +84,7 @@ module Reconciled : sig
   [@@deriving sexp_of]
 end
 
-(** Open-buffer reconciliation after something outside Ches may have rewritten files
+(** Open-buffer reconciliation after something outside Cobalt may have rewritten files
     (a VCS discard, checkout or pull): every retained file buffer whose path is within
     one of [under] (absolute, lexical: {!Resource.within}) is passed through
     {!Controller.reconcile_with_disk}, the active one included. Synchronous: reads
@@ -98,7 +98,7 @@ end
 val reconcile : t -> under:string list -> t * Reconciled.t
 val dispatch : t -> Keymap.Action.t list -> t * View_command.t list * Controller.Status.t
 val handle_input : t -> Keymap.Input.t -> t * View_command.t list * Controller.Status.t
-val feedback : t -> Ches_error.Error.t
+val feedback : t -> Cobalt_error.Error.t
 val take_clipboard : t -> t * string option
 val take_saved : t -> t * Controller.Saved.t list
 

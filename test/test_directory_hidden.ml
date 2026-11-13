@@ -1,5 +1,5 @@
 open! Core
-open Ches_core
+open Cobalt_core
 module D = Directory_identity
 module B = Text_buffer
 
@@ -62,8 +62,8 @@ let%test_unit "split anchors are deterministic and joins refuse ambiguous identi
   assert ([%equal: D.Row.identity list] (List.map (rows split) ~f:(fun row -> row.identity)) [ Existing 1; Fresh; Existing 2 ]);
   assert (Result.is_error (D.parse baseline (B.delete initial ~pos:5 ~len:1)));
   let joined_fresh = B.delete before ~pos:5 ~len:1 in
-  assert ([%equal: (int * string) list] (B.identities joined_fresh) [ 0, "@ches[1]"; 11, "@ches[2]" ]);
-  assert (Result.is_error (D.parse baseline (insert initial 0 "@ches[2]\t")))
+  assert ([%equal: (int * string) list] (B.identities joined_fresh) [ 0, "@cobalt[1]"; 11, "@cobalt[2]" ]);
+  assert (Result.is_error (D.parse baseline (insert initial 0 "@cobalt[2]\t")))
 ;;
 
 let%test_unit "registers protect directory ownership and keep clipboard names only" =
@@ -96,7 +96,7 @@ let%test_unit "cut paste round trips are clean regardless of anchor insertion or
   assert (not (Editor.is_dirty (run restored [ Undo; Redo ])));
   let reordered = B.with_identities initial ~scope:"directory-one" (List.rev (B.identities initial)) in
   assert (B.equal reordered initial);
-  let duplicated = B.with_identities initial ~scope:"directory-one" ((0, "@ches[1]") :: B.identities initial) in
+  let duplicated = B.with_identities initial ~scope:"directory-one" ((0, "@cobalt[1]") :: B.identities initial) in
   assert (not (B.equal duplicated initial));
   assert (Result.is_error (D.parse baseline duplicated))
 ;;
@@ -110,7 +110,7 @@ let%test_unit "opening above and below empty protected rows keeps their identity
       let e = run e [ (if below then Open_line_below else Open_line_above); Insert_text "fresh"; Exit_insert ] in
       let text = Editor.text e in
       assert (Result.is_error (D.parse baseline text));
-      let id = if last then "@ches[2]" else "@ches[1]" in
+      let id = if last then "@cobalt[2]" else "@cobalt[1]" in
       let offset = List.find_map_exn (B.identities text) ~f:(fun (offset, token) -> if String.equal token id then Some offset else None) in
       assert (String.is_empty (B.line_text text (B.line_of_offset text offset)));
       let repaired = insert text offset (if last then "beta" else "alpha") in
@@ -131,7 +131,7 @@ let%test_unit "linewise pastes above and below empty protected rows do not fill 
       let e = run e [ Paste { before; count = 1 } ] in
       let text = Editor.text e in
       assert (Result.is_error (D.parse baseline text));
-      let id = if last then "@ches[2]" else "@ches[1]" in
+      let id = if last then "@cobalt[2]" else "@cobalt[1]" in
       let offset = List.find_map_exn (B.identities text) ~f:(fun (offset, token) -> if String.equal token id then Some offset else None) in
       assert (String.is_empty (B.line_text text (B.line_of_offset text offset)));
       let repaired = insert text offset (if last then "beta" else "alpha") in
@@ -163,7 +163,7 @@ let%test_unit "protected row pastes next to an empty final identity keep both ow
     let text = Editor.text e in
     assert (Result.is_error (D.parse baseline text));
     let old = List.find_map_exn (B.identities text) ~f:(fun (offset, token) ->
-      if String.equal token "@ches[2]" then Some offset else None) in
+      if String.equal token "@cobalt[2]" then Some offset else None) in
     assert (String.is_empty (B.line_text text (B.line_of_offset text old)));
     let repaired = insert text old "beta" in
     assert (List.length (rows repaired) = 2);

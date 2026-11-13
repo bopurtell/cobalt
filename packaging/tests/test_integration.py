@@ -15,17 +15,17 @@ pack = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(pack)
 
 
-@unittest.skipUnless(os.environ.get("CHES_PACKAGE_INTEGRATION") == "1",
-                     "set CHES_PACKAGE_INTEGRATION=1 for real two-pass packaging")
+@unittest.skipUnless(os.environ.get("COBALT_PACKAGE_INTEGRATION") == "1",
+                     "set COBALT_PACKAGE_INTEGRATION=1 for real two-pass packaging")
 class RealPackagingTests(unittest.TestCase):
     def test_repeat_without_rebuild_and_no_overwrite(self):
         sizes = {stripped: self.check_package(stripped) for stripped in (False, True)}
         print(f"\nSize comparison (bytes): unstripped={sizes[False]}, stripped={sizes[True]}")
 
     def check_package(self, stripped):
-        binary = ROOT / "_build/default/bin/ches.exe"
+        binary = ROOT / "_build/default/bin/cobalt.exe"
         before = (pack.digest(binary), binary.stat().st_mtime_ns, binary.stat().st_mode)
-        with tempfile.TemporaryDirectory(prefix="ches-repro-", dir="/tmp") as temp:
+        with tempfile.TemporaryDirectory(prefix="cobalt-repro-", dir="/tmp") as temp:
             root = Path(temp)
             command = ["python3", str(ROOT / "scripts/package_release.py"),
                        "--version", "0.1.0-test+repro", "--no-build"]
@@ -46,7 +46,7 @@ class RealPackagingTests(unittest.TestCase):
             self.assertNotEqual(failed.returncode, 0)
             self.assertIn("never overwritten", failed.stderr)
             self.assertEqual(sums, {p.name: pack.digest(p) for p in first.iterdir()})
-            self.assertFalse(any(p.name.startswith(".ches-package-") for p in first.iterdir()))
+            self.assertFalse(any(p.name.startswith(".cobalt-package-") for p in first.iterdir()))
             manifest_file = next(first.glob("*.manifest.json"))
             manifest = json.loads(manifest_file.read_text())
             self.assertFalse(manifest["build"]["performed"])
@@ -66,19 +66,19 @@ class RealPackagingTests(unittest.TestCase):
             stem = manifest_file.name.removesuffix(".manifest.json")
             with tarfile.open(binary_archive) as tar:
                 names = tar.getnames()
-                for required in ("bin/ches", "SHA256SUMS", "README.md", "NOTICES.md",
+                for required in ("bin/cobalt", "SHA256SUMS", "README.md", "NOTICES.md",
                                  "metadata/manifest.json", "metadata/opam-inventory.json",
                                  "licenses/repository/highlight_tree_sitter/gas_grammar/LICENSE"):
                     self.assertIn(stem + "/" + required, names)
-                self.assertEqual(hashlib.sha256(tar.extractfile(stem + "/bin/ches").read()).hexdigest(),
+                self.assertEqual(hashlib.sha256(tar.extractfile(stem + "/bin/cobalt").read()).hexdigest(),
                                  manifest["binary_sha256"])
-                self.assertEqual(tar.getmember(stem + "/bin/ches").size, manifest["binary_size"])
+                self.assertEqual(tar.getmember(stem + "/bin/cobalt").size, manifest["binary_size"])
                 self.assertEqual(json.load(tar.extractfile(stem + "/metadata/manifest.json")), manifest)
                 for line in tar.extractfile(stem + "/SHA256SUMS").read().decode().splitlines():
                     checksum, name = line.split("  ", 1)
                     self.assertEqual(hashlib.sha256(tar.extractfile(stem + "/" + name).read()).hexdigest(), checksum)
             with tarfile.open(first / manifest["source"]["archive"]) as tar:
-                prefix = f"ches-{manifest['version']}-source/"
+                prefix = f"cobalt-{manifest['version']}-source/"
                 names = tar.getnames()
                 for required in ("highlight_tree_sitter/gas_grammar/grammar.js",
                                  "highlight_tree_sitter/gas_grammar/parser.c.gz",
@@ -89,9 +89,9 @@ class RealPackagingTests(unittest.TestCase):
                 self.assertFalse(any(set(Path(n).parts) & pack.EXCLUDED for n in names))
             if stripped:
                 # Real extracted ELF validation and PTY smoke exercise shipped bytes.
-                extracted = root / "shipped-ches"
+                extracted = root / "shipped-cobalt"
                 with tarfile.open(binary_archive) as tar:
-                    extracted.write_bytes(tar.extractfile(stem + "/bin/ches").read())
+                    extracted.write_bytes(tar.extractfile(stem + "/bin/cobalt").read())
                 self.assertEqual(pack.elf_info(extracted), manifest["elf"])
                 self.assertEqual(pack.elf_info(binary), manifest["elf"])
                 subprocess.run(["python3", str(ROOT / "packaging/smoke.py"), str(binary_archive)],

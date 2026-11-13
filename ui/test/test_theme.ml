@@ -1,16 +1,16 @@
 open! Core
 open Bonsai_term
-open Ches_ui
+open Cobalt_ui
 
 let same_attrs a b = Attr.equal (Attr.many a) (Attr.many b)
 
 let default_color role =
-  let r, g, b = Ches_theme.Theme.color Ches_theme.Theme.default role in
+  let r, g, b = Cobalt_theme.Theme.color Cobalt_theme.Theme.default role in
   Attr.Color.rgb ~r ~g ~b
 
 let%test_unit "completion parts retain independent selected colors and uniform documentation" =
-  let module Palette = Ches_theme.Theme in
-  let cases : (Ches_screen.Style.Completion.part * Palette.Role.t * Palette.Role.t) list =
+  let module Palette = Cobalt_theme.Theme in
+  let cases : (Cobalt_screen.Style.Completion.part * Palette.Role.t * Palette.Role.t) list =
     [ Label, Completion_label, Completion_selected_label
     ; Padding, Completion_label, Completion_selected_label
     ; Source, Completion_source, Completion_selected_source
@@ -22,7 +22,7 @@ let%test_unit "completion parts retain independent selected colors and uniform d
       let r, g, b = Palette.color theme role in Attr.Color.rgb ~r ~g ~b in
     List.iter cases ~f:(fun (part, plain, selected_role) ->
       List.iter [ false; true ] ~f:(fun selected ->
-        let style = Ches_screen.Style.completion ~selected part in
+        let style = Cobalt_screen.Style.completion ~selected part in
         let fg = if selected then selected_role else plain in
         let bg : Palette.Role.t =
           match part with
@@ -35,7 +35,7 @@ let%test_unit "completion parts retain independent selected colors and uniform d
         assert (same_attrs (Theme.attrs ~theme style) (colors @ fonts));
         assert (same_attrs (Theme.attrs ~theme ~font:(fun _ -> [ Italic ]) style)
           (colors @ [ Attr.italic ]))));
-    assert (same_attrs (Theme.attrs ~theme (Ches_screen.Style.Mode Insert))
+    assert (same_attrs (Theme.attrs ~theme (Cobalt_screen.Style.Mode Insert))
       [ Attr.fg (color Background); Attr.bg (color Insert_accent); Attr.bold ]) in
   List.iter Palette.all ~f:check;
   (* Unique colors make accidental foreground/background or state aliases visible. *)
@@ -43,12 +43,12 @@ let%test_unit "completion parts retain independent selected colors and uniform d
     role, sprintf "#%02x%02x%02x" (10 + i) (40 + i) (90 + i)) in
   let theme = Or_error.ok_exn (Palette.with_completion_colors Palette.default overrides) in
   check theme;
-  assert (same_attrs (Theme.attrs ~theme (Ches_screen.Style.Mode Insert))
-    (Theme.attrs (Ches_screen.Style.Mode Insert)))
+  assert (same_attrs (Theme.attrs ~theme (Cobalt_screen.Style.Mode Insert))
+    (Theme.attrs (Cobalt_screen.Style.Mode Insert)))
 ;;
 
 let%test_unit "terminal colors preserve all indexed entries and exact RGB" =
-  let module M = Ches_terminal.Model in
+  let module M = Cobalt_terminal.Model in
   let samples =
     List.init 256 ~f:(fun n -> M.Indexed n, Attr.Color.xterm_256 n)
     @ [ M.Rgb (0, 127, 255), Attr.Color.rgb ~r:0 ~g:127 ~b:255
@@ -57,15 +57,15 @@ let%test_unit "terminal colors preserve all indexed entries and exact RGB" =
     let style : M.style =
       { fg = color; bg = color; bold = false; italic = false
       ; underline = false; reverse = false } in
-    assert (same_attrs (Theme.attrs (Ches_screen.Style.Terminal style))
+    assert (same_attrs (Theme.attrs (Cobalt_screen.Style.Terminal style))
       [ Attr.fg expected; Attr.bg expected ]))
 ;;
 
 let%test_unit "terminal defaults follow theme; reverse and SGR survive custom editor fonts" =
-  let module M = Ches_terminal.Model in
-  List.iter Ches_theme.Theme.all ~f:(fun theme ->
+  let module M = Cobalt_terminal.Model in
+  List.iter Cobalt_theme.Theme.all ~f:(fun theme ->
     let color role =
-      let r, g, b = Ches_theme.Theme.color theme role in Attr.Color.rgb ~r ~g ~b in
+      let r, g, b = Cobalt_theme.Theme.color theme role in Attr.Color.rgb ~r ~g ~b in
     List.iter [ false; true ] ~f:(fun bold ->
       List.iter [ false; true ] ~f:(fun italic ->
         List.iter [ false; true ] ~f:(fun underline ->
@@ -81,14 +81,14 @@ let%test_unit "terminal defaults follow theme; reverse and SGR survive custom ed
             List.iter [ Theme.Font.default; (fun _ -> []); (fun _ -> [ Bold; Italic; Underline ]) ]
               ~f:(fun font ->
                 assert (same_attrs
-                  (Theme.attrs ~theme ~font (Ches_screen.Style.Terminal style)) expected)))))))
+                  (Theme.attrs ~theme ~font (Cobalt_screen.Style.Terminal style)) expected)))))))
 ;;
 
 let%test_unit "terminal foreground and background remain independent under reverse" =
-  let module M = Ches_terminal.Model in
-  List.iter Ches_theme.Theme.all ~f:(fun theme ->
+  let module M = Cobalt_terminal.Model in
+  List.iter Cobalt_theme.Theme.all ~f:(fun theme ->
     let role role =
-      let r, g, b = Ches_theme.Theme.color theme role in Attr.Color.rgb ~r ~g ~b in
+      let r, g, b = Cobalt_theme.Theme.color theme role in Attr.Color.rgb ~r ~g ~b in
     let fg_cases =
       [ M.Default, role Foreground
       ; Indexed 17, Attr.Color.xterm_256 17
@@ -103,13 +103,13 @@ let%test_unit "terminal foreground and background remain independent under rever
           let style : M.style =
             { fg; bg; bold = false; italic = false; underline = false; reverse } in
           let font _ = failwith "terminal style reached editor-only font callback" in
-          assert (same_attrs (Theme.attrs ~theme ~font (Ches_screen.Style.Terminal style))
+          assert (same_attrs (Theme.attrs ~theme ~font (Cobalt_screen.Style.Terminal style))
             ([ Attr.fg foreground; Attr.bg background ]
              @ if reverse then [ Attr.invert ] else []))))))
 ;;
 
 let%test_unit "explicit palettes map syntax, overlays and diffs through semantic roles" =
-  let module Palette = Ches_theme.Theme in
+  let module Palette = Cobalt_theme.Theme in
   List.iter Palette.all ~f:(fun theme ->
     let color role =
       let r, g, b = Palette.color theme role in
@@ -119,7 +119,7 @@ let%test_unit "explicit palettes map syntax, overlays and diffs through semantic
       assert (same_attrs (Theme.attrs ~theme ~font:(fun _ -> []) style)
         [ Attr.fg (color fg); Attr.bg (color bg) ])
     in
-    let open Ches_screen in
+    let open Cobalt_screen in
     List.iter Style.Syntax.all ~f:(fun syntax ->
       List.iter [ false; true ] ~f:(fun current_line ->
         List.iter [ false; true ] ~f:(fun special ->
@@ -142,14 +142,14 @@ let%test_unit "explicit palettes map syntax, overlays and diffs through semantic
     assert (same_attrs (Theme.attrs ~theme Title)
       [ Attr.fg (color Foreground); Attr.bg (color Backdrop); Attr.bold ]));
   (* Interleaved calls must never change the implicit default. *)
-  let before = Theme.attrs (Ches_screen.Style.document ()) in
+  let before = Theme.attrs (Cobalt_screen.Style.document ()) in
   List.iter Palette.all ~f:(fun theme ->
-    ignore (Theme.attrs ~theme (Ches_screen.Style.document ()) : Attr.t list));
-  assert (same_attrs before (Theme.attrs (Ches_screen.Style.document ())))
+    ignore (Theme.attrs ~theme (Cobalt_screen.Style.document ()) : Attr.t list));
+  assert (same_attrs before (Theme.attrs (Cobalt_screen.Style.document ())))
 ;;
 
 let%test_unit "syntax foreground yields to specials and every interaction overlay" =
-  let open Ches_screen in
+  let open Cobalt_screen in
   List.iter Style.Syntax.all ~f:(fun syntax ->
     List.iter [ false; true ] ~f:(fun current_line ->
       List.iter [ false; true ] ~f:(fun special ->
@@ -167,7 +167,7 @@ let%test_unit "syntax foreground yields to specials and every interaction overla
 ;;
 
 let%test_unit "palette distinguishes each major syntax family without adding fonts" =
-  let open Ches_screen in
+  let open Cobalt_screen in
   List.iter
     [ Style.Syntax.Keyword; String; Number; Comment; Type; Function; Module; Constant ]
     ~f:(fun syntax ->
@@ -204,8 +204,8 @@ let%test_unit "every preset gives each syntax family its own color, apart from t
 ;;
 
 let%test_unit "Crimson composed plain document styles retain the previous terminal attributes" =
-  let theme = Option.value_exn (Ches_theme.Theme.find "crimson") in
-  let open Ches_screen in
+  let theme = Option.value_exn (Cobalt_theme.Theme.find "crimson") in
+  let open Cobalt_screen in
   List.iter [ false; true ] ~f:(fun current_line ->
     List.iter [ false; true ] ~f:(fun special ->
       List.iter (None :: List.map Style.Overlay.all ~f:Option.some) ~f:(fun overlay ->
@@ -230,7 +230,7 @@ let%test_unit "Crimson composed plain document styles retain the previous termin
 
 let%expect_test "the default fonts bold the title, badge, markers, and errors only" =
   List.iter
-    [ Ches_screen.Style.document ()
+    [ Cobalt_screen.Style.document ()
     ; Title
     ; Mode Normal
     ; Mode (Visual `Blockwise)
@@ -241,7 +241,7 @@ let%expect_test "the default fonts bold the title, badge, markers, and errors on
     ; Smear
     ]
     ~f:(fun style ->
-       printf "%s %s\n" (Ches_screen.Style.to_string_hum style)
+       printf "%s %s\n" (Cobalt_screen.Style.to_string_hum style)
          (Sexp.to_string ([%sexp (Theme.Font.default style : Theme.Font.t list)])));
   [%expect
     {|
@@ -258,14 +258,14 @@ let%expect_test "the default fonts bold the title, badge, markers, and errors on
 ;;
 
 let%expect_test "a font function replaces the default fonts and keeps the colors" =
-  let font : Ches_screen.Style.t -> Theme.Font.t list = function
+  let font : Cobalt_screen.Style.t -> Theme.Font.t list = function
     | Document { overlay = Some Search_current; _ } -> [ Bold; Underline ]
     | Document { special = true; _ } -> [ Italic ]
     | _ -> []
   in
   let plain = Theme.attrs ~font:(fun _ -> []) in
-  let special = Ches_screen.Style.document ~special:true () in
-  let current = Ches_screen.Style.document ~overlay:Search_current () in
+  let special = Cobalt_screen.Style.document ~special:true () in
+  let current = Cobalt_screen.Style.document ~overlay:Search_current () in
   print_s
     [%sexp
       { special_italic =
@@ -287,23 +287,23 @@ let%expect_test "a font function replaces the default fonts and keeps the colors
 ;;
 
 let%expect_test "Crimson frame cells sit on the backdrop; tile interiors keep their ground" =
-  let theme = Option.value_exn (Ches_theme.Theme.find "crimson") in
+  let theme = Option.value_exn (Cobalt_theme.Theme.find "crimson") in
   let bg role = Attr.bg (Theme.Role.color role) in
   let on role style =
     List.exists (Theme.attrs ~theme ~font:(fun _ -> []) style) ~f:(Attr.equal (bg role))
   in
   List.iter
-    [ Ches_screen.Style.Border
+    [ Cobalt_screen.Style.Border
     ; Border_focused
     ; Title
     ; Title_special
     ; Hint
-    ; Ches_screen.Style.document ()
+    ; Cobalt_screen.Style.document ()
     ; Gutter
     ; Status
     ]
     ~f:(fun style ->
-      printf "%s backdrop=%b\n" (Ches_screen.Style.to_string_hum style) (on Backdrop style));
+      printf "%s backdrop=%b\n" (Cobalt_screen.Style.to_string_hum style) (on Backdrop style));
   [%expect {|
     Border backdrop=true
     Border_focused backdrop=true

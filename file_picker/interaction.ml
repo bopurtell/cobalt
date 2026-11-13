@@ -1,6 +1,6 @@
 open! Core
-module Query = Ches_palette.Query
-module Event = Ches_palette.Palette.Event
+module Query = Cobalt_palette.Query
+module Event = Cobalt_palette.Palette.Event
 module Index = Model.Result_index
 
 module Cache_limits = struct

@@ -2,19 +2,19 @@
 ; through Bonsai_term_test.
 
 (library
- (name ches_ui_test)
+ (name cobalt_ui_test)
  (libraries
   bonsai
   bonsai_term
   bonsai_term_test
   bonsai_test
-  ches_app
-  ches_core
-  ches_input
-  ches_screen
-  ches_terminal
+  cobalt_app
+  cobalt_core
+  cobalt_input
+  cobalt_screen
+  cobalt_terminal
   async
-  ches_ui
+  cobalt_ui
   core)
  ; See core/dune for why this flag is needed.
  (inline_tests

@@ -1,5 +1,5 @@
 open! Core
-open Ches_core
+open Cobalt_core
 
 let%expect_test "display columns of cursors, and the code points covering columns" =
   (* TAB in cells 0-7, x in 8, a wide character in 9-10, e in 11 with a combining

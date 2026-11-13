@@ -32,7 +32,7 @@ static void destroy(Emulator *e) {
 }
 static void finalize(value v) { destroy(EMU(v)); EMU(v) = NULL; }
 static struct custom_operations ops = {
-  "ches.libvterm.0.3.3", finalize, custom_compare_default,
+  "cobalt.libvterm.0.3.3", finalize, custom_compare_default,
   custom_hash_default, custom_serialize_default, custom_deserialize_default,
   custom_compare_ext_default, custom_fixed_length_default
 };
@@ -65,7 +65,7 @@ static value take_output(Emulator *e) {
   e->len = 0;
   CAMLreturn(s);
 }
-CAMLprim value ches_vterm_create(value rows, value cols) {
+CAMLprim value cobalt_vterm_create(value rows, value cols) {
   CAMLparam2(rows, cols); CAMLlocal1(v);
   v = caml_alloc_custom(&ops, sizeof(Emulator *), OUTPUT_LIMIT, 100 * OUTPUT_LIMIT);
   EMU(v) = NULL;
@@ -87,23 +87,23 @@ CAMLprim value ches_vterm_create(value rows, value cols) {
   vterm_screen_reset(e->screen, 1);
   CAMLreturn(v);
 }
-CAMLprim value ches_vterm_close(value v) {
+CAMLprim value cobalt_vterm_close(value v) {
   CAMLparam1(v); finalize(v); CAMLreturn(Val_unit);
 }
-CAMLprim value ches_vterm_resize(value v, value rows, value cols) {
+CAMLprim value cobalt_vterm_resize(value v, value rows, value cols) {
   CAMLparam3(v, rows, cols);
   Emulator *e = get(v);
   vterm_set_size(e->vt, Int_val(rows), Int_val(cols));
   CAMLreturn(Val_unit);
 }
-CAMLprim value ches_vterm_feed(value v, value data) {
+CAMLprim value cobalt_vterm_feed(value v, value data) {
   CAMLparam2(v, data);
   Emulator *e = get(v);
   vterm_input_write(e->vt, String_val(data), caml_string_length(data));
   vterm_screen_flush_damage(e->screen);
   CAMLreturn(take_output(e));
 }
-CAMLprim value ches_vterm_key(value v, value character, value code, value mods) {
+CAMLprim value cobalt_vterm_key(value v, value character, value code, value mods) {
   CAMLparam4(v, character, code, mods);
   Emulator *e = get(v);
   if (Bool_val(character)) {
@@ -133,7 +133,7 @@ CAMLprim value ches_vterm_key(value v, value character, value code, value mods) 
   } else vterm_keyboard_key(e->vt, Int_val(code), Int_val(mods));
   CAMLreturn(take_output(e));
 }
-CAMLprim value ches_vterm_paste(value v, value data) {
+CAMLprim value cobalt_vterm_paste(value v, value data) {
   CAMLparam2(v, data); CAMLlocal3(start, end, result);
   Emulator *e = get(v);
   vterm_keyboard_start_paste(e->vt);
@@ -208,7 +208,7 @@ static value cell_value(VTermScreenCell *c) {
   Store_field(cell, 2, style);
   CAMLreturn(cell);
 }
-CAMLprim value ches_vterm_snapshot(value v) {
+CAMLprim value cobalt_vterm_snapshot(value v) {
   CAMLparam1(v); CAMLlocal4(result, rows, row, cell);
   Emulator *e = get(v); int h, w; VTermPos pos;
   vterm_screen_flush_damage(e->screen);

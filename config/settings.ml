@@ -9,7 +9,7 @@ type t =
   ; completion_colors : (string * string) list
   ; line_numbers : bool
   ; theme : string
-  ; snippets : Ches_completion.User_snippets.operation list
+  ; snippets : Cobalt_completion.User_snippets.operation list
   }
 [@@deriving sexp, equal]
 
@@ -52,6 +52,6 @@ let validate t =
   else
     Or_error.bind (validate_colors t.completion_colors) ~f:(fun completion_colors ->
     Or_error.map
-      (Ches_completion.User_snippets.apply Ches_completion.User_snippets.builtins t.snippets)
+      (Cobalt_completion.User_snippets.apply Cobalt_completion.User_snippets.builtins t.snippets)
       ~f:(fun _ -> { t with completion_colors }))
 ;;

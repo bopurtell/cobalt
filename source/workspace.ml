@@ -18,7 +18,7 @@ let start ~create () =
       Option.iter (create resource) ~f:(fun source ->
         let finished = Ivar.create () in
         Hashtbl.set drivers ~key:resource ~data:(generation, source, finished);
-        let rec scoped (event : Ches_error.Source_event.t) : Ches_error.Source_event.t =
+        let rec scoped (event : Cobalt_error.Source_event.t) : Cobalt_error.Source_event.t =
           let name source = sprintf "%s#%d" source generation in
            match event with
            | Servers _ -> Servers []
@@ -41,25 +41,25 @@ let start ~create () =
           | `Events events ->
             if not !stopped && Option.exists (Hashtbl.find drivers resource) ~f:(fun (current, _, _) -> current = generation)
              then List.iter events ~f:(fun event -> match event with
-                | Servers _ -> emit (Ches_error.Source_event.Servers [])
+                | Servers _ -> emit (Cobalt_error.Source_event.Servers [])
                 | Instance_context_changed _ -> emit (scoped event)
-               | _ -> emit (Ches_error.Source_event.Owned { resource; generation; event = scoped event }));
+               | _ -> emit (Cobalt_error.Source_event.Owned { resource; generation; event = scoped event }));
             if !stopped || Ivar.is_full finished then Deferred.unit else pump ()
         in
         don't_wait_for (pump ()))
     in
     { Source.Driver.handle = (fun request ->
          match request with
-          | Inspect -> emit (Ches_error.Source_event.Servers [])
+          | Inspect -> emit (Cobalt_error.Source_event.Servers [])
          | Query q ->
            (match Hashtbl.find drivers q.token.resource with
             | Some (_, source, _) -> Source.send source request
-            | None -> emit (Ches_error.Source_event.Query_result { token = q.token;
+            | None -> emit (Cobalt_error.Source_event.Query_result { token = q.token;
                 cursor = q.cursor; kind = q.kind; source = "source";
-                result = Ches_error.Language_query.unavailable q.kind "No language server attached to this document" }))
+                result = Cobalt_error.Language_query.unavailable q.kind "No language server attached to this document" }))
          | Cancel_query token ->
            Option.iter (Hashtbl.find drivers token.resource) ~f:(fun (_, source, _) -> Source.send source request)
-        | Ches_error.Source_request.Document_opened { resource; generation } -> open_document resource generation
+        | Cobalt_error.Source_request.Document_opened { resource; generation } -> open_document resource generation
         | Document_closed { resource } -> close resource
         | Document_changed { resource; _ } | Document_saved { resource; _ } ->
           Option.iter (Hashtbl.find drivers resource) ~f:(fun (_, source, _) -> Source.send source request)

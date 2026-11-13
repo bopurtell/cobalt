@@ -1,10 +1,10 @@
 open! Core
-open Ches_core
-open Ches_app
+open Cobalt_core
+open Cobalt_app
 
 let width _ = 1
 let with_files f =
-  let directory = Temp_fixture.scratch_dir "ches-session-" in
+  let directory = Temp_fixture.scratch_dir "cobalt-session-" in
   let a = Filename.concat directory "a.ml" and b = Filename.concat directory "b.ml" in
   Out_channel.write_all a ~data:"alpha\n";
   Out_channel.write_all b ~data:"beta\n";
@@ -31,7 +31,7 @@ let%test_unit "lexical identity and independent lifetime/history/register/highli
     let t, bid = Session.open_or_activate t b |> Or_error.ok_exn in
     let a_key, _ = Controller.highlights (Option.value_exn (Session.find t aid)) in
     let b_key, _ = Controller.highlights (Option.value_exn (Session.find t bid)) in
-    assert (not (Ches_highlight.Snapshot.Key.same_document a_key b_key));
+    assert (not (Cobalt_highlight.Snapshot.Key.same_document a_key b_key));
     assert (Mode.equal (Editor.mode (Controller.editor (Option.value_exn (Session.find t aid)))) Normal);
     let t = keys t "iB<Esc>" in
     let t, same = Session.open_or_activate t (Filename.concat directory "./a.ml") |> Or_error.ok_exn in
@@ -49,7 +49,7 @@ let%test_unit "lexical identity and independent lifetime/history/register/highli
     let t = keys t "up" in
     assert (String.equal (text t) "beta\nalpha\n");
     let key, _ = Controller.highlights (Option.value_exn (Session.active_controller t)) in
-    assert (Ches_highlight.Snapshot.Key.revision key = Editor.revision (editor t));
+    assert (Cobalt_highlight.Snapshot.Key.revision key = Editor.revision (editor t));
     Session.dispose t)
 ;;
 
@@ -105,7 +105,7 @@ let%test_unit "save-current, partial save-all, hidden dirty quit, close versus e
     assert (String.equal (In_channel.read_all b) "Bbeta\n");
     let t, status = Session.quit t ~force:false in
     assert (Controller.Status.equal status Running);
-    assert (String.is_substring (Option.value_exn (Ches_error.Error.notification (Session.feedback t))).text ~substring:a);
+    assert (String.is_substring (Option.value_exn (Cobalt_error.Error.notification (Session.feedback t))).text ~substring:a);
     let t, closed = Session.close_buffer t aid ~force:false in
     assert (not closed);
     let bad = Filename.concat directory "missing/bad.ml" in
@@ -124,7 +124,7 @@ let%test_unit "save-current, partial save-all, hidden dirty quit, close versus e
     assert (Editor.is_dirty (editor t));
     assert (Mode.equal (Editor.mode (editor t)) (Visual `Characterwise));
     assert (Option.equal Buffer_id.equal (Session.active_id t) (Some badid));
-    let problems = Ches_error.Error.problems (Session.feedback t) in
+    let problems = Cobalt_error.Error.problems (Session.feedback t) in
     assert (List.length problems = 2);
     List.iter [ bad; second_bad ] ~f:(fun path ->
       assert (List.exists problems ~f:(fun problem -> String.equal problem.identity.resource path)));

@@ -1,19 +1,17 @@
-(** The VCS view (phase 2: read-only; phase 3: stage, unstage, discard; phase 4: lines;
-    phase 5: commit; phase 6: remotes and branches; phase 7: merges and conflicts;
-    phase 8: log and history), a
+(** The VCS view: diffs, staging, commits, remotes, branches, conflicts and history, a
     registered view ({!View_registry}) over the
-    git backend ([Ches_vcs_git.Backend], a {!Ches_vcs.Backend.S}). Lazygit's layout
+    git backend ([Cobalt_vcs_git.Backend], a {!Cobalt_vcs.Backend.S}). Lazygit's layout
     and Magit's context keys: the Files, Branches and Commits list panels beside a diff
     panel that follows the selection, a head summary above the lists, and a
     toggleable command log. Nothing runs here: the view hands its work out as
-    {!Ches_vcs.Job.t}s in its outcomes ({!View_registry.Outcome.t.jobs}) and hears
+    {!Cobalt_vcs.Job.t}s in its outcomes ({!View_registry.Outcome.t.jobs}) and hears
     their events as {!View_registry.Signal.t.Job}; the frontend's runner
-    ([Ches_ui.Vcs_host]) executes them. It never touches [Ui_state] by name.
+    ([Cobalt_ui.Vcs_host]) executes them. It never touches [Ui_state] by name.
 
     {2 Identity and placement}
 
     Id ["vcs"] (bindings and the palette, in libraries that cannot see this one, name
-    it with [View_id.of_string "vcs"]). Spec: {!Ches_tile.Spec.read_only_text} with
+    it with [View_id.of_string "vcs"]). Spec: {!Cobalt_tile.Spec.read_only_text} with
     role [Major] and [accepts_tab = true] (Tab is the view's list/diff switch, so it
     does not return; [q] and Escape leave). Title ["VCS"]: notices ("VCS in tab
     strip", "VCS closed"). The tab label ({!View_registry.Adapter.t.label}) is
@@ -27,26 +25,26 @@
     Created with the directory to look for a repository from ([cwd], absolute: the
     startup file's directory or the directory opened). Hidden and never shown, it
     runs nothing. Each time it is shown ({!View_registry.Signal.t.Shown}) it starts
-    a new generation ({!Ches_vcs.Stamps.invalidate}: everything in flight becomes
+    a new generation ({!Cobalt_vcs.Stamps.invalidate}: everything in flight becomes
     stale) and detects the repository, then refreshes; the previous snapshot stays
     drawn until the new one arrives. Jobs, by lane (all [Read]):
     - ["detect"]: [Backend.detect ~cwd]; its report goes to [Backend.detected].
     - ["refresh"]: [Backend.refresh repo { Refresh.default with log = scope }] (the
-      view's log scope, phase 8); the report goes to [Backend.snapshot] with the
+      view's log scope); the report goes to [Backend.snapshot] with the
       [Refresh.t] that job was issued with (never the current scope). On success the panels are rebuilt, each cursor reconciled
-      ({!Ches_vcs.Panel.Cursor.reconcile}, the selection rule), and the diff refetched.
+      ({!Cobalt_vcs.Panel.Cursor.reconcile}, the selection rule), and the diff refetched.
     - ["diff"]: [Backend.diff repo target] for the diff target of the list selection
       ([Backend.diff_target]), whenever that target changes and after every refresh;
       parsed with [Diff.Limits.default]. A [None] target shows "No diff for this row".
     Refresh triggers: shown, [g r], and a [Saved] signal naming a file under the
     repository root (or under [cwd]; session paths are not symlink-resolved), at most
     one refresh per signal. Not found: [g r] detects again; saves are ignored. Reports
-    that {!Ches_vcs.Stamps.accepts} rejects only reach the command log; cancelled
+    that {!Cobalt_vcs.Stamps.accepts} rejects only reach the command log; cancelled
     reports change nothing but the log. Failures never raise: a failed detection or
     refresh is shown in the view (the last snapshot kept), a failed diff in the diff
     panel, each with its one-line message, and logged.
 
-    {2 Actions (phases 3 and 4)}
+    {2 Actions}
 
     [s] [u] [x] stage, unstage and discard; [S] [U] stage all and unstage all. In the
     Files panel they act on the selected row: an item is
@@ -56,15 +54,15 @@
     [Target.Hunk { section; file; hunk; selection = Whole }] with
     [section = Git.Backend.diff_section target] and [file] the [Loaded] diff's file;
     on a file's header lines (or a header-only file's note), [Target.File] of that
-    file ({!Ches_vcs.Diff.File.path}) in that section. A commit's diff, the preamble,
+    file ({!Cobalt_vcs.Diff.File.path}) in that section. A commit's diff, the preamble,
     notes outside any file, a loading or failed diff, give a [`Show] notice ("Nothing
     to stage here: a commit's diff", "No change at the cursor", "The diff is still
     loading") and run nothing. [S] and [U] work from the Files panel and the diff.
     The Branches and Commits panels leave all five unbound.
 
-    In Visual in the diff (characterwise or linewise; phase 4), [s] [u] [x] act on
+    In Visual in the diff (characterwise or linewise), [s] [u] [x] act on
     the lines the selection touches ({!Vcs_diff_text.span} of
-    {!Ches_tile.Text_view.selection}: a line counts when any of its bytes is
+    {!Cobalt_tile.Text_view.selection}: a line counts when any of its bytes is
     selected): [Target.Lines { section; file; hunks }] with [hunks] the span's, each
     hunk's indices as [Patch.Selection.Lines] (a hunk the selection covers may be
     sent as [Whole]), so lines across several hunks of one file are one patch,
@@ -110,7 +108,7 @@
     When the mutation's [Finished] report arrives (signalled; current or stale,
     cancelled or not): every [Run] step is logged as refresh commands are (the
     command, its status, a failed step's stderr tail; [--check] steps included);
-    a failure ({!Ches_vcs.Job.Report.first_failure}) posts [`Post] ["<title> failed:
+    a failure ({!Cobalt_vcs.Job.Report.first_failure}) posts [`Post] ["<title> failed:
     <one-line failure>"] (feedback only, as for any signalled outcome), a success
     posts nothing; a plan with [rewrites_worktree] asks the application to reconcile
     open buffers within the root ({!View_registry.Outcome.t.reconcile} [= [root]]),
@@ -120,7 +118,7 @@
     refresh's snapshot is applied (or fails).
 
     Selection after an action: the refresh reconciles each cursor
-    ({!Ches_vcs.Panel.Cursor.reconcile}): an item still listed stays selected; one
+    ({!Cobalt_vcs.Panel.Cursor.reconcile}): an item still listed stays selected; one
     that left its section (staged, discarded) gives way to the next item of that
     section, else the previous, else the section's header, else the nearest
     section's header. Focus stays where it was.
@@ -129,7 +127,7 @@
     path and the hunk's index. When the next [Loaded] diff for the same target
     arrives, the cursor goes to the [@@] line of the hunk with that index in that
     file (the next hunk now that the acted one left), else the file's last hunk, else
-    its first line, else the first line ({!Ches_tile.Text_view.jump}). A different target (the
+    its first line, else the first line ({!Cobalt_tile.Text_view.jump}). A different target (the
     file left the section and the selection moved) starts at the top as any new
     selection does.
 
@@ -144,7 +142,7 @@
     [next-hunk] ([\]]) and [previous-hunk] ([\[]) in the diff outside Visual.
     The hint mentions [s u x].
 
-    {2 Commit (phase 5)}
+    {2 Commit}
 
     [c] (any panel, outside Visual, while a snapshot is loaded) asks
     {!View_registry.Ask.t.Popup} [{ popup = Git.Commit.popup; cancel = None }]: the
@@ -187,7 +185,7 @@
       [path]] (the buffer is written first, even when clean) and the plan's one
       [Mutate] job (busy until the refresh after it, as any action). If the save
       fails, the application posts why and answers the job as never started
-      ({!Ches_vcs.Job.never_started}): nothing ran, the pending commit is kept, and
+      ({!Cobalt_vcs.Job.never_started}): nothing ran, the pending commit is kept, and
       the view posts nothing more. On the job's [Finished]:
       every step is logged; success gives [dispose = [path]] (the buffer closed, the
       file deleted, the user back in the view where it is placed), clears the pending
@@ -203,14 +201,14 @@
       would race git and its hooks). Else [dispose = [path]], the pending commit
       cleared, [`Post] ["Commit aborted"] (["Amend aborted"] for an amend); nothing
       runs.
-    ["file-log"] is phase 8's (below). Other requests are ignored (the application
+    ["file-log"] opens file history (below). Other requests are ignored (the application
     says "VCS: nothing to do for <request>").
 
     [Saved] signals for paths inside the repository's git directory
     ([Git.Repository.t.git_dir], where the message file lives) do not refresh; other
     saves under the root still do.
 
-    {2 Remotes and branches (phase 6)}
+    {2 Remotes and branches}
 
     Every action below goes through the actions' machinery above (busy, refusals as
     [`Show] notices, the dirty-buffer refusal and reconciliation for plans with
@@ -225,8 +223,7 @@
     - [P]: the same with [Git.Remote.Push.popup status]; [{ target; flags }] ->
       [plan (Push { target; flags })] (a force push is confirmed). Local command
       [push].
-    - [r], [m]: the rebase and merge popups; phase 7 below (phase 6 offered only
-      abort).
+    - [r], [m]: the rebase and merge popups; see Merges, rebases and conflicts below.
     In the Branches panel:
     - Enter on a branch: [plan (Checkout name)] (Enter on the current branch is
       refused by the plan: ["Already on <name>; nothing ran"]). Local command
@@ -239,7 +236,7 @@
     - [-]: [plan Checkout_previous]. Local command [previous-branch].
     The hint mentions [Enter n -] in Branches.
 
-    A plan with a [Network] step streams: its {!Ches_vcs.Event.Output} lines go to
+    A plan with a [Network] step streams: its {!Cobalt_vcs.Event.Output} lines go to
     its log entry ({!Log_entry.t.output}, [progress]), and while it runs the head
     summary shows one more row, ["<title>..."] followed by the latest progress line
     when there is one (escaped, cut to the width). Success posts [`Post] ["<title>:
@@ -252,7 +249,7 @@
     a terminal shows); the log's stderr tail keeps last segments too. While it runs the view stays usable (moving, diffs, [g r], the
     log); other actions are refused as busy, as during any mutation.
 
-    {2 Merges, rebases and conflicts (phase 7)}
+    {2 Merges, rebases and conflicts}
 
     Through the actions' machinery as above; plans and texts are [Git.Backend]'s
     ("Merges, rebases and conflicts"). Every plan here rewrites the work tree, so
@@ -289,11 +286,11 @@
     and a [Merge] row with [" (press m)"] (the popup lists continue, skip or commit,
     and abort); short, so the row fits the lists column.
 
-    {2 Log and history (phase 8)}
+    {2 Log and history}
 
-    The view keeps a log scope ({!Ches_vcs.Log_scope.t}: [Log_scope.default] at
+    The view keeps a log scope ({!Cobalt_vcs.Log_scope.t}: [Log_scope.default] at
     creation, kept across hiding and reopening) that every refresh reads; the Commits
-    section's title names it (the backend's {!Ches_vcs.Log_scope.title}).
+    section's title names it (the backend's {!Cobalt_vcs.Log_scope.title}).
     - [l] in a list panel (any of the three; in the diff it stays the text motion),
       while a snapshot is loaded: {!View_registry.Ask.t.Popup} [{ popup =
       Git.Log.popup ~branch ~file; enabled = Git.Log.enabled scope; cancel = None }]
@@ -303,16 +300,16 @@
       ({!Vcs_diff_text.Target.t.path}) of the diff's line at its cursor; else [None].
       Nothing loaded: [`Show] ["Nothing loaded yet"]. The answer goes to
       {!Git.Log.scope}: [Error text] is [`Show text]; [Ok scope] becomes the scope,
-      the Commits cursor is reset ({!Ches_vcs.Panel.Cursor.empty}: the next snapshot
+      the Commits cursor is reset ({!Cobalt_vcs.Panel.Cursor.empty}: the next snapshot
       selects its first row), focus goes to Commits, and a refresh follows. Local
       command [log] in the list panels.
-    - [+] in Commits: {!Ches_vcs.Log_scope.more}; [None] is [`Show] ["Showing the
+    - [+] in Commits: {!Cobalt_vcs.Log_scope.more}; [None] is [`Show] ["Showing the
       most commits already (12800)"]; else the scope doubles and a refresh follows,
       the cursor kept. Local command [more-commits].
     - Commit rows read [<graph row><short hash> <refs><subject>]: the graph row
-      ({!Ches_vcs.Graph.rows}, computed once per snapshot from full hashes and
+      ({!Cobalt_vcs.Graph.rows}, computed once per snapshot from full hashes and
       parents, first parents only with [first_parent]) only when
-      {!Ches_vcs.Log_scope.graph_shown} of the snapshot's own refresh; [<refs>] is
+      {!Cobalt_vcs.Log_scope.graph_shown} of the snapshot's own refresh; [<refs>] is
       ["(" ^ String.concat ~sep:", " refs ^ ") "] when the commit has any.
     - In a file's history (the snapshot's scope has [path = Some p]), the first time
       a commit's diff is shown for a target (not when a refresh reloads it), its
@@ -367,15 +364,15 @@
     - [?]: unbound, so the host opens the help float.
     List panels:
     - [j] [k] [g g] [G] [Ctrl-d] [Ctrl-u]: move over the visible rows (section
-      headers and items; {!Ches_tile.Navigation.commands}); the diff follows.
+      headers and items; {!Cobalt_tile.Navigation.commands}); the diff follows.
     - Enter: on a section header, fold or unfold it
-      ({!Ches_vcs.Panel.Cursor.toggle_fold}); on a Files or Commits item, focus the
-      diff ([select]). On a branch it checks the branch out (phase 6, below:
+      ({!Cobalt_vcs.Panel.Cursor.toggle_fold}); on a Files or Commits item, focus the
+      diff ([select]). On a branch it checks the branch out (below:
       [checkout]), so [select] is not listed there.
     - [y]: copy the selected item's name: a file's path, a branch name, a commit's
       abbreviated hash (7 characters) ([copy]); nothing on a header.
     Diff panel:
-    - The read-only text keys ({!Ches_tile.Text_view.commands}: [j k w b 0 $ g g G
+    - The read-only text keys ({!Cobalt_tile.Text_view.commands}: [j k w b 0 $ g g G
       Ctrl-d Ctrl-u v V y] ...), with counts: [10j], [3 Ctrl-d], [12G]. Every digit
       goes to the text: [0] is its line start (or extends a count), not
       [focus-diff], and [1] [2] [3] start a count rather than switching panels;
@@ -388,7 +385,7 @@
     {2 Opening a file from the diff}
 
     [e]/Enter in the diff returns {!View_registry.Outcome.t.open_file} with the
-    absolute path ([root] ^ "/" ^ the file's {!Ches_vcs.Diff.File.path}) and a line:
+    absolute path ([root] ^ "/" ^ the file's {!Cobalt_vcs.Diff.File.path}) and a line:
     on an [Added] or [Context] line its [new_line]; on a [Removed] line the
     [new_line] of the next line in its hunk that has one, else the hunk's
     [new_start]; on a hunk header its [new_start]; on a file header or the preamble,
@@ -404,20 +401,20 @@
     escaped for display, never drawn. Diff lines use {!Style.Diff_added},
     {!Style.Diff_removed}, {!Style.Diff_hunk} and {!Style.Diff_meta}; binary,
     submodule, mode-only and rename-only files render as their headers (see
-    {!Ches_vcs.Diff.File.line_actions}); an [Unmerged] file shows its combined hunks
+    {!Cobalt_vcs.Diff.File.line_actions}); an [Unmerged] file shows its combined hunks
     (the conflict markers, openable at their result line) when git gives them, else
     its ["* Unmerged path"] header; a truncated file ends with a
     placeholder naming the omitted hunks and lines, and a cut diff says so. *)
 
 open! Core
-open Ches_vcs
-module Git = Ches_vcs_git
+open Cobalt_vcs
+module Git = Cobalt_vcs_git
 
 (** [View_id.of_string "vcs"]. *)
-val id : Ches_tile.View_id.t
+val id : Cobalt_tile.View_id.t
 
 (** Read-only text, role [Major], [accepts_tab], title ["VCS"]. *)
-val spec : Ches_tile.Spec.t
+val spec : Cobalt_tile.Spec.t
 
 (** What has focus inside the view. *)
 module Focus : sig
@@ -466,7 +463,7 @@ module Log_entry : sig
     (** {!Exec.Result.status_hum} once finished; [None] while running. *)
     ; output : string list
     (** A failed command's stderr tail, at most 5 lines, raw. A streamed command
-        (phase 6: push, pull, fetch) also keeps its last 5 non-transient output
+        (push, pull, fetch) also keeps its last 5 non-transient output
         lines, stdout and stderr in arrival order, while it runs and after it
         succeeds; a failure replaces them with the stderr tail. Else empty. *)
     ; progress : string option
@@ -577,7 +574,7 @@ val cursor : t -> Focus.t -> Panel.Cursor.t
 val diff : t -> Diff_state.t
 
 (** The diff panel's text while it is focused (also {!Adapter.t.text_view}). *)
-val text_view : t -> Ches_tile.Text_view.t option
+val text_view : t -> Cobalt_tile.Text_view.t option
 
 val log_visible : t -> bool
 
@@ -587,7 +584,7 @@ val log : t -> Log_entry.t list
 (** The current generation's stamps (ids and lanes the view issued). *)
 val stamps : t -> Stamps.t
 
-(** The log scope the next refresh reads (phase 8). *)
+(** The log scope the next refresh reads. *)
 val scope : t -> Log_scope.t
 
 (** The title of this view's mutation ({!Backend.Plan.t.title}) from its submission
@@ -600,7 +597,7 @@ val mutation : t -> string option
 type action [@@deriving sexp_of]
 
 (** Keys typed into the focused view, per the table above. *)
-val interpret : t -> Ches_input.Key.t list -> action Ches_tile.Content_key.t
+val interpret : t -> Cobalt_input.Key.t list -> action Cobalt_tile.Content_key.t
 
 (** In the diff: end Visual, else back to the list panel. In a list: [None]. *)
 val escape : t -> action option
@@ -612,7 +609,7 @@ val signal : t -> View_registry.Signal.t -> action option
 (** [rows] and [width] are the content viewport. *)
 val perform
   :  t
-  -> Ches_app.Controller.t
+  -> Cobalt_app.Controller.t
   -> context:View_registry.Context.t
   -> rows:int
   -> width:int
@@ -620,7 +617,7 @@ val perform
   -> t * action View_registry.Ask.t View_registry.Outcome.t
 
 (** The local commands of the current state (focus, repository state). *)
-val commands : t -> Ches_tile.Local_command.t list
+val commands : t -> Cobalt_tile.Local_command.t list
 
 (** Keep cursors' scroll offsets and the diff's text cursor within the viewport's
     parts. Never changes the diff's text (that would post "Details updated"). *)

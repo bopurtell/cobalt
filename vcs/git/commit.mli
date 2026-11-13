@@ -1,4 +1,4 @@
-(** Commits (phase 5): the commit popup, the message file, and the checks shared by
+(** Commits: the commit popup, the message file, and the checks shared by
     the view (before a message buffer opens) and {!Backend.plan} (before a commit
     runs). Pure, like the rest of this library: steps go out, reports come back.
 
@@ -10,7 +10,7 @@
     [Choice.Extend], planned at once as [Extend]. *)
 
 open! Core
-open Ches_vcs
+open Cobalt_vcs
 
 module Kind : sig
   type t =
@@ -21,7 +21,7 @@ module Kind : sig
 end
 
 (** What the commit popup's actions return. [flags] are the enabled switches' flags
-    in the popup's declaration order ({!Ches_vcs.Popup.Action.t.run}). *)
+    in the popup's declaration order ({!Cobalt_vcs.Popup.Action.t.run}). *)
 module Choice : sig
   type t =
     | Message of
@@ -61,7 +61,7 @@ val refusal : Status.t -> Choice.t -> string option
 
 (** The steps that find the message file and, for [Amend], HEAD's message, all
     [Run (Cli.read ~cwd:repo.root ...)]:
-    - [rev-parse --git-path CHES_COMMIT_EDITMSG] (never [COMMIT_EDITMSG] itself,
+    - [rev-parse --git-path COBALT_COMMIT_EDITMSG] (never [COMMIT_EDITMSG] itself,
       which git rewrites during [commit -F]);
     - [Amend] only: [log -1 --no-show-signature --format=%B HEAD --]. *)
 val prepare : Repository.t -> Kind.t -> Job.Step.t list
@@ -78,7 +78,7 @@ module Prepared : sig
 end
 
 (** From [prepare]'s report: an error (one line, with the command line,
-    {!Ches_vcs.Exec.Result.status_hum} and stderr, as {!Step_failure} gives it) when
+    {!Cobalt_vcs.Exec.Result.status_hum} and stderr, as {!Step_failure} gives it) when
     a step did not succeed, or the path is empty or not a single line. *)
 val prepared
   :  Repository.t

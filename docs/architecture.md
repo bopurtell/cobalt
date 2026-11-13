@@ -2,7 +2,7 @@
 
 [Documentation index](README.md) · [Development](development.md)
 
-Ches separates editing state from the terminal frontend. The core returns a new
+Cobalt separates editing state from the terminal frontend. The core returns a new
 state and effects; the application controller performs file I/O and updates
 highlighting. A screen model handles geometry, focus, scrolling, and rendered
 frames. Bonsai_term adapts terminal events and displays those frames.
@@ -51,4 +51,4 @@ their terminal number and generation to prevent cross-session delivery. See the
 [terminal backend guide](../terminal/README.md) for lifecycle and emulation details.
 
 For deeper rationale, see the [workspace design](workspace_tiles_design.md),
-[rendering design](rendering_design.md), and [project direction](ches_editor_prototype_brief.md).
+[rendering design](rendering_design.md), and [project direction](cobalt_editor_prototype_brief.md).

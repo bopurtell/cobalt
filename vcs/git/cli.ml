@@ -1,5 +1,5 @@
 open! Core
-open Ches_vcs
+open Cobalt_vcs
 
 let prefix = [ "--no-pager"; "-c"; "color.ui=false"; "-c"; "core.quotepath=false" ]
 let read_env = [ "GIT_OPTIONAL_LOCKS", "0"; "LC_ALL", "C" ]

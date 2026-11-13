@@ -1,4 +1,4 @@
-# VCS Workspace: a lazygit/Magit hybrid inside Ches
+# VCS Workspace: a lazygit/Magit hybrid inside Cobalt
 
 [Implementation plans](README.md) · [Manual acceptance](../testing/vcs_manual.md)
 
@@ -26,12 +26,12 @@ as 7227a31 and 19b5da8 (2026-10-29), owner terminal acceptance pending. Phase 8
 
 ## Goal
 
-Move the owner's everyday git work from a spare terminal into Ches: see what
+Move the owner's everyday git work from a spare terminal into Cobalt: see what
 changed, stage (files, hunks, lines), commit, push/pull/fetch, and switch/create
 branches. The surface combines **lazygit's layout** (list panels beside a large
 diff panel, with a command log) and **Magit's interaction** (context keys that exist
 only while the VCS view is focused, popup menus with switches, the commit message
-written in an ordinary Ches buffer).
+written in an ordinary Cobalt buffer).
 
 Git is the first backend. Mercurial (and possibly jj) are later backends, so the
 backend-agnostic layer must not assume a staging index.
@@ -133,7 +133,7 @@ vertically instead of side by side; below a minimum, only the focused part shows
   hash). After an action removes the selected item, select the next in the same
   section, else the previous, else the header.
 - Refresh triggers: on open, on `gr`, after every VCS command, and (coalesced) after
-  a Ches save of a file inside the repository. No polling or file watching.
+  a Cobalt save of a file inside the repository. No polling or file watching.
 - The VCS view occupies exactly one placement at a time: tab, split, or closed.
   Moving it never duplicates it.
 - Zen hides the split pane and restores it afterwards. If the split pane cannot fit
@@ -142,9 +142,9 @@ vertically instead of side by side; below a minimum, only the focused part shows
 - Destructive actions (discard, delete untracked files, force-with-lease push) use a
   confirmation float. The default answer is No; only `y` confirms.
 - Commands that rewrite working-tree files (discard, checkout, pull) are refused
-  while any Ches file buffer inside the repository is dirty. The notice names
+  while any Cobalt file buffer inside the repository is dirty. The notice names
   the buffers. The user saves or discards first.
-- Commit message file is `$(git rev-parse --git-path CHES_COMMIT_EDITMSG)`, never
+- Commit message file is `$(git rev-parse --git-path COBALT_COMMIT_EDITMSG)`, never
   `COMMIT_EDITMSG` itself (git rewrites that during `commit -F`). It is opened as
   an ordinary session file buffer with a `#`-commented summary of staged files, and
   committed with `git commit --cleanup=strip -F <file> [switches]`. Amend pre-fills
@@ -157,10 +157,10 @@ vertically instead of side by side; below a minimum, only the focused part shows
 
 ### Existing seams (rechecked 2026-10-27, after phases 0A-0C)
 
-- `tile/` (`ches_tile`, depends on `ches_core`/`ches_input` only): host
+- `tile/` (`cobalt_tile`, depends on `cobalt_core`/`cobalt_input` only): host
   focus/capture/routing, `Spec` (including `accepts_tab`), `Navigation` (lists and
   `Selection`), `Text_view` (read-only cursor, Visual, yank), `Local_command`
-  (view-local commands); `View_id` re-exports `ches_input`'s.
+  (view-local commands); `View_id` re-exports `cobalt_input`'s.
 - `screen/view_registry.ml`: installed views as adapters (`Adapter.t`), placements
   `Hidden | Band | Tab | Split`, local commands, `Ask` questions (confirm/prompt).
   `screen/ui_state.ml` (~2500 lines) no longer wires minor tiles by name: generic
@@ -179,32 +179,32 @@ vertically instead of side by side; below a minimum, only the focused part shows
   `content_picker/{provider,host}`, `source/`. Results enter as `Ui_state.Input`
   events (`File_picker_update`/`File_picker_work`, `Content_picker_snapshot`,
   `Source`) and are rejected when stale (run/request identity; `Source_event.Owned`
-  generations). The frontend wiring is in `ui/editor_view.ml` (`ches_ui`), not
-  `bin/` (which only builds the source and calls `Editor_view.run`). `ches_source`
+  generations). The frontend wiring is in `ui/editor_view.ml` (`cobalt_ui`), not
+  `bin/` (which only builds the source and calls `Editor_view.run`). `cobalt_source`
   is the closest precedent for a long-lived runner: its event type lives in pure
-  `ches_error`, requests leave `Ui_state` as data (`take_source_requests`), and
-  `Editor_view` pumps `Source.next_batch` into `Ui_state.Input.Source`. `ches_app`,
-  `ches_screen`, `ches_core`, `ches_input`, `ches_tile` stay free of Async.
+  `cobalt_error`, requests leave `Ui_state` as data (`take_source_requests`), and
+  `Editor_view` pumps `Source.next_batch` into `Ui_state.Input.Source`. `cobalt_app`,
+  `cobalt_screen`, `cobalt_core`, `cobalt_input`, `cobalt_tile` stay free of Async.
 - `docs/backlog/major_minor_tiles.md`: records what 0A-0C finished.
 
 ### Target libraries
 
 ```text
-vcs/          ches_vcs        pure, backend-agnostic, no Async, no ches_app:
+vcs/          cobalt_vcs        pure, backend-agnostic, no Async, no cobalt_app:
                               panel/section models with stable selection identity,
                               popup ("transient") model, command spec (argv, env,
                               read | mutate | network), backend signature
-vcs/git/      ches_vcs_git    pure: porcelain v2 / diff / log / branch parsers,
+vcs/git/      cobalt_vcs_git    pure: porcelain v2 / diff / log / branch parsers,
                               patch builder (hunk or selected lines -> patch),
                               git actions -> command plans
-vcs/host/     ches_vcs_host   Async: process runner, one-mutation-at-a-time queue,
+vcs/host/     cobalt_vcs_host   Async: process runner, one-mutation-at-a-time queue,
                               streaming output for network commands, generation
                               stamps, timeouts, cancellation on quit
 screen/       adapters        VCS view (panels + diff + log), popup float
 ```
 
 - The backend-agnostic layer never mentions an index. Backends declare their own
-  panels' item kinds, actions and popups; git's stage/unstage live in `ches_vcs_git`.
+  panels' item kinds, actions and popups; git's stage/unstage live in `cobalt_vcs_git`.
 - Shell out to the `git` CLI (2.43 here), not libgit2. Use `--no-pager`,
   `-c color.ui=false`, `-c core.quotepath=false`, NUL-separated output where
   available, `--no-ext-diff`, `GIT_OPTIONAL_LOCKS=0` for read commands, stdin from
@@ -218,7 +218,7 @@ screen/       adapters        VCS view (panels + diff + log), popup float
 
 ### Authentication constraints (network commands)
 
-Ches owns the terminal, so a git child must never prompt on it. `ssh` opens
+Cobalt owns the terminal, so a git child must never prompt on it. `ssh` opens
 `/dev/tty` directly for passphrase and host-key prompts, which would corrupt the UI.
 Run network commands with `GIT_TERMINAL_PROMPT=0`, and when the user has not set
 `GIT_SSH_COMMAND`/`core.sshCommand`, `GIT_SSH_COMMAND="ssh -o BatchMode=yes"`.
@@ -287,13 +287,13 @@ appends a handoff below.
 
 ### Phase 1: VCS core, git parsing, and the async runner
 
-- `ches_vcs`: panel/section models, stable selection identity across snapshots,
+- `cobalt_vcs`: panel/section models, stable selection identity across snapshots,
   popup model, command spec, backend signature.
-- `ches_vcs_git`: repository detection (`rev-parse --show-toplevel --git-dir`),
+- `cobalt_vcs_git`: repository detection (`rev-parse --show-toplevel --git-dir`),
   `status --porcelain=v2 -z --branch` (renames, conflicts, submodules, untracked),
   branch list with upstream/ahead/behind (`for-each-ref`), bounded log, in-progress
   merge/rebase detection, `diff`/`diff --cached`/`show` parsing into files and hunks.
-- `ches_vcs_host`: Async runner with generation stamps, serialized mutations,
+- `cobalt_vcs_host`: Async runner with generation stamps, serialized mutations,
   streaming output for long commands, timeouts, the authentication environment
   above, cancellation on quit; wired from the frontend like the file-picker host.
 - Tests: pure parser tests over captured outputs, plus fixture repositories in
@@ -331,7 +331,7 @@ appends a handoff below.
 
 ### Phase 5: Popups and the commit flow
 
-- Generic popup float on the `ches_vcs` popup model: a titled grid of switches
+- Generic popup float on the `cobalt_vcs` popup model: a titled grid of switches
   (toggle with `-` + key) and actions (single key), showing enabled switches;
   `Escape`/`q` closes. The popup's keys appear in `?` help.
 - Commit popup (`c`): actions `c` commit, `a` amend, `e` extend (amend `--no-edit`);
@@ -411,7 +411,7 @@ interfaces. Earlier phases may have changed the architecture described here.
 - **Load limit (2026-11-01, owner; was 10 from 2026-10-25):** the total dune job
   budget is 4, after two host resets on 2026-11-01 (one during a `-j 10` build).
   Every dune invocation passes `-j 4` and goes through one shared lock, so at most
-  one runs at a time: `flock /tmp/claude-1000/ches-dune.lock dune build -j 4`,
+  one runs at a time: `flock /tmp/claude-1000/cobalt-dune.lock dune build -j 4`,
   likewise `dune runtest -j 4`. (Older handoffs below say `-j 10`: that was the
   limit then.) (Dune itself aborts a second instance in the same tree with
   "Another Dune instance is currently running".) Agents working in parallel build
@@ -424,8 +424,8 @@ interfaces. Earlier phases may have changed the architecture described here.
   fine. Leave all changes uncommitted for the owner.
 - **Fixture repositories** live in fresh temp directories only. Isolate them with
   `GIT_CONFIG_GLOBAL=/dev/null`, `GIT_CONFIG_NOSYSTEM=1`, and a neutral identity
-  (`Ches Test <ches-test@example.invalid>`); "remotes" are local bare repositories.
-  Never run feature mutations against the Ches repository itself, and never contact
+  (`Cobalt Test <cobalt-test@example.invalid>`); "remotes" are local bare repositories.
+  Never run feature mutations against the Cobalt repository itself, and never contact
   a real network remote.
 - Implementation agents do not spawn further agents. Do not run the interactive
   TUI. Drive behavior headlessly through `Ui_state`, as existing tests do.
@@ -463,13 +463,13 @@ Next-phase integration notes:
 
 ## Phase 1 contracts (stage 1, 2026-10-27)
 
-Stage 1 fixed the contracts so that agent G (`ches_vcs_git`) and agent H
-(`ches_vcs_host`) can work in parallel. `ches_vcs` and the fixture are implemented
+Stage 1 fixed the contracts so that agent G (`cobalt_vcs_git`) and agent H
+(`cobalt_vcs_host`) can work in parallel. `cobalt_vcs` and the fixture are implemented
 and tested; the git and host `.mli` files are the contracts, with compiling stubs
 (`failwith "TODO phase 1: agent G"` / `"... agent H"`; grep `TODO phase 1`).
 
 ```text
-vcs/              ches_vcs           pure, core only            stage 1, done
+vcs/              cobalt_vcs           pure, core only            stage 1, done
   exec            Kind (Read < Mutate < Network), Stdin (Null | Data), Stream,
                   Spec {prog; args; cwd; env; kind; stdin; timeout; stdout_limit;
                   stderr_limit; stream}, Status, Result {status; stdout(+truncated);
@@ -489,17 +489,17 @@ vcs/              ches_vcs           pure, core only            stage 1, done
                   Limits; mode_only / rename_only / line_actions
   backend         Detection, Refresh, Summary, Plan + Plan.Decision
                   (Run | Confirm | Refused), module type S
-vcs/test/         ches_vcs_test                                 stage 1, done
-vcs/fixture/      ches_vcs_fixture   test-only: Fixture_repo   stage 1, done
-vcs/fixture/test/ ches_vcs_fixture_test                         stage 1, done
-vcs/git/          ches_vcs_git       pure: Cli, Repository, Status, Branch_list,
-                  Log, In_progress, Diff_output, Backend (: Ches_vcs.Backend.S)   G
-vcs/git/test/     ches_vcs_git_test                                               G
-vcs/host/         ches_vcs_host      Async: Runner, Auth                          H
-vcs/host/test/    ches_vcs_host_test                                              H
+vcs/test/         cobalt_vcs_test                                 stage 1, done
+vcs/fixture/      cobalt_vcs_fixture   test-only: Fixture_repo   stage 1, done
+vcs/fixture/test/ cobalt_vcs_fixture_test                         stage 1, done
+vcs/git/          cobalt_vcs_git       pure: Cli, Repository, Status, Branch_list,
+                  Log, In_progress, Diff_output, Backend (: Cobalt_vcs.Backend.S)   G
+vcs/git/test/     cobalt_vcs_git_test                                               G
+vcs/host/         cobalt_vcs_host      Async: Runner, Auth                          H
+vcs/host/test/    cobalt_vcs_host_test                                              H
 ```
 
-Backend signature (`Ches_vcs.Backend.S`): `detect ~cwd` / `detected` (repository
+Backend signature (`Cobalt_vcs.Backend.S`): `detect ~cwd` / `detected` (repository
 detection), `refresh repo r` -> steps, `snapshot repo r reports` -> `Snapshot.t
 Or_error.t`, `summary`, `panels`, `diff_target snapshot panel position`, `diff` ->
 steps, `parse_diff`, `plan repo snapshot action` -> `Plan.Decision.t`. Parse
@@ -509,25 +509,25 @@ in order.
 Ownership. G: `vcs/git/*.ml` and everything under `vcs/git/test/`. H:
 `vcs/host/*.ml` and everything under `vcs/host/test/`. Each may add private modules
 (new `.ml`/`.mli`) in its own directory and libraries to its own `dune` files
-within the boundaries (`ches_vcs_git`: no Async, no Unix; `ches_vcs_host`: no
-`ches_screen`/`ches_ui`). Frozen for both: `vcs/*.ml(i)`, `vcs/test/`,
+within the boundaries (`cobalt_vcs_git`: no Async, no Unix; `cobalt_vcs_host`: no
+`cobalt_screen`/`cobalt_ui`). Frozen for both: `vcs/*.ml(i)`, `vcs/test/`,
 `vcs/fixture/`, and the `.mli` files of `vcs/git/` and `vcs/host/`; a needed
 contract change goes to the orchestrator and into the handoff. Neither library
 depends on the other: H's tests build specs by hand (or via the fixture), never via
-`Ches_vcs_git`, whose stubs fail until G lands. Helpers either agent wants beyond
+`Cobalt_vcs_git`, whose stubs fail until G lands. Helpers either agent wants beyond
 `Fixture_repo` live in its own test directory.
 
-Frontend wiring decision: phase 1 adds no `Ui_state.Input` case and no `ches_ui`
-wiring; phase 2 does both when the view exists. Following `ches_source`, the seam is
-already in the types: `Ches_vcs.Event.t` and `Ches_vcs.Job.t` are pure, so phase 2
-adds `Ui_state.Input.Vcs of Ches_vcs.Event.t` and a `take_vcs_jobs` (requests leave
+Frontend wiring decision: phase 1 adds no `Ui_state.Input` case and no `cobalt_ui`
+wiring; phase 2 does both when the view exists. Following `cobalt_source`, the seam is
+already in the types: `Cobalt_vcs.Event.t` and `Cobalt_vcs.Job.t` are pure, so phase 2
+adds `Ui_state.Input.Vcs of Cobalt_vcs.Event.t` and a `take_vcs_jobs` (requests leave
 the transition as data), and `Editor_view` submits jobs to one `Runner.t`, pumps
 `Runner.next_batch` into inputs, and calls `Runner.stop` on exit. The view keeps a
 `Stamps.t` and drops reports it does not accept. A stub input now would have no
 producer or consumer to test.
 
 Deviations from the target libraries and git CLI rules, with reasons:
-- The command-spec module is `Ches_vcs.Exec`, not `Command`: `open! Core` shadows
+- The command-spec module is `Cobalt_vcs.Exec`, not `Command`: `open! Core` shadows
   any library-local `Command` with `Core.Command`.
 - Detection runs `rev-parse --show-toplevel --absolute-git-dir` (not `--git-dir`,
   which is relative to the cwd) so the git directory can be read directly.
@@ -541,7 +541,7 @@ Deviations from the target libraries and git CLI rules, with reasons:
   locale (hooks run under them).
 - `GIT_TERMINAL_PROMPT=0` is forced for every child, not only network ones. The
   `GIT_SSH_COMMAND` batch-mode default is git-specific yet lives in
-  `Ches_vcs_host.Auth`, which learns `core.sshCommand` by running
+  `Cobalt_vcs_host.Auth`, which learns `core.sshCommand` by running
   `git config --get core.sshCommand` before each network step.
 - Reads may run concurrently with each other and with the running mutation (git
   reads take no optional locks; a refresh always follows the mutation, and stale
@@ -552,8 +552,8 @@ Deviations from the target libraries and git CLI rules, with reasons:
   (2 s), so git can remove `index.lock`.
 - Git's `action` type is empty in phase 1; constructors arrive with phases 3-6.
   Popups are not yet in `Backend.S`; phase 5 adds them (the model is
-  `Ches_vcs.Popup`).
-- A test-only library, `ches_vcs_fixture`, holds the isolated fixture repositories
+  `Cobalt_vcs.Popup`).
+- A test-only library, `cobalt_vcs_fixture`, holds the isolated fixture repositories
   and a synchronous step runner, so G can test specs against real git without H.
 
 Notes for G and H beyond the `.mli` files:
@@ -591,10 +591,10 @@ Phase 1 cleanup (done, tested):
 
 The seam (implemented in `screen/view_registry.ml(i)`, `screen/ui_state.ml(i)`; test
 `screen/test/test_view_jobs.ml` with two test-only "worker" views):
-- `View_registry.Outcome.t` gains `jobs : Ches_vcs.Job.t list` and
+- `View_registry.Outcome.t` gains `jobs : Cobalt_vcs.Job.t list` and
   `open_file : Location.t option` (`{ path; line : int option }`); `Outcome.create`
   takes `?jobs ?open_file`.
-- `View_registry.Signal.t = Shown | Saved of string list | Job of Ches_vcs.Event.t`;
+- `View_registry.Signal.t = Shown | Saved of string list | Job of Cobalt_vcs.Event.t`;
   `Adapter.t` gains `signal : 'state -> Signal.t -> 'action option` (the view turns
   a signal into one of its own actions, performed like a key's) and
   `text_area : 'state -> rows -> width -> Geometry.Rect.t option` (where open text
@@ -602,7 +602,7 @@ The seam (implemented in `screen/view_registry.ml(i)`, `screen/ui_state.ml(i)`; 
   Existing adapters return `None` for both.
 - `Entry.install ?opens_in` (default `Band`): where `Focus_view`/`Toggle_view` show a
   hidden view. The VCS view opens in `Tab`, so `Space g g` needs no new command.
-- `Ui_state.Input.Vcs of Ches_vcs.Event.t`; `Ui_state.take_vcs_jobs`. Ownership:
+- `Ui_state.Input.Vcs of Cobalt_vcs.Event.t`; `Ui_state.take_vcs_jobs`. Ownership:
   Ui_state maps each job id in flight to the view whose outcome carried it (until
   its `Finished`) and routes events there; staleness is the view's own (`Stamps`).
   A job whose id is already in flight (any view) is not submitted: its submitter is
@@ -627,12 +627,12 @@ The seam (implemented in `screen/view_registry.ml(i)`, `screen/ui_state.ml(i)`; 
   (Insert accent, Error, Special on Surface; meta bold).
 - `screen/test/vcs_driver.ml`: runs `take_vcs_jobs` synchronously in a
   `Fixture_repo` (`run_steps`) and feeds `Started`/`Finished` back as `Input.Vcs`;
-  `settle` repeats until no view submits. `screen/test/dune` now has `ches_vcs`,
-  `ches_vcs_git`, `ches_vcs_fixture`.
+  `settle` repeats until no view submits. `screen/test/dune` now has `cobalt_vcs`,
+  `cobalt_vcs_git`, `cobalt_vcs_fixture`.
 
-Dependencies: `ches_screen` now depends on `ches_vcs` and `ches_vcs_git` (both core
-only: no Async, no Unix), and stays free of Async; `ches_vcs_host` remains reachable
-only from `ches_ui` (`ui/dune` now lists `ches_vcs`, `ches_vcs_host`). No cycle: the
+Dependencies: `cobalt_screen` now depends on `cobalt_vcs` and `cobalt_vcs_git` (both core
+only: no Async, no Unix), and stays free of Async; `cobalt_vcs_host` remains reachable
+only from `cobalt_ui` (`ui/dune` now lists `cobalt_vcs`, `cobalt_vcs_host`). No cycle: the
 vcs libraries depend on nothing in the UI.
 
 `screen/vcs_view.mli` (V's contract): id `vcs`; spec read-only text, role Major,
@@ -665,7 +665,7 @@ Ownership.
   Vcs_view.id ~title:"VCS" ~notice:"VCS unavailable in this session"`; after each
   transition `take_vcs_jobs` -> `Vcs_host.submit`; a pump loop like the source's
   injecting `next_inputs`; `stop` on Exit and on deactivate; `run` awaits `shutdown`
-  after the terminal closes); `bin/ches.ml` (create the host, pass `~vcs`);
+  after the terminal closes); `bin/cobalt.ml` (create the host, pass `~vcs`);
   `input/bindings.ml`: `Space g g` and `Space g f` -> `Focus_view vcs`, `Space g t`/
   `g s`/`g h` -> `Place_view { view = Some vcs; placement = Tab | Split | Hidden }`
   (`vcs = View_id.of_string "vcs"`); `palette/catalog.ml`: `vcs.open` "VCS: open or
@@ -682,7 +682,7 @@ Ownership.
   `screen/ui_state.ml(i)`, `screen/style.ml(i)`, `ui/theme.ml`,
   `screen/vcs_view.mli`, `ui/vcs_host.mli`, `screen/test/{helpers,vcs_driver,
   test_view_jobs}.ml`, `screen/dune`, `screen/test/dune`, `ui/dune`, `app/`, `vcs/`.
-- Both edit inside `ches_screen`/`ches_screen_test`, which W's builds also compile:
+- Both edit inside `cobalt_screen`/`cobalt_screen_test`, which W's builds also compile:
   leave no non-compiling file between dune runs; if a build fails in the other
   agent's files, wait and rerun instead of editing them. V builds
   `@screen/runtest`; W builds `@ui/runtest @palette/runtest @input/runtest
@@ -700,7 +700,7 @@ Decisions and deviations from the plan, with reasons:
 - `q` leaves through `Outcome.return` (the host's return stays in an active view tab
   under the 0B policy, so it would do nothing there); Escape keeps the host's return
   from a list panel. `accepts_tab`, so Tab is the view's own list/diff switch.
-- The view is written against `Ches_vcs.Backend.S` where it can, but over the git
+- The view is written against `Cobalt_vcs.Backend.S` where it can, but over the git
   backend concretely: item display needs git's types (`Backend.S.Item.t` is
   abstract). A second backend would add a display function to `Backend.S` or make
   the view a functor.
@@ -770,9 +770,9 @@ Seams (implemented and tested):
   safe). Unreadable: a `Failed` reload problem. One `session` notification lists the
   rest by label (Info; Warning when something was not reloaded). Test:
   `test/test_session_reconcile.ml`.
-- Small generic additions: `Ches_core.Resource.within ~root path` (lexical
+- Small generic additions: `Cobalt_core.Resource.within ~root path` (lexical
   containment, shared by the session and `Context.dirty_within`);
-  `Ches_tile.Text_view.jump` (cursor to an offset, Visual ended; tested in
+  `Cobalt_tile.Text_view.jump` (cursor to an offset, Visual ended; tested in
   `tile/test/test_text_view.ml`) so the view can put its diff cursor on a hunk.
 
 Contracts (stubs):
@@ -867,7 +867,7 @@ Deviations, with reasons:
 Ownership.
 - G3: `vcs/git/backend.ml` (`plan`), `vcs/git/patch.ml`, new private modules in
   `vcs/git/` if wanted, and everything under `vcs/git/test/` (new test files such as
-  `test_patch.ml`, `test_plan.ml`). `ches_vcs_git` stays pure (no Unix, no Async).
+  `test_patch.ml`, `test_plan.ml`). `cobalt_vcs_git` stays pure (no Unix, no Async).
 - V3: `screen/vcs_view.ml`, `screen/vcs_diff_text.ml`, new private
   `screen/vcs_*.ml(i)` (other than the two `.mli` contracts), `screen/test/
   test_vcs_*.ml` (new files and the existing `test_vcs_view.ml`,
@@ -892,7 +892,7 @@ Testing and builds while parallel.
   `Vcs_view.entry ~plan:fake ~cwd ()` with a fake planner that records the
   `Git.Backend.action` it received (so key-to-target mapping is tested) and returns
   canned decisions whose steps are real fixture commands built with
-  `Ches_vcs_git.Cli.mutate` (e.g. `add --all -- a.txt`, `restore --worktree -- a.txt`
+  `Cobalt_vcs_git.Cli.mutate` (e.g. `add --all -- a.txt`, `restore --worktree -- a.txt`
   in a `Confirm` with `rewrites_worktree`), through `Vcs_driver`: refusal notices,
   the dirty refusal and staging warning (an editor buffer on a fixture file, edited),
   confirm/decline, busy, failure notice, reconciliation of an open buffer after a
@@ -901,7 +901,7 @@ Testing and builds while parallel.
   report, V3 adds end-to-end tests with the default planner (no `?plan`): stage and
   unstage a file and a hunk, discard with confirmation, `S`/`U`, a refused discard
   over a dirty buffer, as `test_vcs_workspace.ml` does with default bindings. V3
-  builds `dune build -j 10 @screen/runtest` (which compiles `ches_vcs_git` too).
+  builds `dune build -j 10 @screen/runtest` (which compiles `cobalt_vcs_git` too).
 - Both build inside the shared lock; leave no non-compiling file between dune runs;
   if a build fails in the other agent's files, wait and rerun instead of editing
   them. Expect output is accepted only with `dune runtest <own dir> --auto-promote`
@@ -1016,12 +1016,12 @@ Run as three agents: A (the generic seams, the popup float, bindings and palette
 A's seams land. Stubs fail with `"TODO phase 5: agent <name>"` (grep `TODO phase 5`).
 
 Done by the orchestrator before the agents (compiling, no test reaches the stubs):
-- `Ches_vcs.Popup.map` (vcs/popup.ml(i)): a popup whose actions build `f` of what they
+- `Cobalt_vcs.Popup.map` (vcs/popup.ml(i)): a popup whose actions build `f` of what they
   built, so the application can hold a `unit Popup.t`.
 - `vcs/git/commit.mli` (new, G5's stubs): `Kind` (Commit | Amend), `Choice` (what the
   popup returns: `Message { kind; flags }` | `Extend { flags }`), `popup`, `flags`,
   `refusal`, `prepare`/`prepared` (the message file via `rev-parse --git-path
-  CHES_COMMIT_EDITMSG`; HEAD's message for amend), `template`, `summary`; exact texts
+  COBALT_COMMIT_EDITMSG`; HEAD's message for amend), `template`, `summary`; exact texts
   in the `.mli`.
 - `vcs/git/backend.mli`: `action` gains `Finish_commit { kind; flags; message_file }`
   and `Extend { flags }`; the "Commits (phase 5)" plan contract (`git -c
@@ -1034,8 +1034,8 @@ Done by the orchestrator before the agents (compiling, no test reaches the stubs
 Seams (A; generic, tested with test-only views like 0A-0C's; exact `.mli` wording is
 A's, recorded in the files):
 - Popup question. `View_registry.Ask.t` gains `Popup of { popup : 'action
-  Ches_vcs.Popup.t; cancel : 'action option }`; `Ask.Question.t` gains `Popup of unit
-  Ches_vcs.Popup.t` (via `Popup.map`); `Answer.t` gains `Choose of { key : char;
+  Cobalt_vcs.Popup.t; cancel : 'action option }`; `Ask.Question.t` gains `Popup of unit
+  Cobalt_vcs.Popup.t` (via `Popup.map`); `Answer.t` gains `Choose of { key : char;
   enabled : string list }`, which the registry turns into that action's `run
   ~enabled`. A new float `screen/popup_tile.ml(i)` (id `popup`, read-only spec) on the
   single float slot over the asking view, like the confirmation: a title row, the
@@ -1135,7 +1135,7 @@ Ownership:
 Builds: A builds `@screen/runtest @palette/runtest @test/runtest` (app and input
 tests live in `test/`; `@ui/runtest` too if touched); G5 builds `@vcs/git/runtest
 @vcs/runtest`; all through the lock with `-j 10`; no file left non-compiling between
-runs (`ches_screen` compiles `ches_vcs_git`).
+runs (`cobalt_screen` compiles `cobalt_vcs_git`).
 
 ## Phase 6 contracts (2026-10-28)
 
@@ -1363,10 +1363,10 @@ then G8 (graph and git tests, `vcs/`), T8 (the diff panel's file list, docs) and
 
 Written by the orchestrator (the contracts; agents implement them and may only
 sharpen wording, telling the orchestrator):
-- `vcs/log_scope.mli` (new, `Ches_vcs.Log_scope`): `Range` (`Head | Branch name |
+- `vcs/log_scope.mli` (new, `Cobalt_vcs.Log_scope`): `Range` (`Head | Branch name |
   All`), `{ range; path; graph; merges; first_parent; limit }`, `default`,
   `default_limit` 200, `max_limit` 12800, `more`, `graph_shown`, `title ~shown`.
-- `vcs/graph.mli` (new, `Ches_vcs.Graph`): `rows ?max_width commits`, the lane rules
+- `vcs/graph.mli` (new, `Cobalt_vcs.Graph`): `rows ?max_width commits`, the lane rules
   and glyphs.
 - `vcs/backend.mli`: `Refresh.t.log : Log_scope.t` replaces `log_limit`.
 - `vcs/git/log.mli`: `Commit.refs` (`%D`), `command ~cwd scope`, and the log popup:
@@ -1561,8 +1561,8 @@ Implemented behavior:
     state-dependent command, and no per-name code in Ui_state or Frame.
 
 Changed modules and new public contracts:
-  - input/view_id.ml(i) (new): View_id moved into ches_input so View_command can name
-    views; tile/view_id re-exports it (Ches_tile.View_id.t = Ches_input.View_id.t).
+  - input/view_id.ml(i) (new): View_id moved into cobalt_input so View_command can name
+    views; tile/view_id re-exports it (Cobalt_tile.View_id.t = Cobalt_input.View_id.t).
   - input/view_command, input/bindings, palette/catalog: commands above.
   - tile/local_command.ml(i) (new): { name; keys; description }. Names are
     [a-z0-9.-], unique within a view and stable across its states. Contract: the
@@ -1784,7 +1784,7 @@ Implemented behavior:
     decline. Other keys (Y, Enter, q, ...) give the hint and answer nothing. Leader
     workspace keys still work (the float is read-only, like help).
   - Prompt float: title, a "> " input row editing like the palette query
-    (Ches_palette.Query: sanitized, one line; Backspace, Ctrl-w/Ctrl-h; paste
+    (Cobalt_palette.Query: sanitized, one line; Backspace, Ctrl-w/Ctrl-h; paste
     accepted), and an error row. Every character is text, including Space, q and ?.
     Validation runs once the text was edited or Enter was refused; Enter accepts
     only valid text (otherwise stays open with the error). Escape, Tab, Ctrl-c
@@ -1855,7 +1855,7 @@ Next-phase integration notes:
   - Phase 6 new branch: Ask.Prompt with validate from a cached
     git check-ref-format result is not possible synchronously; validate cheaply
     (non-empty, no whitespace) in the prompt and let the async command's failure
-    report the rest, or validate with a pure ref-name check in ches_vcs_git.
+    report the rest, or validate with a pure ref-name check in cobalt_vcs_git.
   - Async results that need a question (e.g. after a fetch) must arrive through an
     adapter action so the outcome can carry it; there is no other way to ask.
 ```
@@ -1868,20 +1868,20 @@ Phase / date / status:
   and H (vcs/host) in parallel, serialized on the dune lock.
 
 Implemented behavior:
-  - ches_vcs (pure): Exec spec/result, Job (Run | Read_file steps, lanes), Event,
+  - cobalt_vcs (pure): Exec spec/result, Job (Run | Read_file steps, lanes), Event,
     Stamps, Panel (stable selection identity and the removed-item rule), Popup,
     Diff, Backend.S. As specified in the contracts section.
-  - ches_vcs_git: Cli (read/mutate/network spec builders per the git CLI rules),
+  - cobalt_vcs_git: Cli (read/mutate/network spec builders per the git CLI rules),
     Repository (rev-parse detection: Found | Not_a_repository | No_work_tree |
     Failed), Status (porcelain v2 -z --branch, incl. every unmerged XY, renames and
     copies, submodules, untracked/ignored, cut output), Branch_list (for-each-ref,
     In_sync | Ahead_behind | Gone), Log (bounded, cut-safe), In_progress (merge,
     rebase merge/apply, am, cherry-pick, revert, bisect from state files),
-    Diff_output (diff / --cached / show / --no-index into Ches_vcs.Diff, incl.
+    Diff_output (diff / --cached / show / --no-index into Cobalt_vcs.Diff, incl.
     combined conflict diffs, C-quoted names, CRLF, bounded per file with omitted
     counts, cut output), Backend (Backend.S; degraded snapshots carry one-line
     problems instead of failing), Step_failure (one-line failure text).
-  - ches_vcs_host: Runner (Async; reads run concurrently under a small semaphore,
+  - cobalt_vcs_host: Runner (Async; reads run concurrently under a small semaphore,
     Mutate/Network jobs one at a time FIFO stopping at the first failed step; lanes
     supersede; cancel, timeout and stop terminate the child's process group with
     SIGTERM then SIGKILL after 2 s; stdout head / stderr tail limits; streamed lines
@@ -1889,12 +1889,12 @@ Implemented behavior:
     next_batch), Auth (GIT_TERMINAL_PROMPT=0 for every child; for Network,
     GIT_SSH_COMMAND="ssh -o BatchMode=yes" unless the user set GIT_SSH_COMMAND,
     GIT_SSH or core.sshCommand, probed per network step).
-  - ches_vcs_fixture (test-only): isolated temp repositories and a local bare remote,
+  - cobalt_vcs_fixture (test-only): isolated temp repositories and a local bare remote,
     deterministic hashes, run_steps for synchronous end-to-end tests.
 
 Changed modules and new public contracts:
-  - New: vcs/, vcs/git/, vcs/host/, vcs/fixture/ (libraries ches_vcs, ches_vcs_git,
-    ches_vcs_host, ches_vcs_fixture) and their tests. No existing file changed except
+  - New: vcs/, vcs/git/, vcs/host/, vcs/fixture/ (libraries cobalt_vcs, cobalt_vcs_git,
+    cobalt_vcs_host, cobalt_vcs_fixture) and their tests. No existing file changed except
     this plan. No Ui_state/bin wiring (decision recorded in the contracts section).
   - Orchestrator edit after H: Auth.environment also respects GIT_SSH (git's
     precedence is GIT_SSH_COMMAND > core.sshCommand > GIT_SSH), with a test.
@@ -1919,8 +1919,8 @@ Checks run and results:
     vcs/host tests twice in a row -> exit 0 both times.
   - Orchestrator final (2026-10-27): dune build -j 10 -> 0; dune runtest -j 10 -> 0;
     git diff --check clean; no trailing whitespace in vcs/; no TODO stubs left; no
-    stray processes or /tmp/ches-vcs* directories. 88 new expect tests.
-  - git 2.43.0. Ches repository untouched by git mutations (HEAD 237e9dd).
+    stray processes or /tmp/cobalt-vcs* directories. 88 new expect tests.
+  - git 2.43.0. Cobalt repository untouched by git mutations (HEAD 237e9dd).
 
 Known gaps or blockers:
   - Contract docs to fold in (phase 2 stage 1): the Unmerged-path and combined
@@ -1978,7 +1978,7 @@ Implemented behavior:
     states, wide/stacked/single layouts, the read-only keys (1 2 3 0 Tab j k gg G
     Ctrl-d Ctrl-u Enter g r @ y q, Text_view keys in the diff), e/Enter opening the
     file at a line, ? help and palette-first local commands, stable selection.
-  - Wiring (W, ui/vcs_host.ml, ui/editor_view.ml, bin/ches.ml): one runner per real
+  - Wiring (W, ui/vcs_host.ml, ui/editor_view.ml, bin/cobalt.ml): one runner per real
     session; jobs submitted after each transition; next_batch pumped as one batch
     per transition; stop on exit and at_shutdown, then shutdown awaits finished with
     a 3 s cap; the view installed hidden, opening as a tab (or the unavailable entry
@@ -1992,7 +1992,7 @@ Changed modules and new public contracts:
     ui/vcs_test/, screen/test/{vcs_driver,test_view_jobs,test_vcs_view,
     test_vcs_workspace}.ml. Changed: view_registry, ui_state, session (saved),
     style/theme (Diff_* styles), the existing views (two default adapter fields),
-    bindings, catalog, editor_view, bin/ches.ml, dune files, vcs/ cleanups, README,
+    bindings, catalog, editor_view, bin/cobalt.ml, dune files, vcs/ cleanups, README,
     docs/editor_reference.md (new "VCS view" section), major_minor_tiles backlog.
   - Orchestrator edit: vcs_view.mli documents V's two deviations (below).
 
@@ -2018,7 +2018,7 @@ Checks run and results:
     workspace test, plus keymap/palette updates.
   - Orchestrator final (2026-10-27): dune build -j 10 -> 0; dune runtest -j 10 -> 0;
     git diff --check clean; no TODO stubs; no stray git processes or
-    /tmp/ches-vcs* dirs; HEAD 237e9dd, nothing committed.
+    /tmp/cobalt-vcs* dirs; HEAD 237e9dd, nothing committed.
 
 Known gaps or blockers:
   - No owner terminal acceptance yet (see W's checklist in the session report:
@@ -2075,7 +2075,7 @@ Changed modules and new public contracts:
   - Stage 1: View_registry.Context (dirty_within) and perform ~context;
     Outcome.reconcile (applied after the controller, for signalled outcomes too);
     Session.reconcile / Controller.reconcile_with_disk (synchronous IO in the
-    transition); Ches_core.Resource.within; Text_view.jump; git Target/action types,
+    transition); Cobalt_core.Resource.within; Text_view.jump; git Target/action types,
     diff_section, the plan contract; vcs/git/patch.mli (Selection.t = Whole, ready
     for phase 4's Lines); vcs_view.mli "Actions (phase 3)"; Vcs_diff_text.Position.
   - G3: vcs/git/{backend,patch,diff_output}.ml; tests test_patch.ml, test_plan.ml.
@@ -2104,7 +2104,7 @@ Checks run and results:
     @vcs/runtest. V3 final: full build/runtest -> 0.
   - Orchestrator final (2026-10-27): dune build -j 10 -> 0; dune runtest -j 10 -> 0;
     after the vcs_driver change @screen/runtest -> 0; git diff --check clean; no
-    TODO phase stubs; no stray git processes or /tmp/ches-vcs* dirs; HEAD fe0f087.
+    TODO phase stubs; no stray git processes or /tmp/cobalt-vcs* dirs; HEAD fe0f087.
 
 Known gaps or blockers:
   - No owner terminal acceptance yet (checklist in the session report).
@@ -2168,7 +2168,7 @@ Checks run and results:
   - G4 baseline and final; V4 final (@screen/runtest, full build).
   - Orchestrator final (2026-10-27): dune build -j 10 -> 0; dune runtest -j 10 -> 0;
     rebuild after the .mli doc edits -> 0; git diff --check clean; no TODO phase
-    stubs; no stray git processes or /tmp/ches-vcs* dirs; HEAD d0cb736.
+    stubs; no stray git processes or /tmp/cobalt-vcs* dirs; HEAD d0cb736.
 
 Known gaps or blockers:
   - No owner terminal acceptance yet. Not tested headlessly: the Visual footer
@@ -2176,7 +2176,7 @@ Known gaps or blockers:
     the view (covered at the git level: --check fails and nothing changes).
 
 Next-phase integration notes (phase 5):
-  - Popups: Ches_vcs.Popup exists (phase 1) but is not in Backend.S; phase 5 adds
+  - Popups: Cobalt_vcs.Popup exists (phase 1) but is not in Backend.S; phase 5 adds
     it, a popup float (the single float slot in Ui_state), and the commit flow
     (message buffer as a file tab, Space g c / Space g a, View_command work).
   - The Busy/mutation and dirty-buffer machinery in vcs_view.ml is shared by Act
@@ -2199,7 +2199,7 @@ Implemented behavior:
   - Commit popup on c (any panel; the diff outside Visual): c commit, a amend, e
     extend; -n --no-verify, -s --signoff, -e --allow-empty; not remembered.
   - c/a: refusals first (conflicted files, amend/extend without a commit, nothing
-    staged without --allow-empty), then rev-parse --git-path CHES_COMMIT_EDITMSG
+    staged without --allow-empty), then rev-parse --git-path COBALT_COMMIT_EDITMSG
     (+ HEAD's message for amend) as a read job, then the file is written with the
     #-commented template and opened as a file tab (the other pane beside a split);
     the switches stay with the pending commit. c again while pending reopens it.
@@ -2219,7 +2219,7 @@ Implemented behavior:
     view underneath; the VCS tab label is "VCS: <branch>" ("VCS: <rev>" detached).
 
 Changed modules and new public contracts:
-  - Orchestrator: Ches_vcs.Popup.map; vcs/git/commit.mli (new); backend.mli
+  - Orchestrator: Cobalt_vcs.Popup.map; vcs/git/commit.mli (new); backend.mli
     Finish_commit/Extend and the "Commits (phase 5)" plan contract; vcs_view.mli
     clarifications from V5 (abort busy, Confirm, no snapshot, prepare errors).
   - A: View_registry Ask.Popup / Question.Popup / Answer.Choose, Location.contents,
@@ -2262,7 +2262,7 @@ Checks run and results:
   - Orchestrator final (2026-10-28), through the lock: dune build -j 10 -> 0; dune
     runtest -j 10 -> 0 (the runtime flake did not occur); git diff --check clean;
     no trailing whitespace in new files; no TODO phase 5 stubs; no stray git
-    processes or /tmp/ches-vcs* dirs; HEAD 117f230, nothing committed.
+    processes or /tmp/cobalt-vcs* dirs; HEAD 117f230, nothing committed.
 
 Known gaps or blockers:
   - No owner terminal acceptance (checklist in the session report).
@@ -2278,7 +2278,7 @@ Known gaps or blockers:
     (? lists all); help over the popup hides it (single float slot).
 
 Next-phase integration notes (phase 6):
-  - Push and pull popups: Popup.t values in ches_vcs_git like Git.Commit.popup,
+  - Push and pull popups: Popup.t values in cobalt_vcs_git like Git.Commit.popup,
     asked with Ask.Popup; their choices go straight to plan (as Extend does).
     Force-with-lease: Plan.Decision.Confirm. Phase 6 may move popups into
     Backend.S if a shared shape emerges.
@@ -2369,7 +2369,7 @@ Checks run and results:
     -> 0.
   - Orchestrator final (2026-10-28), through the lock: dune build -j 10 -> 0; dune
     runtest -j 10 -> 0 (the runtime flake did not occur); git diff --check clean;
-    no TODO phase 6 stubs; no stray git processes or /tmp/ches-vcs* dirs; HEAD
+    no TODO phase 6 stubs; no stray git processes or /tmp/cobalt-vcs* dirs; HEAD
     a6d6c31, nothing committed.
 
 Known gaps or blockers:
@@ -2538,8 +2538,8 @@ Phase / date / status:
   screen/vcs_diff_text.ml file_starts/listed_file_at for T8).
 
 Implemented behavior:
-  - Ches_vcs.Log_scope in full (default, more, graph_shown, title).
-    Ches_vcs.Graph: a stub ("" for every row).
+  - Cobalt_vcs.Log_scope in full (default, more, graph_shown, title).
+    Cobalt_vcs.Graph: a stub ("" for every row).
   - Git log: Log.command from a scope (seven fields with %D, --decorate=short,
     --topo-order only when the graph is shown, --no-merges, --first-parent,
     --follow with a path, --branches --remotes for All before --end-of-options,

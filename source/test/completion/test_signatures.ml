@@ -1,7 +1,7 @@
 open! Core
 open! Async
-open Ches_source
-open Ches_error.Language_query
+open Cobalt_source
+open Cobalt_error.Language_query
 module H = Test_completion.H
 module N = Test_navigation
 

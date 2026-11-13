@@ -1,6 +1,6 @@
 open! Core
-open Ches_screen
-open Ches_file_picker
+open Cobalt_screen
+open Cobalt_file_picker
 
 let snapshot status paths : Model.Discovery.t =
   { request = { run_id = Model.Run_id.of_int 1; root = "/project\nroot" }
@@ -112,8 +112,8 @@ let%expect_test "relative paths, matched styles, safe escapes, scrolling and sma
 let%expect_test "headless tile input and fake acceptance consumer, no live dispatch" =
   let t = File_picker_tile.create ~token:99 ~discovery:(snapshot Partial [ "a.ml" ]) in
   drain t;
-  List.iter [ Ches_input.Key.char 'j'; Ches_input.Key.char ' '; Ches_input.Key.Backspace
-            ; Ches_input.Key.Ctrl 'w'; Ches_input.Key.Ctrl 'h'; Ches_input.Key.Ctrl 'n'; Ches_input.Key.Ctrl 'p' ]
+  List.iter [ Cobalt_input.Key.char 'j'; Cobalt_input.Key.char ' '; Cobalt_input.Key.Backspace
+            ; Cobalt_input.Key.Ctrl 'w'; Cobalt_input.Key.Ctrl 'h'; Cobalt_input.Key.Ctrl 'n'; Cobalt_input.Key.Ctrl 'p' ]
     ~f:(fun key -> match File_picker_tile.interpret [ key ] with
       | Action (Event _) -> () | _ -> assert false);
   assert (match File_picker_tile.interpret [ Enter ] with Action Accept -> true | _ -> false);

@@ -1,10 +1,10 @@
 open! Core
-open Ches_core
-open Ches_app
-open Ches_screen
+open Cobalt_core
+open Cobalt_app
+open Cobalt_screen
 open Helpers
-module Server = Ches_error.Source_event.Server
-module Text_view = Ches_tile.Text_view
+module Server = Cobalt_error.Source_event.Server
+module Text_view = Cobalt_tile.Text_view
 
 let width = 100
 let height = 24
@@ -27,7 +27,7 @@ let%test_unit "live authoritative inventory: mixed roots, failure, restart, deta
   let t = create ~path:"/ocaml project/a.ml" ()
     |> fun t -> source t (Servers [ ocaml; slang ])
     |> fun t -> run t " li" in
-  assert (Ches_tile.View_id.equal (Ui_state.focused_view t ~width ~height) Language_servers_tile.id);
+  assert (Cobalt_tile.View_id.equal (Ui_state.focused_view t ~width ~height) Language_servers_tile.id);
   contains t "Current file attached to: \"ocamllsp#1\"";
   contains t "\"slang-server#2\"";
   contains t "Status: Starting";
@@ -57,12 +57,12 @@ let%test_unit "live authoritative inventory: mixed roots, failure, restart, deta
 
 let%test_unit "global inventory bypasses stale ownership; unrelated stale diagnostics stay dropped" =
   let t = create ~path:"/ocaml project/a.ml" () |> fun t -> run t " li" in
-  let wrap event = Ches_error.Source_event.Owned { resource = "/closed.ml"; generation = -1; event } in
+  let wrap event = Cobalt_error.Source_event.Owned { resource = "/closed.ml"; generation = -1; event } in
   let t = source t (wrap (Servers [ ocaml; slang ])) in
   contains t "ocamllsp#1";
-  let before = Controller.feedback (Ui_state.controller t) |> Ches_error.Error.sexp_of_t in
+  let before = Controller.feedback (Ui_state.controller t) |> Cobalt_error.Error.sexp_of_t in
   let t = source t (wrap (Unavailable { source = "unrelated"; root = "/"; reason = "late" })) in
-  let after = Controller.feedback (Ui_state.controller t) |> Ches_error.Error.sexp_of_t in
+  let after = Controller.feedback (Ui_state.controller t) |> Cobalt_error.Error.sexp_of_t in
   assert (Sexp.equal before after)
 ;;
 
@@ -85,7 +85,7 @@ let%test_unit "normal view keys: copy, reject mutation, escape focus, close and 
   let before = Editor.text (Controller.editor (Ui_state.controller t)) |> Text_buffer.to_string in
   let t = run t " vz li" in
   assert (Ui_state.zen t);
-  assert (Ches_tile.View_id.equal (Ui_state.focused_view t ~width ~height) Language_servers_tile.id);
+  assert (Cobalt_tile.View_id.equal (Ui_state.focused_view t ~width ~height) Language_servers_tile.id);
   let frame = Frame.render t ~width ~height |> Frame.to_string in
   assert (String.is_substring frame ~substring:"Language servers");
   let report = text t in
@@ -98,7 +98,7 @@ let%test_unit "normal view keys: copy, reject mutation, escape focus, close and 
   assert (String.equal report (text t));
   assert (String.equal before (Editor.text (Controller.editor (Ui_state.controller t)) |> Text_buffer.to_string));
   let t = run t "<Esc>" in
-  assert (Ches_tile.View_id.equal (Ui_state.focused_view t ~width ~height) Language_servers_tile.id);
+  assert (Cobalt_tile.View_id.equal (Ui_state.focused_view t ~width ~height) Language_servers_tile.id);
   let t = run t " bc" in
   assert (Option.equal View_registry.Placement.equal
     (View_registry.placement (Ui_state.views t) Language_servers_tile.id) (Some Hidden));
@@ -107,7 +107,7 @@ let%test_unit "normal view keys: copy, reject mutation, escape focus, close and 
 ;;
 
 let%test_unit "current file follows the active file, retaining it under the report tab" =
-  let dir = scratch_dir "ches-language-servers-" in
+  let dir = scratch_dir "cobalt-language-servers-" in
   let a = Filename.concat dir "a.ml" and b = Filename.concat dir "b.sv" in
   Out_channel.write_all a ~data:"let x = 1\n";
   Out_channel.write_all b ~data:"module b; endmodule\n";
@@ -129,19 +129,19 @@ let%test_unit "current file follows the active file, retaining it under the repo
 let%test_unit "palette lsp search opens the registered tab" =
   let t = create ~path:"/ocaml project/a.ml" () |> fun t -> source t (Servers [ ocaml ]) in
   let t = run t " cclsp<CR>" in
-  assert (Ches_tile.View_id.equal (Ui_state.focused_view t ~width ~height) Language_servers_tile.id)
+  assert (Cobalt_tile.View_id.equal (Ui_state.focused_view t ~width ~height) Language_servers_tile.id)
 ;;
 
 let%test_unit "palette discovery keywords all find Language servers" =
   List.iter [ "lsp"; "attached"; "clients"; "status"; "server" ] ~f:(fun query ->
     let t = create () |> fun t -> run t (" cc" ^ query) in
     let palette = Ui_state.palette t |> Option.value_exn |> Palette_tile.palette in
-    assert (List.exists (Ches_palette.Palette.results palette) ~f:(fun result ->
-      String.equal (Ches_palette.Catalog.Entry.title result.item) "Language servers")))
+    assert (List.exists (Cobalt_palette.Palette.results palette) ~f:(fun result ->
+      String.equal (Cobalt_palette.Catalog.Entry.title result.item) "Language servers")))
 ;;
 
 let%test_unit "bare mode opens the report as a major tab" =
   let t = create () |> fun t -> run t " vB li" in
   assert (not (Ui_state.bare t));
-  assert (Ches_tile.View_id.equal (Ui_state.focused_view t ~width ~height) Language_servers_tile.id)
+  assert (Cobalt_tile.View_id.equal (Ui_state.focused_view t ~width ~height) Language_servers_tile.id)
 ;;

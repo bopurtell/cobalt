@@ -4,10 +4,10 @@
    as $DIR; commit hashes are reproducible (fixed dates). *)
 
 open! Core
-open Ches_vcs
-module Fixture = Ches_vcs_fixture.Fixture_repo
-module Git = Ches_vcs_git
-module B = Ches_vcs_git.Backend
+open Cobalt_vcs
+module Fixture = Cobalt_vcs_fixture.Fixture_repo
+module Git = Cobalt_vcs_git
+module B = Cobalt_vcs_git.Backend
 
 let relative (t : Fixture.t) text =
   String.substr_replace_all text ~pattern:t.dir ~with_:"$DIR"
@@ -27,10 +27,10 @@ let repository t =
   | detection ->
     raise_s
       [%message
-        "not a repository" (detection : Git.Repository.t Ches_vcs.Backend.Detection.t)]
+        "not a repository" (detection : Git.Repository.t Cobalt_vcs.Backend.Detection.t)]
 ;;
 
-let snapshot_result ?(refresh = Ches_vcs.Backend.Refresh.default) t =
+let snapshot_result ?(refresh = Cobalt_vcs.Backend.Refresh.default) t =
   let repository = repository t in
   B.snapshot repository refresh (Fixture.run_steps t (B.refresh repository refresh))
 ;;
@@ -108,7 +108,7 @@ let print_panels (snapshot : B.snapshot) =
 ;;
 
 let print_snapshot t (snapshot : B.snapshot) =
-  print_s [%sexp (B.summary snapshot : Ches_vcs.Backend.Summary.t)];
+  print_s [%sexp (B.summary snapshot : Cobalt_vcs.Backend.Summary.t)];
   print_panels snapshot;
   List.iter snapshot.problems ~f:(fun problem ->
     printf "problem: %s\n" (relative t problem))
@@ -162,7 +162,7 @@ let%expect_test "detection: work tree, subdirectory, plain directory, .git, bare
       print_s
         (relative_sexp
            t
-           [%sexp (detection : Git.Repository.t Ches_vcs.Backend.Detection.t)])
+           [%sexp (detection : Git.Repository.t Cobalt_vcs.Backend.Detection.t)])
     in
     Fixture.write t "src/deep/f.txt" "";
     git t [ "init"; "-q"; "--bare"; t.dir ^/ "bare.git" ];
@@ -262,7 +262,7 @@ let%expect_test "staged, unstaged, untracked, rename, deletion, mode, binary, od
     show_diff t s B.files_panel (item Conflicted "a.txt"));
   [%expect
     {|
-    ((branch (main)) (revision (f6f211b)) (upstream ()) (operations ()))
+    ((branch (main)) (revision (f775226)) (upstream ()) (operations ()))
     [files] Files
       Untracked files (untracked)
         "dir/\195\188 file.txt" untracked
@@ -280,10 +280,10 @@ let%expect_test "staged, unstaged, untracked, rename, deletion, mode, binary, od
         "moved \195\169.txt" R. 100% from "move me.txt"
     [branches] Branches
       Local branches (local)
-        "main" * f6f211b "First"
+        "main" * f775226 "First"
     [commits] Commits
       Recent commits (recent)
-        "f6f211b39c22b5c8f9d4e43f9c3f1e2fe1181c49" f6f211b parents=0 "First"
+        "f775226e42aba21a87c698d81085f70da5c98bf8" f775226 parents=0 "First"
     --- unstaged
     (Unstaged ())
     file "a.txt" -> "a.txt" Modified modes 100644..100644
@@ -396,8 +396,8 @@ let%expect_test "a conflict from a real merge: every unmerged code" =
   [%expect
     {|
     git merge -q other: exit 1
-    ((branch (main)) (revision (90c5cb5)) (upstream ())
-     (operations ("Merging 4e98047")))
+    ((branch (main)) (revision (d674bc6)) (upstream ())
+     (operations ("Merging 3a17175")))
     [files] Files
       Conflicted (conflicted)
         "aa.txt" both added
@@ -409,12 +409,12 @@ let%expect_test "a conflict from a real merge: every unmerged code" =
         "uu.txt" both modified
     [branches] Branches
       Local branches (local)
-        "main" * 90c5cb5 "main"
-        "other"   4e98047 "other"
+        "main" * d674bc6 "main"
+        "other"   3a17175 "other"
     [commits] Commits
       Recent commits (recent)
-        "90c5cb54338b3e966f85a53c2456c64507430730" 90c5cb5 parents=1 "main"
-        "094c72757d883448bacd136df74f59311df7f7da" 094c727 parents=0 "base"
+        "d674bc6e404fd06546b02991d520845ce2a594a6" d674bc6 parents=1 "main"
+        "0ef255b35d27d9590e597067dc7039c6a4407dba" 0ef255b parents=0 "base"
     (Conflicted (aa.txt dd-main.txt dd-other.txt dd.txt du.txt ud.txt uu.txt))
     file "aa.txt" -> "aa.txt" Unmerged modes -..- combined no-line-actions
       @@@ -1,1 -1,1 +1,5 @@@  [-1,1 +1,5] section=""
@@ -472,11 +472,11 @@ let%expect_test "rebase, cherry-pick, revert and bisect in progress" =
   [%expect
     {|
     git rebase other: exit 1
-    (() ("Rebasing main onto 4e98047") ())
+    (() ("Rebasing main onto 3a17175") ())
     git cherry-pick other: exit 1
-    ((main) ("Cherry-picking 4e98047") ())
+    ((main) ("Cherry-picking 3a17175") ())
     git revert --no-edit HEAD~1: exit 1
-    ((main) ("Reverting a846420") ())
+    ((main) ("Reverting 1554675") ())
     ((main) (Bisecting) ())
     ((main) () ())
     |}]
@@ -501,29 +501,29 @@ let%expect_test "upstreams: ahead, behind, in sync, gone; detached HEAD" =
     git t [ "branch"; "plain" ];
     print_snapshot t (snapshot t);
     git t [ "checkout"; "-q"; "doomed" ];
-    print_s [%sexp (B.summary (snapshot t) : Ches_vcs.Backend.Summary.t)];
+    print_s [%sexp (B.summary (snapshot t) : Cobalt_vcs.Backend.Summary.t)];
     git t [ "checkout"; "-q"; "--detach"; "HEAD~1" ];
-    print_s [%sexp (B.summary (snapshot t) : Ches_vcs.Backend.Summary.t)]);
+    print_s [%sexp (B.summary (snapshot t) : Cobalt_vcs.Backend.Summary.t)]);
   [%expect
     {|
-    ((branch (main)) (revision (5cd767d))
+    ((branch (main)) (revision (d132801))
      (upstream (((name origin/main) (ahead 1) (behind 1) (gone false))))
      (operations ()))
     [files] Files
     [branches] Branches
       Local branches (local)
-        "doomed"   5cd767d "Three" -> origin/doomed Gone
-        "in-sync"   46b9e32 "Two" -> origin/main In_sync
-        "main" * 5cd767d "Three" -> origin/main (Ahead_behind(ahead 1)(behind 1))
-        "plain"   5cd767d "Three"
+        "doomed"   d132801 "Three" -> origin/doomed Gone
+        "in-sync"   4a8c472 "Two" -> origin/main In_sync
+        "main" * d132801 "Three" -> origin/main (Ahead_behind(ahead 1)(behind 1))
+        "plain"   d132801 "Three"
     [commits] Commits
       Recent commits (recent)
-        "5cd767dd2e9b4cbb8e00b8fcc92a7d50c51b6ae8" 5cd767d parents=1 "Three"
-        "ed338fbda3f2ebeb2c7472be36e6d6b45ade8f6d" ed338fb parents=0 "One"
-    ((branch (doomed)) (revision (5cd767d))
+        "d1328019ce91de6fc9beaf4db8ffd04dc9edb4ca" d132801 parents=1 "Three"
+        "2e69375ebd9e75490bd495a831e654f40d7a3e04" 2e69375 parents=0 "One"
+    ((branch (doomed)) (revision (d132801))
      (upstream (((name origin/doomed) (ahead 0) (behind 0) (gone true))))
      (operations ()))
-    ((branch ()) (revision (ed338fb)) (upstream ()) (operations ()))
+    ((branch ()) (revision (2e69375)) (upstream ()) (operations ()))
     |}]
 ;;
 
@@ -553,28 +553,28 @@ let%expect_test "commits: a commit's diff, a merge, the log limit, other rows" =
     [files] Files
     [branches] Branches
       Local branches (local)
-        "main" * cdd6501 "Merge other"
-        "other"   4e98047 "other"
+        "main" * 36591af "Merge other"
+        "other"   3a17175 "other"
     [commits] Commits
       Recent commits (first 3) (recent)
-        "cdd6501016da4a4c930931c0a6ce4379639d0aab" cdd6501 parents=2 "Merge other"
-        "4e98047b76b41ae3032a4e0b5efbacaa2ea6cc94" 4e98047 parents=1 "other"
-        "90c5cb54338b3e966f85a53c2456c64507430730" 90c5cb5 parents=1 "main"
-    (Commit cdd6501016da4a4c930931c0a6ce4379639d0aab)
-    preamble |commit cdd6501016da4a4c930931c0a6ce4379639d0aab
-    preamble |Merge: 90c5cb5 4e98047
-    preamble |Author:     Ches Test <ches-test@example.invalid>
+        "36591affdcca0e326bd190fe4d720f8076abec05" 36591af parents=2 "Merge other"
+        "3a1717540bd1bf8f4758d651453c472c3ff2b962" 3a17175 parents=1 "other"
+        "d674bc6e404fd06546b02991d520845ce2a594a6" d674bc6 parents=1 "main"
+    (Commit 36591affdcca0e326bd190fe4d720f8076abec05)
+    preamble |commit 36591affdcca0e326bd190fe4d720f8076abec05
+    preamble |Merge: d674bc6 3a17175
+    preamble |Author:     Cobalt Test <cobalt-test@example.invalid>
     preamble |AuthorDate: 2026-01-01T00:00:00+00:00
-    preamble |Commit:     Ches Test <ches-test@example.invalid>
+    preamble |Commit:     Cobalt Test <cobalt-test@example.invalid>
     preamble |CommitDate: 2026-01-01T00:00:00+00:00
     preamble |
     preamble |    Merge other
     preamble |
-    (Commit 4e98047b76b41ae3032a4e0b5efbacaa2ea6cc94)
-    preamble |commit 4e98047b76b41ae3032a4e0b5efbacaa2ea6cc94
-    preamble |Author:     Ches Test <ches-test@example.invalid>
+    (Commit 3a1717540bd1bf8f4758d651453c472c3ff2b962)
+    preamble |commit 3a1717540bd1bf8f4758d651453c472c3ff2b962
+    preamble |Author:     Cobalt Test <cobalt-test@example.invalid>
     preamble |AuthorDate: 2026-01-01T00:00:00+00:00
-    preamble |Commit:     Ches Test <ches-test@example.invalid>
+    preamble |Commit:     Cobalt Test <cobalt-test@example.invalid>
     preamble |CommitDate: 2026-01-01T00:00:00+00:00
     preamble |
     preamble |    other
@@ -594,11 +594,11 @@ let%expect_test "commits: a commit's diff, a merge, the log limit, other rows" =
       @@ -1 +1 @@  [-1,1 +1,1] section=""
         del   1   . "-"  "base"
         add   .   1 "+"  "theirs"
-    (Commit 90c5cb54338b3e966f85a53c2456c64507430730)
-    preamble |commit 90c5cb54338b3e966f85a53c2456c64507430730
-    preamble |Author:     Ches Test <ches-test@example.invalid>
+    (Commit d674bc6e404fd06546b02991d520845ce2a594a6)
+    preamble |commit d674bc6e404fd06546b02991d520845ce2a594a6
+    preamble |Author:     Cobalt Test <cobalt-test@example.invalid>
     preamble |AuthorDate: 2026-01-01T00:00:00+00:00
-    preamble |Commit:     Ches Test <ches-test@example.invalid>
+    preamble |Commit:     Cobalt Test <cobalt-test@example.invalid>
     preamble |CommitDate: 2026-01-01T00:00:00+00:00
     preamble |
     preamble |    main
@@ -651,29 +651,29 @@ let%expect_test "a submodule: added, then with new commits and untracked files" 
         "sub" A. submodule
     [branches] Branches
       Local branches (local)
-        "main" * f703627 "Top"
+        "main" * 4cfba24 "Top"
     [commits] Commits
       Recent commits (recent)
-        "f703627be85d6e02d53b35f4116246fad8530624" f703627 parents=0 "Top"
+        "4cfba24ed2d5a4c4fd06b9824869508dd3f60e7c" 4cfba24 parents=0 "Top"
     (Staged (sub))
     file - -> "sub" Added modes -..160000 submodule no-line-actions
       @@ -0,0 +1 @@  [-0,0 +1,1] section=""
-        add   .   1 "+"  "Subproject commit b308c3e56c484d4daeb357bae251e8e8ac99b4ed"
+        add   .   1 "+"  "Subproject commit 37f50cb45d436448cc7e767883eb329c855aaeae"
     [files] Files
       Unstaged changes (unstaged)
         "sub" .M submodule new-commits untracked
     [branches] Branches
       Local branches (local)
-        "main" * 01dff01 "Add sub"
+        "main" * 501f1b1 "Add sub"
     [commits] Commits
       Recent commits (recent)
-        "01dff01ecb6a41babce565aea1317c44087991f4" 01dff01 parents=1 "Add sub"
-        "f703627be85d6e02d53b35f4116246fad8530624" f703627 parents=0 "Top"
+        "501f1b1a842410c8070b560283e4d47fd34096d3" 501f1b1 parents=1 "Add sub"
+        "4cfba24ed2d5a4c4fd06b9824869508dd3f60e7c" 4cfba24 parents=0 "Top"
     (Unstaged (sub))
     file "sub" -> "sub" Modified modes 160000..160000 submodule no-line-actions
       @@ -1 +1 @@  [-1,1 +1,1] section=""
-        del   1   . "-"  "Subproject commit b308c3e56c484d4daeb357bae251e8e8ac99b4ed"
-        add   .   1 "+"  "Subproject commit 5928c94995a4d27bbdb81295224ad8258d35804c"
+        del   1   . "-"  "Subproject commit 37f50cb45d436448cc7e767883eb329c855aaeae"
+        add   .   1 "+"  "Subproject commit 3f90a1ef7de8a91d446d338be67ac1cbb7023680"
     |}]
 ;;
 
@@ -698,10 +698,10 @@ let%expect_test "ignored files only on request" =
         "kept.txt" untracked
     [branches] Branches
       Local branches (local)
-        "main" * dba157f "Ignore"
+        "main" * 7167877 "Ignore"
     [commits] Commits
       Recent commits (recent)
-        "dba157f3cfa1d0326f78644bfe9f3e081718bd0a" dba157f parents=0 "Ignore"
+        "7167877df8bc14ae82d05cae241f1c7a45b99955" 7167877 parents=0 "Ignore"
     [files] Files
       Untracked files (untracked)
         "kept.txt" untracked
@@ -710,10 +710,10 @@ let%expect_test "ignored files only on request" =
         "top.o" ignored
     [branches] Branches
       Local branches (local)
-        "main" * dba157f "Ignore"
+        "main" * 7167877 "Ignore"
     [commits] Commits
       Recent commits (first 1) (recent)
-        "dba157f3cfa1d0326f78644bfe9f3e081718bd0a" dba157f parents=0 "Ignore"
+        "7167877df8bc14ae82d05cae241f1c7a45b99955" 7167877 parents=0 "Ignore"
     no diff for (Header ignored)
     no diff for (Item(section ignored)(key top.o))
     |}]
@@ -737,10 +737,10 @@ let%expect_test "an untracked nested repository is a directory key without a dif
         "nested/" untracked
     [branches] Branches
       Local branches (local)
-        "main" * f703627 "Top"
+        "main" * 4cfba24 "Top"
     [commits] Commits
       Recent commits (recent)
-        "f703627be85d6e02d53b35f4116246fad8530624" f703627 parents=0 "Top"
+        "4cfba24ed2d5a4c4fd06b9824869508dd3f60e7c" 4cfba24 parents=0 "Top"
     no diff for (Item(section untracked)(key nested/))
     (Untracked loose.txt)
     file - -> "loose.txt" Added modes -..100644
@@ -850,7 +850,7 @@ let%expect_test "failed steps: status is fatal, the rest degrade the snapshot" =
     Fixture.write t "f.txt" "f\n";
     ignore (Fixture.commit_all t "F" : string);
     let repository = repository t in
-    let refresh = Ches_vcs.Backend.Refresh.default in
+    let refresh = Cobalt_vcs.Backend.Refresh.default in
     let reports = Fixture.run_steps t (B.refresh repository refresh) in
     let failed (report : Job.Step_report.t) =
       { report with

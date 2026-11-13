@@ -1,7 +1,7 @@
 open! Core
-open Ches_input
-module View_id = Ches_tile.View_id
-module Host = Ches_tile.Host
+open Cobalt_input
+module View_id = Cobalt_tile.View_id
+module Host = Cobalt_tile.Host
 
 module Placement = struct
   type t = View_command.Placement.t =
@@ -28,7 +28,7 @@ module Ask = struct
         ; cancel : 'action option
         }
     | Popup of
-        { popup : 'action Ches_vcs.Popup.t
+        { popup : 'action Cobalt_vcs.Popup.t
         ; enabled : string list
         ; cancel : 'action option
         }
@@ -45,7 +45,7 @@ module Ask = struct
           ; validate : string -> string option
           }
       | Popup of
-          { popup : unit Ches_vcs.Popup.t
+          { popup : unit Cobalt_vcs.Popup.t
           ; enabled : string list
           }
   end
@@ -54,7 +54,7 @@ module Ask = struct
     | Confirm { title; message; _ } -> Confirm { title; message }
     | Prompt { title; initial; validate; _ } -> Prompt { title; initial; validate }
     | Popup { popup; enabled; _ } ->
-      Popup { popup = Ches_vcs.Popup.map popup ~f:(fun _ -> ()); enabled }
+      Popup { popup = Cobalt_vcs.Popup.map popup ~f:(fun _ -> ()); enabled }
   ;;
 end
 
@@ -105,18 +105,18 @@ module Context = struct
 
   let dirty_within t ~root =
     List.filter (files t) ~f:(fun (file : File.t) ->
-      file.dirty && Ches_core.Resource.within ~root file.path)
+      file.dirty && Cobalt_core.Resource.within ~root file.path)
   ;;
 end
 
 module Outcome = struct
   type 'ask t =
-    { controller : Ches_app.Controller.t
-    ; effect : Ches_tile.Text_view.Effect.t option
+    { controller : Cobalt_app.Controller.t
+    ; effect : Cobalt_tile.Text_view.Effect.t option
     ; notice : [ `Post of string | `Show of string ] option
     ; return : bool
     ; open_file : Location.t option
-    ; jobs : Ches_vcs.Job.t list
+    ; jobs : Cobalt_vcs.Job.t list
     ; reconcile : string list
     ; save : string list
     ; dispose : string list
@@ -156,36 +156,36 @@ module Signal = struct
   type t =
     | Shown
     | Saved of string list
-    | Job of Ches_vcs.Event.t
+    | Job of Cobalt_vcs.Event.t
     | Request of string
   [@@deriving sexp_of]
 end
 
 module Adapter = struct
   type ('state, 'action) t =
-    { spec : Ches_tile.Spec.t
+    { spec : Cobalt_tile.Spec.t
     ; key : 'state Type_equal.Id.t
-    ; fit : 'state -> Ches_app.Controller.t -> rows:int -> width:int -> 'state
+    ; fit : 'state -> Cobalt_app.Controller.t -> rows:int -> width:int -> 'state
     ; leave : 'state -> 'state
-    ; text_view : 'state -> Ches_tile.Text_view.t option
-    ; interpret : 'state -> Key.t list -> 'action Ches_tile.Content_key.t
+    ; text_view : 'state -> Cobalt_tile.Text_view.t option
+    ; interpret : 'state -> Key.t list -> 'action Cobalt_tile.Content_key.t
     ; escape : 'state -> 'action option
     ; hint : string
     ; perform
       :  'state
-      -> Ches_app.Controller.t
+      -> Cobalt_app.Controller.t
       -> context:Context.t
       -> rows:int
       -> width:int
       -> 'action
       -> 'state * 'action Ask.t Outcome.t
-    ; commands : 'state -> Ches_tile.Local_command.t list
+    ; commands : 'state -> Cobalt_tile.Local_command.t list
     ; signal : 'state -> Signal.t -> 'action option
     ; text_area : 'state -> rows:int -> width:int -> Geometry.Rect.t option
     ; label : 'state -> string option
     ; render
       :  'state
-      -> Ches_app.Controller.t
+      -> Cobalt_app.Controller.t
       -> hotkey_hints:bool
       -> focused:bool
       -> notice:string option
@@ -254,7 +254,7 @@ let specs t =
     | Unavailable _ -> None)
 ;;
 
-let ids t = List.map (specs t) ~f:(fun (spec : Ches_tile.Spec.t) -> spec.id)
+let ids t = List.map (specs t) ~f:(fun (spec : Cobalt_tile.Spec.t) -> spec.id)
 let installed t id = List.mem (ids t) id ~equal:View_id.equal
 
 let unavailable_notice t id =
@@ -419,10 +419,10 @@ let key t id host key ~lookup ~controller ~context ~rows ~width =
   Option.map (find_installed t id) ~f:(function
     | Unavailable _ -> t, host, Step.Return
     | Installed ({ adapter; state; _ } as entry) ->
-      let content keys : _ Ches_tile.Content_key.t =
+      let content keys : _ Cobalt_tile.Content_key.t =
         match adapter.interpret state keys with
         | Unbound when is_help keys -> Action Help
-        | result -> Ches_tile.Content_key.map result ~f:(fun action -> Act action)
+        | result -> Cobalt_tile.Content_key.map result ~f:(fun action -> Act action)
       in
       let host, (decision : _ Host.Decision.t) =
         Host.key
@@ -455,7 +455,7 @@ let run t id name ~controller ~context ~rows ~width =
         (sprintf "%s: %s unavailable here; nothing ran" adapter.spec.title name)
     in
     (match
-       List.find (adapter.commands state) ~f:(fun (command : Ches_tile.Local_command.t) ->
+       List.find (adapter.commands state) ~f:(fun (command : Cobalt_tile.Local_command.t) ->
          String.equal command.name name)
      with
      | None -> unavailable ()
@@ -483,12 +483,12 @@ let answer t id (answer : Answer.t) ~controller ~context ~rows ~width =
       | Some (Prompt { cancel; _ }), (Yes | No | Choose _) -> `Perform cancel
       | Some (Popup { popup; cancel; _ }), Choose { key; enabled } ->
         (match
-           List.find popup.actions ~f:(fun (action : _ Ches_vcs.Popup.Action.t) ->
+           List.find popup.actions ~f:(fun (action : _ Cobalt_vcs.Popup.Action.t) ->
              Char.equal action.key key)
          with
          | Some action ->
            `Perform
-             (Some (action.run ~enabled:(Ches_vcs.Popup.initial popup ~enabled).enabled))
+             (Some (action.run ~enabled:(Cobalt_vcs.Popup.initial popup ~enabled).enabled))
          | None -> `Perform cancel)
       | Some (Popup { cancel; _ }), (Yes | No | Text _) -> `Perform cancel
     in

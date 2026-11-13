@@ -1,6 +1,6 @@
 open! Core
-module M = Ches_terminal.Model
-module T = Ches_tile.Text_view
+module M = Cobalt_terminal.Model
+module T = Cobalt_tile.Text_view
 
 type inspection =
   { snapshot : M.snapshot option
@@ -91,7 +91,7 @@ let yank_block t b =
     else 0 in
   let text = T.jump t.text offset in
   let effect = if List.for_all lines ~f:String.is_empty then T.Effect.Notice "nothing to copy"
-    else T.Effect.Copy (Ches_core.Register.Block { rows = lines; width = !width }) in
+    else T.Effect.Copy (Cobalt_core.Register.Block { rows = lines; width = !width }) in
   { t with text; block_anchor = None }, Some effect
 ;;
 
@@ -118,8 +118,8 @@ let inspection_left t ~width =
   Int.max 0 (column - Int.max 1 width + glyph_width)
 ;;
 
-let id = Ches_tile.View_id.of_string "terminal"
-let spec = Ches_tile.Spec.result_picker id ~title:"Tile Terms"
+let id = Cobalt_tile.View_id.of_string "terminal"
+let spec = Cobalt_tile.Spec.result_picker id ~title:"Tile Terms"
 let default_size ~width ~height : Floating.Size.t =
   { width = Int.max 20 (width * 4 / 5); height = Int.max 6 (height * 4 / 5) }
 
@@ -194,9 +194,9 @@ let cursor ?inspection snapshot ~width ~rows =
     let row = row - T.top text in
     let column = column - inspection_left t ~width in
     Option.some_if (column >= 0 && column < width && row >= 0 && row < rows)
-      { Ches_tile.Cursor.column; row; shape = Block }
+      { Cobalt_tile.Cursor.column; row; shape = Block }
   | None -> Option.bind snapshot ~f:(fun (s : M.snapshot) ->
     Option.some_if (s.cursor_visible && Option.is_none s.exited
       && s.cursor_col >= 0 && s.cursor_col < width && s.cursor_row >= 0 && s.cursor_row < rows)
-      { Ches_tile.Cursor.column = s.cursor_col; row = s.cursor_row; shape = Block })
+      { Cobalt_tile.Cursor.column = s.cursor_col; row = s.cursor_row; shape = Block })
 ;;

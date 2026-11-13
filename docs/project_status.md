@@ -8,7 +8,7 @@ documented in the [editor reference](editor_reference.md).
 
 ## Support and configuration
 
-Ches is developed for a local Linux workflow. Its toolchain, keybindings, and
+Cobalt is developed for a local Linux workflow. Its toolchain, keybindings, and
 runtime defaults are maintained in the repository; it is not currently packaged
 for general distribution. See [development](development.md) for the toolchain.
 

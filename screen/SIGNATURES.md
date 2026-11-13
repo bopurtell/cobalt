@@ -2,7 +2,7 @@
 
 ## Contract and ownership
 
-The frontend uses `Ches_error.Language_query.Signature_help { automatic;
+The frontend uses `Cobalt_error.Language_query.Signature_help { automatic;
 character; retrigger }`, `Signature_result`, `Companion_files`, and `Companions`
 as published in `source/SIGNATURES.md`. No language or extension inference occurs
 in screen/input/palette/UI. Source decides capability and automatic trigger rules.

@@ -1,8 +1,8 @@
-# Ches documentation
+# Cobalt documentation
 
-[Back to Ches](../README.md)
+[Back to Cobalt](../README.md)
 
-## Using Ches
+## Using Cobalt
 
 - [OCaml configuration](configuration.md): startup settings, session-only changes,
   reload behavior, and an editable example.
@@ -17,7 +17,7 @@
 - [Project status](project_status.md): platform support, limitations, and
   validation handoff notes.
 
-## Building and understanding Ches
+## Building and understanding Cobalt
 
 - [Release packaging](releases.md): Linux tarballs, runtime requirements,
   installation, checksums and source/license audit status.
@@ -35,7 +35,7 @@
 These pages describe design decisions and implementation history. For current
 user-facing behavior, start with the guides above.
 
-- [Project direction](ches_editor_prototype_brief.md)
+- [Project direction](cobalt_editor_prototype_brief.md)
 - [Workspace and tile design](workspace_tiles_design.md)
 - [Rendering design](rendering_design.md)
 - [Command palette design](command_palette_plan.md)

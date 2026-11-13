@@ -1,8 +1,8 @@
 open! Core
-open Ches_input
-module Cell_layout = Ches_core.Cell_layout
+open Cobalt_input
+module Cell_layout = Cobalt_core.Cell_layout
 module Glyph = Cell_layout.Glyph
-module Register = Ches_core.Register
+module Register = Cobalt_core.Register
 
 module Kind = struct
   type t =
@@ -460,7 +460,7 @@ let count (keys : Key.t list) =
     let count =
       List.fold digits ~init:0 ~f:(fun n key ->
         let digit = Option.value_exn (Key.digit key) in
-        Int.min Ches_core.Command.max_count ((n * 10) + digit))
+        Int.min Cobalt_core.Command.max_count ((n * 10) + digit))
     in
     Some count, rest
   | _ -> None, keys

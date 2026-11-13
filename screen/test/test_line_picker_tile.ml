@@ -1,8 +1,8 @@
 open! Core
-open Ches_screen
-open Ches_core
-module Lines = Ches_line_picker.Lines
-let controller text = Ches_app.Controller.create (Editor.create ~cell_width:Cell_map.width
+open Cobalt_screen
+open Cobalt_core
+module Lines = Cobalt_line_picker.Lines
+let controller text = Cobalt_app.Controller.create (Editor.create ~cell_width:Cell_map.width
   (Text_buffer.of_string text |> Result.ok |> Option.value_exn))
 let drain t = while Lines.busy (Line_picker_tile.session t) do Line_picker_tile.work t ~budget:2 done
 let text row = String.concat (List.map row ~f:(fun (s : Span.t) -> s.text))
@@ -39,7 +39,7 @@ let%expect_test "truncation, invalidation and headless real controller acceptanc
   let released = ref false in
   let jumped = Line_picker_tile.accept t ~current:(fun () -> c)
     ~release:(fun () -> released := true) |> Or_error.ok_exn |> Option.value_exn in
-  assert (!released && Editor.cursor_line (Ches_app.Controller.editor jumped) = 1);
-  assert (match Line_picker_tile.interpret [ Ches_input.Key.Enter ] with Action Accept -> true | _ -> false);
-  assert (match Line_picker_tile.interpret [ Ches_input.Key.Escape ] with Unbound -> true | _ -> false);
+  assert (!released && Editor.cursor_line (Cobalt_app.Controller.editor jumped) = 1);
+  assert (match Line_picker_tile.interpret [ Cobalt_input.Key.Enter ] with Action Accept -> true | _ -> false);
+  assert (match Line_picker_tile.interpret [ Cobalt_input.Key.Escape ] with Unbound -> true | _ -> false);
   [%expect {| |}]

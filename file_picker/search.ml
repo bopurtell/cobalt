@@ -1,5 +1,5 @@
 open! Core
-module Fast = Ches_palette.Fuzzy.Fast
+module Fast = Cobalt_palette.Fuzzy.Fast
 
 type prepared = { candidate : Model.Candidate.t; text : Fast.Text.t; fields : Fast.Field.t array }
 type t = prepared list

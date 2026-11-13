@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Phase-7 terminal save/reassociation checks in an isolated /tmp fixture."""
+"""Terminal save/reassociation checks in an isolated /tmp fixture."""
 import fcntl
 import os
 import pty
@@ -15,10 +15,10 @@ from pathlib import Path
 
 def main():
     executable = Path(sys.argv[1] if len(sys.argv) > 1 else
-                        Path(__file__).resolve().parents[1] / "_build/default/bin/ches.exe").resolve()
+                        Path(__file__).resolve().parents[1] / "_build/default/bin/cobalt.exe").resolve()
     # Under /tmp whatever TMPDIR is: checks match messages that show this path on
     # a fixed-width screen, so it must stay short.
-    root = Path(tempfile.mkdtemp(prefix="directory-phase7-pty-", dir="/tmp"))
+    root = Path(tempfile.mkdtemp(prefix="directory-apply-pty-", dir="/tmp"))
     (root / "a.txt").write_text("original\n")
     (root / "dir").mkdir()
     (root / "dir/nested.ml").write_text("let x = 1\n")
@@ -72,12 +72,12 @@ def main():
         assert sorted(p.name for p in root.iterdir()) == ["a.txt.renamed", "dir.moved", "fresh", "newdir"]
         send(b"u q")
         assert proc.wait(timeout=5) == 0
-        assert not any(root.rglob(".ches-stage-*"))
+        assert not any(root.rglob(".cobalt-stage-*"))
         print("PASS: explicit rename/create saves, dirty file and descendant reassociation,")
         print("      fresh undo boundary, invalid-plan zero mutation, clean quit (0)")
         print("Fixture:", root)
     finally:
-        Path("/tmp/directory-phase7-pty.log").write_bytes(capture)
+        Path("/tmp/directory-apply-pty.log").write_bytes(capture)
         if proc.poll() is None:
             proc.terminate()
             proc.wait(timeout=5)

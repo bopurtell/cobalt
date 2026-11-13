@@ -9,7 +9,7 @@ type t =
   ; completion_colors : (string * string) list
   ; line_numbers : bool
   ; theme : string
-  ; snippets : Ches_completion.User_snippets.operation list
+  ; snippets : Cobalt_completion.User_snippets.operation list
   }
 [@@deriving sexp, equal]
 

@@ -1,18 +1,18 @@
 (* Production transport smoke in disposable source files, gated by capabilities. *)
 open! Core
 open! Async
-module Source = Ches_source.Source
-module Client = Ches_source.Lsp_client
-module Query = Ches_error.Language_query
+module Source = Cobalt_source.Source
+module Client = Cobalt_source.Lsp_client
+module Query = Cobalt_error.Language_query
 
 let run config name text cursor =
-  let root = Filename_unix.realpath (Filename_unix.temp_dir "ches-signatures-probe" "") in
+  let root = Filename_unix.realpath (Filename_unix.temp_dir "cobalt-signatures-probe" "") in
   let resource = Filename.concat root name in
   let source = Client.start ~config ~cell_width:(fun _ -> 1) ~root () in
   let rec receive () =
     let%bind events = Source.next_batch source in
     match List.find_map events ~f:(function
-      | Ches_error.Source_event.Query_result reply -> Some reply | _ -> None) with
+      | Cobalt_error.Source_event.Query_result reply -> Some reply | _ -> None) with
     | Some reply -> return reply
     | None -> receive () in
   Monitor.protect (fun () ->
@@ -21,7 +21,7 @@ let run config name text cursor =
     Source.send source (Document_changed { resource; revision = 0; text });
     let rec started () =
       let%bind events = Source.next_batch source in
-      if List.exists events ~f:(function Ches_error.Source_event.Started _ -> true | _ -> false)
+      if List.exists events ~f:(function Cobalt_error.Source_event.Started _ -> true | _ -> false)
       then return ()
       else if List.exists events ~f:(function Unavailable _ | Stopped _ -> true | _ -> false)
       then failwith "server unavailable" else started () in

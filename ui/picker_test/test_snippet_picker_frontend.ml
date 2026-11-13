@@ -6,10 +6,10 @@ module Expect_test_config = Async.Expect_test_config
 
 let%expect_test "palette discovers and inserts configured snippets without LSP or automatic completion" =
   let settings =
-    { Ches_config_runtime.Settings.default with
+    { Cobalt_config_runtime.Settings.default with
       completion_enabled = false
     ; snippets =
-        [ Ches_completion.User_snippets.Add
+        [ Cobalt_completion.User_snippets.Add
             { id = "frontend.discovery"
             ; prefix = "not_the_preceding_text"
             ; scopes = []
@@ -19,13 +19,13 @@ let%expect_test "palette discovers and inserts configured snippets without LSP o
             }
         ]
     } in
-  let snippets = Ches_ui.Snippet_host.For_testing.create ~load:(fun () ->
-    return (Ok Ches_completion.User_snippets.builtins)) in
-  let controller = Ches_app.Controller.create (Ches_core.Editor.create
-    ~cell_width:Ches_screen.Cell_map.width Ches_core.Text_buffer.empty) in
+  let snippets = Cobalt_ui.Snippet_host.For_testing.create ~load:(fun () ->
+    return (Ok Cobalt_completion.User_snippets.builtins)) in
+  let controller = Cobalt_app.Controller.create (Cobalt_core.Editor.create
+    ~cell_width:Cobalt_screen.Cell_map.width Cobalt_core.Text_buffer.empty) in
   let handle = Bonsai_term_test.create_handle
     ~initial_dimensions:{ width = 160; height = 30 }
-    (Ches_ui.Editor_view.app ~snippets ~startup_configuration:(Ok settings)
+    (Cobalt_ui.Editor_view.app ~snippets ~startup_configuration:(Ok settings)
       ~configuration_path:(Error "No configuration file in snippet fixture")
       ~bare:true controller ~exit:(fun () -> Effect.Ignore)) in
   let key key = Bonsai_term_test.send_event handle (Key_press { key; mods = [] }) in
@@ -49,8 +49,8 @@ let%expect_test "palette discovers and inserts configured snippets without LSP o
   type_text "changed";
   assert (String.is_substring (view ()) ~substring:"KEPTPICKED changed = changed;");
   key Tab; key Escape;
-  Ches_ui.Snippet_host.stop snippets;
-  Ches_app.Controller.close controller;
+  Cobalt_ui.Snippet_host.stop snippets;
+  Cobalt_app.Controller.close controller;
   ignore ([%expect.output] : string);
   print_endline "description search, cancel, prefix-independent insertion and mirrored fields work without LSP/completion";
   [%expect {| description search, cancel, prefix-independent insertion and mirrored fields work without LSP/completion |}];

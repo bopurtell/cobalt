@@ -13,7 +13,7 @@ let query_row query ~width =
 ;;
 
 let cursor query ~width =
-  { Ches_tile.Cursor.row = 0
+  { Cobalt_tile.Cursor.row = 0
   ; column = Int.min (Span.total_width (query_row query ~width)) (Int.max 0 (width - 1))
   ; shape = Bar
   }

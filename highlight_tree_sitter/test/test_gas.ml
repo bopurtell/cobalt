@@ -1,6 +1,6 @@
 open! Core
-open Ches_highlight
-open Ches_highlight_tree_sitter
+open Cobalt_highlight
+open Cobalt_highlight_tree_sitter
 
 let run provider source =
   let key = Provider.key provider ~document:(Snapshot.Document_id.create ()) ~revision:0 in

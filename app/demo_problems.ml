@@ -1,6 +1,6 @@
 open! Core
-open Ches_core
-module Feedback = Ches_error.Error
+open Cobalt_core
+module Feedback = Cobalt_error.Error
 
 let install controller =
   let editor = Controller.editor controller in
@@ -9,8 +9,7 @@ let install controller =
   | Some resource ->
     let last_line = Text_buffer.line_count (Editor.text editor) - 1 in
     List.fold (List.range 0 8) ~init:controller ~f:(fun controller i ->
-      (* Each fixture uses its own demo namespace, independent of real file outcomes.
-         Collection/per-item diagnostic identities are intentionally phase 9 work. *)
+      (* Each fixture uses its own demo namespace, independent of real file outcomes. *)
       let identity : Feedback.Identity.t =
         { source = sprintf "demo/%02d" (i + 1); kind = Save; resource } in
       let line = 1 + (i * last_line / 7) in

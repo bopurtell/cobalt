@@ -67,7 +67,7 @@ end
 val snapshot : _ t -> Snapshot.t option
 val set_snapshot_sink : _ t -> (Snapshot.t -> unit) -> unit
 val restore_snapshot : _ t -> Snapshot.t -> Model.Discovery.Update.t -> bool
-val update : _ t -> Ches_palette.Palette.Event.t -> unit
+val update : _ t -> Cobalt_palette.Palette.Event.t -> unit
 (** Process at most [budget] candidates or output records per turn (suggest 128).
     Compiled query and score scratch are reused throughout a job. Snapshot ID indices
     and ordinal preparation slots are shared across queries; decoding across batches.

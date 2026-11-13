@@ -1,8 +1,8 @@
 open! Core
-open Ches_screen
+open Cobalt_screen
 module U = Ui_state
-module K = Ches_input.Key
-module M = Ches_terminal.Model
+module K = Cobalt_input.Key
+module M = Cobalt_terminal.Model
 
 let width = 80
 let height = 24
@@ -16,9 +16,9 @@ let chars ?(start = 0) ?(gap = 10) key text =
   List.mapi (String.to_list text) ~f:(fun i c -> key (start + i * gap) c)
 let insert () = run (Helpers.ui "") (Helpers.keys "i")
 let shell () = run (Helpers.ui "") (Helpers.keys " /") |> U.take_terminal_requests |> fst
-let text t = Ches_core.Editor.text (Ches_app.Controller.editor (U.controller t))
-  |> Ches_core.Text_buffer.to_string
-let mode t = Ches_core.Editor.mode (Ches_app.Controller.editor (U.controller t))
+let text t = Cobalt_core.Editor.text (Cobalt_app.Controller.editor (U.controller t))
+  |> Cobalt_core.Text_buffer.to_string
+let mode t = Cobalt_core.Editor.mode (Cobalt_app.Controller.editor (U.controller t))
 let requests t = snd (U.take_terminal_requests t)
 let sent text = List.map (String.to_list text) ~f:(fun c ->
   M.Key { code = Char (Uchar.of_char c); modifiers = M.no_modifiers })
@@ -33,12 +33,12 @@ let%test_unit "Insert selection consumes all keys and restores document Insert" 
   assert (U.terminal_visible t);
   [%test_eq: int] (U.terminal_number t) 12;
   [%test_eq: string] (text t) "";
-  assert (Ches_core.Mode.equal (mode t) Insert);
+  assert (Cobalt_core.Mode.equal (mode t) Insert);
   let t = run t (chars ~start:1000 terminal "12 /") in
   assert (not (U.terminal_visible t));
   let t = run t [ editor 2000 'a' ] in
   [%test_eq: string] (text t) "a";
-  assert (Ches_core.Mode.equal (mode t) Insert)
+  assert (Cobalt_core.Mode.equal (mode t) Insert)
 ;;
 
 let%test_unit "each gap has an exact exclusive 200ms boundary" =
@@ -162,7 +162,7 @@ let%test_unit "terminal literals, repeated mismatch, timeout and Unicode retain 
 let%test_unit "editor lifecycle never replays into another buffer or a reopened lifetime" =
   Test_session_ui.with_files (fun a b ->
     let initial = Test_session_ui.create a in
-    let aid = Option.value_exn (Ches_app.Session.active_id (U.session initial)) in
+    let aid = Option.value_exn (Cobalt_app.Session.active_id (U.session initial)) in
     let pending = run initial (Helpers.keys "i" @ [ editor 0 '1' ]) in
     let t, _ = U.open_file pending ~width ~height b |> Or_error.ok_exn in
     assert (not (U.toggle_key_pending t));
@@ -176,7 +176,7 @@ let%test_unit "editor lifecycle never replays into another buffer or a reopened 
     let t, closed = U.close_current pending ~width ~height ~force:true in
     assert closed;
     let t, reopened = U.open_file t ~width ~height a |> Or_error.ok_exn in
-    assert (not (Ches_app.Buffer_id.equal aid reopened));
+    assert (not (Cobalt_app.Buffer_id.equal aid reopened));
     let t = run t [ tick 1000 ] in
     [%test_eq: string] (text t) (text initial))
 ;;

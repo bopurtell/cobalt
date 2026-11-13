@@ -13,8 +13,8 @@
     returns. *)
 
 open! Core
-open Ches_core
-open Ches_input
+open Cobalt_core
+open Cobalt_input
 
 module Status : sig
   type t =
@@ -81,11 +81,11 @@ val keymap : t -> Keymap.t
 
 (** Immutable current highlight key/snapshot, updated only at document transitions.
     Unsupported paths have an empty current snapshot. No parsing on access. *)
-val highlights : t -> Ches_highlight.Snapshot.Key.t * Ches_highlight.Snapshot.t
+val highlights : t -> Cobalt_highlight.Snapshot.Key.t * Cobalt_highlight.Snapshot.t
 
 (** None for plain-text files; failures are cached silently, without altering editor
     feedback. A changed key or successful reload retries a failed provider. *)
-val highlight_status : t -> Ches_highlight_tree_sitter.Provider.Status.t option
+val highlight_status : t -> Cobalt_highlight_tree_sitter.Provider.Status.t option
 
 (** Cumulative actual parse attempts for this document's shared runtime; diagnostic
     only, not a snapshot/history counter. Reading it does no provider work. *)
@@ -140,7 +140,7 @@ module Disk : sig
 end
 
 (** Bring a clean file buffer up to date with its backing file after something
-    outside Ches may have rewritten it (a VCS discard or checkout). Reads the file
+    outside Cobalt may have rewritten it (a VCS discard or checkout). Reads the file
     synchronously ({!File_io.read}). A changed file is reloaded as a forced reload
     ([:e!]) does: the cursor keeps its line (clamped) and display column, undo history
     is reset, highlighting restarts, and a successful reload starts a new
@@ -160,11 +160,11 @@ val move : t -> Motion.t -> count:int option -> t
     state, keymap, and feedback are unchanged. *)
 val yank : t -> Register.t -> t
 
-val feedback : t -> Ches_error.Error.t
-val update_feedback : t -> Ches_error.Error.update -> t
+val feedback : t -> Cobalt_error.Error.t
+val update_feedback : t -> Cobalt_error.Error.update -> t
 
 val cancel_pending : t -> t
-val with_feedback : t -> Ches_error.Error.t -> t
+val with_feedback : t -> Cobalt_error.Error.t -> t
 val with_path : t -> string -> t
 val with_register : t -> Register.t option -> t
 (** Feed without executing effects, for session-owned quit decisions. *)
@@ -176,7 +176,7 @@ val jump_offset : t -> int -> t Or_error.t
 
 module For_testing : sig
   val has_live_highlight_provider : t -> bool
-  val with_highlight_language : t -> Ches_highlight.Language.t -> t
+  val with_highlight_language : t -> Cobalt_highlight.Language.t -> t
   val fail_next_highlight : t -> unit
   val highlight_incremental_count : t -> int
 end

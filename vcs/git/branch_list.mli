@@ -1,7 +1,7 @@
 (** Local branches with their upstreams, from [git for-each-ref]. *)
 
 open! Core
-open Ches_vcs
+open Cobalt_vcs
 
 module Tracking : sig
   type t =
@@ -21,7 +21,7 @@ module Upstream : sig
     ; tracking : Tracking.t
     ; remote : string
     (** The remote it is on ([branch.<name>.remote], e.g. ["origin"]; ["."] for a
-        local branch as upstream): what a push names (phase 6). *)
+        local branch as upstream): what a push names. *)
     ; merge : string
     (** Its ref on that remote ([branch.<name>.merge], e.g. ["refs/heads/main"]):
         the push's destination. Both come from the configuration, so a [Gone]
@@ -45,8 +45,8 @@ end
 (** [Cli.read ~cwd] of [for-each-ref --format=<f> refs/heads], where [<f>] is
     [%(refname:short)], [%(objectname)], [%(HEAD)], [%(upstream)],
     [%(upstream:short)], [%(upstream:track,nobracket)], [%(committerdate:unix)],
-    [%(contents:subject)], [%(upstream:remotename)] and [%(upstream:remoteref)]
-    (phase 6), each followed by [%00], one branch per line. (for-each-ref
+    [%(contents:subject)], [%(upstream:remotename)] and [%(upstream:remoteref)],
+    each followed by [%00], one branch per line. (for-each-ref
     has no [-z]; ref names cannot contain NUL or newline, and the subject is one
     line.) Git's default order: by refname. With [LC_ALL=C] (see {!Cli.read_env}) the
     track field is [""], ["ahead N"], ["behind N"], ["ahead N, behind M"] or

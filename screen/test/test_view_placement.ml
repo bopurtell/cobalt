@@ -1,8 +1,8 @@
 open! Core
-open Ches_screen
-open Ches_input
-module Controller = Ches_app.Controller
-module View_id = Ches_tile.View_id
+open Cobalt_screen
+open Cobalt_input
+module Controller = Cobalt_app.Controller
+module View_id = Cobalt_tile.View_id
 module Counter = Test_view_registry.Counter
 
 (* The test-only counter view (see [Test_view_registry]) in tabs and the major split,
@@ -79,7 +79,7 @@ let tabs t =
 let screen ?(width = width) t = Frame.to_string (Frame.render t ~width ~height)
 
 let%test_unit "directory toggle from a registered view tab uses the main file context" =
-  let root = Helpers.scratch_dir "ches-view-directory-toggle-" in
+  let root = Helpers.scratch_dir "cobalt-view-directory-toggle-" in
   let path = Filename.concat root "a.txt" in
   Out_channel.write_all path ~data:"first\nsecond";
   Exn.protect ~finally:(fun () -> Core_unix.unlink path; Core_unix.rmdir root) ~f:(fun () ->
@@ -88,13 +88,13 @@ let%test_unit "directory toggle from a registered view tab uses the main file co
     let t = run t " o" in
     assert (Option.is_none (Ui_state.active_tab_view t));
     let s = Ui_state.session t in
-    let p = Ches_app.Session.directory_presentation s |> Option.value_exn in
-    assert (Poly.equal p.placement Ches_app.Session.Major);
-    assert (Option.is_some (Ches_app.Session.input_directory s));
+    let p = Cobalt_app.Session.directory_presentation s |> Option.value_exn in
+    assert (Poly.equal p.placement Cobalt_app.Session.Major);
+    assert (Option.is_some (Cobalt_app.Session.input_directory s));
     assert (Option.is_none (Ui_state.side_layout t ~width ~height));
     let t = run t " o" in
-    assert (Option.is_none (Ches_app.Session.directory_presentation (Ui_state.session t)));
-    Ches_app.Session.dispose (Ui_state.session t))
+    assert (Option.is_none (Cobalt_app.Session.directory_presentation (Ui_state.session t)));
+    Cobalt_app.Session.dispose (Ui_state.session t))
 ;;
 
 let rows ?(width = width) t lines =
@@ -166,7 +166,7 @@ let%expect_test "a view tab fills the editor area, takes the strip, and keeps fo
 ;;
 
 let%expect_test "file and view tabs cycle and close together; file tabs are unchanged" =
-  let dir = Core_unix.mkdtemp (Filename.concat Filename.temp_dir_name "ches-placement-") in
+  let dir = Core_unix.mkdtemp (Filename.concat Filename.temp_dir_name "cobalt-placement-") in
   let file name =
     let path = Filename.concat dir name in
     Out_channel.write_all path ~data:"text\n";
@@ -533,7 +533,7 @@ let%expect_test "a narrow terminal hides the split with a notice and restores it
 ;;
 
 let%expect_test "the split coexists with the side directory, which keeps its share" =
-  let dir = Core_unix.mkdtemp (Filename.concat Filename.temp_dir_name "ches-placement-") in
+  let dir = Core_unix.mkdtemp (Filename.concat Filename.temp_dir_name "cobalt-placement-") in
   let path = Filename.concat dir "a.txt" in
   Out_channel.write_all path ~data:"text\n";
   Exn.protect

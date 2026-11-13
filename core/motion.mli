@@ -117,7 +117,7 @@ module Failure : sig
 end
 
 module Kind : sig
-  (** How an operator will use the motion's range (from phase 5 on): whole lines, or
+  (** How an operator will use the motion's range: whole lines, or
       characters up to the destination, including it when [inclusive]. *)
   type t =
     | Characterwise of { inclusive : bool }

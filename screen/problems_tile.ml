@@ -1,13 +1,13 @@
 open! Core
-open Ches_core
-open Ches_app
-module Feedback = Ches_error.Error
-module Navigation = Ches_tile.Navigation
+open Cobalt_core
+open Cobalt_app
+module Feedback = Cobalt_error.Error
+module Navigation = Cobalt_tile.Navigation
 module Selection = Navigation.Selection
-module Text_view = Ches_tile.Text_view
+module Text_view = Cobalt_tile.Text_view
 
-let id = Ches_tile.View_id.of_string "problems"
-let spec = Ches_tile.Spec.read_only_text id ~title:"Problems"
+let id = Cobalt_tile.View_id.of_string "problems"
+let spec = Cobalt_tile.Spec.read_only_text id ~title:"Problems"
 
 type t =
   { current_document : bool
@@ -91,20 +91,20 @@ type action =
   | Text of Text_view.Action.t
 [@@deriving sexp_of]
 
-let interpret t (keys : Ches_input.Key.t list) : action Ches_tile.Content_key.t =
-  let is c key = Ches_input.Key.equal key (Ches_input.Key.char c) in
+let interpret t (keys : Cobalt_input.Key.t list) : action Cobalt_tile.Content_key.t =
+  let is c key = Cobalt_input.Key.equal key (Cobalt_input.Key.char c) in
   match keys, t.details with
   | [ Enter ], _ -> Action Jump
   | [ key ], _ when is 'e' key -> Action Inspect
   | [ key ], _ when is 'a' key -> Action Acknowledge
-  | keys, Some view -> Ches_tile.Content_key.map (Text_view.interpret view keys) ~f:(fun a -> Text a)
+  | keys, Some view -> Cobalt_tile.Content_key.map (Text_view.interpret view keys) ~f:(fun a -> Text a)
   | keys, None ->
     (match Navigation.interpret keys with
      | Unbound ->
-       Ches_tile.Content_key.map (Text_view.interpret_item keys) ~f:(function
+       Cobalt_tile.Content_key.map (Text_view.interpret_item keys) ~f:(function
          | `Copy -> Copy_item
          | `Edit -> Edit)
-     | motion -> Ches_tile.Content_key.map motion ~f:(fun m -> Move m))
+     | motion -> Cobalt_tile.Content_key.map motion ~f:(fun m -> Move m))
 ;;
 
 let escape t =
@@ -187,8 +187,8 @@ let perform t controller ~rows ~width action : Outcome.t =
 ;;
 
 let commands t =
-  let c name keys description = Ches_tile.Local_command.create name ~keys description in
-  let k = Ches_input.Key.char in
+  let c name keys description = Cobalt_tile.Local_command.create name ~keys description in
+  let k = Cobalt_input.Key.char in
   let acknowledge = c "acknowledge" [ k 'a' ] "Acknowledge the selected problem" in
   let jump = c "jump" [ Enter ] "Jump to the selected problem and return" in
   match t.details with

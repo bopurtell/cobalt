@@ -1,4 +1,4 @@
 (library
- (name ches_navigation_preview_model)
- (libraries core ches_core ches_error)
+ (name cobalt_navigation_preview_model)
+ (libraries core cobalt_core cobalt_error)
  (preprocess (pps ppx_jane)))

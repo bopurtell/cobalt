@@ -2,10 +2,10 @@
    Eager rendering per injected batch; excludes terminal transport and disk preview. *)
 open! Core
 open! Async
-open Ches_screen
-module Runtime = Ches_file_picker_host.Runtime
-module Interaction = Ches_file_picker.Interaction
-module Model = Ches_file_picker.Model
+open Cobalt_screen
+module Runtime = Cobalt_file_picker_host.Runtime
+module Interaction = Cobalt_file_picker.Interaction
+module Model = Cobalt_file_picker.Model
 
 let now () = Or_error.ok_exn Core_unix.Clock.gettime Core_unix.Clock.Monotonic
 let ms start = Int63.to_float (Int63.( - ) (now ()) start) /. 1e6
@@ -17,8 +17,8 @@ let () =
     | _ -> failwith "Usage: host_probe.exe ABSOLUTE_ROOT" in
   Thread_safe.block_on_async_exn (fun () ->
     let runtime = Runtime.create () in
-    let controller = Ches_app.Controller.create
-      (Ches_core.Editor.create ~cell_width:Cell_map.width Ches_core.Text_buffer.empty) in
+    let controller = Cobalt_app.Controller.create
+      (Cobalt_core.Editor.create ~cell_width:Cell_map.width Cobalt_core.Text_buffer.empty) in
     let state = ref (Ui_state.create controller) in
     let cache = Frame.Cache.create () and builds = ref 0 in
     let session () = File_picker_tile.session (Option.value_exn (Ui_state.file_picker !state)) in
@@ -51,18 +51,18 @@ let () =
       render (); drain name start in
     let%bind () = opening "cold-open" in
     let%bind () = Deferred.List.iter ~how:`Sequential
-      [ "edit-m", Ches_input.Key.char 'm'; "extend-mo", Ches_input.Key.char 'o'
-      ; "backspace-m", Ches_input.Key.Backspace ] ~f:(fun (name, key) ->
+      [ "edit-m", Cobalt_input.Key.char 'm'; "extend-mo", Cobalt_input.Key.char 'o'
+      ; "backspace-m", Cobalt_input.Key.Backspace ] ~f:(fun (name, key) ->
         let start = now () in apply [ Ui_state.Input.Key key ]; render (); drain name start) in
     let start = now () in
-    apply [ Ui_state.Input.Key (Ches_input.Key.Ctrl 'n') ]; render ();
+    apply [ Ui_state.Input.Key (Cobalt_input.Key.Ctrl 'n') ]; render ();
     Stdlib.Printf.printf "phase=movement apply_and_frame_ms=%.3f\n%!" (ms start);
-    apply [ Ui_state.Input.Key Ches_input.Key.Escape ];
+    apply [ Ui_state.Input.Key Cobalt_input.Key.Escape ];
     let%bind result = Clock_ns.with_timeout (Time_ns.Span.of_int_sec 10) (Runtime.finished runtime) in
     (match result with `Result () -> () | `Timeout -> failwith "first cleanup timeout");
     let%bind () = opening "reopen-refresh" in
     assert (not (Interaction.acceptance_blocked (session ())));
-    apply [ Ui_state.Input.Key Ches_input.Key.Escape ];
+    apply [ Ui_state.Input.Key Cobalt_input.Key.Escape ];
     let%map result = Clock_ns.with_timeout (Time_ns.Span.of_int_sec 10) (Runtime.finished runtime) in
     match result with
     | `Result () -> Stdlib.Printf.printf "phase=cleanup finished=true\n%!"

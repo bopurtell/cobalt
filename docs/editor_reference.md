@@ -1,11 +1,11 @@
 # Editor reference
 
 Detailed keybindings, editing semantics, workspace behavior, and development
-checks for [Ches](../README.md).
+checks for [Cobalt](../README.md).
 
 ## Startup defaults
 
-`ches PATH` starts with the **Vim Classic** (`vim-classic`) colour scheme in
+`cobalt PATH` starts with the **Vim Classic** (`vim-classic`) colour scheme in
 **Zen**: the document retains its frame, while status and supporting workspace
 tiles are suppressed. This is separate from borderless Bare mode.
 
@@ -21,7 +21,7 @@ tiles are suppressed. This is separate from borderless Bare mode.
 
 The floating-terminal system is called **Tile Terms**. In Normal or Insert mode,
 press **`Space /`**, or choose **Toggle Tile Term** in the command
-palette. Ches lazily starts an interactive `$SHELL` (falling back to `/bin/sh`)
+palette. Cobalt lazily starts an interactive `$SHELL` (falling back to `/bin/sh`)
 inside a real pseudo-terminal. Its initial directory is the current file's parent,
 or the focused directory browser's directory. Changing files afterwards does not
 change the running shell's directory; use `cd` in the shell.
@@ -46,12 +46,12 @@ window title shows **Tile Term N**.
 Hidden terminals stay running and continue consuming output without taking focus.
 Reopening a live terminal enters Insert; an exited terminal retains its final
 screen until Normal `r` restarts that terminal alone. All terminals are retained
-for the current Ches session and cleaned up when Ches exits; they are not restored
+for the current Cobalt session and cleaned up when Cobalt exits; they are not restored
 across editor restarts.
 
 The terminal floats over the existing workspace, including bare and zen modes.
 It initially prefers a 132×40 outer frame and shrinks to fit. Its shell receives the actual
-content dimensions. If fewer than 20 columns or 6 rows are available, Ches refuses
+content dimensions. If fewer than 20 columns or 6 rows are available, Cobalt refuses
 to open it, or hides an already-open terminal. The shell keeps running while hidden
 and continues consuming output; reopen with `Space /` after making room.
 
@@ -60,7 +60,7 @@ of the document's mode. Opening or reopening a live shell starts in Insert.
 
 ### Universal toggle timing
 
-In **editor Insert and terminal Insert**, Ches recognizes **`Space /`** and
+In **editor Insert and terminal Insert**, Cobalt recognizes **`Space /`** and
 **`N Space /`** with a **200 ms window between each successive key**. A gap of
 200 ms or more ends recognition. Normal/Visual mode keeps its usual untimed
 leader/count bindings.
@@ -85,10 +85,10 @@ redirected. The timeout runs even when cursor animation is disabled.
 
 ### Terminal size preferences
 
-Ches retains a **requested outer size for each numbered terminal in the current editor session**, separately
+Cobalt retains a **requested outer size for each numbered terminal in the current editor session**, separately
 from the size that fits on screen. This is ordinary UI state, not a separate daemon
 or an on-disk preference. It survives hide/reopen, shell restart, file changes, and
-temporary screen-size clamps, but resets when Ches itself exits.
+temporary screen-size clamps, but resets when Cobalt itself exits.
 Size commands affect the currently selected terminal, including while it is hidden.
 New terminal numbers start with their own default 132×40 preference.
 
@@ -142,7 +142,7 @@ without inserting their remainder into the editor.
 | `w` / `b`, `0` / `$`, `gg` / `G` | Word, line, and screen navigation; counts supported |
 | `v` / `V` / `Ctrl-v` | Characterwise / linewise / rectangular Visual selection |
 | `o` in Visual | Swap selection endpoints |
-| `y` in Visual | Yank selection to Ches's unnamed register and system clipboard |
+| `y` in Visual | Yank selection to Cobalt's unnamed register and system clipboard |
 | `yy` in Normal | Yank the current terminal row |
 | `Escape` | Cancel selection or pending input, staying in terminal Normal |
 | `Ctrl-Space` | Cancel selection and return to terminal Normal |
@@ -167,9 +167,9 @@ opening a Tile Term to show its key guidance. Mode, exit status, and errors rema
 visible with hints off, and hiding hints does not change PTY dimensions.
 
 Hiding and reopening preserves the shell PID, environment, jobs, and screen. When
-the shell exits, Ches retains its final screen and displays its exit status in
+the shell exits, Cobalt retains its final screen and displays its exit status in
 terminal Normal mode. Press **`r`** to start a fresh shell after exit or startup failure.
-Reopening an exited terminal alone does not restart it. Quitting Ches shuts down
+Reopening an exited terminal alone does not restart it. Quitting Cobalt shuts down
 the terminal session and reaps its shell, escalating if children do not exit.
 
 The implementation is **Linux-only, with multiple cached numbered sessions and one
@@ -347,7 +347,7 @@ Pending prefixes, ignored keys, resize, and animation do not clear it.
 
 ### Bare presentation
 
-Start with `ches --bare PATH` (or its alias `ches --superzen PATH`), press `Space v B`, or choose **Toggle bare mode**
+Start with `cobalt --bare PATH` (or its alias `cobalt --superzen PATH`), press `Space v B`, or choose **Toggle bare mode**
 in the palette. Bare puts text at the terminal's top-left, using the full width
 without a document border, title, padding, tab strip, workspace panes, or animated
 cursor. Line numbers start off and can be enabled independently. Syntax highlighting, search and selection overlays,
@@ -521,7 +521,7 @@ Cross-file jumps are not supported.
 To try navigation on a file with several lines:
 
 ```sh
-dune exec ches -- --demo-problems PATH
+dune exec cobalt -- --demo-problems PATH
 ```
 
 Press `Space v o`, then `G` to select the last demo finding and `Enter` to jump to
@@ -539,7 +539,7 @@ to see distinct jump targets. No demo problems are added in an ordinary launch.
 ### Demo diagnostics (checker findings fixture)
 
 ```sh
-dune exec ches -- --demo-diagnostics PATH
+dune exec cobalt -- --demo-diagnostics PATH
 ```
 
 This seeds static, labelled **DEMO** checker findings for reviewing the problems
@@ -557,8 +557,8 @@ survives lines inserted above it. Lists that arrive during Insert wait until it 
 ### Language servers (ocamllsp and slang-server)
 
 ```sh
-dune exec -j 12 ches -- PATH.ml    # or .mli, .mll, .mly; --no-lsp turns it off
-dune exec -j 12 ches -- PATH.sv    # or .svh, .v, .vh; see Slang discovery below
+dune exec -j 12 cobalt -- PATH.ml    # or .mli, .mll, .mly; --no-lsp turns it off
+dune exec -j 12 cobalt -- PATH.sv    # or .svh, .v, .vh; see Slang discovery below
 ```
 
 #### Inspecting attached servers
@@ -586,13 +586,13 @@ listed as a language server.
 
 #### OCaml and pooled lifecycle
 
-Like the owner's Neovim setup, ches starts `ocamllsp` from PATH for OCaml files. Its
+Like the owner's Neovim setup, cobalt starts `ocamllsp` from PATH for OCaml files. Its
 root is the nearest ancestor containing any of `dune-project`, `dune-workspace`,
 `*.opam` (a literal name), `opam`, `esy.json`, `package.json`, or `.git`; else the
 file's directory. Diagnostics go
 to the problems view and status count; Hints are their own, quieter severity.
 
-ches never runs dune. Merlin needs a build's configuration, so in a project that has
+cobalt never runs dune. Merlin needs a build's configuration, so in a project that has
 never been built the only finding is `No config found … Try calling 'dune build'`, and
 errors from other files appear only while you run `dune build --watch` yourself.
 ocamllsp 1.19 sends its lists unversioned, so open-file findings dim from your first
@@ -602,7 +602,7 @@ An unavailable server is recorded in history (`Space v m`) and the Language serv
 report; a server that
 exits or crashes is a one-off warning (`ocamllsp stopped: … (Space v R to restart)`),
 kept in history, its findings kept dimmed and marked `stopped`; nothing restarts on
-its own. On quit ches asks the server to shut down and waits up to 1 s.
+its own. On quit cobalt asks the server to shut down and waits up to 1 s.
 `--synthetic-checker` replaces it. To check the client against the installed server
 without the UI: `dune exec source/bench/lsp_probe.exe -- -build`.
 
@@ -641,7 +641,7 @@ Versioned diagnostics still require a sent version in the current document's his
 old sessions and buffer generations remain isolated. The synthetic checker retains per-file
 runtimes and per-file `#generation` source names. Directories do not start diagnostic drivers.
 
-For SystemVerilog (`.sv`, `.svh`) and Verilog (`.v`, `.vh`), ches starts
+For SystemVerilog (`.sv`, `.svh`) and Verilog (`.v`, `.vh`), cobalt starts
 `slang-server` with no arguments, using the same diagnostic and lifecycle
 handling. Its root is the nearest ancestor containing `.slang` or `.git`; else the
 file's directory. `--no-lsp` disables either server, and
@@ -649,7 +649,7 @@ file's directory. `--no-lsp` disables either server, and
 
 #### Slang executable discovery
 
-Ches looks for the built-in Slang server in this order:
+Cobalt looks for the built-in Slang server in this order:
 
 1. **`SLANG_SERVER`**, if set, as an explicit executable path or command name.
 2. **`slang-server` on PATH**.
@@ -663,14 +663,14 @@ changing your shell configuration; the separate `slang` compiler is not the LSP.
 For an explicit launch:
 
 ```sh
-SLANG_SERVER="$HOME/slang-server/build/bin/slang-server" ches path/to/design.sv
+SLANG_SERVER="$HOME/slang-server/build/bin/slang-server" cobalt path/to/design.sv
 ```
 
 If no server is installed, follow the
 [upstream installation guide](https://hudson-trading.github.io/slang-server/start/installing/).
-After making a missing executable available to the running Ches environment,
+After making a missing executable available to the running Cobalt environment,
 `Space v R` retries the managed servers. Environment changes made in another shell
-require relaunching Ches to inherit them; executable selection is retained for
+require relaunching Cobalt to inherit them; executable selection is retained for
 each existing server pool.
 
 Set include paths, defines, and file lists in the project's `.slang/server.json`,
@@ -681,7 +681,7 @@ which the server reads itself. For example:
 ```
 
 See the [slang-server configuration documentation](https://hudson-trading.github.io/slang-server/start/config/).
-Ches consumes LSP diagnostics, completion, hover, declaration/definition navigation,
+Cobalt consumes LSP diagnostics, completion, hover, declaration/definition navigation,
 and references, plus Slang active-instance selection and instantiation navigation.
 A full Slang hierarchy tree and waveform features are not wired into the editor.
 
@@ -784,7 +784,7 @@ preview does not itself prevent an otherwise valid Enter navigation.
 #### Slang active-instance context
 
 With the cursor inside a module's definition in Normal mode, choose **Select
-active instance** from the command palette (`Space c c`). Ches asks the server for
+active instance** from the command palette (`Space c c`). Cobalt asks the server for
 the enclosing module and lists its elaborated hierarchy paths. Search the list,
 select with Tab/Shift-Tab, and press Enter to activate; `*` marks the previously
 active path independently of the current picker selection. Escape cancels.
@@ -798,18 +798,18 @@ other server pools retain their own state.
 
 Choose **Go to instantiation** to navigate to the current instance's use site. This
 uses normal target validation and jump history, so Ctrl-o returns. If the server
-provides no usable location, Ches reports that instead of guessing. Some server
+provides no usable location, Cobalt reports that instead of guessing. Some server
 versions return the module's own range for a top-level instance.
 
 These commands require Slang's advertised extensions and an elaborated design with
 reachable instances. A standalone file may support hover/references but have no
-instance list until the server has a configured build/source set. Ches does not
+instance list until the server has a configured build/source set. Cobalt does not
 silently select a build file or change project settings. Unsupported servers and
 contexts receive a notice; there is no source-text module-name guessing.
 
 **Installed-server observation:** the tested Slang `0.3.1+a7a2d08` confirmed
 switching between `top.narrow` and `top.wide`, but subsequent fresh hover responses
-still included both 8-bit and 32-bit type variants. Ches displays what the server
+still included both 8-bit and 32-bit type variants. Cobalt displays what the server
 returns; active selection does not guarantee that this version narrows every
 hover to a single width. Standard references worked in the same probe, and
 ocamllsp returned the declaration and both uses of a test value.
@@ -819,7 +819,7 @@ ocamllsp returned the declaration and both uses of a test value.
 Signature help displays call information supplied by the attached language server,
 with the current argument highlighted when the server identifies it. Automatic
 help is enabled by default and follows the server's advertised trigger characters.
-The installed ocamllsp advertises space, `~`, `?`, `:`, and `(`; Ches does not
+The installed ocamllsp advertises space, `~`, `?`, `:`, and `(`; Cobalt does not
 infer calls from punctuation or parse language semantics itself.
 
 - **Ctrl-k** in a file's Normal or Insert mode, or palette **Signature help**,
@@ -855,7 +855,7 @@ are reused; new files start at their ordinary initial position. Successful switc
 enter Ctrl-o/Ctrl-i jump history. Missing/unreadable counterparts report an error
 without creating a file or moving the current cursor. The server can return a
 suggested filename that does not exist, so absence is a normal possible outcome.
-Unsupported servers, including Slang, receive a notice; Ches does not guess
+Unsupported servers, including Slang, receive a notice; Cobalt does not guess
 filename extensions.
 
 ### Code completion
@@ -1021,7 +1021,7 @@ preceding identifier. Filename variables and indentation use that insertion
 context. Editing fields and undo follow the same rules as accepted completion
 snippets. Stale buffers or catalog reloads cannot insert an outdated selection.
 
-Choose **Open configuration** to edit `config.ml` in Ches, save, then choose
+Choose **Open configuration** to edit `config.ml` in Cobalt, save, then choose
 **Reload configuration** to apply your changes. Existing unsaved config buffers
 are reused; a missing file opens as an unsaved buffer without automatically
 creating directories or files.
@@ -1060,9 +1060,9 @@ overridden or disabled by ID.
 #### Legacy JSON snippet collection
 
 The earlier JSON configuration remains supported as an optional base layer beneath
-OCaml declarations. To use it, create **`~/.config/ches/snippets.json`**. If `XDG_CONFIG_HOME` is an
-absolute nonempty path, Ches instead reads **`$XDG_CONFIG_HOME/ches/snippets.json`**.
-Ches does not create or overwrite this file. The editable
+OCaml declarations. To use it, create **`~/.config/cobalt/snippets.json`**. If `XDG_CONFIG_HOME` is an
+absolute nonempty path, Cobalt instead reads **`$XDG_CONFIG_HOME/cobalt/snippets.json`**.
+Cobalt does not create or overwrite this file. The editable
 [example collection](snippets.example.json) contains all five starters.
 
 For example, this replaces the bundled `aff` with a falling-edge variant and adds
@@ -1119,7 +1119,7 @@ to 1 MiB and 1000 user entries, and duplicate IDs/unknown fields are errors.
 ### Synthetic checker (live diagnostic source)
 
 ```sh
-dune exec ches -- --synthetic-checker PATH
+dune exec cobalt -- --synthetic-checker PATH
 ```
 
 This runs a synthetic checker through the same asynchronous source boundary as
@@ -1147,7 +1147,7 @@ checker replaces them. There is no automatic restart. Without this flag, `Space 
 ### Demo report (tile-system fixture)
 
 ```sh
-dune exec ches -- --demo-report PATH
+dune exec cobalt -- --demo-report PATH
 ```
 
 This installs a static, error-free report of ten labelled **DEMO REPORT** rows. It
@@ -1329,7 +1329,7 @@ commit-msg hooks), `-s` (`--signoff`: add a `Signed-off-by` line) and `-e`
 
 - `c` commits the staged changes and `a` amends HEAD with them (HEAD's message
   pre-filled; with nothing staged, `a` just rewords HEAD). Both open the message
-  file, `.git/CHES_COMMIT_EDITMSG`, as an ordinary file tab with the cursor on the
+  file, `.git/COBALT_COMMIT_EDITMSG`, as an ordinary file tab with the cursor on the
   first line, below which a `#` comment block names the branch, the switches and the
   staged files. At 80 columns or wider (and at least eight rows), the message editor
   occupies the right side while the VCS's files, branches and recent commits stay
@@ -1410,15 +1410,15 @@ summary shows `Fetch...` (or the pull's or push's title) with git's latest progr
 line. When it ends, the result is reported even if you have moved on: "Fetch: done",
 "Push main to origin/main: done", or "<title> failed: <reason>", where the reason
 explains common failures: no key loaded in ssh-agent, an unknown host key,
-credentials Ches cannot ask for, an unresolvable host, a diverged branch for a
+credentials Cobalt cannot ask for, an unresolvable host, a diverged branch for a
 fast-forward-only pull ("pull with rebase (p -r p)"), a rejected push ("pull first
 (p p)"), a stale lease, a missing remote. git's own output is in the command log.
-Git and ssh never prompt: Ches cannot ask for a passphrase or accept a host key, so
+Git and ssh never prompt: Cobalt cannot ask for a passphrase or accept a host key, so
 use ssh-agent or a credential helper, and connect once with ssh in a terminal to
 accept a new host.
 
 **Merges and rebases.** `m` and `r` work where `f` does. While a merge or rebase is
-in progress (started by Ches or outside it), the head summary shows it and the key
+in progress (started by Cobalt or outside it), the head summary shows it and the key
 whose popup goes on: "Merging 1a2b3c4 (press m)", "Rebasing main onto 1a2b3c4
 (press r)".
 
@@ -1508,7 +1508,7 @@ commands run in the background, so the editor never waits for them; while one ru
 the last state stays drawn. Git never prompts on the terminal
 (`GIT_TERMINAL_PROMPT=0`) nor starts an editor (`GIT_EDITOR=true`, so a continued
 rebase keeps each commit's message), and git's lock files are released on quit:
-Ches waits up to three seconds after the terminal closes for its git children to
+Cobalt waits up to three seconds after the terminal closes for its git children to
 end. Outside a
 repository the view says `VCS: not a repository`; `g r` looks again. Paths,
 subjects and output from git are shown with control bytes escaped.
@@ -1743,7 +1743,7 @@ inserted code point; linewise paste puts it at the first non-blank of its first
 inserted line. An unset register reports feedback. Undo and redo do not restore
 the register.
 
-Whenever a delete or yank replaces the register, ches also copies its text to the
+Whenever a delete or yank replaces the register, cobalt also copies its text to the
 system clipboard, like Vim's `clipboard=unnamedplus`. Linewise text ends with a
 newline, and a block's rows are joined by newlines. The copy is an OSC 52 escape
 sequence sent to the terminal, so it reaches the clipboard of the machine running
@@ -1920,7 +1920,7 @@ changes, after restoring the terminal.
 
 ## Syntax highlighting
 
-Ches highlights OCaml implementation (`.ml`) and interface (`.mli`) files, plus
+Cobalt highlights OCaml implementation (`.ml`) and interface (`.mli`) files, plus
 SystemVerilog (`.sv`, `.svh`), Verilog (`.v`, `.vh`), and AT&T/GAS assembly
 (`.s`, `.S`), locally with Tree-sitter. `.asm` is unsupported, not Intel syntax.
 Verilog uses the SystemVerilog grammar. Suffix detection is case-sensitive: `.ML`,
@@ -1988,12 +1988,12 @@ SystemVerilog grammar is pinned and bundled in `highlight_tree_sitter/grammar`; 
 generated C parser is stored compressed and expanded by `gzip` during the build.
 The locally patched GAS grammar is bundled similarly in
 `highlight_tree_sitter/gas_grammar`; its upstream license is GPLv3, not the license
-of Ches-authored code. See its [asset record](../highlight_tree_sitter/gas_grammar/ASSETS.md)
+of Cobalt-authored code. See its [asset record](../highlight_tree_sitter/gas_grammar/ASSETS.md)
 for notices, regeneration and distribution implications.
 The GAS grammar handles compiler debug `.file`/`.loc` whitespace-separated arguments
 and their following instructions; other directive argument lists remain comma-separated.
 Building needs a C compiler and gzip, not Node, a Tree-sitter CLI or grammar
-regeneration. Queries are Ches-owned, predicate-free strings in
+regeneration. Queries are Cobalt-owned, predicate-free strings in
 `highlight_tree_sitter/ocaml_queries.ml`, `systemverilog_queries.ml` and `gas_queries.ml`. Packaging,
 ownership and unresolved bundled-asset provenance/license-notice findings are
 recorded in [`highlight_tree_sitter/ASSETS.md`](../highlight_tree_sitter/ASSETS.md); technical
@@ -2012,7 +2012,7 @@ check outcomes and the acceptance handoff.
 
 ## Text
 
-Ches edits UTF-8 text with LF line endings. Opening a file fails with a clear
+Cobalt edits UTF-8 text with LF line endings. Opening a file fails with a clear
 error, instead of silently converting it, if the file has invalid UTF-8, a CR
 byte (CRLF or bare CR line endings), or a NUL byte. Typed and pasted text follows
 the same rules: text that breaks them is rejected with a `Rejected text: ...`
@@ -2122,7 +2122,7 @@ starts with the default layout.
 
 ### Colors and safe display
 
-Ches includes **54 themes: 35 dark and 19 light**. Vim Classic is the default;
+Cobalt includes **54 themes: 35 dark and 19 light**. Vim Classic is the default;
 Midnight, Crimson, Ember, and Glacier retain their original colors. Other palettes are
 curated designs or adaptations rather than exact ports of upstream themes. Examples
 include Abyss, Moss, Orchid, Cobalt Room, Paper, Porcelain, Terminal Amber,
@@ -2156,8 +2156,8 @@ The Warframe-inspired **Orokin** family pairs gilded accents with cool cyan Void
 energy. **Orokin Light** (`orokin-light`) uses porcelain-white surfaces, dark ink,
 and deep gold syntax and cursor accents. **Orokin Dark** (`orokin-dark`) uses
 blue-black surfaces, ivory text, and luminous gold. Both include readable search,
-selection, and completion colors. Start with `ches --theme orokin-light PATH` or
-`ches --theme orokin-dark PATH`, or persist either ID with `Theme.set` in your
+selection, and completion colors. Start with `cobalt --theme orokin-light PATH` or
+`cobalt --theme orokin-dark PATH`, or persist either ID with `Theme.set` in your
 configuration.
 
 `Space v T` or **Choose theme** in the command palette opens a framed floating
@@ -2170,14 +2170,14 @@ before opening. With no matches, the last preview stays visible and Enter applie
 nothing. Closing due to an undersized terminal, focus loss, or replacement by
 another float also cancels the preview. Paste belongs to the query, not the file.
 
-Use `ches --theme glacier PATH` (or `ches --bare --theme paper PATH`) to select at
-startup. `ches --list-themes` prints stable IDs, titles, and dark/light kinds
+Use `cobalt --theme glacier PATH` (or `cobalt --bare --theme paper PATH`) to select at
+startup. `cobalt --list-themes` prints stable IDs, titles, and dark/light kinds
 without a terminal or PATH. IDs are case-insensitive; surrounding whitespace is
 ignored and spaces/underscores normalize to hyphens. Unknown themes report an
 error pointing to the list. The active theme is shared by all presentations and
 lasts for this session; there is no automatic on-disk preference persistence.
 
-The pure `Ches_theme.Theme` library owns immutable RGB palettes. Screen state
+The pure `Cobalt_theme.Theme` library owns immutable RGB palettes. Screen state
 owns the effective choice, while `Theme.attrs ~theme` in `ui/theme.ml` maps
 semantic styles to terminal attributes. Selection, search, and diff colors have
 dedicated roles. Render caches include the effective theme so accepting,
@@ -2191,7 +2191,7 @@ Font styles (bold, italic, underline) are set per part of the screen by
 `Theme.Font.default` and can be replaced in code with `Editor_view.run ~font`;
 the terminal still chooses the typeface, and a terminal without italics may
 ignore them.
-Document styles are composable records under `Ches_screen.Style.Document`:
+Document styles are composable records under `Cobalt_screen.Style.Document`:
 syntax category (or plain), current-line background, special-display treatment, and
 interaction overlay. The `~font` callback still takes `Style.t`; custom callbacks
 that previously matched flat document variants must now inspect the record, e.g.
@@ -2236,39 +2236,39 @@ is tested headlessly with key sequences. `ui/` contains only event conversion,
 colors, and the Bonsai_term app.
 
 ```text
-dune-project   project and package metadata (generates ches.opam)
-error/         ches_error: pure shared notification, active-problem lifecycle, and bounded history
-core/          ches_core: pure editing library; depends only on `core`
-input/         ches_input: terminal-independent keys and modal keymap
+dune-project   project and package metadata (generates cobalt.opam)
+error/         cobalt_error: pure shared notification, active-problem lifecycle, and bounded history
+core/          cobalt_core: pure editing library; depends only on `core`
+input/         cobalt_input: terminal-independent keys and modal keymap
 tile/          shared tile host, focus, and input routing
 source/        asynchronous diagnostic sources and language-server client
 palette/       command catalog and fuzzy matching
-theme/         ches_theme: pure semantic RGB palettes, registry, and Base16 adapter
-app/           ches_app: file loading/saving, input controller and highlight cache
-highlight/     ches_highlight: provider-independent byte ranges, categories,
+theme/         cobalt_theme: pure semantic RGB palettes, registry, and Base16 adapter
+app/           cobalt_app: file loading/saving, input controller and highlight cache
+highlight/     cobalt_highlight: provider-independent byte ranges, categories,
                snapshot keys, normalization/lookup and incremental edit descriptions
-highlight_tree_sitter/ ches_highlight_tree_sitter: privately owned Tree-sitter provider and queries
-screen/        ches_screen: Bonsai-free screen model: cell mapping, geometry,
+highlight_tree_sitter/ cobalt_highlight_tree_sitter: privately owned Tree-sitter provider and queries
+screen/        cobalt_screen: Bonsai-free screen model: cell mapping, geometry,
                scrolling, UI state and transition, status fields and their
                layouts, rendered frames
-ui/            ches_ui: Bonsai_term frontend (event adapter, theme, app)
+ui/            cobalt_ui: Bonsai_term frontend (event adapter, theme, app)
 test/          core, input, and app tests (expect tests, Quickcheck, temp-dir file tests)
 highlight/test/, highlight_tree_sitter/test/  range/edit and fresh/incremental provider tests
 screen/test/   headless screen-model tests, including live syntax/overlay geometry
 ui/test/       event adapter tests and Bonsai_term_test tests of the app
 scripts/       smoke.sh plus explicitly invoked syntax feasibility/performance probes
-bin/ches.ml    command-line entry point
+bin/cobalt.ml    command-line entry point
 ```
 
-`ches_core`, `ches_input`, and `ches_app` must never depend on Bonsai,
+`cobalt_core`, `cobalt_input`, and `cobalt_app` must never depend on Bonsai,
 Bonsai_term, Async, Notty, or any other terminal library. You can build them on
 their own with
-`dune build ./core/ches_core.cmxa ./input/ches_input.cmxa ./app/ches_app.cmxa`.
-Editor file loading and saving live in `ches_app`; `ches_source` owns diagnostic
-processes and language-server sessions. `ches_screen` must not depend on Bonsai
+`dune build ./core/cobalt_core.cmxa ./input/cobalt_input.cmxa ./app/cobalt_app.cmxa`.
+Editor file loading and saving live in `cobalt_app`; `cobalt_source` owns diagnostic
+processes and language-server sessions. `cobalt_screen` must not depend on Bonsai
 or Bonsai_term; it uses Notty only for its code-point width table, so that its
 cell counts agree with what Notty draws. The cell layout itself lives in
-`ches_core` (`Cell_layout`) with the width function passed in: the frontend
+`cobalt_core` (`Cell_layout`) with the width function passed in: the frontend
 creates the editor with the same `Cell_map.width` it draws with, so screen
 columns in editing semantics and on screen cannot disagree.
 
@@ -2319,18 +2319,18 @@ It needs tmux (tested with 3.4), bash, and a UTF-8 locale. It is not run by
 `dune runtest`. It waits for screen/cursor updates rather than assuming a fixed runtime:
 
 ```sh
-dune build && scripts/smoke.sh               # tests _build/default/bin/ches.exe
-scripts/smoke.sh path/to/ches                # or another binary
+dune build && scripts/smoke.sh               # tests _build/default/bin/cobalt.exe
+scripts/smoke.sh path/to/cobalt                # or another binary
 scripts/smoke.sh --bare-only                # bare startup/toggle, --superzen alias, indentation, palette, terminal restoration
 scripts/smoke.sh --palette-only             # only floating-palette scenarios
 scripts/smoke.sh --line-picker-only          # live line binding/jump/zen/paste/resize
-scripts/smoke.sh --palette-only path/to/ches
+scripts/smoke.sh --palette-only path/to/cobalt
 python3 scripts/directory_workspace_smoke.py # directory/tab integration PTY scenarios
 python3 scripts/picker_smoke.py              # real file/content opening and stale/dirty navigation
 ```
 
 `scripts/dune` also runs every suite (`smoke.sh`, theme, VCS, picker and
-directory) through one dune alias, building `ches.exe` and the fake language server
+directory) through one dune alias, building `cobalt.exe` and the fake language server
 first. Each Python suite also takes an optional binary path as its first argument.
 
 ```sh

@@ -1,5 +1,5 @@
 open! Core
-open Ches_palette
+open Cobalt_palette
 
 let field ?(weight = 100) text : string Fuzzy.Field.t = { tag = text; text; weight }
 

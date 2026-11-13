@@ -1,5 +1,5 @@
 open! Core
-open Ches_core
+open Cobalt_core
 
 let of_string_exn s =
   Text_buffer.of_string s

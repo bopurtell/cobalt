@@ -1,12 +1,12 @@
 open! Core
-open Ches_screen
-open Ches_input
-module Controller = Ches_app.Controller
-module View_id = Ches_tile.View_id
-module Job = Ches_vcs.Job
-module Event = Ches_vcs.Event
-module Stamps = Ches_vcs.Stamps
-module Fixture = Ches_vcs_fixture.Fixture_repo
+open Cobalt_screen
+open Cobalt_input
+module Controller = Cobalt_app.Controller
+module View_id = Cobalt_tile.View_id
+module Job = Cobalt_vcs.Job
+module Event = Cobalt_vcs.Event
+module Stamps = Cobalt_vcs.Stamps
+module Fixture = Cobalt_vcs_fixture.Fixture_repo
 
 let width = 80
 let height = 16
@@ -21,7 +21,7 @@ module Worker = struct
     { name : string
     ; stamps : Stamps.t
     ; log : string list (** Newest first. *)
-    ; text : Ches_tile.Text_view.t option
+    ; text : Cobalt_tile.Text_view.t option
     ; ask_on_finish : bool
     ; open_target : string
     }
@@ -34,7 +34,7 @@ module Worker = struct
     | Show_text
     | Arm
 
-  let create ?(open_target = "/nonexistent-ches-test/b.txt") name =
+  let create ?(open_target = "/nonexistent-cobalt-test/b.txt") name =
     { name
     ; stamps = Stamps.create ()
     ; log = []
@@ -50,7 +50,7 @@ module Worker = struct
     let stamps, id = Stamps.issue ~lane:"work" t.stamps in
     let job =
       Job.create ~id ~lane:"work"
-        [ Read_file { path = "/nonexistent-ches-test/work"; limit = 16 } ]
+        [ Read_file { path = "/nonexistent-cobalt-test/work"; limit = 16 } ]
       |> Or_error.ok_exn
     in
     { t with stamps }, job
@@ -89,20 +89,20 @@ module Worker = struct
     | Open (path, line) -> t, outcome ~open_file:{ path; line; contents = None } ()
     | Show_text ->
       ( { t with
-          text = Some (Ches_tile.Text_view.create ~cell_width:Cell_map.width "abc\ndef")
+          text = Some (Cobalt_tile.Text_view.create ~cell_width:Cell_map.width "abc\ndef")
         }
       , outcome () )
     | Arm -> { t with ask_on_finish = true }, outcome ()
   ;;
 
-  let interpret t (keys : Key.t list) : action Ches_tile.Content_key.t =
+  let interpret t (keys : Key.t list) : action Cobalt_tile.Content_key.t =
     match keys with
     | [ Char c ] ->
       (match Uchar.to_char c with
        | Some 'r' -> Action (Submit "refresh")
        | Some 'o' -> Action (Open (t.open_target, Some 3))
        | Some 'O' -> Action (Open (t.open_target, Some 99))
-       | Some 'm' -> Action (Open ("/nonexistent-ches-test/missing.txt", None))
+       | Some 'm' -> Action (Open ("/nonexistent-cobalt-test/missing.txt", None))
        | Some 't' -> Action Show_text
        | Some 'a' -> Action Arm
        | _ -> Unbound)
@@ -121,7 +121,7 @@ module Worker = struct
   let adapter name : t Type_equal.Id.t * (t, action) View_registry.Adapter.t =
     let key = Type_equal.Id.create ~name sexp_of_t in
     ( key
-    , { spec = Ches_tile.Spec.read_only_text (View_id.of_string name) ~title:name
+    , { spec = Cobalt_tile.Spec.read_only_text (View_id.of_string name) ~title:name
       ; key
       ; fit = (fun t _ ~rows:_ ~width:_ -> t)
       ; leave = Fn.id
@@ -211,7 +211,7 @@ let started (job : Job.t) : Event.t =
   Started
     { job = job.id
     ; step = 0
-    ; spec = Ches_vcs.Exec.Spec.create ~kind:Read ~cwd:"/" "true" []
+    ; spec = Cobalt_vcs.Exec.Spec.create ~kind:Read ~cwd:"/" "true" []
     }
 ;;
 
@@ -362,8 +362,8 @@ let%expect_test "an outcome opens a file at a line: from a tab, from the split, 
     let show t =
       let editor = Controller.editor (Ui_state.controller t) in
       printf "focused %s, file %s, line %d, placement %s, active tab %s\n" (focused t)
-        (Option.value_map (Ches_core.Editor.path editor) ~default:"none" ~f:Filename.basename)
-        (Ches_core.Editor.cursor_line editor + 1)
+        (Option.value_map (Cobalt_core.Editor.path editor) ~default:"none" ~f:Filename.basename)
+        (Cobalt_core.Editor.cursor_line editor + 1)
         (placement t)
         (Option.value_map (Ui_state.active_tab_view t) ~default:"none" ~f:View_id.to_string)
     in
@@ -389,7 +389,7 @@ let%expect_test "an outcome opens a file at a line: from a tab, from the split, 
       focused alpha, file b.txt, line 6, placement (Split), active tab none
       focused document, file b.txt, line 3, placement (Split), active tab none
       focused alpha, file b.txt, line 3, placement (Split), active tab none
-      alpha: file no longer exists: /nonexistent-ches-test/missing.txt
+      alpha: file no longer exists: /nonexistent-cobalt-test/missing.txt
       |}])
 ;;
 

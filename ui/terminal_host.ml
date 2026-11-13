@@ -1,8 +1,8 @@
 open! Core
 open! Async
 
-module Runtime = Ches_terminal_host.Runtime
-module Model = Ches_terminal.Model
+module Runtime = Cobalt_terminal_host.Runtime
+module Model = Cobalt_terminal.Model
 
 type host =
   { runtime : Runtime.t

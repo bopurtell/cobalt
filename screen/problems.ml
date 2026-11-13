@@ -1,8 +1,8 @@
 open! Core
-open Ches_core
-module Feedback = Ches_error.Error
+open Cobalt_core
+module Feedback = Cobalt_error.Error
 module Diagnostics = Feedback.Diagnostics
-module Selection = Ches_tile.Navigation.Selection
+module Selection = Cobalt_tile.Navigation.Selection
 
 module Document = struct
   type t =

@@ -4,10 +4,10 @@
    commit hashes are reproducible. *)
 
 open! Core
-open Ches_screen
-module Controller = Ches_app.Controller
-module View_id = Ches_tile.View_id
-module Fixture = Ches_vcs_fixture.Fixture_repo
+open Cobalt_screen
+module Controller = Cobalt_app.Controller
+module View_id = Cobalt_tile.View_id
+module Fixture = Cobalt_vcs_fixture.Fixture_repo
 
 let width = 100
 let height = 24
@@ -97,8 +97,8 @@ let where t =
          (View_registry.placement (Ui_state.views t) Vcs_view.id
           : View_registry.Placement.t option)])
     (Option.value_map (Ui_state.active_tab_view t) ~default:"file" ~f:View_id.to_string)
-    (Option.value_map (Ches_core.Editor.path editor) ~default:"none" ~f:Filename.basename)
-    (Ches_core.Editor.cursor_line editor + 1)
+    (Option.value_map (Cobalt_core.Editor.path editor) ~default:"none" ~f:Filename.basename)
+    (Cobalt_core.Editor.cursor_line editor + 1)
 ;;
 
 let vcs t = Option.value_exn (View_registry.find (Ui_state.views t) Vcs_view.key)
@@ -119,7 +119,7 @@ let%expect_test "Space g g opens a tab with the repository; s, f and h move, foc
       focused vcs; vcs (Tab); active tab vcs; file a.txt line 1
        1:a.txt [2:VCS: main]                                                                              |
       ╭─ VCS: work (main) ───────────────────────────────────────────────────────────────────────────────╮|
-      │ Head: main 07a4bd0                    │ 0 Diff: Unstaged changes                                 │|
+      │ Head: main 387d257                    │ 0 Diff: Unstaged changes                                 │|
       │                                       │ diff --git a/a.txt b/a.txt                               │|
       │ 1 Files (1)                           │ index f384549..6addb9b 100644                            │|
       │ > - Unstaged changes (1)              │ --- a/a.txt                                              │|
@@ -137,7 +137,7 @@ let%expect_test "Space g g opens a tab with the repository; s, f and h move, foc
       │                                       │                                                          │|
       │ 3 Commits (1)                         │                                                          │|
       │ > - Recent commits (1)                │                                                          │|
-      │   ● 07a4bd0 (HEAD -> main) first      │                                                          │|
+      │   ● 387d257 (HEAD -> main) first      │                                                          │|
       │                                       │                                                          │|
       ╰─ Files 1/2 ──────────────────────────────────────────────────────────────────────────────────────╯|
        NORMAL  VCS: main VCS focused                                                                      |
@@ -150,7 +150,7 @@ let%expect_test "Space g g opens a tab with the repository; s, f and h move, foc
     [%expect {|
       focused vcs; vcs (Split); active tab file; file a.txt line 1
       ╭─ VCS: work (main) ────────────────────────────╮|
-      │ Head: main 07a4bd0                            │|
+      │ Head: main 387d257                            │|
       │ 1 Files (1)                                   │|
       │ > - Unstaged changes (1)                      │|
       │   modified   a.txt                            │|
@@ -214,7 +214,7 @@ let%expect_test "saving a file in the repository refreshes the view once" =
       jobs: refresh g1.4, diff g1.5
       focused document; vcs (Split); active tab file; file a.txt line 1
       ╭─ VCS: work (main) ────────────────────────────╮|
-      │ Head: main 07a4bd0                            │|
+      │ Head: main 387d257                            │|
       │ 1 Files (1)                                   │|
       │ > - Unstaged changes (1)                      │|
       │   modified   a.txt                            │|
@@ -262,7 +262,7 @@ let%expect_test "e in the diff opens the file at the line: from a tab, and besid
     print_s
       [%sexp
         { focus = (Vcs_view.focus state : Vcs_view.Focus.t)
-        ; cursor = (Vcs_view.cursor state Files : Ches_vcs.Panel.Cursor.t)
+        ; cursor = (Vcs_view.cursor state Files : Cobalt_vcs.Panel.Cursor.t)
         }];
     where t;
     [%expect {|
@@ -349,7 +349,7 @@ let%expect_test "without a runner the view is unavailable, and Space g says why"
       |}])
 ;;
 
-(* {2 Phase 3: stage, unstage and discard with git's own plans} *)
+(* {2 Stage, unstage and discard with git's own plans} *)
 
 (* Keys, quietly: the jobs they cause run to completion. *)
 let act repo t keys =
@@ -370,7 +370,7 @@ let outcome (repo : Fixture.t) t =
     (Sexp.to_string
        [%sexp
          ((Vcs_view.cursor v (Vcs_view.list_focus v)).selected
-          : Ches_vcs.Panel.Position.t option)]);
+          : Cobalt_vcs.Panel.Position.t option)]);
   printf "status: %s\n"
     (String.concat ~sep:", " (String.split_lines (Fixture.git repo [ "status"; "--short" ])))
 ;;
@@ -381,7 +381,7 @@ let mutations ?(after = 0) t =
   |> List.iter ~f:(fun (entry : Vcs_view.Log_entry.t) ->
     let command =
       String.chop_prefix_if_exists entry.command
-        ~prefix:(String.concat ~sep:" " ("git" :: Ches_vcs_git.Cli.prefix) ^ " ")
+        ~prefix:(String.concat ~sep:" " ("git" :: Cobalt_vcs_git.Cli.prefix) ^ " ")
     in
     if List.exists [ "add"; "restore"; "apply"; "clean"; "reset"; "rm" ] ~f:(fun sub ->
          String.is_prefix command ~prefix:("--literal-pathspecs " ^ sub))
@@ -507,7 +507,7 @@ let%expect_test "a discard is refused while a buffer in the repository is dirty"
 ;;
 
 let%expect_test "s on a conflicted file marks it resolved; u is refused; x opens the \
-                 resolve popup (phase 7)"
+                 resolve popup"
   =
   Fixture.with_repo (fun repo ->
     let git args = ignore (Fixture.git repo args : string) in
@@ -546,14 +546,14 @@ let%expect_test "s on a conflicted file marks it resolved; u is refused; x opens
       |}])
 ;;
 
-(* {2 Phase 4: Visual s u x on selected lines, with git's own plans} *)
+(* {2 Visual s u x on selected lines, with git's own plans} *)
 
 (* The diff panel's text, numbered, and the line the cursor is on. *)
 let diff_text t =
   let view = Option.value_exn (Vcs_view.text_view (vcs t)) in
-  let text = Ches_tile.Text_view.text view in
+  let text = Cobalt_tile.Text_view.text view in
   let cursor =
-    String.count (String.prefix text (Ches_tile.Text_view.cursor view)) ~f:(Char.equal '\n')
+    String.count (String.prefix text (Cobalt_tile.Text_view.cursor view)) ~f:(Char.equal '\n')
   in
   List.iteri (String.split_lines text) ~f:(fun i line ->
     printf "%s%2d|%s\n" (if i = cursor then "> " else "  ") i line)

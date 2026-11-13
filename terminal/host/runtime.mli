@@ -5,14 +5,14 @@
     needed: output is drained for the entire lifetime of a session. *)
 type t
 val create : unit -> t
-val submit : t -> Ches_terminal.Model.request list -> unit
+val submit : t -> Cobalt_terminal.Model.request list -> unit
 (** Single-consumer event stream. A maximum of one snapshot and one failure are
     pending; intermediate snapshots and repeated failures coalesce. When idle,
     this waits for the next event (including after shutdown has completed). *)
-val next_event : t -> Ches_terminal.Model.event Async.Deferred.t
+val next_event : t -> Cobalt_terminal.Model.event Async.Deferred.t
 (** Generation starts at zero and increments for every Start attempted while
     idle, including failed starts. Use this stream instead of [next_event] when
     delivery to a frontend is asynchronous and may overlap a restart. *)
-val next_event_with_generation : t -> (int * Ches_terminal.Model.event) Async.Deferred.t
+val next_event_with_generation : t -> (int * Cobalt_terminal.Model.event) Async.Deferred.t
 val stop : t -> unit
 val shutdown : t -> unit Async.Deferred.t

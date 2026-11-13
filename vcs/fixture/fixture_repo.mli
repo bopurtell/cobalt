@@ -1,11 +1,11 @@
 (** Test-only git fixtures: a repository in a fresh temporary directory, isolated from
     the user's configuration and from any repository around it, optionally with a
-    local bare "remote". Never touches the Ches repository and never contacts a
+    local bare "remote". Never touches the Cobalt repository and never contacts a
     network. Synchronous (Core_unix), so both pure tests and Async tests can use it;
     an Async test calls it between binds (each call blocks briefly on git).
 
     Isolation (see {!environment}): [GIT_CONFIG_GLOBAL=/dev/null],
-    [GIT_CONFIG_NOSYSTEM=1], the identity [Ches Test <ches-test@example.invalid>] for
+    [GIT_CONFIG_NOSYSTEM=1], the identity [Cobalt Test <cobalt-test@example.invalid>] for
     author and committer, fixed author and committer dates (so commit hashes are
     reproducible), [HOME] set to the fixture's directory, [GIT_CEILING_DIRECTORIES]
     at the fixture's directory, [GIT_TERMINAL_PROMPT=0], [LC_ALL=C], and every
@@ -33,7 +33,7 @@ val with_repo : ?remote:bool -> (t -> 'a) -> 'a
 
 (** The complete environment fixture children run with: this process's environment,
     minus the variables that redirect git, plus the isolation above. Pass it as the
-    inherited environment of a runner under test ([Ches_vcs_host.Runner.create]). *)
+    inherited environment of a runner under test ([Cobalt_vcs_host.Runner.create]). *)
 val environment : t -> (string * string) list
 
 (** An absolute path inside the work tree. *)
@@ -56,11 +56,11 @@ val commit_all : t -> string -> string
 (** Run steps synchronously, the way a runner would but without timeouts or
     streaming, for backend tests that need real git output without Async. Commands
     run with {!environment} overlaid with the spec's [env]; stdin is [/dev/null] or
-    the spec's data; output limits are applied as {!Ches_vcs.Exec.Spec.t} documents
+    the spec's data; output limits are applied as {!Cobalt_vcs.Exec.Spec.t} documents
     (stdout's head, stderr's tail; the child is never stopped early); a program that
     cannot start gives [Not_started]. File reads follow
-    {!Ches_vcs.Job.File_read.Result.t}. Every step runs, in order. *)
-val run_steps : t -> Ches_vcs.Job.Step.t list -> Ches_vcs.Job.Step_report.t list
+    {!Cobalt_vcs.Job.File_read.Result.t}. Every step runs, in order. *)
+val run_steps : t -> Cobalt_vcs.Job.Step.t list -> Cobalt_vcs.Job.Step_report.t list
 
 (** [run_steps] of one command. *)
-val run : t -> Ches_vcs.Exec.Spec.t -> Ches_vcs.Exec.Result.t
+val run : t -> Cobalt_vcs.Exec.Spec.t -> Cobalt_vcs.Exec.Result.t

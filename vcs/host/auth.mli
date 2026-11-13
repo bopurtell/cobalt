@@ -1,5 +1,5 @@
 (** The non-interactive environment every child runs with (plan: "Authentication
-    constraints"). Ches owns the terminal, so no child may prompt on it: git's own
+    constraints"). Cobalt owns the terminal, so no child may prompt on it: git's own
     credential prompt and editor are disabled, and ssh, which opens [/dev/tty] itself for
     passphrases and host keys, runs in batch mode unless the user chose their own ssh
     command. Credentials come from ssh-agent or a credential helper.
@@ -8,14 +8,14 @@
     transport (Mercurial's [ui.ssh]) generalizes this module. *)
 
 open! Core
-open Ches_vcs
+open Cobalt_vcs
 
 (** ["ssh -o BatchMode=yes"] *)
 val batch_ssh_command : string
 
 (** The complete environment for a child, given [base] (the runner's inherited
     environment overlaid with the spec's [env], later bindings winning):
-    - every kind: [GIT_TERMINAL_PROMPT=0] and (phase 7) [GIT_EDITOR=true], replacing
+    - every kind: [GIT_TERMINAL_PROMPT=0] and [GIT_EDITOR=true], replacing
       any binding in [base]: no child may start an editor on the terminal either
       (git would for [rebase --continue] or a merge without [--no-edit]; [true]
       keeps the prepared message as it is);

@@ -1,5 +1,5 @@
 open! Core
-open Ches_error.Language_query
+open Cobalt_error.Language_query
 let field = Completion_wire.field
 let string_field = Completion_wire.string_field
 

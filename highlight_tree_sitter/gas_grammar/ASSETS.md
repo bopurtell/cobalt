@@ -5,8 +5,8 @@ commit **`60f443646b20edee3b7bf18f3a4fb91dc214259a`**.
 Archive: <https://codeload.github.com/sirius94/tree-sitter-gas/tar.gz/60f443646b20edee3b7bf18f3a4fb91dc214259a>.
 There is no external scanner. The generated parser uses **language ABI 14**,
 supported by the installed `tree-sitter.0.1.0` binding/runtime. No runtime fetch,
-Node installation, external query file or Tree-sitter CLI is needed by Ches.
-Builds expand `parser.c.gz` with gzip and compile the parser and the Ches-authored
+Node installation, external query file or Tree-sitter CLI is needed by Cobalt.
+Builds expand `parser.c.gz` with gzip and compile the parser and the Cobalt-authored
 C/OCaml binding, following the SystemVerilog grammar library pattern.
 
 ## License and modifications
@@ -19,13 +19,13 @@ README or package metadata. The FSF copyright in `LICENSE` covers the license te
 not authorship of this grammar. The generated `tree_sitter/parser.h` comes from
 Tree-sitter CLI v0.22.6; its MIT notice is preserved in `LICENSE.tree-sitter`.
 
-The GAS parser is statically linked into Ches. Distribution of a combined binary
+The GAS parser is statically linked into Cobalt. Distribution of a combined binary
 must account for GPLv3 requirements, including applicable corresponding-source
 and license-notice obligations and compatibility of the combined work. This asset
-record does **not** relicense existing Ches-authored code, overwrite its notices,
+record does **not** relicense existing Cobalt-authored code, overwrite its notices,
 or establish compliance of the complete executable or its other dependencies.
 
-Local grammar patch version **`ches-gas-grammar-v2`** (2026-10-08):
+Local grammar patch version **`cobalt-gas-grammar-v2`** (2026-10-08):
 
 - Numeric label definitions and `Nb`/`Nf` references, including directive expressions
   such as `.long 1f - 0f`.
@@ -41,7 +41,7 @@ Local grammar patch version **`ches-gas-grammar-v2`** (2026-10-08):
 
 `grammar.js` is the patched source, retained for regeneration. The expression
 tree is for highlighting, not evaluation or assembler-semantic validation.
-`../gas_queries.ml` is Ches-authored and predicate-free; no upstream query was
+`../gas_queries.ml` is Cobalt-authored and predicate-free; no upstream query was
 copied. Directives/mnemonics/prefixes are Keyword, registers Constant, labels and
 local references Function, symbols Variable, literals Number/String, and relocation
 modifiers/directive types Property. Snapshot normalization prefers narrower spans
@@ -49,7 +49,7 @@ first, then category priority, not query order. Queries capture immediate conten
 directly and do not split the `@` from directive types.
 
 Provider configuration:
-`tree-sitter-gas.60f44364/ches-gas-grammar-v2/ches-gas-structural-v1`.
+`tree-sitter-gas.60f44364/cobalt-gas-grammar-v2/cobalt-gas-structural-v1`.
 Bump the grammar/query version when changing the respective behavior.
 
 ## Checksums (SHA-256)

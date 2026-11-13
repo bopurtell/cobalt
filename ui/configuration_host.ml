@@ -1,7 +1,7 @@
 open! Core
 open! Async
 
-type configuration = (Ches_config_runtime.Settings.t, string) Result.t
+type configuration = (Cobalt_config_runtime.Settings.t, string) Result.t
 
 type t =
   { load : unit -> configuration Deferred.t
@@ -46,7 +46,7 @@ let rec launch t =
   | _ -> ()
 ;;
 
-let create ?(load = fun () -> Ches_config_runtime.Loader.load ()) () =
+let create ?(load = fun () -> Cobalt_config_runtime.Loader.load ()) () =
   { load; latest = 0; pending = None; active = false; finished = None; stopped = false
   ; reply = None; changed = Ivar.create () }
 ;;

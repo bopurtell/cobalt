@@ -15,7 +15,7 @@ fixtures. Existing dirty-tree work preserved.
 
 ## Decision
 
-**Optimize the native file picker first. Keep Ches in charge of query editing,
+**Optimize the native file picker first. Keep Cobalt in charge of query editing,
 selection, floating layout, preview, capture and acceptance.** Start with blank-query
 fast paths, indexed results, compiled queries and generation-scoped reuse; then fix
 streaming discovery and add bounded reopen reuse. Do not introduce a per-key fzf
@@ -208,7 +208,7 @@ Targeted upstream source read on 2026-10-13 (fzf-lua `main`, moving reference):
   supplies `FZF_DEFAULT_COMMAND`, redirects accepted output to a temp file, reads
   it on exit, and returns selected records. Neovim owns the outer window/preview;
   fzf owns terminal query input and result-list interaction. This is not a per-query
-  `--filter` wrapper and not a drop-in service for Ches's existing float.
+  `--filter` wrapper and not a drop-in service for Cobalt's existing float.
 
 There **is** evidence for caching within a retained interactive fzf process:
 [0.44.1 cache.go](https://github.com/junegunn/fzf/blob/0.44.1/src/cache.go) stores
@@ -224,10 +224,10 @@ actions and GET limit/offset;
 [terminal.go](https://github.com/junegunn/fzf/blob/0.44.1/src/terminal.go) status
 contains query/count/position/current/matches/selection (index and text), not match
 byte positions or scores. This still belongs to a live terminal process. A hidden
-PTY plus HTTP control could retain matching state, but Ches would need a substantial
+PTY plus HTTP control could retain matching state, but Cobalt would need a substantial
 adapter, not merely a subprocess invocation:
 
-1. Keep Ches query editing, list selection and preview ownership; drain hidden PTY
+1. Keep Cobalt query editing, list selection and preview ownership; drain hidden PTY
    output and handle terminal lifecycle/resize without exposing fzf's screen.
 2. Serialize bounded candidate generations once; use opaque stable IDs mapped back
    to raw paths, never escaped display strings as identities. NUL input/output for
@@ -248,7 +248,7 @@ adapter, not merely a subprocess invocation:
 Per-query filter is simpler but repeatedly parses/transfers the corpus and loses
 interactive caches. Persistent CLI adds protocol/PTY/version complexity and two
 owners of navigation state. Neither currently has a demonstrated safe net win for
-Ches's UX. Do not substitute terminal handoff under a performance label.
+Cobalt's UX. Do not substitute terminal handoff under a performance label.
 
 ## Recommended architecture and sequential implementation slices
 
@@ -333,11 +333,11 @@ opam exec --switch=5.2.0+ox -- dune exec -j 10 ./scripts/picker_comparison_probe
 python3 scripts/picker_comparison_probe/fzf_filter.py
 # Above failed for unsupported --ignore-case; corrected to -i, then:
 python3 scripts/picker_comparison_probe/fzf_filter.py
-opam exec --switch=5.2.0+ox -- dune exec -j 10 ./scripts/picker_comparison_probe/host_probe.exe -- /home/wayne/devel/ches
-/usr/bin/time -f 'exit=%x elapsed=%e' opam exec --switch=5.2.0+ox -- dune exec -j 10 ./scripts/picker_comparison_probe/host_probe.exe -- /home/wayne/devel/ches
+opam exec --switch=5.2.0+ox -- dune exec -j 10 ./scripts/picker_comparison_probe/host_probe.exe -- /home/wayne/devel/cobalt
+/usr/bin/time -f 'exit=%x elapsed=%e' opam exec --switch=5.2.0+ox -- dune exec -j 10 ./scripts/picker_comparison_probe/host_probe.exe -- /home/wayne/devel/cobalt
 opam exec --switch=5.2.0+ox -- dune build -j 10 scripts/picker_comparison_probe/probe.exe scripts/picker_comparison_probe/host_probe.exe
 # Final host invocation after adding explicit cleanup completion:
-opam exec --switch=5.2.0+ox -- dune exec -j 10 ./scripts/picker_comparison_probe/host_probe.exe -- /home/wayne/devel/ches
+opam exec --switch=5.2.0+ox -- dune exec -j 10 ./scripts/picker_comparison_probe/host_probe.exe -- /home/wayne/devel/cobalt
 git diff --check
 git diff --stat; git status --short
 ```
@@ -508,8 +508,8 @@ git status --short
 opam exec --switch=5.2.0+ox -- dune runtest -j 10 file_picker/test screen/test file_picker/host/test file_picker/preview/test palette/test ui/picker_test
 opam exec --switch=5.2.0+ox -- dune exec -j 10 ./scripts/picker_comparison_probe/probe.exe
 opam exec --switch=5.2.0+ox -- dune runtest -j 10 file_picker/test screen/test file_picker/host/test file_picker/preview/test file_picker/discovery/test palette/test ui/picker_test
-opam exec --switch=5.2.0+ox -- dune build -j 10 bin/ches.exe scripts/picker_comparison_probe/probe.exe scripts/picker_comparison_probe/host_probe.exe file_picker/bench/interaction_latency.exe
-opam exec --switch=5.2.0+ox -- dune exec -j 10 ./scripts/picker_comparison_probe/host_probe.exe -- /home/wayne/devel/ches
+opam exec --switch=5.2.0+ox -- dune build -j 10 bin/cobalt.exe scripts/picker_comparison_probe/probe.exe scripts/picker_comparison_probe/host_probe.exe file_picker/bench/interaction_latency.exe
+opam exec --switch=5.2.0+ox -- dune exec -j 10 ./scripts/picker_comparison_probe/host_probe.exe -- /home/wayne/devel/cobalt
 git diff -- file_picker/model.ml file_picker/model.mli file_picker/interaction.ml file_picker/interaction.mli screen/file_picker_tile.ml file_picker/preview/provider.ml file_picker/test/test_model.ml file_picker/test/test_interaction.ml screen/test/test_file_picker_tile.ml ui/picker_test/test_frontend.ml file_picker/bench/interaction_latency.ml
 git diff --check
 git status --short
@@ -708,9 +708,9 @@ git status --short
 opam exec --switch=5.2.0+ox -- dune build -j 10 file_picker/test palette/test line_picker/test screen/test ui/picker_test scripts/picker_comparison_probe/probe.exe
 opam exec --switch=5.2.0+ox -- dune runtest -j 10 palette/test line_picker/test file_picker/test screen/test file_picker/host/test file_picker/preview/test ui/picker_test
 opam exec --switch=5.2.0+ox -- dune exec -j 10 ./scripts/picker_comparison_probe/probe.exe
-opam exec --switch=5.2.0+ox -- dune build -j 10 bin/ches.exe scripts/picker_comparison_probe/probe.exe scripts/picker_comparison_probe/host_probe.exe file_picker/bench/interaction_latency.exe file_picker/bench/query_latency.exe line_picker/bench/latency.exe
+opam exec --switch=5.2.0+ox -- dune build -j 10 bin/cobalt.exe scripts/picker_comparison_probe/probe.exe scripts/picker_comparison_probe/host_probe.exe file_picker/bench/interaction_latency.exe file_picker/bench/query_latency.exe line_picker/bench/latency.exe
 opam exec --switch=5.2.0+ox -- dune runtest -j 10 palette/test line_picker/test file_picker/test file_picker/discovery/test screen/test file_picker/host/test file_picker/preview/test ui/picker_test
-opam exec --switch=5.2.0+ox -- dune exec -j 10 ./scripts/picker_comparison_probe/host_probe.exe -- /home/wayne/devel/ches
+opam exec --switch=5.2.0+ox -- dune exec -j 10 ./scripts/picker_comparison_probe/host_probe.exe -- /home/wayne/devel/cobalt
 git diff --check
 git status --short
 ```
@@ -936,8 +936,8 @@ opam exec --switch=5.2.0+ox -- dune build -j 10 file_picker/test palette/test sc
 opam exec --switch=5.2.0+ox -- dune runtest -j 10 palette/test line_picker/test file_picker/test screen/test file_picker/host/test file_picker/preview/test ui/picker_test
 opam exec --switch=5.2.0+ox -- dune runtest -j 10 palette/test line_picker/test file_picker/test file_picker/discovery/test screen/test file_picker/host/test file_picker/preview/test ui/picker_test
 opam exec --switch=5.2.0+ox -- dune exec -j 10 ./scripts/picker_comparison_probe/probe.exe
-opam exec --switch=5.2.0+ox -- dune build -j 10 bin/ches.exe scripts/picker_comparison_probe/probe.exe scripts/picker_comparison_probe/host_probe.exe file_picker/bench/interaction_latency.exe file_picker/bench/query_latency.exe line_picker/bench/latency.exe
-opam exec --switch=5.2.0+ox -- dune exec -j 10 ./scripts/picker_comparison_probe/host_probe.exe -- /home/wayne/devel/ches
+opam exec --switch=5.2.0+ox -- dune build -j 10 bin/cobalt.exe scripts/picker_comparison_probe/probe.exe scripts/picker_comparison_probe/host_probe.exe file_picker/bench/interaction_latency.exe file_picker/bench/query_latency.exe line_picker/bench/latency.exe
+opam exec --switch=5.2.0+ox -- dune exec -j 10 ./scripts/picker_comparison_probe/host_probe.exe -- /home/wayne/devel/cobalt
 git diff --check
 git status --short
 ```
@@ -1113,9 +1113,9 @@ All Dune calls sequential under the required switch and job limit:
 git status --short
 opam exec --switch=5.2.0+ox -- dune build -j 10 file_picker/test file_picker/discovery/test file_picker/host/test screen/test ui/test ui/picker_test scripts/picker_comparison_probe/probe.exe
 opam exec --switch=5.2.0+ox -- dune runtest -j 10 file_picker/test file_picker/discovery/test file_picker/host/test file_picker/preview/test screen/test ui/test ui/picker_test palette/test line_picker/test
-opam exec --switch=5.2.0+ox -- dune build -j 10 bin/ches.exe scripts/picker_comparison_probe/probe.exe scripts/picker_comparison_probe/host_probe.exe file_picker/bench/interaction_latency.exe
+opam exec --switch=5.2.0+ox -- dune build -j 10 bin/cobalt.exe scripts/picker_comparison_probe/probe.exe scripts/picker_comparison_probe/host_probe.exe file_picker/bench/interaction_latency.exe
 opam exec --switch=5.2.0+ox -- dune exec -j 10 ./scripts/picker_comparison_probe/probe.exe
-opam exec --switch=5.2.0+ox -- dune exec -j 10 ./scripts/picker_comparison_probe/host_probe.exe -- /home/wayne/devel/ches
+opam exec --switch=5.2.0+ox -- dune exec -j 10 ./scripts/picker_comparison_probe/host_probe.exe -- /home/wayne/devel/cobalt
 git diff --check
 git status --short
 ```
@@ -1252,7 +1252,7 @@ The final continuation reran build/full tests after the probe source changes:
 opam exec --switch=5.2.0+ox -- dune build -j 10
 opam exec --switch=5.2.0+ox -- dune runtest -j 10
 opam exec --switch=5.2.0+ox -- dune runtest -j 10 file_picker/host/test file_picker/test file_picker/discovery/test screen/test ui/picker_test
-opam exec --switch=5.2.0+ox -- dune exec -j 10 ./scripts/picker_comparison_probe/host_probe.exe -- /home/wayne/devel/ches
+opam exec --switch=5.2.0+ox -- dune exec -j 10 ./scripts/picker_comparison_probe/host_probe.exe -- /home/wayne/devel/cobalt
 opam exec --switch=5.2.0+ox -- dune exec -j 10 ./scripts/picker_comparison_probe/probe.exe
 python3 scripts/picker_smoke.py
 TMPDIR=/tmp/opencode bash scripts/smoke.sh
@@ -1278,7 +1278,7 @@ in **blockwise delete, yank, and paste** differed from the expected bytes. Its s
 checks and all other smoke checks passed, including palette/line/source/LSP and tty
 cleanup. This does not provide a green full-terminal gate and has not been diagnosed
 as timing-related or pre-existing. No unrelated block/text-storage fix was attempted.
-Retained screens: `/tmp/opencode/ches-smoke-screens.IDj6iG`; full captured output:
+Retained screens: `/tmp/opencode/cobalt-smoke-screens.IDj6iG`; full captured output:
 `/home/wayne/.local/share/opencode/tool-output/tool_1382e24f0001Kwada6pvzzZsqc`.
 The script removes its work fixture on exit. Both smoke scripts were inspected for
 nested Dune calls before execution; neither launches Dune.
@@ -1329,21 +1329,21 @@ Changes in this slice:
 Verification (sequential; smoke script inspected in full and has no nested Dune):
 - `opam exec --switch=5.2.0+ox -- dune runtest -j 10 test screen/test`: **PASS**, including
   the new keymap regression and existing core/app/input/screen suites.
-- `opam exec --switch=5.2.0+ox -- dune build -j 10 bin/ches.exe source/test/fake_lsp/fake_lsp.exe`:
+- `opam exec --switch=5.2.0+ox -- dune build -j 10 bin/cobalt.exe source/test/fake_lsp/fake_lsp.exe`:
   **PASS**.
 - `bash -n scripts/smoke.sh`: **PASS**.
 - `TMPDIR=/tmp/opencode bash scripts/smoke.sh`: ran once after the block fix. Block
   screen/save/post-exit bytes **PASS**, as did all other checks except the newly
   diagnosed immediate LSP Undo negative assertion. Full output:
   `/home/wayne/.local/share/opencode/tool-output/tool_138334f7d001SPXOee40TlNXC5`;
-  screens `/tmp/opencode/ches-smoke-screens.V8IULe`.
+  screens `/tmp/opencode/cobalt-smoke-screens.V8IULe`.
 - First focused LSP verification caught an erroneous additional bottom-row status
   barrier: the problems tile occupies the bottom row. Removed that additional
   barrier and retained the cursor-row completion check; its failed-run screens
-  are `/tmp/opencode/ches-smoke-screens.3gtRbn`.
+  are `/tmp/opencode/cobalt-smoke-screens.3gtRbn`.
 - `TMPDIR=/tmp/opencode bash scripts/smoke.sh --lsp-only`: final **PASS**, including
   Undo notice clearing, restart, retained history, server cleanup and tty restoration;
-  screens `/tmp/opencode/ches-smoke-screens.J4qWgl`.
+  screens `/tmp/opencode/cobalt-smoke-screens.J4qWgl`.
 
 Both observed integration failures are diagnosed and fixed. The full smoke was
 not repeated after the focused LSP correction to avoid redundant server load;
@@ -1356,7 +1356,7 @@ commands were used. Undo/text-storage work can proceed with this blocker closed.
 After the final text/history changes and focused cross-feature review, one full
 `TMPDIR=/tmp/opencode bash scripts/smoke.sh` run **passed all checks** (exit 0),
 including blockwise saved bytes before/after exit and LSP Undo/restart/process
-cleanup. Screens: `/tmp/opencode/ches-smoke-screens.yaj6JY`; full output:
+cleanup. Screens: `/tmp/opencode/cobalt-smoke-screens.yaj6JY`; full output:
 `/home/wayne/.local/share/opencode/tool-output/tool_13849d53a001CTzZiDprhYNL3m`.
 `python3 scripts/picker_smoke.py` also **passed**; fixtures/captures:
 `/tmp/opencode/picker-terminal-9lji89tq`. Final build/full Dune suite and three

@@ -1,11 +1,11 @@
 open! Core
-module Theme = Ches_theme.Theme
-module Selection = Ches_tile.Navigation.Selection
-module Query = Ches_palette.Query
-module Fuzzy = Ches_palette.Fuzzy
+module Theme = Cobalt_theme.Theme
+module Selection = Cobalt_tile.Navigation.Selection
+module Query = Cobalt_palette.Query
+module Fuzzy = Cobalt_palette.Fuzzy
 
-let id = Ches_tile.View_id.of_string "theme-picker"
-let spec = Ches_tile.Spec.result_picker id ~title:"Choose theme"
+let id = Cobalt_tile.View_id.of_string "theme-picker"
+let spec = Cobalt_tile.Spec.result_picker id ~title:"Choose theme"
 
 type t =
   { original : Theme.t
@@ -38,7 +38,7 @@ let query t = t.query
 let interpret = Palette_tile.interpret
 let cursor t ~width = Picker_text.cursor t.query ~width
 
-let update t ~rows (event : Ches_palette.Palette.Event.t) =
+let update t ~rows (event : Cobalt_palette.Palette.Event.t) =
   let query = match event with
     | Insert c -> Query.append t.query (Uchar.Utf8.to_string c)
     | Paste text -> Query.append t.query text

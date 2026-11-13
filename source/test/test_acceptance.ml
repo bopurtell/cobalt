@@ -1,10 +1,10 @@
-(* Phase 9 acceptance, driven through the synthetic producer: two sources on one file,
+(* Diagnostic acceptance, driven through the synthetic producer: two sources on one file,
    empty replacement, out-of-order versions, edits while computing, bursts,
    disconnect/restart, and hidden views. The interactive checker is one source, like
    ocamllsp; scripts provide several sources and unversioned lists. *)
 open! Core
 open! Async
-open Ches_source
+open Cobalt_source
 module H = Harness
 
 let synthetic ~time ~root = Synthetic.start ~time_source:time ~root ()
@@ -34,11 +34,11 @@ let%expect_test "starting sends the initial text; both checks merge into one lis
     warning [synthetic] synthetic_other.ml:3:1: synthetic build warning: unused value in a file you have not opened
     |}];
   (* Problems are hidden throughout: hidden views still receive (only drawing stops). *)
-  print_s [%message (Ches_screen.Ui_state.problems_visible t.ui : bool)];
+  print_s [%message (Cobalt_screen.Ui_state.problems_visible t.ui : bool)];
   H.status t;
   [%expect
     {|
-    ("Ches_screen.Ui_state.problems_visible t.ui" false)
+    ("Cobalt_screen.Ui_state.problems_visible t.ui" false)
     [4 problems: Space v e]
     |}];
   return ()
@@ -108,7 +108,7 @@ let%expect_test "edits while computing: one check of the newest text, dimmed onc
   return ()
 ;;
 
-let finding line message : Ches_error.Error.Diagnostics.Finding.t =
+let finding line message : Cobalt_error.Error.Diagnostics.Finding.t =
   { severity = Error; message; location = Some { line; column = 1 } }
 ;;
 
@@ -178,14 +178,14 @@ let%expect_test "out-of-order versions: an older revision never replaces a newer
       ()
   in
   H.keys t "xx";
-  print_s [%message (Ches_core.Editor.revision (H.editor t) : int)];
+  print_s [%message (Cobalt_core.Editor.revision (H.editor t) : int)];
   let%bind () = H.advance t 10 in
   H.rows t;
   let%bind () = H.advance t 10 in
   H.rows t;
   [%expect
     {|
-    ("Ches_core.Editor.revision (H.editor t)" 2)
+    ("Cobalt_core.Editor.revision (H.editor t)" 2)
       error [lsp] a.ml:1:1: from revision 2
       error [lsp] a.ml:1:1: from revision 2
     |}];

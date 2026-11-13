@@ -1,4 +1,4 @@
-(** New branch names (phase 6): the check the name prompt runs on every edit, so the
+(** New branch names: the check the name prompt runs on every edit, so the
     user sees why a name is refused before anything runs. Pure: the rules of [git
     check-ref-format --branch] (git-check-ref-format(1)) for the name [refs/heads/
     <name>], which git's own [switch --create] applies again when the branch is

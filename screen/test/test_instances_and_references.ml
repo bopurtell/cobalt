@@ -1,6 +1,6 @@
 open! Core
-open Ches_core
-open Ches_screen
+open Cobalt_core
+open Cobalt_screen
 open Test_language_navigation
 
 let text t = Text_buffer.to_string (Editor.text (editor t))
@@ -20,7 +20,7 @@ let choose t path =
   let t = picker t |> fun t -> press t path |> fun t -> press t "<CR>" in
   let t, requests = Ui_state.take_source_requests t in
   let query = List.find_map_exn requests ~f:(function
-    | Ches_error.Source_request.Query ({ kind = Activate_instance _; _ } as q) -> Some q
+    | Cobalt_error.Source_request.Query ({ kind = Activate_instance _; _ } as q) -> Some q
     | _ -> None) in
   t, query
 let activated (q : Q.request) = match q.kind with
@@ -40,7 +40,7 @@ let%test_unit "instance module bounds use only the explicitly negotiated Unicode
       let t = reply t query (Instance_list inventory) |> fun t -> press t "narrow<CR>" in
       let t, requests = Ui_state.take_source_requests t in
       let activation = List.find_map_exn requests ~f:(function
-        | Ches_error.Source_request.Query ({ kind = Activate_instance _; _ } as q) -> Some q
+        | Cobalt_error.Source_request.Query ({ kind = Activate_instance _; _ } as q) -> Some q
         | _ -> None) in
       let t = reply t activation (activated activation) in
       assert (Option.is_some (Ui_state.active_instance_label t));
@@ -165,12 +165,12 @@ let%test_unit "gr in Insert is text, and directory navigation never queues refer
   let inserted = press (initial ()) "igr<Esc>" in
   assert (String.is_prefix (text inserted) ~prefix:"grmodule");
   let _, requests = Ui_state.take_source_requests inserted in
-  assert (not (List.exists requests ~f:(function Ches_error.Source_request.Query _ -> true | _ -> false)));
+  assert (not (List.exists requests ~f:(function Cobalt_error.Source_request.Query _ -> true | _ -> false)));
   with_files (fun root a _ ->
     let directory = Ui_state.show_directory (create a "origin text") ~width ~height root |> Or_error.ok_exn in
     let directory = press directory "gr" in
     let _, requests = Ui_state.take_source_requests directory in
-    assert (not (List.exists requests ~f:(function Ches_error.Source_request.Query _ -> true | _ -> false))))
+    assert (not (List.exists requests ~f:(function Cobalt_error.Source_request.Query _ -> true | _ -> false))))
 ;;
 
 let%test_unit "switching document before activation acknowledgement drops the context claim" =
@@ -202,12 +202,12 @@ let%test_unit "activation send and refresh unknown events preserve acknowledgeme
 
 let%test_unit "unrelated pool context and lifecycle events preserve pending and visible references" =
   let initial = initial () in
-  let server source resources : Ches_error.Source_event.Server.t =
+  let server source resources : Cobalt_error.Source_event.Server.t =
     { source; resources; program = "fake"; args = []; root = "/tmp"; status = Running } in
   let servers = [server "fake" ["/tmp/instance-context.sv"]; server "other" ["/tmp/other.ml"]] in
   let initial = run initial [Source (Servers servers)] in
   let pending, query, _ = request initial "gr" in
-  let events = [Ches_error.Source_event.Instance_context_changed
+  let events = [Cobalt_error.Source_event.Instance_context_changed
       {source = "other"; revision = 1; module_name = None; hier_path = None};
     Stopped {source = "other"; root = "/tmp"; reason = "exit"};
     Started {source = "other"; root = "/tmp"}] in

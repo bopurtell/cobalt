@@ -1,8 +1,8 @@
 open! Core
-open Ches_core
-module Controller = Ches_app.Controller
-module Fuzzy = Ches_palette.Fuzzy
-module Query = Ches_palette.Query
+open Cobalt_core
+module Controller = Cobalt_app.Controller
+module Fuzzy = Cobalt_palette.Fuzzy
+module Query = Cobalt_palette.Query
 
 type result = { line : int; text : string; score : int; positions : int list }
 module Key = struct
@@ -70,7 +70,7 @@ let validate t controller =
   | _ ->
     if not t.closed then (t.invalidated <- true; drop t);
     false
-let update t (event : Ches_palette.Palette.Event.t) =
+let update t (event : Cobalt_palette.Palette.Event.t) =
   if not t.closed && not t.invalidated then (
     let move by =
       if not (busy t) then
@@ -130,7 +130,7 @@ let work t ~budget =
           | Some ((_, result), rest) -> job.reversed <- result :: job.reversed; loop (left - 1) rest
           | None ->
             let results = List.rev job.reversed in
-            t.selected <- Ches_palette.Selection.preserve t.selected results
+            t.selected <- Cobalt_palette.Selection.preserve t.selected results
               ~id:(fun r -> r.line) ~equal:Int.equal;
             t.results <- results; t.job <- None
       in loop budget output)

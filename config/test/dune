@@ -1,17 +1,17 @@
 (test
  (name test_config)
  (modules test_config)
- (libraries core core_unix async ches_config_runtime)
+ (libraries core core_unix async cobalt_config_runtime)
  (preprocess (pps ppx_jane)))
 
 (executable
  (name check_config)
  (modules check_config)
- (libraries core async ches_config_runtime)
+ (libraries core async cobalt_config_runtime)
  (preprocess (pps ppx_jane)))
 
 (test
  (name test_cache)
  (modules test_cache)
- (libraries core core_unix async ches_config_runtime)
+ (libraries core core_unix async cobalt_config_runtime)
  (preprocess (pps ppx_jane)))

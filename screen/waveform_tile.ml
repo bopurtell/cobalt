@@ -1,9 +1,9 @@
 open! Core
-module Vcd = Ches_harness.Vcd
-let id = Ches_tile.View_id.of_string "harness-waveform"
-let spec = Ches_tile.Spec.read_only id ~title:"Quick-Harness waveform"
+module Vcd = Cobalt_harness.Vcd
+let id = Cobalt_tile.View_id.of_string "harness-waveform"
+let spec = Cobalt_tile.Spec.read_only id ~title:"Quick-Harness waveform"
 type t =
-  { wave : Vcd.t; run : Ches_harness.Protocol.run; path : string
+  { wave : Vcd.t; run : Cobalt_harness.Protocol.run; path : string
   ; cursor : int; start : int; step : int; top : int }
 [@@deriving sexp_of]
 
@@ -11,7 +11,7 @@ let create wave run path =
   { wave; run; path; cursor = 0; start = 0; step = Int.max 1 ((wave.Vcd.last + 59) / 60); top = 0 }
 ;;
 
-let key t (key : Ches_input.Key.t) ~width ~rows =
+let key t (key : Cobalt_input.Key.t) ~width ~rows =
   let columns = Int.max 1 (width - 38) in
   let clamp n = Int.clamp_exn n ~min:0 ~max:t.wave.last in
   let cursor, step, start, top = match key with

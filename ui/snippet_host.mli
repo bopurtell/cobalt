@@ -1,6 +1,6 @@
 open! Core
 
-type catalog = (Ches_completion.User_snippets.t, string) Result.t
+type catalog = (Cobalt_completion.User_snippets.t, string) Result.t
 type t
 
 (** Absolute nonempty XDG_CONFIG_HOME takes precedence; otherwise HOME/.config.

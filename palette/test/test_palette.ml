@@ -1,5 +1,5 @@
 open! Core
-open Ches_palette
+open Cobalt_palette
 
 let normal : Catalog.Context.t = { mode = Normal }
 
@@ -241,7 +241,7 @@ let%test_unit "bare mode accepts the stable workspace action" =
   | Execute { token; id; action } ->
     [%test_eq: int] token 1;
     assert (Catalog.Id.equal id (Catalog.Id.of_string "workspace.toggle-bare"));
-    assert (Ches_input.Keymap.Action.equal action (View Toggle_bare))
+    assert (Cobalt_input.Keymap.Action.equal action (View Toggle_bare))
   | _ -> failwith "Expected bare-mode action"
 ;;
 
@@ -257,7 +257,7 @@ let accept_in views palette =
 
 let%expect_test "accept refuses a target that has gone, never using another" =
   let palette = Palette.create Catalog.default normal ~token:1 |> Fn.flip type_ "save" in
-  accept_in [ 1, Ches_core.Mode.Normal; 2, Normal ] palette;
+  accept_in [ 1, Cobalt_core.Mode.Normal; 2, Normal ] palette;
   [%expect
     {|
     (Execute ((token 1) (id file.save) (action Save)))
@@ -275,7 +275,7 @@ let%expect_test "accept rechecks availability in the target's current context" =
       [ Catalog.Entry.create
           ~id:"test.insert-only"
           ~title:"Insert only"
-          ~available:(fun context -> Ches_core.Mode.equal context.mode Insert)
+          ~available:(fun context -> Cobalt_core.Mode.equal context.mode Insert)
           (Editor Undo)
       ; Catalog.Entry.create ~id:"test.normal" ~title:"Normal" (Editor Redo)
       ]

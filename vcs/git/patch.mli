@@ -1,10 +1,10 @@
-(** Patches for [git apply], built from a parsed diff ({!Ches_vcs.Diff}): the text that
+(** Patches for [git apply], built from a parsed diff ({!Cobalt_vcs.Diff}): the text that
     applies (or, with [git apply --reverse], removes) part of one file's changes. Pure.
-    Phase 3 builds whole hunks ({!hunk}); phase 4 adds selected lines
+    Builds whole hunks ({!hunk}) and selected lines
     ({!Selection.t.Lines}) and patches of several hunks of one file ({!hunks}).
 
     How the backend applies a patch ({!Backend.plan}), always at the work-tree root,
-    patch text on stdin ({!Ches_vcs.Exec.Stdin.Data}), each command first with
+    patch text on stdin ({!Cobalt_vcs.Exec.Stdin.Data}), each command first with
     [--check] (a mutation stops at its first failed step, so a failing check skips the
     apply):
     - stage a hunk of the unstaged diff: [git apply --cached] of the patch;
@@ -23,7 +23,7 @@
     intent-to-add file's hunk staged with [--cached]. *)
 
 open! Core
-open Ches_vcs
+open Cobalt_vcs
 
 module Selection : sig
   (** Which lines of the hunk the patch carries. *)
@@ -46,7 +46,7 @@ end
 
 (** The patch for hunk [hunk] (0-based, into [file.hunks]) of [file]. [reverse] says
     how it will be applied ([git apply --reverse]): a [Whole] hunk's text is the same
-    either way (git reverses it); a line selection (phase 4) depends on it.
+    either way (git reverses it); a line selection depends on it.
 
     Text, every line ending in ["\n"]:
     {v
@@ -85,7 +85,7 @@ val hunk
   -> string Or_error.t
 
 (** The patch for several hunks of [file] at once, each with its selection, applied
-    atomically by one [git apply] (phase 4: a Visual selection across hunks). [hunks]
+    atomically by one [git apply] (a Visual selection across hunks). [hunks]
     lists 0-based indices into [file.hunks], strictly ascending (an error
     otherwise). [hunk file ~hunk:i Whole ~reverse] is [hunks file [ i, Whole ]
     ~reverse] except for the [@@] line, which {!hunk} keeps verbatim; [hunk] of a

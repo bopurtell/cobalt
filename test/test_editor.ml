@@ -1,5 +1,5 @@
 open! Core
-open Ches_core
+open Cobalt_core
 open Command
 
 let of_string_exn s =

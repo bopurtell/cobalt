@@ -1,5 +1,5 @@
 open! Core
-open Ches_core
+open Cobalt_core
 
 let create s =
   Editor.create

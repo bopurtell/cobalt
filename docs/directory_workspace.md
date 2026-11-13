@@ -1,6 +1,6 @@
 # Directory workspace reference
 
-Ches retains file tabs and visited directory buffers within one session. See the
+Cobalt retains file tabs and visited directory buffers within one session. See the
 [editor reference](editor_reference.md) for modal text editing and other tiles.
 
 **Removing an existing identity row and saving permanently deletes its backing
@@ -9,7 +9,7 @@ undo.** Directory text is a proposed filesystem plan, not a file to serialize.
 
 ## Navigation, tabs and opening
 
-`ches .` starts a major directory buffer with zero file tabs. `Enter` on a file
+`cobalt .` starts a major directory buffer with zero file tabs. `Enter` on a file
 opens/activates its persistent tab; on a directory (including a directory symlink)
 it navigates. `-` goes to the lexical parent and selects the child just left.
 `Space o` from the main file editor opens its parent **in the main editor area**,
@@ -134,7 +134,7 @@ legacy exposed tokens with `Session.create ~directory_config:Directory_buffer.Co
 or `Ui_state.create ~directory_config:Directory_buffer.Config.Exposed`; direct loads
 accept `Directory_buffer.load ~config:Directory_buffer.Config.Exposed`. The default
 is `Directory_buffer.Config.Hidden`, retained across navigation, refresh and apply.
-In exposed mode rows are `@ches[ID]<TAB>NAME` (literal TAB), and IDs/separators are
+In exposed mode rows are `@cobalt[ID]<TAB>NAME` (literal TAB), and IDs/separators are
 editable legacy text. Keep them intact to rename; Insert-mode Tab inserts spaces,
 so use bracketed paste for a literal TAB. This backend option is not a CLI flag.
 
@@ -175,7 +175,7 @@ scenes without the marker. In exposed mode, change the copied token to
 `@copy[ID]`, retaining TAB/kind (the notation `<TAB>` means a literal TAB):
 
 ```text
-@ches[1]<TAB>main.ml
+@cobalt[1]<TAB>main.ml
 @copy[1]<TAB>../backup/main.ml
 ```
 
@@ -224,9 +224,9 @@ without atomic replacement or external-content conflict detection.
 Partial failure leaves completed operations on disk. Feedback reports completed
 mutations, actual backing paths and remaining intent. Buffers rebase to actual
 outcomes; subsequent Save retries only unresolved intent, not successful creates,
-copies or final renames. Incomplete moves can leave `.ches-stage-*` names, which
+copies or final renames. Incomplete moves can leave `.cobalt-stage-*` names, which
 become rows/open buffers' actual backing paths. Copies publish from a private
-`.ches-copy-*` tree at the destination; ordinary failure cleans its owned tree.
+`.cobalt-copy-*` tree at the destination; ordinary failure cleans its owned tree.
 An externally relocated/replaced parent can leave that private tree behind:
 cleanup refuses to delete an unrelated replacement at the same lexical path.
 Crashes can also leave private/staging paths; intent is not persisted across

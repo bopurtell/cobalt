@@ -29,10 +29,10 @@ module Floating_layer : sig
   (** Adapter-independent opaque shell. [cursor] is relative to [layout.content];
       it is drawn only when [id] is the host's cursor owner. *)
   type t =
-    { id : Ches_tile.View_id.t
+    { id : Cobalt_tile.View_id.t
     ; layout : Tile_shell.Layout.t
     ; content : Tile_shell.Content.t
-    ; cursor : Ches_tile.Cursor.t option
+    ; cursor : Cobalt_tile.Cursor.t option
     }
 end
 
@@ -70,7 +70,7 @@ type t =
     copied from an obsolete result. Mismatched keys or editor revisions fall back to
     plain text. No provider work occurs here. *)
 val render
-  :  ?highlights:Ches_highlight.Snapshot.Key.t * Ches_highlight.Snapshot.t
+  :  ?highlights:Cobalt_highlight.Snapshot.Key.t * Cobalt_highlight.Snapshot.t
   -> ?allocation:Geometry.Rect.t
    -> ?reserve_status_row:bool
    -> ?floating:Floating_layer.t
@@ -94,7 +94,7 @@ module Cache : sig
       work may retain rows/base, after explicit session/content/preview stamps match.
       All other inputs invalidate. Effects/after_step still run on work turns. *)
   val apply_inputs : ?after_step:(Ui_state.t -> Ui_state.t) -> 'a t -> Ui_state.t
-    -> width:int -> height:int -> Ui_state.Input.t list -> Ui_state.t * Ches_app.Controller.Status.t
+    -> width:int -> height:int -> Ui_state.Input.t list -> Ui_state.t * Cobalt_app.Controller.Status.t
   val get : 'a t -> Ui_state.t -> width:int -> height:int
     -> draw_base:(frame -> 'a) -> frame * 'a
 end

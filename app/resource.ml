@@ -1,1 +1,1 @@
-include Ches_core.Resource
+include Cobalt_core.Resource

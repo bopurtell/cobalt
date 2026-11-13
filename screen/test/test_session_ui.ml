@@ -1,14 +1,14 @@
 open! Core
-open Ches_core
-open Ches_app
-open Ches_screen
+open Cobalt_core
+open Cobalt_app
+open Cobalt_screen
 open Helpers
-module Feedback = Ches_error.Error
+module Feedback = Cobalt_error.Error
 
 let width = 60
 let height = 12
 let with_files f =
-  let directory = scratch_dir "ches-session-ui-" in
+  let directory = scratch_dir "cobalt-session-ui-" in
   let a = Filename.concat directory "a.ml" and b = Filename.concat directory "b.ml" in
   let lines = String.concat (List.init 50 ~f:(fun i -> sprintf "line %d\n" i)) in
   Out_channel.write_all a ~data:lines;
@@ -21,7 +21,7 @@ let create a = Ui_state.create ~tiles_visible:false ~source_attached:true
 let run ui notation = Helpers.run ~width ~height ui (keys notation)
 let text ui = Text_buffer.to_string (Editor.text (Controller.editor (Ui_state.controller ui)))
 let source ui event = Helpers.run ~width ~height ui [ Ui_state.Input.Source event ]
-let diagnostics resource message : Ches_error.Source_event.t =
+let diagnostics resource message : Cobalt_error.Source_event.t =
   Diagnostics { source = "checker"; resource; revision = None
     ; findings = [ { severity = Error; message; location = Some { line = 1; column = 1 } } ] }
 let collections ui = Feedback.Diagnostics.collections (Feedback.diagnostics (Controller.feedback (Ui_state.controller ui)))
@@ -38,14 +38,14 @@ let%test_unit "per-buffer cursor/scroll and generation-safe paste through UI ass
     let ui = Ui_state.activate_buffer ui ~width ~height aid |> Or_error.ok_exn in
     assert (Scroll.equal (Ui_state.scroll ui) scroll);
     assert (Editor.cursor (Controller.editor (Ui_state.controller ui)) = cursor);
-    let ui = run ui "i" |> fun ui -> Helpers.run ~width ~height ui [ Paste_start; Key (Ches_input.Key.char 'X') ] in
+    let ui = run ui "i" |> fun ui -> Helpers.run ~width ~height ui [ Paste_start; Key (Cobalt_input.Key.char 'X') ] in
     let ui = Ui_state.activate_buffer ui ~width ~height bid |> Or_error.ok_exn in
     assert (Ui_state.pasting ui);
     let ui = Ui_state.activate_buffer ui ~width ~height aid |> Or_error.ok_exn in
     let before = text ui in
     let ui = Helpers.run ~width ~height ui [ Paste_end ] in
     assert (String.equal (text ui) before);
-    assert (Option.is_none (Ches_input.Keymap.notice (Controller.keymap (Ui_state.controller ui))));
+    assert (Option.is_none (Cobalt_input.Keymap.notice (Controller.keymap (Ui_state.controller ui))));
     let ui, closed = Ui_state.close_current ui ~width ~height ~force:false in
     assert closed;
     let ui, closed = Ui_state.close_current ui ~width ~height ~force:false in

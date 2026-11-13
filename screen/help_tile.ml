@@ -1,12 +1,12 @@
 open! Core
-module Local_command = Ches_tile.Local_command
-module Navigation = Ches_tile.Navigation
+module Local_command = Cobalt_tile.Local_command
+module Navigation = Cobalt_tile.Navigation
 
-let id = Ches_tile.View_id.of_string "help"
-let spec = Ches_tile.Spec.read_only id ~title:"Help"
+let id = Cobalt_tile.View_id.of_string "help"
+let spec = Cobalt_tile.Spec.read_only id ~title:"Help"
 
 type t =
-  { origin : Ches_tile.View_id.t
+  { origin : Cobalt_tile.View_id.t
   ; title : string
   ; commands : Local_command.t list
   ; rows : (string * string) list (** Keys as shown, and descriptions. *)
@@ -48,12 +48,12 @@ type action =
   | Close
 [@@deriving sexp_of]
 
-let interpret (keys : Ches_input.Key.t list) : action Ches_tile.Content_key.t =
+let interpret (keys : Cobalt_input.Key.t list) : action Cobalt_tile.Content_key.t =
   match keys with
   | [ key ]
-    when Ches_input.Key.equal key (Ches_input.Key.char 'q')
-         || Ches_input.Key.equal key (Ches_input.Key.char '?') -> Action Close
-  | keys -> Ches_tile.Content_key.map (Navigation.interpret keys) ~f:(fun m -> Scroll m)
+    when Cobalt_input.Key.equal key (Cobalt_input.Key.char 'q')
+         || Cobalt_input.Key.equal key (Cobalt_input.Key.char '?') -> Action Close
+  | keys -> Cobalt_tile.Content_key.map (Navigation.interpret keys) ~f:(fun m -> Scroll m)
 ;;
 
 let hint = "Read-only help: j/k scroll; q, ? or Escape closes"

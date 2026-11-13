@@ -1,8 +1,8 @@
 open! Core
 open! Async
-module Model = Ches_terminal.Model
+module Model = Cobalt_terminal.Model
 
-module Host = Ches_ui.Terminal_host
+module Host = Cobalt_ui.Terminal_host
 
 let within deferred =
   match%map Clock_ns.with_timeout (Time_ns.Span.of_int_sec 5) deferred with
@@ -66,8 +66,8 @@ let%expect_test "numbered pool drains hidden shells fairly, keeps independent st
         [ 1, Start { cwd = "/"; rows = 12; cols = 100 }
         ; large, Start { cwd = "/tmp"; rows = 14; cols = 110 }
         ];
-      command host 1 {|stty -echo; CHES_POOL=one; printf 'ONE_%s PID_%s\n' "$CHES_POOL" $$|};
-      command host large {|stty -echo; CHES_POOL=two; printf 'TWO_%s PID_%s\n' "$CHES_POOL" $$|};
+      command host 1 {|stty -echo; COBALT_POOL=one; printf 'ONE_%s PID_%s\n' "$COBALT_POOL" $$|};
+      command host large {|stty -echo; COBALT_POOL=two; printf 'TWO_%s PID_%s\n' "$COBALT_POOL" $$|};
       let%bind () = wait_sessions host snapshots (fun s ->
         contains s 1 "ONE_one PID_" && contains s large "TWO_two PID_") in
       let first_pid = pid snapshots 1 "PID_" in
@@ -83,7 +83,7 @@ let%expect_test "numbered pool drains hidden shells fairly, keeps independent st
         contains s 1 "HIDDEN_DONE" && contains s large "HIDDEN_DONE") in
       (* A continuously ready ID cannot monopolize the pool. *)
       command host 1 "while :; do printf 'NOISY\\n'; done";
-      command host large {|printf 'FAIR_%s\n' "$CHES_POOL"|};
+      command host large {|printf 'FAIR_%s\n' "$COBALT_POOL"|};
       let%bind () = Clock_ns.after (Time_ns.Span.of_ms 100.) in
       let rec fair turns =
         assert (turns < 8);
@@ -101,11 +101,11 @@ let%expect_test "numbered pool drains hidden shells fairly, keeps independent st
       let%bind () = wait_sessions host snapshots (fun s ->
         Option.exists (Hashtbl.find s 1) ~f:(fun (_, s) -> Option.is_some s.exited)) in
       assert (not (process_running first_pid));
-      command host large {|printf 'STILL_%s PID_%s\n' "$CHES_POOL" $$|};
+      command host large {|printf 'STILL_%s PID_%s\n' "$COBALT_POOL" $$|};
       let%bind () = wait_sessions host snapshots (fun s -> contains s large "STILL_two") in
       assert (pid snapshots large "PID_" = second_pid);
       Host.submit_sessions host [ 1, Start { cwd = "/"; rows = 8; cols = 90 } ];
-      command host 1 {|stty -echo; printf 'NEW_%s PID_%s\n' "${CHES_POOL:-empty}" $$|};
+      command host 1 {|stty -echo; printf 'NEW_%s PID_%s\n' "${COBALT_POOL:-empty}" $$|};
       let%bind () = wait_sessions host snapshots (fun s -> contains s 1 "NEW_empty") in
       let generation, snapshot = Hashtbl.find_exn snapshots 1 in
       assert (generation = 2 && Array.length snapshot.rows = 8);

@@ -1,5 +1,5 @@
 open! Core
-open Ches_input
+open Cobalt_input
 
 module Motion = struct
   type t =

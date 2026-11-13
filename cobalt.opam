@@ -2,7 +2,7 @@
 opam-version: "2.0"
 synopsis: "A small modal programmer's editor"
 description:
-  "Ches is a prototype modal text editor with a UI-independent editing core and a Bonsai_term frontend."
+  "Cobalt is a modal terminal editor with a tile-based workspace, a UI-independent editing core, and a Bonsai_term frontend."
 license: "MIT"
 depends: [
   "dune" {>= "3.17"}

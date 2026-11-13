@@ -2,28 +2,28 @@ open! Core
 open! Async
 open Bonsai_test
 open Bonsai_term
-module App = Ches_app
-module Q = Ches_error.Language_query
+module App = Cobalt_app
+module Q = Cobalt_error.Language_query
 module Expect_test_config = Async.Expect_test_config
 
 let%expect_test "frontend follows rendered destination selection without activation or history" =
-  let root = Filename_unix.temp_dir "ches-navigation-frontend" "" in
+  let root = Filename_unix.temp_dir "cobalt-navigation-frontend" "" in
   let a = root ^ "/a.ml" and b = root ^ "/b.ml" in
   Out_channel.write_all a ~data:"DISK_ORIGIN\n";
   Out_channel.write_all b ~data:"SELECTED_DISK_PREVIEW\n";
-  let emit = ref (fun (_ : Ches_error.Source_event.t) -> ()) in
+  let emit = ref (fun (_ : Cobalt_error.Source_event.t) -> ()) in
   let queries = ref [] in
-  let source = Ches_source.Source.create (fun ~emit:publish ->
+  let source = Cobalt_source.Source.create (fun ~emit:publish ->
     emit := publish;
     { handle = (function Query q -> queries := q :: !queries | _ -> ()); stop = Fn.id }) in
   let%bind () = Monitor.protect (fun () ->
-    let controller = App.Controller.open_file ~cell_width:Ches_screen.Cell_map.width a |> Or_error.ok_exn in
-    let dirty = Ches_core.Text_buffer.of_string "DIRTY_RETAINED_PREVIEW\n" |> Result.ok |> Option.value_exn in
+    let controller = App.Controller.open_file ~cell_width:Cobalt_screen.Cell_map.width a |> Or_error.ok_exn in
+    let dirty = Cobalt_core.Text_buffer.of_string "DIRTY_RETAINED_PREVIEW\n" |> Result.ok |> Option.value_exn in
     let controller = App.Controller.rebase_text controller
-      ~saved:(Ches_core.Editor.text (App.Controller.editor controller)) ~text:dirty in
+      ~saved:(Cobalt_core.Editor.text (App.Controller.editor controller)) ~text:dirty in
     let parses = App.Controller.highlight_parse_count controller in
     let handle = Bonsai_term_test.create_handle ~initial_dimensions:{ width = 120; height = 30 }
-      (Ches_ui.Editor_view.app ~source controller ~exit:(fun () -> Effect.Ignore)) in
+      (Cobalt_ui.Editor_view.app ~source controller ~exit:(fun () -> Effect.Ignore)) in
     let output () =
       Handle.recompute_view handle;
       Bonsai_term_test.print_view (Bonsai_term_test.last_view handle); [%expect.output] in
@@ -66,7 +66,7 @@ let%expect_test "frontend follows rendered destination selection without activat
     assert (String.is_substring s ~substring:"DIRTY_RETAINED_PREVIEW");
     assert (not (String.is_substring s ~substring:"SELECTED_DISK_PREVIEW"));
     return ())
-    ~finally:(fun () -> Ches_source.Source.stop source;
+    ~finally:(fun () -> Cobalt_source.Source.stop source;
       Core_unix.unlink a; Core_unix.unlink b; Core_unix.rmdir root; return ()) in
   ignore ([%expect.output] : string);
   print_endline "rendered retained/disk selection, batched transitions, stable frames and no preview jumps";

@@ -1,4 +1,4 @@
 (library
- (name ches_theme)
+ (name cobalt_theme)
  (libraries core)
  (preprocess (pps ppx_jane)))

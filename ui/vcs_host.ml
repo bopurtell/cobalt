@@ -3,7 +3,7 @@
 
 open! Core
 open! Async
-module Runner = Ches_vcs_host.Runner
+module Runner = Cobalt_vcs_host.Runner
 
 type t = Runner.t
 
@@ -12,7 +12,7 @@ let submit t jobs = List.iter jobs ~f:(Runner.submit t)
 
 let next_inputs t =
   let%map events = Runner.next_batch t in
-  List.map events ~f:(fun event -> Ches_screen.Ui_state.Input.Vcs event)
+  List.map events ~f:(fun event -> Cobalt_screen.Ui_state.Input.Vcs event)
 ;;
 
 let busy = Runner.busy

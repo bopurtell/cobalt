@@ -3,11 +3,11 @@
    This times both headlessly, as Editor_view runs them: Ui_state.apply_all, then
    Frame.render. Terminal output is not included. *)
 open! Core
-open Ches_core
-open Ches_screen
-module Source = Ches_source.Source
-module Synthetic = Ches_source.Synthetic
-module Key = Ches_input.Key
+open Cobalt_core
+open Cobalt_screen
+module Source = Cobalt_source.Source
+module Synthetic = Cobalt_source.Synthetic
+module Key = Cobalt_input.Key
 
 let width = 160
 let height = 48
@@ -46,7 +46,7 @@ let create ~problems_visible =
     |> Option.value_exn
   in
   let controller =
-    Ches_app.Controller.create (Editor.create ~path:"a.ml" ~cell_width:Cell_map.width text)
+    Cobalt_app.Controller.create (Editor.create ~path:"a.ml" ~cell_width:Cell_map.width text)
   in
   let ui = Ui_state.create ~source_attached:true controller in
   let ui, _ = Ui_state.apply_all ui ~width ~height (List.map [ 'i' ] ~f:(fun c -> Ui_state.Input.Key (Key.char c))) in
@@ -64,12 +64,12 @@ let burst ~snapshots ~resources ~findings =
   let others = Synthetic.Script.burst ~source:"lsp" ~snapshots ~resources ~findings in
   let open_file =
     List.init (snapshots / resources) ~f:(fun i ->
-      Ches_error.Source_event.Diagnostics
+      Cobalt_error.Source_event.Diagnostics
         { source = "lsp"
         ; resource = "a.ml"
         ; revision = None
         ; findings =
-            List.init findings ~f:(fun j : Ches_error.Error.Diagnostics.Finding.t ->
+            List.init findings ~f:(fun j : Cobalt_error.Error.Diagnostics.Finding.t ->
               { severity = Warning
               ; message = sprintf "open file finding %d/%d" j i
               ; location = Some { line = 1 + (j * 7 % document_lines); column = 1 }

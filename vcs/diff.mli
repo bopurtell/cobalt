@@ -1,12 +1,12 @@
-(** A parsed diff, as the diff panel shows it and later phases act on it: files, each
+(** A parsed diff, as the diff panel shows it and staging actions use it: files, each
     with the raw header lines and hunks of a unified (or combined) diff. Backends
-    parse their tool's output into this ([Ches_vcs_git.Diff_output] for git's
+    parse their tool's output into this ([Cobalt_vcs_git.Diff_output] for git's
     [diff], [diff --cached] and [show]). Texts are raw bytes without line
     terminators; display escaping is the view's job.
 
     Diffs are bounded per file ({!Limits}): hunks past a limit are dropped whole and
     counted in {!File.truncated}, so every hunk kept is complete and can still be
-    turned into a patch (phases 3 and 4). *)
+    turned into a patch. *)
 
 open! Core
 
@@ -111,7 +111,7 @@ module File : sig
   (** Renamed or copied with no content change: no hunks, not binary. *)
   val rename_only : t -> bool
 
-  (** Whether hunk and line actions (phases 3 and 4) may apply to it: not binary,
+  (** Whether hunk and line actions may apply to it: not binary,
       submodule, combined, [Unmerged], mode-only or rename-only. Such files render as
       headers without line actions. A truncated file's kept hunks remain
       actionable. *)

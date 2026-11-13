@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""PTY smoke for directory phase 5; edits only an isolated /tmp fixture."""
+"""PTY smoke for the directory side pane; edits only an isolated /tmp fixture."""
 import fcntl
 import os
 import pty
@@ -16,10 +16,10 @@ from pathlib import Path
 
 def main():
     executable = Path(sys.argv[1] if len(sys.argv) > 1 else
-                        Path(__file__).resolve().parents[1] / "_build/default/bin/ches.exe").resolve()
+                        Path(__file__).resolve().parents[1] / "_build/default/bin/cobalt.exe").resolve()
     # Under /tmp whatever TMPDIR is: checks match messages that show this path on
     # a fixed-width screen, so it must stay short.
-    root = Path(tempfile.mkdtemp(prefix="directory-phase5-pty-", dir="/tmp"))
+    root = Path(tempfile.mkdtemp(prefix="directory-side-pty-", dir="/tmp"))
     for name in ("a.txt", "b.txt", "c.txt"):
         (root / name).write_text(name + "\n")
     (root / "bad.txt").write_bytes(b"\0")
@@ -55,7 +55,7 @@ def main():
     try:
         pump(1)
         assert b"Directory" in capture
-        assert b"@ches[" not in capture
+        assert b"@cobalt[" not in capture
         send(b" ds\r")  # Side requested before any files; first open creates editor.
         send(b"iX\x1b w")
         assert (root / "a.txt").read_text() == "Xa.txt\n"
@@ -90,12 +90,12 @@ def main():
         assert (root / "b.txt").read_text() == "b.txt\n"
         assert (root / "c.txt").read_text() == "c.txt\n"
         assert (root / "bad.txt").read_bytes() == b"\0"
-        assert b"@ches[" not in capture  # Selected/Visual rows in side and major.
+        assert b"@cobalt[" not in capture  # Selected/Visual rows in side and major.
         print("PASS: side/major/hide, visual+marked opens, editor focus/save, partial failures,")
         print("      zen/tiny focus return, tabs/undo/last-close fallback, clean quit")
         print("Fixture:", root)
     finally:
-        Path("/tmp/directory-phase5-pty.log").write_bytes(capture)
+        Path("/tmp/directory-side-pty.log").write_bytes(capture)
         if proc.poll() is None:
             proc.terminate()
             proc.wait(timeout=5)

@@ -1,5 +1,5 @@
 open! Core
-open Ches_highlight
+open Cobalt_highlight
 
 (** Synchronous, privately owned Tree-sitter parser/query session. Never put it in editor
     history or render state. Not safe for concurrent calls. Native trees remain

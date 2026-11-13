@@ -1,5 +1,5 @@
 open! Core
-open Ches_screen
+open Cobalt_screen
 
 let request ?(axis = Workspace.Split.Axis.Horizontal) ?(first = Workspace.Pane_id.Document)
   ?(size = 28) () : Workspace.Prefs.t =
@@ -164,7 +164,7 @@ let%expect_test "allocations are bounded, disjoint, exhaustive, with stable focu
 ;;
 
 let%expect_test "the minor band keeps two thirds of the height and gaps side-by-side views" =
-  let views = List.map [ "a"; "b"; "c" ] ~f:Ches_tile.View_id.of_string in
+  let views = List.map [ "a"; "b"; "c" ] ~f:Cobalt_tile.View_id.of_string in
   let band ?(prefs = Workspace.Prefs.default) ?(minors = views) width height =
     let t = Workspace.allocate ~minors prefs ~allocation:(allocation width height) in
     printf "%3dx%-3d document %s; minors %s\n" width height (rect t.document.rect)

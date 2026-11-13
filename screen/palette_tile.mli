@@ -1,6 +1,6 @@
-(** The command palette as a minor view: the {!Ches_palette.Palette} state for the view
+(** The command palette as a minor view: the {!Cobalt_palette.Palette} state for the view
     that opened it, a viewport over its ranked results, and the keys, rows, and cursor
-    that present it on the shared host ({!Ches_tile.Spec.text_input}). It runs nothing:
+    that present it on the shared host ({!Cobalt_tile.Spec.text_input}). It runs nothing:
     {!Ui_state} accepts it and dispatches the command through the controller, as its key
     binding would. It exists only while open and focused; closing discards the query.
 
@@ -9,11 +9,11 @@
     right. *)
 
 open! Core
-open Ches_input
-open Ches_palette
+open Cobalt_input
+open Cobalt_palette
 
-val id : Ches_tile.View_id.t
-val spec : Ches_tile.Spec.t
+val id : Cobalt_tile.View_id.t
+val spec : Cobalt_tile.Spec.t
 
 type t [@@deriving sexp_of]
 
@@ -25,14 +25,14 @@ val create
   :  ?shortcuts:(Catalog.Id.t * Key.t list) list
   -> Catalog.t
   -> Catalog.Context.t
-  -> token:Ches_tile.View_id.t
+  -> token:Cobalt_tile.View_id.t
   -> bindings:(Key.t list * Bindings.Target.t) list
   -> t
 
-val palette : t -> Ches_tile.View_id.t Palette.t
+val palette : t -> Cobalt_tile.View_id.t Palette.t
 
 (** The viewport over results: the palette's selection and the first visible row. *)
-val view : t -> Catalog.Id.t Ches_tile.Navigation.Selection.t
+val view : t -> Catalog.Id.t Cobalt_tile.Navigation.Selection.t
 
 (** Keep the selected result within a content area [rows] tall (the query takes the
     first row). Never changes the query or which command is selected. *)
@@ -46,8 +46,8 @@ type action =
 (** Characters, including Space and [j]/[k], edit the query; Backspace deletes a
     character, and Ctrl-w or Ctrl-h (most terminals' Ctrl-Backspace) a word;
     Tab/Ctrl-n and Shift-Tab/Ctrl-p select the next and previous result; Enter
-    accepts. Escape and Ctrl-c are the host's ({!Ches_tile.Host.key}). *)
-val interpret : Key.t list -> action Ches_tile.Content_key.t
+    accepts. Escape and Ctrl-c are the host's ({!Cobalt_tile.Host.key}). *)
+val interpret : Key.t list -> action Cobalt_tile.Content_key.t
 
 val hint : string
 
@@ -56,7 +56,7 @@ val update : t -> rows:int -> Palette.Event.t -> t
 
 (** The text-entry point after the query on the prompt row, in a [width]-cell content
     area: a bar, always within the area when [width > 0]. *)
-val cursor : t -> width:int -> Ches_tile.Cursor.t
+val cursor : t -> width:int -> Cobalt_tile.Cursor.t
 
 (** Shell content for a [width] by [rows] content viewport. Control hints default
     to hidden; counts and notices remain visible. *)

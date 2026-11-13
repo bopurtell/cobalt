@@ -1,9 +1,9 @@
 (** Operations in progress (merge, rebase, am, cherry-pick, revert, bisect), detected
     the way git itself and Magit do: by the state files in the git directory. They
-    are read as {!Ches_vcs.Job.File_read.t} steps, so no process runs per file. *)
+    are read as {!Cobalt_vcs.Job.File_read.t} steps, so no process runs per file. *)
 
 open! Core
-open Ches_vcs
+open Cobalt_vcs
 
 type t =
   | Rebase of

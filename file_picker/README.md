@@ -1,8 +1,8 @@
-# File picker (phases 1–6, 10–13)
+# File picker
 
 `Interaction` is a single-owner, scheduler-independent mutable session. The screen
-adapter is `Ches_screen.File_picker_tile`, now registered with the shared floating
-host through explicit `Ui_state.open_file_picker`. `Ches_file_picker_host.Runtime`
+adapter is `Cobalt_screen.File_picker_tile`, now registered with the shared floating
+host through explicit `Ui_state.open_file_picker`. `Cobalt_file_picker_host.Runtime`
 connects Async discovery and yielded ranking; `Editor_view.app ?file_picker`
 optionally overrides the production consumer for tests. By default `Space f f`
 and **Find project files** use the session's existing-file open/activation path
@@ -12,7 +12,7 @@ Production activation is installed between inputs, including batched input, so
 following query keys cannot reach the document. `scripts/picker_smoke.py` checks
 real file/content opening with isolated terminal fixtures; build/full suites and
 terminal checks pass, including native Tab/Shift-Tab and bounded selected previews.
-See the current phase-13 handoff in [the file picker plan](../docs/plans/file_picker.md).
+See the implementation and validation history in [the file picker plan](../docs/plans/file_picker.md).
 Human visual/ranking/performance acceptance remains separate and unperformed.
 
 ## Host contract

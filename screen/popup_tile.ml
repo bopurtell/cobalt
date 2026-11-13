@@ -1,12 +1,12 @@
 open! Core
-open Ches_input
-module Popup = Ches_vcs.Popup
+open Cobalt_input
+module Popup = Cobalt_vcs.Popup
 
-let id = Ches_tile.View_id.of_string "popup"
-let spec = Ches_tile.Spec.read_only id ~title:"Popup"
+let id = Cobalt_tile.View_id.of_string "popup"
+let spec = Cobalt_tile.Spec.read_only id ~title:"Popup"
 
 type t =
-  { origin : Ches_tile.View_id.t
+  { origin : Cobalt_tile.View_id.t
   ; popup : unit Popup.t
   ; state : Popup.State.t
   }
@@ -108,7 +108,7 @@ type action =
   | Close
 [@@deriving sexp_of, equal]
 
-let interpret (keys : Key.t list) : action Ches_tile.Content_key.t =
+let interpret (keys : Key.t list) : action Cobalt_tile.Content_key.t =
   match keys with
   | [ Char c ] ->
     (match Uchar.to_char c with

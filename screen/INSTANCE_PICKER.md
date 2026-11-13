@@ -90,7 +90,7 @@ No source builds/downloads or personal configuration changes were used.
 
 ## Pure-view verification
 
-`dune runtest -j6 --build-dir /tmp/opencode/ches-instance-picker-build screen/test`
+`dune runtest -j6 --build-dir /tmp/opencode/cobalt-instance-picker-build screen/test`
 passes in the development profile. New tests cover active versus selected marks,
 original target identity, hierarchy filtering/empty results, scrolling, Unicode
 query editing, tiny viewports, a million-byte combining-mark path with bounded

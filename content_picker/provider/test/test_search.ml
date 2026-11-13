@@ -1,7 +1,7 @@
 open! Core
 open! Async
-open Ches_content_search
-open Ches_content_picker
+open Cobalt_content_search
+open Cobalt_content_picker
 module Status = Model.Status
 let fake = Filename_unix.realpath "fake_rg/fake_rg.exe"
 let limits = { Provider.Limits.default with debounce = Time_ns.Span.zero }
@@ -16,7 +16,7 @@ let rec remove path =
   | _ -> Core_unix.unlink path
 ;;
 let with_root f =
-  let root = Filename_unix.realpath (Filename_unix.temp_dir "ches-content" "") in
+  let root = Filename_unix.realpath (Filename_unix.temp_dir "cobalt-content" "") in
   Monitor.protect (fun () -> f root) ~finally:(fun () -> remove root; return ())
 ;;
 let pause () = Clock_ns.after (Time_ns.Span.of_int_ms 1)

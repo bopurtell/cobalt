@@ -1,6 +1,6 @@
 open! Core
 open! Async
-open Ches_content_picker
+open Cobalt_content_picker
 module Status = Model.Status
 
 module Limits = struct
@@ -118,7 +118,7 @@ let cleanup run =
 ;;
 let worker t run =
   let%bind created = Process.create ~prog:t.prog ~working_dir:run.request.root ~buf_len:4096
-    ~args:(Ches_file_picker.Scope.rg_args
+    ~args:(Cobalt_file_picker.Scope.rg_args
            @ [ "--json"; "--fixed-strings"; "--case-sensitive"; "--line-number"
              ; "--color"; "never"; "--"; run.request.query; "." ]) () in
   match created with

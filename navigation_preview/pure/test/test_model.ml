@@ -1,7 +1,7 @@
 open! Core
-module M = Ches_navigation_preview_model.Model
-module L = Ches_error.Language_query
-module T = Ches_core.Text_buffer
+module M = Cobalt_navigation_preview_model.Model
+module L = Cobalt_error.Language_query
+module T = Cobalt_core.Text_buffer
 
 let target ?(encoding = L.Utf16) line character stop_line stop_character : L.target =
   let selection : L.range =

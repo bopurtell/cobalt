@@ -1,9 +1,9 @@
 open! Core
-open Ches_core
-open Ches_screen
+open Cobalt_core
+open Cobalt_screen
 open Helpers
-module Feedback = Ches_error.Error
-module Controller = Ches_app.Controller
+module Feedback = Cobalt_error.Error
+module Controller = Cobalt_app.Controller
 
 let identity ?(source = "file") resource : Feedback.Identity.t =
   { source; resource; kind = Save }

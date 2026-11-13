@@ -1,6 +1,6 @@
 open! Core
-open Ches_core
-open Ches_screen
+open Cobalt_core
+open Cobalt_screen
 open Helpers
 module I = Cell_layout.Index
 
@@ -29,7 +29,7 @@ let%test_unit "window spans equal full-line oracle for clipping, overlays and ab
 
 let%test_unit "Frame geometry, navigation and repeated rendering have bounded warm work" =
   let t = ui (String.make 100_000 'x' ^ "\nshort") in
-  let text = Editor.text (Ches_app.Controller.editor (Ui_state.controller t)) in
+  let text = Editor.text (Cobalt_app.Controller.editor (Ui_state.controller t)) in
   let layout = Text_buffer.line_layout text ~width:Cell_map.width 0 in
   let before = I.steps layout in
   ignore (Frame.render t ~width:160 ~height:48);
@@ -48,7 +48,7 @@ let%test_unit "long-line visual/block rendering and beyond-EOL points" =
              "$i中<Esc>v20h"; "i中<Esc>$<C-v>20h"] ~f:(fun input ->
     let source = String.concat (List.init 1000 ~f:(fun _ -> "x\t中é\001")) ^ "\nshort\t中é" in
     let t = run ~width:160 ~height:8 (ui source) (keys input) in
-    let editor = Ches_app.Controller.editor (Ui_state.controller t) in
+    let editor = Cobalt_app.Controller.editor (Ui_state.controller t) in
     let text = Editor.text editor in
     let geometry = Ui_state.geometry t ~width:160 ~height:8 in
     let scroll = Ui_state.fitted_scroll t ~width:160 ~height:8 in

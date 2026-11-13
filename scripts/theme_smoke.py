@@ -16,7 +16,7 @@ import time
 
 def main():
     binary = Path(sys.argv[1] if len(sys.argv) > 1 else
-                  Path(__file__).resolve().parents[1] / "_build/default/bin/ches.exe").resolve()
+                  Path(__file__).resolve().parents[1] / "_build/default/bin/cobalt.exe").resolve()
     listing = subprocess.run([str(binary), "--list-themes"], input="", text=True,
                              capture_output=True, check=True).stdout
     rows = [row.split("\t") for row in listing.splitlines()]
@@ -35,7 +35,7 @@ def main():
     original = b"THEME document\nsecond line\n"
     fixture.write_bytes(original)
     # A socket path must stay short (108 bytes), whatever TMPDIR is.
-    socket_dir = Path(tempfile.mkdtemp(prefix="ches-theme-tmux.", dir="/tmp"))
+    socket_dir = Path(tempfile.mkdtemp(prefix="cobalt-theme-tmux.", dir="/tmp"))
     tmux = ["tmux", "-S", str(socket_dir / "sock"), "-f", "/dev/null"]
 
     def t(*args):

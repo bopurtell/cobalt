@@ -1,6 +1,6 @@
 open! Core
-open Ches_screen
-open Ches_content_picker
+open Cobalt_screen
+open Cobalt_content_picker
 let snapshot status : Model.snapshot =
   let candidate = Model.Candidate.create ~root:"/root\n" ~relative_path:"odd\n\255" |> Or_error.ok_exn in
   { request = { run_id = Model.Run_id.of_int 1; root = "/root\n"; query = "needle" }
@@ -62,8 +62,8 @@ let%expect_test "tile scrolling bounded sizes query editing stale request and fa
   Content_picker_tile.accept t ~release ~consume;
   Content_picker_tile.accept t ~release ~consume;
   assert (!calls = 1 && !releases = 1);
-  assert (match Content_picker_tile.interpret [ Ches_input.Key.Enter ] with Action Accept -> true | _ -> false);
-  assert (match Content_picker_tile.interpret [ Ches_input.Key.Escape ] with Unbound -> true | _ -> false);
+  assert (match Content_picker_tile.interpret [ Cobalt_input.Key.Enter ] with Action Accept -> true | _ -> false);
+  assert (match Content_picker_tile.interpret [ Cobalt_input.Key.Escape ] with Unbound -> true | _ -> false);
   let empty = { s with hits = []; request = { s.request with query = "" } } in
   let t = Content_picker_tile.create ~token:() ~snapshot:empty in
   let c = Content_picker_tile.render t ~width:100 ~rows:3 in

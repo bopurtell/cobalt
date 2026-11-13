@@ -45,7 +45,7 @@ module Request : sig
   type 'token t =
     { token : 'token (** The invoking target, which the command applies to. *)
     ; id : Catalog.Id.t
-    ; action : Ches_input.Keymap.Action.t
+    ; action : Cobalt_input.Keymap.Action.t
     }
   [@@deriving sexp_of]
 end

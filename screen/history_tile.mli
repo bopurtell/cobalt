@@ -1,5 +1,5 @@
 (** The notification history content adapter: a chronological, selectable list of
-    {!Ches_error.Error.History} entries with read-only details, on the shared host,
+    {!Cobalt_error.Error.History} entries with read-only details, on the shared host,
     navigation, shell, and text view. It owns no storage: the feedback reducer keeps the
     entries, and nothing this view does (selecting, copying, hiding, leaving) changes
     them or any active problem. Only an explicit clear ([X]) asks the application to
@@ -12,28 +12,28 @@
     selects nothing. *)
 
 open! Core
-module Feedback = Ches_error.Error
+module Feedback = Cobalt_error.Error
 
-val id : Ches_tile.View_id.t
-val spec : Ches_tile.Spec.t
+val id : Cobalt_tile.View_id.t
+val spec : Cobalt_tile.Spec.t
 
 type t [@@deriving sexp_of]
 
 val empty : t
 
 (** The stored selection; use {!fit} first for one that matches the history. *)
-val selection : t -> int Ches_tile.Navigation.Selection.t
+val selection : t -> int Cobalt_tile.Navigation.Selection.t
 
 (** Whether the selected entry's details are open. *)
 val details : t -> bool
 
 (** The open details: the selected entry's description as read-only text. *)
-val text_view : t -> Ches_tile.Text_view.t option
+val text_view : t -> Cobalt_tile.Text_view.t option
 
 (** Reconcile the selection and open details with [history] in a [width] by [rows]
     content viewport. Details close when the selected entry changes; when its text
     changes (a merged repeat), they take the new text through
-    {!Ches_tile.Text_view.update}. *)
+    {!Cobalt_tile.Text_view.update}. *)
 val fit : t -> Feedback.History.t -> rows:int -> width:int -> t
 
 (** Close details and follow the newest entry again, as when the view stops being
@@ -46,7 +46,7 @@ type action [@@deriving sexp_of]
     list or details. Otherwise, in the list, shared list motions select, [yy]/[Y] copy
     the selected entry's description, and edit keys are rejected; in details, keys go
     to the read-only text. *)
-val interpret : t -> Ches_input.Key.t list -> action Ches_tile.Content_key.t
+val interpret : t -> Cobalt_input.Key.t list -> action Cobalt_tile.Content_key.t
 
 (** Escape ends Visual, then closes details. *)
 val escape : t -> action option
@@ -56,7 +56,7 @@ val hint : string
 module Outcome : sig
   type nonrec t =
     { tile : t
-    ; effect : Ches_tile.Text_view.Effect.t option (** A copy or read-only notice. *)
+    ; effect : Cobalt_tile.Text_view.Effect.t option (** A copy or read-only notice. *)
     ; clear : bool (** Apply [Clear_history]. *)
     }
 end
@@ -93,7 +93,7 @@ val render
 (** [toggle-details] ([e]) and [clear] ([X]) in the list or details; then
     [copy-item] and the shared list motions in the list, or the read-only text's
     commands in details. *)
-val commands : t -> Ches_tile.Local_command.t list
+val commands : t -> Cobalt_tile.Local_command.t list
 
 (** Typed access to this view's state in a {!View_registry}. *)
 val key : t Type_equal.Id.t

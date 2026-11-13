@@ -1,6 +1,6 @@
 (* Single-run scheduling/cache probe; not terminal or p99 latency. *)
 open! Core
-open Ches_file_picker
+open Cobalt_file_picker
 
 let now () = Or_error.ok_exn Core_unix.Clock.gettime Core_unix.Clock.Monotonic
 let elapsed start = Int63.to_float (Int63.( - ) (now ()) start) /. 1e6
@@ -40,7 +40,7 @@ let () =
     printf "count=%d initial_total_ms=%.3f max_work_ms=%.3f turns=%d retained_mib=%.2f prepared=%d\n%!"
       count total max_turn turns (Float.of_int live *. 8. /. 1048576.) (Interaction.prepared_count t);
     List.iter [ "m"; "model"; "src mod"; "zzzzzz" ] ~f:(fun query ->
-      Interaction.update t Ches_palette.Palette.Event.Delete_word;
+      Interaction.update t Cobalt_palette.Palette.Event.Delete_word;
       while not (String.is_empty (Interaction.query t)) do
         Interaction.update t Delete_word
       done;

@@ -2,13 +2,13 @@
    in output are shown relative to that directory, as [$TMP]. *)
 
 open! Core
-open Ches_core
-open Ches_app
+open Cobalt_core
+open Cobalt_app
 
 let with_temp_dir f =
   let dir =
     Core_unix.mkdtemp
-      (Filename.concat (Option.value (Sys.getenv "TMPDIR") ~default:"/tmp") "ches-test")
+      (Filename.concat (Option.value (Sys.getenv "TMPDIR") ~default:"/tmp") "cobalt-test")
   in
   Exn.protect
     ~f:(fun () -> f dir)
@@ -38,7 +38,7 @@ let open_file ~dir path =
 let run t keys =
   List.fold (Key_notation.keys keys) ~init:t ~f:(fun t input ->
     let t, views, status = Controller.handle_input t input in
-    List.iter views ~f:(fun view -> print_s [%sexp View (view : Ches_input.View_command.t)]);
+    List.iter views ~f:(fun view -> print_s [%sexp View (view : Cobalt_input.View_command.t)]);
     (match status with
      | Exit -> print_endline "EXIT"
      | Running -> ());
@@ -299,7 +299,7 @@ let%expect_test "last_input_dispatched reports whether an input ran any command"
     (List.fold [ "q"; " "; "x"; "u"; "<C-c>"; "i" ] ~init:t ~f:(fun t keys ->
        match Key_notation.keys keys with
        | [ input ] ->
-         let t, (_ : Ches_input.View_command.t list), (_ : Controller.Status.t) =
+         let t, (_ : Cobalt_input.View_command.t list), (_ : Controller.Status.t) =
            Controller.handle_input t input
          in
          printf "%S %b\n" keys (Controller.last_input_dispatched t);
@@ -331,11 +331,11 @@ let%expect_test "view commands are returned for the frontend and touch no editor
     [%message
       (phys_equal before (Controller.editor t) : bool)
         (Controller.last_input_dispatched t : bool)
-        (Ches_input.Keymap.pending (Controller.keymap t) : string option)];
+        (Cobalt_input.Keymap.pending (Controller.keymap t) : string option)];
   [%expect {|
     (("phys_equal before (Controller.editor t)" true)
      ("Controller.last_input_dispatched t" false)
-     ("Ches_input.Keymap.pending (Controller.keymap t)" ()))
+     ("Cobalt_input.Keymap.pending (Controller.keymap t)" ()))
     |}]
 ;;
 
@@ -363,10 +363,10 @@ let observe ~path (t, views, (status : Controller.Status.t)) =
     ; mode : string = Mode.to_string (Editor.mode editor)
     ; dirty : bool = Editor.is_dirty editor
     ; message : Editor.Message.t option = Editor.message editor
-    ; feedback : Ches_error.Error.t = Controller.feedback t
+    ; feedback : Cobalt_error.Error.t = Controller.feedback t
     ; dispatched : bool = Controller.last_input_dispatched t
-    ; pending : string option = Ches_input.Keymap.pending (Controller.keymap t)
-    ; views : Ches_input.View_command.t list = views
+    ; pending : string option = Cobalt_input.Keymap.pending (Controller.keymap t)
+    ; views : Cobalt_input.View_command.t list = views
     ; status : Controller.Status.t
     ; clipboard : string option
     ; saved : Controller.Saved.t option
@@ -392,7 +392,7 @@ let%expect_test "dispatching an action matches typing its binding" =
       run (Option.value_exn (open_file ~dir path)) "x"
     in
     List.iter
-      Ches_input.Keymap.Action.
+      Cobalt_input.Keymap.Action.
         [ " w", [ Editor Save ]
         ; "u", [ Editor Undo ]
         ; "u<C-r>", [ Editor Undo; Editor Redo ]
@@ -428,11 +428,11 @@ let%expect_test "a dispatched save keeps its failure until a matching save recov
     let t = Option.value_exn (open_file ~dir path) in
     let t = run t "ihi<Esc>" in
     let problems t =
-      List.iter (Ches_error.Error.problems (Controller.feedback t)) ~f:(fun problem ->
-        print_endline (hide_dir ~dir (Sexp.to_string [%sexp (problem : Ches_error.Error.Problem.t)])))
+      List.iter (Cobalt_error.Error.problems (Controller.feedback t)) ~f:(fun problem ->
+        print_endline (hide_dir ~dir (Sexp.to_string [%sexp (problem : Cobalt_error.Error.Problem.t)])))
     in
     let save t =
-      let t, (_ : Ches_input.View_command.t list), (_ : Controller.Status.t) =
+      let t, (_ : Cobalt_input.View_command.t list), (_ : Controller.Status.t) =
         Controller.dispatch t [ Editor Save ]
       in
       t
@@ -448,7 +448,7 @@ let%expect_test "a dispatched save keeps its failure until a matching save recov
       |}];
     (* Another command keeps the problem. Dispatching what idle Escape dispatches does not
        acknowledge it either: only the key does. *)
-    let t, (_ : Ches_input.View_command.t list), (_ : Controller.Status.t) =
+    let t, (_ : Cobalt_input.View_command.t list), (_ : Controller.Status.t) =
       Controller.dispatch t [ Editor Clear_search_highlight ]
     in
     problems t;
@@ -476,10 +476,10 @@ let%expect_test "dispatch stops at Exit and leaves the keymap alone" =
     print_s
       [%message
         ""
-          (views : Ches_input.View_command.t list)
+          (views : Cobalt_input.View_command.t list)
           (status : Controller.Status.t)
           (Controller.last_input_dispatched t : bool)
-          (Ches_input.Keymap.pending (Controller.keymap t) : string option)];
+          (Cobalt_input.Keymap.pending (Controller.keymap t) : string option)];
     t
   in
   let t = print (Controller.dispatch t [ View Toggle_centered ]) in
@@ -487,7 +487,7 @@ let%expect_test "dispatch stops at Exit and leaves the keymap alone" =
     {|
     ((views (Toggle_centered)) (status Running)
      ("Controller.last_input_dispatched t" false)
-     ("Ches_input.Keymap.pending (Controller.keymap t)" (Space)))
+     ("Cobalt_input.Keymap.pending (Controller.keymap t)" (Space)))
     |}];
   let (_ : Controller.t) =
     print (Controller.dispatch t [ View Reset; Editor Force_quit; View Toggle_centered ])
@@ -495,6 +495,6 @@ let%expect_test "dispatch stops at Exit and leaves the keymap alone" =
   [%expect
     {|
     ((views (Reset)) (status Exit) ("Controller.last_input_dispatched t" true)
-     ("Ches_input.Keymap.pending (Controller.keymap t)" (Space)))
+     ("Cobalt_input.Keymap.pending (Controller.keymap t)" (Space)))
     |}]
 ;;

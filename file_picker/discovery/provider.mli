@@ -1,6 +1,6 @@
 open! Core
 open! Async
-module Model = Ches_file_picker.Model
+module Model = Cobalt_file_picker.Model
 
 module Limits : sig
   type t =

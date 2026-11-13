@@ -1,5 +1,5 @@
 (library
- (name ches_theme_test)
- (libraries core ches_theme)
+ (name cobalt_theme_test)
+ (libraries core cobalt_theme)
  (inline_tests)
  (preprocess (pps ppx_jane)))

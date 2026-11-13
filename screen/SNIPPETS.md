@@ -1,7 +1,7 @@
 # Screen snippet lifecycle
 
 Completion cycling inserts only the candidate's expanded plain text. Explicit
-Enter acceptance starts `Ches_completion.Snippet.Session` after finalizing known
+Enter acceptance starts `Cobalt_completion.Snippet.Session` after finalizing known
 additional edits. The final completion cursor relocates the expansion base, so
 imports before the primary edit also relocate every placeholder.
 

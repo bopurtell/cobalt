@@ -1,6 +1,6 @@
 open! Core
-open Ches_screen
-module M = Ches_terminal.Model
+open Cobalt_screen
+module M = Cobalt_terminal.Model
 module U = Ui_state
 
 let width = 80
@@ -198,8 +198,8 @@ let%test_unit "size changes preserve frozen inspection and live snapshot; reset 
   let frozen = U.terminal_inspection t |> Option.value_exn |> Terminal_tile.inspection_text in
   let t = big t (Helpers.keys "v+=-") in
   let text = U.terminal_inspection t |> Option.value_exn |> Terminal_tile.inspection_text in
-  assert (Ches_tile.Text_view.cursor frozen = Ches_tile.Text_view.cursor text);
-  assert (Option.is_some (Ches_tile.Text_view.selection text));
+  assert (Cobalt_tile.Text_view.cursor frozen = Cobalt_tile.Text_view.cursor text);
+  assert (Option.is_some (Cobalt_tile.Text_view.selection text));
   assert (Option.equal M.equal_snapshot (U.terminal_snapshot t) (Some original));
   let generation = U.terminal_generation t in
   let t = big t [ Terminal (Snapshot (snapshot ~exited:"done" ())) ] |> take |> fst in
@@ -255,19 +255,19 @@ let%test_unit "full fidelity keys bypass editor including Escape and Ctrl-backsl
   assert (U.terminal_capturing t);
   let _, requests = take t in
   requests_equal requests (List.map events ~f:(function Terminal_key k -> M.Key k | _ -> assert false));
-  [%test_eq: string] (Ches_core.Editor.text (Ches_app.Controller.editor (U.controller t))
-    |> Ches_core.Text_buffer.to_string) "unchanged"
+  [%test_eq: string] (Cobalt_core.Editor.text (Cobalt_app.Controller.editor (U.controller t))
+    |> Cobalt_core.Text_buffer.to_string) "unchanged"
 ;;
 
 let%test_unit "restore supporting focus; background output does not focus; other float leaves capture" =
   let t = run (Helpers.ui "x") (Helpers.keys " vo") in
   let prior = U.focused_view t ~width ~height in
-  assert (Ches_tile.View_id.equal prior Problems_tile.id);
+  assert (Cobalt_tile.View_id.equal prior Problems_tile.id);
   let t = open_terminal t |> hide in
-  assert (Ches_tile.View_id.equal (U.focused_view t ~width ~height) prior);
+  assert (Cobalt_tile.View_id.equal (U.focused_view t ~width ~height) prior);
   let t = run t [ Terminal (Snapshot (snapshot ())) ] in
   assert (not (U.terminal_capturing t));
-  assert (Ches_tile.View_id.equal (U.focused_view t ~width ~height) prior);
+  assert (Cobalt_tile.View_id.equal (U.focused_view t ~width ~height) prior);
   let t = open_terminal t in
   let t = U.open_line_picker t ~width ~height in
   assert (not (U.terminal_capturing t));
@@ -401,7 +401,7 @@ let%test_unit "styled wide and combining cells use float compositor and child cu
 ;;
 
 let%test_unit "directory input supplies cwd; unfit open stays lazy" =
-  let root = Helpers.scratch_dir "ches-terminal-cwd-" in
+  let root = Helpers.scratch_dir "cobalt-terminal-cwd-" in
   Exn.protect ~finally:(fun () -> Core_unix.rmdir root) ~f:(fun () ->
     let t = U.show_directory (Helpers.ui "x") ~width ~height root |> Or_error.ok_exn in
     let t = Helpers.run ~width:10 ~height:3 t (Helpers.keys " /") in
@@ -414,20 +414,20 @@ let%test_unit "directory input supplies cwd; unfit open stays lazy" =
      | [ Start { cwd; _ } ] -> [%test_eq: string] cwd root
      | _ -> failwith "directory terminal did not start");
     let t = hide t in
-    assert (Option.is_some (Ches_app.Session.input_directory (U.session t)));
-    Ches_app.Session.dispose (U.session t))
+    assert (Option.is_some (Cobalt_app.Session.input_directory (U.session t)));
+    Cobalt_app.Session.dispose (U.session t))
 ;;
 
 let%test_unit "palette exposes Toggle Tile Term with default shortcut" =
   let t = run (Helpers.ui "x") (Helpers.keys " cctoggle tile term<CR>") in
   assert (U.terminal_capturing t);
   assert (Option.is_none (U.palette t));
-  let entry = Ches_palette.Catalog.find Ches_palette.Catalog.default
-      (Ches_palette.Catalog.Id.of_string "terminal.toggle") |> Option.value_exn in
-  let sequences = Ches_palette.Shortcut.sequences
-      (Ches_input.Bindings.to_list Ches_input.Bindings.default)
-      (Ches_palette.Catalog.Entry.action entry) in
-  [%test_eq: string list] (List.map sequences ~f:Ches_palette.Shortcut.to_string_hum) [ "Space /" ]
+  let entry = Cobalt_palette.Catalog.find Cobalt_palette.Catalog.default
+      (Cobalt_palette.Catalog.Id.of_string "terminal.toggle") |> Option.value_exn in
+  let sequences = Cobalt_palette.Shortcut.sequences
+      (Cobalt_input.Bindings.to_list Cobalt_input.Bindings.default)
+      (Cobalt_palette.Catalog.Entry.action entry) in
+  [%test_eq: string list] (List.map sequences ~f:Cobalt_palette.Shortcut.to_string_hum) [ "Space /" ]
 ;;
 
 let%test_unit "old Space tt binding no longer opens a terminal" =
@@ -452,18 +452,18 @@ let%test_unit "paste overflow is dropped as a whole and collection ends cleanly"
   requests_equal requests []
 ;;
 
-module T = Ches_tile.Text_view
+module T = Cobalt_tile.Text_view
 let inspection t = U.terminal_inspection t |> Option.value_exn
 let text_view t = Terminal_tile.inspection_text (inspection t)
 let cursor_byte t = T.cursor (text_view t)
 let normal t = run t [ ctrl ' ' ]
 let type_ t s = run t (Helpers.keys s)
-let editor t = Ches_app.Controller.editor (U.controller t)
+let editor t = Cobalt_app.Controller.editor (U.controller t)
 let check_copy t ~kind expected =
   let t, clipboard = U.take_clipboard t in
   [%test_eq: string option] clipboard (Some expected);
-  let register = Ches_core.Editor.unnamed_register (editor t) |> Option.value_exn in
-  assert (Ches_core.Register.equal register (Text { text = expected; kind }));
+  let register = Cobalt_core.Editor.unnamed_register (editor t) |> Option.value_exn in
+  assert (Cobalt_core.Register.equal register (Text { text = expected; kind }));
   t
 ;;
 
@@ -507,7 +507,7 @@ let%test_unit "full fidelity terminal events drive read-only motions and pending
   let t = run t (chars "vlg" @ [ key Escape ]) in
   assert (Option.is_none (T.visual (text_view t)));
   let t = run t (chars "xdpu~") in
-  [%test_eq: string] (Ches_core.Text_buffer.to_string (Ches_core.Editor.text (editor t))) "unchanged document";
+  [%test_eq: string] (Cobalt_core.Text_buffer.to_string (Cobalt_core.Editor.text (editor t))) "unchanged document";
   let _, requests = take t in requests_equal requests []
 ;;
 
@@ -625,8 +625,8 @@ let%test_unit "frozen grid survives resize without reflow or selection loss and 
 let check_block_copy t ~rows ~width =
   let t, clipboard = U.take_clipboard t in
   [%test_eq: string option] clipboard (Some (String.concat ~sep:"\n" rows));
-  let register = Ches_core.Editor.unnamed_register (editor t) |> Option.value_exn in
-  assert (Ches_core.Register.equal register (Block { rows; width }));
+  let register = Cobalt_core.Editor.unnamed_register (editor t) |> Option.value_exn in
+  assert (Cobalt_core.Register.equal register (Block { rows; width }));
   assert (Option.is_none (Terminal_tile.block_selection (inspection t)));
   assert (Option.is_none (T.visual (text_view t)));
   t
@@ -691,13 +691,13 @@ let%test_unit "block selection freezes with background updates and resize; its r
   let t = run t [ Resize ] |> fun t -> type_ t "y" in
   let t = check_block_copy t ~rows:[ "ab"; "ef" ] ~width:2 in
   let t = type_ t " /ggP" in
-  [%test_eq: string] (Ches_core.Text_buffer.to_string (Ches_core.Editor.text (editor t))) "abfirst\nefsecond";
+  [%test_eq: string] (Cobalt_core.Text_buffer.to_string (Cobalt_core.Editor.text (editor t))) "abfirst\nefsecond";
   let t = open_terminal t in
   assert (Option.is_none (U.terminal_inspection t));
   assert (String.is_substring (Frame.to_string (Frame.render t ~width ~height)) ~substring:"new!");
   let t, _ = take t in
   let t = normal t |> fun t -> type_ t "<C-v>llxdpu~" in
-  [%test_eq: string] (Ches_core.Text_buffer.to_string (Ches_core.Editor.text (editor t))) "abfirst\nefsecond";
+  [%test_eq: string] (Cobalt_core.Text_buffer.to_string (Cobalt_core.Editor.text (editor t))) "abfirst\nefsecond";
   let _, requests = take t in requests_equal requests []
 ;;
 
@@ -822,16 +822,16 @@ let%test_unit "numbered sessions keep independent preferred sizes and hidden siz
 ;;
 
 let%test_unit "toggle count scales to selector, explicit selectors never repeat" =
-  let module V = Ches_input.View_command in
+  let module V = Cobalt_input.View_command in
   assert (Option.equal V.equal (V.scale Toggle_terminal ~count:4) (Some (Select_terminal 4)));
   assert (Option.is_none (V.scale (Select_terminal 3) ~count:4));
-  let t = type_ (Helpers.ui "document") (Int.to_string (Ches_core.Command.max_count + 1)) in
+  let t = type_ (Helpers.ui "document") (Int.to_string (Cobalt_core.Command.max_count + 1)) in
   assert (not (U.terminal_visible t));
   routed_equal (snd (routed t)) []
 ;;
 
 let%test_unit "each session captures its first cwd and restart retains it after editor context changes" =
-  let root = Helpers.scratch_dir "ches-numbered-terminal-cwd-" in
+  let root = Helpers.scratch_dir "cobalt-numbered-terminal-cwd-" in
   Exn.protect ~finally:(fun () -> Core_unix.rmdir root) ~f:(fun () ->
     let t = select (Helpers.ui ~path:"/tmp/project/file.ml" "document") 3 in
     let t, requests = routed t in
@@ -851,7 +851,7 @@ let%test_unit "each session captures its first cwd and restart retains it after 
     (match requests with
      | [3, Start {cwd; _}] -> [%test_eq: string] cwd "/tmp/project"
      | _ -> failwith "restart lost captured cwd");
-    Ches_app.Session.dispose (U.session t))
+    Cobalt_app.Session.dispose (U.session t))
 ;;
 
 let%test_unit "inactive events cannot flush current pending j and resizes target the selected session" =
@@ -871,18 +871,18 @@ let%test_unit "inactive events cannot flush current pending j and resizes target
 ;;
 
 let%test_unit "explicit invalid IDs do not launch; arbitrary positive integer IDs allocate no range" =
-  let module I = Ches_input in
+  let module I = Cobalt_input in
   let bindings = I.Bindings.create
       [ [I.Key.char 'x'], View (Select_terminal 0)
       ; [I.Key.char 'y'], View (Select_terminal (-1))
       ; [I.Key.char 'z'], View (Select_terminal Int.max_value)
       ; [I.Key.char ' '; I.Key.char '/'], View Toggle_terminal ] |> Or_error.ok_exn in
   let keymap_config = { I.Keymap.Config.default with normal = bindings } in
-  let text = Ches_core.Text_buffer.of_string "document"
-      |> Result.map_error ~f:Ches_core.Text_buffer.Invalid_text.to_string_hum
+  let text = Cobalt_core.Text_buffer.of_string "document"
+      |> Result.map_error ~f:Cobalt_core.Text_buffer.Invalid_text.to_string_hum
       |> Result.ok_or_failwith in
-  let editor = Ches_core.Editor.create ~path:"/tmp/file.ml" ~cell_width:Cell_map.width text in
-  let t = U.create ~tiles_visible:false (Ches_app.Controller.create ~keymap_config editor) in
+  let editor = Cobalt_core.Editor.create ~path:"/tmp/file.ml" ~cell_width:Cell_map.width text in
+  let t = U.create ~tiles_visible:false (Cobalt_app.Controller.create ~keymap_config editor) in
   let t = type_ t "xy" in
   assert (not (U.terminal_visible t));
   [%test_eq: int] (U.terminal_number t) 1;

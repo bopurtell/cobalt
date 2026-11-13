@@ -1,8 +1,8 @@
 open! Core
 open! Async
-open Ches_source
-module Model = Ches_completion.Model
-module Event = Ches_error.Source_event
+open Cobalt_source
+module Model = Cobalt_completion.Model
+module Event = Cobalt_error.Source_event
 
 module H = struct
   let cell_width _ = 1
@@ -10,10 +10,10 @@ module H = struct
     { Lsp_client.Config.ocamllsp with source = "fake"; args;
       prog = Filename.concat (Core_unix.getcwd ()) "../fake_lsp/fake_lsp.exe" }
   let with_root f =
-    let root = Filename_unix.realpath (Filename_unix.temp_dir "ches-completion" "") in
+    let root = Filename_unix.realpath (Filename_unix.temp_dir "cobalt-completion" "") in
     Monitor.protect (fun () -> f root)
       ~finally:(fun () -> Process.run ~prog:"rm" ~args:["-rf"; root] () >>| ignore)
-  let changed root revision text : Ches_error.Source_request.t =
+  let changed root revision text : Cobalt_error.Source_request.t =
     Document_changed { resource = Filename.concat root "a.ml"; revision; text }
   let rec is_diagnostics ~revision = function
     | Event.Diagnostics d -> Option.equal Int.equal d.revision (Some revision)
@@ -96,10 +96,10 @@ let%expect_test "fake completion flushes didChange first, normalizes edits, reje
       let kind = match encoding with "utf-8" -> "1" | "utf-16" -> "2" | _ -> "3" in
       assert (Option.equal String.equal candidate.detail (Some kind));
       assert (String.equal candidate.label "😀\n😀fo");
-      assert (Ches_core.Text_edit.equal candidate.primary { start = 5; stop = 11; text = "format" });
-      assert ([%equal: Ches_core.Text_edit.t list] candidate.additional [{ start = 0; stop = 4; text = "import\n" }]);
+      assert (Cobalt_core.Text_edit.equal candidate.primary { start = 5; stop = 11; text = "format" });
+      assert ([%equal: Cobalt_core.Text_edit.t list] candidate.additional [{ start = 0; stop = 4; text = "import\n" }]);
       let fallback = List.nth_exn reply.candidates 1 in
-      assert (Ches_core.Text_edit.equal fallback.primary { start = 9; stop = 11; text = "fallback_text" });
+      assert (Cobalt_core.Text_edit.equal fallback.primary { start = 9; stop = 11; text = "fallback_text" });
       let%bind lines = Reader.file_lines log in
       let methods = List.map lines ~f:(fun line -> List.last_exn (String.split line ~on:' ')) in
       let index name = List.findi_exn methods ~f:(fun _ m -> String.equal m name) |> fst in
@@ -206,9 +206,9 @@ let%expect_test "list defaults inherit absent properties, explicit item fields w
   let reply, raw = Completion_wire.decode ~encoding:Utf16 ~text:"😀fooZZ" ~request:query ~source:"fake" result in
   assert (List.length reply.candidates = 3);
   let default, explicit, replace = match reply.candidates with [a; b; c] -> a, b, c | _ -> assert false in
-  assert (Ches_core.Text_edit.equal default.primary { start = 4; stop = 9; text = "é" });
-  assert (Ches_core.Text_edit.equal explicit.primary { start = 4; stop = 7; text = "explicit" });
-  assert (Ches_core.Text_edit.equal replace.primary { start = 4; stop = 9; text = "replace" });
+  assert (Cobalt_core.Text_edit.equal default.primary { start = 4; stop = 9; text = "é" });
+  assert (Cobalt_core.Text_edit.equal explicit.primary { start = 4; stop = 7; text = "explicit" });
+  assert (Cobalt_core.Text_edit.equal replace.primary { start = 4; stop = 9; text = "replace" });
   let default_raw = List.Assoc.find_exn raw default.id ~equal:String.equal in
   let explicit_raw = List.Assoc.find_exn raw explicit.id ~equal:String.equal in
   assert (Poly.equal (Completion_wire.field default_raw "data") (Some (`Assoc ["opaque", `Int 42])));
@@ -260,12 +260,12 @@ let%expect_test "snippet normalization parses insertion only and validates extra
     | [a; b; c; d] -> a, b, c, d | _ -> failwith "unexpected normalized snippets" in
   let snippet = Option.value_exn fallback.snippet in
   assert (String.equal fallback.primary.text "é-é!");
-  assert (fallback.cursor = 6 && Ches_completion.Snippet.final_cursor snippet = 5);
-  assert (Ches_completion.Snippet.equal snippet
-    (Ches_completion.Snippet.parse "${1:é}-$1$0!" |> Or_error.ok_exn));
+  assert (fallback.cursor = 6 && Cobalt_completion.Snippet.final_cursor snippet = 5);
+  assert (Cobalt_completion.Snippet.equal snippet
+    (Cobalt_completion.Snippet.parse "${1:é}-$1$0!" |> Or_error.ok_exn));
   assert (String.equal label.primary.text "label" && Option.is_some label.snippet);
-  assert (Ches_core.Text_edit.equal explicit.primary { start = 4; stop = 9; text = "okok" });
-  assert ([%equal: Ches_core.Text_edit.t list] explicit.additional
+  assert (Cobalt_core.Text_edit.equal explicit.primary { start = 4; stop = 9; text = "okok" });
+  assert ([%equal: Cobalt_core.Text_edit.t list] explicit.additional
     [{ start = 0; stop = 4; text = "$1 literal" }]);
   assert (String.equal plain.primary.text "${1:literal}" && Option.is_none plain.snippet);
   let original = List.Assoc.find_exn raw fallback.id ~equal:String.equal in
@@ -280,7 +280,7 @@ let%expect_test "snippet normalization parses insertion only and validates extra
       "textEdit", edit 99 100 "$UNSUPPORTED";
       "additionalTextEdits", `List extras]) in
   let _, additional = resolve [edit 0 2 "import"] |> Option.value_exn in
-  assert ([%equal: Ches_core.Text_edit.t list] additional [{ start = 0; stop = 4; text = "import" }]);
+  assert ([%equal: Cobalt_core.Text_edit.t list] additional [{ start = 0; stop = 4; text = "import" }]);
   List.iter [[edit 2 3 "overlap"]; [edit 1 2 "surrogate"]; [edit 99 100 "outside"];
     [edit 0 2 "a"; edit 0 2 "b"]] ~f:(fun extras -> assert (Option.is_none (resolve extras)));
   assert (Option.is_none (Completion_wire.resolved ~encoding:Utf16 ~text:"😀fooZZ"
@@ -303,7 +303,7 @@ let%expect_test "wire variables use raw request paths and skip unknown or recurs
       let candidate = List.hd_exn reply.candidates in
       assert (String.equal candidate.primary.text expected);
       let template = Option.value_exn candidate.snippet in
-      assert (Ches_completion.Snippet.final_cursor template = String.length expected));
+      assert (Cobalt_completion.Snippet.final_cursor template = String.length expected));
   [%expect {| |}];
   return ()
 ;;
@@ -352,8 +352,8 @@ let%expect_test "wire numbered defaults resolve literal paths before installatio
       let template = Option.value_exn candidate.snippet in
       let expected = value ^ "/" ^ value ^ "!" in
       assert (String.equal candidate.primary.text expected);
-      assert (String.equal (Ches_completion.Snippet.text template) expected);
-      assert (Ches_completion.Snippet.final_cursor template = String.length expected - 1));
+      assert (String.equal (Cobalt_completion.Snippet.text template) expected);
+      assert (Cobalt_completion.Snippet.final_cursor template = String.length expected - 1));
   [%expect {| |}];
   return ()
 ;;
@@ -364,26 +364,26 @@ let%expect_test "fake LSP advertises snippets, inherits format2, skips unsupport
     let linked, escaped, explicit, plain, variable, choice, variable_default = match reply.candidates with
       | [a; b; c; d; e; f; g] -> a, b, c, d, e, f, g | _ -> failwith "unexpected fake snippet candidates" in
     let snippet = Option.value_exn linked.snippet in
-    assert (Ches_core.Text_edit.equal linked.primary { start = 1; stop = 9; text = "é + é!" });
-    assert ([%equal: Ches_completion.Snippet.field list] (Ches_completion.Snippet.fields snippet)
+    assert (Cobalt_core.Text_edit.equal linked.primary { start = 1; stop = 9; text = "é + é!" });
+    assert ([%equal: Cobalt_completion.Snippet.field list] (Cobalt_completion.Snippet.fields snippet)
       [{ number = 1; ranges = [{ start = 0; stop = 2 }; { start = 5; stop = 7 }] }]);
-    assert (linked.cursor = 8 && Ches_completion.Snippet.final_cursor snippet = 7);
+    assert (linked.cursor = 8 && Cobalt_completion.Snippet.final_cursor snippet = 7);
     assert (String.equal escaped.primary.text "$literal } \\ x" && Option.is_some escaped.snippet);
-    assert (Ches_core.Text_edit.equal explicit.primary { start = 1; stop = 3; text = "okok" });
+    assert (Cobalt_core.Text_edit.equal explicit.primary { start = 1; stop = 3; text = "okok" });
     assert (String.equal plain.primary.text "$1 literal" && Option.is_none plain.snippet);
     assert (String.equal variable.primary.text ("a.ml/a/" ^ root ^ "/" ^ query.token.resource));
     let choice_template = Option.value_exn choice.snippet in
     assert (String.equal choice.primary.text "a\nb/a\nb!");
-    let choice_text = Ches_core.Text_buffer.of_string choice.primary.text |> Result.ok |> Option.value_exn in
-    let module S = Ches_completion.Snippet.Session in
+    let choice_text = Cobalt_core.Text_buffer.of_string choice.primary.text |> Result.ok |> Option.value_exn in
+    let module S = Cobalt_completion.Snippet.Session in
     let choice_session = S.start choice_template ~base:0 ~revision:1 ~text:choice_text |> Or_error.ok_exn in
     assert (Option.equal (List.equal String.equal) (S.choices choice_session) (Some ["a\nb"; "c,d|e\\"]));
     let change = S.cycle_choice choice_session Next ~revision:1 ~text:choice_text |> Or_error.ok_exn in
-    let changed = Ches_core.Text_edit.apply choice_text [S.edits change] |> Or_error.ok_exn in
-    assert (String.equal (Ches_core.Text_buffer.to_string changed) "c,d|e\\/c,d|e\\!");
+    let changed = Cobalt_core.Text_edit.apply choice_text [S.edits change] |> Or_error.ok_exn in
+    assert (String.equal (Cobalt_core.Text_buffer.to_string changed) "c,d|e\\/c,d|e\\!");
     let selected = S.applied change ~revision:2 in
     assert (Option.is_some (S.selection selected));
-    let base = Ches_core.Text_buffer.of_string "\nfoSuffix" |> Result.ok |> Option.value_exn in
+    let base = Cobalt_core.Text_buffer.of_string "\nfoSuffix" |> Result.ok |> Option.value_exn in
     (* Accept the resolved numbered default through the real planning/install
        path, then replace its selected value and check both linked occurrences. *)
     assert (String.equal variable_default.primary.text "prefix_a/prefix_a!");
@@ -391,15 +391,15 @@ let%expect_test "fake LSP advertises snippets, inherits format2, skips unsupport
       ~words:(Model.Buffer_words.create base) ~limit:10 () |> Option.value_exn in
     let default_model = Model.receive default_model { reply with candidates = [variable_default] } in
     let default_plan = Model.plan default_model Next |> Option.value_exn in
-    let default_text = Ches_core.Text_edit.apply base (Model.edits default_plan) |> Or_error.ok_exn in
-    assert (String.equal (Ches_core.Text_buffer.to_string default_text) "\nprefix_a/prefix_a!");
+    let default_text = Cobalt_core.Text_edit.apply base (Model.edits default_plan) |> Or_error.ok_exn in
+    assert (String.equal (Cobalt_core.Text_buffer.to_string default_text) "\nprefix_a/prefix_a!");
     let default_session = S.start (Option.value_exn variable_default.snippet)
       ~base:1 ~revision:2 ~text:default_text |> Or_error.ok_exn in
-    assert (Option.equal Ches_completion.Snippet.equal_range (S.selection default_session)
+    assert (Option.equal Cobalt_completion.Snippet.equal_range (S.selection default_session)
       (Some { start = 1; stop = 9 }));
     let change = S.insert default_session ~revision:2 ~text:default_text "猫" |> Or_error.ok_exn in
-    let default_text = Ches_core.Text_edit.apply default_text [S.edits change] |> Or_error.ok_exn in
-    assert (String.equal (Ches_core.Text_buffer.to_string default_text) "\n猫/猫!");
+    let default_text = Cobalt_core.Text_edit.apply default_text [S.edits change] |> Or_error.ok_exn in
+    assert (String.equal (Cobalt_core.Text_buffer.to_string default_text) "\n猫/猫!");
     let default_session = S.applied change ~revision:3 |> fun s -> S.navigate s Next in
     assert (S.cursor default_session = String.length "\n猫/猫");
     let model, _ = Model.start ~token:query.token ~text:base ~cursor:3
@@ -407,8 +407,8 @@ let%expect_test "fake LSP advertises snippets, inherits format2, skips unsupport
     let model = Model.receive model { reply with candidates = [linked] } in
     let plan = Model.plan model Next |> Option.value_exn in
     assert (Model.cursor plan = 9);
-    let installed = Ches_core.Text_edit.apply base (Model.edits plan) |> Or_error.ok_exn in
-    assert (String.equal (Ches_core.Text_buffer.to_string installed) "\né + é!");
+    let installed = Cobalt_core.Text_edit.apply base (Model.edits plan) |> Or_error.ok_exn in
+    assert (String.equal (Cobalt_core.Text_buffer.to_string installed) "\né + é!");
     Source.send source (H.changed root 2 "\né + é!");
     Source.send source (Resolve_completion { token = query.token; candidate_id = linked.id; revision = 2 });
     let rec resolved () =
@@ -421,7 +421,7 @@ let%expect_test "fake LSP advertises snippets, inherits format2, skips unsupport
     assert (Option.equal Int.equal info.revision (Some 2));
     assert (Option.equal String.equal info.documentation (Some "Resolved **docs**"));
     let additional = Option.value_exn info.additional in
-    assert ([%equal: Ches_core.Text_edit.t list] additional [{ start = 0; stop = 0; text = "import\n" }]);
+    assert ([%equal: Cobalt_core.Text_edit.t list] additional [{ start = 0; stop = 0; text = "import\n" }]);
     (* Rebuild with resolved extras, just as the host does: primary and snippet
        remain the original immutable candidate, even after hostile insertion fields. *)
     let original_model, _ = Model.start ~token:query.token ~text:base ~cursor:3
@@ -431,9 +431,9 @@ let%expect_test "fake LSP advertises snippets, inherits format2, skips unsupport
     let plan = Model.plan model Next |> Option.value_exn in
     let model = Model.applied model plan ~revision:2 in
     let finalize = Model.finalize model |> Option.value_exn in
-    let final = Ches_core.Text_edit.apply installed (Model.edits finalize) |> Or_error.ok_exn in
-    assert (String.equal (Ches_core.Text_buffer.to_string final) "import\n\né + é!");
-    assert (Option.equal Ches_completion.Snippet.equal candidate.snippet linked.snippet);
+    let final = Cobalt_core.Text_edit.apply installed (Model.edits finalize) |> Or_error.ok_exn in
+    assert (String.equal (Cobalt_core.Text_buffer.to_string final) "import\n\né + é!");
+    assert (Option.equal Cobalt_completion.Snippet.equal candidate.snippet linked.snippet);
     assert (List.is_empty (replies (drain source)));
     Source.stop source;
     [%expect {| |}];
@@ -457,7 +457,7 @@ let%expect_test "fake defaults choose replace and lazy resolve enriches metadata
     let%bind source, query, reply, initial = next_source root [] in
     assert (List.length reply.candidates = 1);
     let candidate = List.hd_exn reply.candidates in
-    assert (Ches_core.Text_edit.equal candidate.primary { start = 1; stop = 9; text = "formatted" });
+    assert (Cobalt_core.Text_edit.equal candidate.primary { start = 1; stop = 9; text = "formatted" });
     assert (List.is_empty candidate.additional);
     let initial = initial @ metadata (drain source) in
     let info = List.hd_exn initial in
@@ -474,7 +474,7 @@ let%expect_test "fake defaults choose replace and lazy resolve enriches metadata
     assert (Option.equal Int.equal info.revision (Some 2));
     assert (Option.equal String.equal info.documentation (Some "Resolved **docs**"));
     assert (Option.equal String.equal info.detail (Some "resolved detail"));
-    assert ([%equal: Ches_core.Text_edit.t list option] info.additional
+    assert ([%equal: Cobalt_core.Text_edit.t list option] info.additional
       (Some [{ start = 0; stop = 0; text = "import\n" }]));
     assert (List.is_empty (replies (drain source)));
     Source.stop source;
@@ -532,18 +532,18 @@ let%expect_test "normalized additional edits are deferred through Tab and applie
       match List.find_map (metadata events) ~f:(fun info -> info.additional) with
       | Some edits -> return edits | None -> resolved () in
     let%bind additional = resolved () in
-    let base = Ches_core.Text_buffer.of_string "\nfoSuffix" |> Result.ok |> Option.value_exn in
+    let base = Cobalt_core.Text_buffer.of_string "\nfoSuffix" |> Result.ok |> Option.value_exn in
     let model, _ = Model.start ~token:query.token ~text:base ~cursor:3
       ~words:(Model.Buffer_words.create base) ~limit:10 () |> Option.value_exn in
     let candidate = { (List.hd_exn reply.candidates) with additional } in
     let model = Model.receive model { reply with candidates = [candidate] } in
     let plan = Model.plan model Next |> Option.value_exn in
-    let installed = Ches_core.Text_edit.apply base (Model.edits plan) |> Or_error.ok_exn in
-    assert (String.equal (Ches_core.Text_buffer.to_string installed) "\nformatted");
+    let installed = Cobalt_core.Text_edit.apply base (Model.edits plan) |> Or_error.ok_exn in
+    assert (String.equal (Cobalt_core.Text_buffer.to_string installed) "\nformatted");
     let model = Model.applied model plan ~revision:2 in
     let finalize = Model.finalize model |> Option.value_exn in
-    let final = Ches_core.Text_edit.apply installed (Model.edits finalize) |> Or_error.ok_exn in
-    assert (String.equal (Ches_core.Text_buffer.to_string final) "import\n\nformatted");
+    let final = Cobalt_core.Text_edit.apply installed (Model.edits finalize) |> Or_error.ok_exn in
+    assert (String.equal (Cobalt_core.Text_buffer.to_string final) "import\n\nformatted");
     Source.stop source;
     [%expect {| |}];
     return ())

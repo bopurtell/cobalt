@@ -12,13 +12,13 @@ val create
     Fresh generation on every replacement, including A->B->A.
     None/close/deactivation must call [clear]. *)
 val select
-  : ?refresh:bool -> t -> session:Ches_file_picker.Model.Discovery.request
-  -> Ches_file_picker.Model.Candidate.t -> Model.request
+  : ?refresh:bool -> t -> session:Cobalt_file_picker.Model.Discovery.request
+  -> Cobalt_file_picker.Model.Candidate.t -> Model.request
 (** Host assembly seam: follow the pure picker's selected identity and discovery
     session, or clear on inactive/empty selection. Pass None for a closed picker,
     exited UI or deactivated frontend even if an old picker model remains alive.
     Returns the exact expected token for [Model.accept] at UI installation. *)
-val follow : ?refresh:bool -> t -> _ Ches_file_picker.Model.t option -> Model.request option
+val follow : ?refresh:bool -> t -> _ Cobalt_file_picker.Model.t option -> Model.request option
 val snapshot : t -> Model.snapshot option
 (** Wait for the next state/selection/clear notification. A single frontend-owned
     pump should capture this waiter before reading/injecting a snapshot, then await

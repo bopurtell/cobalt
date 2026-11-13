@@ -1,5 +1,4 @@
-(* The VCS view (phase 2: read-only; phase 3: stage, unstage, discard; phase 4: lines;
-   phase 5: commit; phase 6: remotes and branches; phase 7: merges and conflicts): see
+(* The VCS view: diffs, staging, commits, remotes, branches, conflicts and history. See
    vcs_view.mli. The diff panel's text, its per-line open targets and positions are
    [Vcs_diff_text]'s; the command plans are the backend's ([plan]); the commit popup,
    message file and template are [Git.Commit]'s; the push and pull popups and the
@@ -7,19 +6,19 @@
    [Git.Operation]'s; the resolve popup [Git.Resolution]'s. *)
 
 open! Core
-open Ches_vcs
-module Git = Ches_vcs_git
+open Cobalt_vcs
+module Git = Cobalt_vcs_git
 module B = Git.Backend
-module Key = Ches_input.Key
-module Text_view = Ches_tile.Text_view
-module Navigation = Ches_tile.Navigation
-module Local_command = Ches_tile.Local_command
-module Content_key = Ches_tile.Content_key
+module Key = Cobalt_input.Key
+module Text_view = Cobalt_tile.Text_view
+module Navigation = Cobalt_tile.Navigation
+module Local_command = Cobalt_tile.Local_command
+module Content_key = Cobalt_tile.Content_key
 
-let id = Ches_tile.View_id.of_string "vcs"
+let id = Cobalt_tile.View_id.of_string "vcs"
 
 let spec =
-  { (Ches_tile.Spec.read_only_text id ~title:"VCS") with role = Major; accepts_tab = true }
+  { (Cobalt_tile.Spec.read_only_text id ~title:"VCS") with role = Major; accepts_tab = true }
 ;;
 
 module Focus = struct
@@ -233,7 +232,7 @@ module List_state = struct
   let empty = { cursor = Panel.Cursor.empty; top = 0 }
 end
 
-(* A [Space g l] whose repository root was not known yet (phase 8): applied when
+(* A [Space g l] whose repository root was not known yet: applied when
    detection finds a repository. *)
 module File_log = struct
   type t =
@@ -285,7 +284,7 @@ type t =
   ; anchor : Anchor.t option (** Applied to the next [Loaded] diff of its target. *)
   ; pending : Pending.t option (** See [live_pending]. *)
   ; companion : bool (** Lists beside the pending message's document editor. *)
-  ; scope : Log_scope.t (** The log the next refresh reads (phase 8). *)
+  ; scope : Log_scope.t (** The log the next refresh reads. *)
   ; file_log : File_log.t option (** See [File_log]. *)
   ; graph : string String.Map.t
   (** The snapshot's graph rows by full hash; empty when its scope draws none. *)
@@ -446,7 +445,7 @@ let ahead_behind ~ahead ~behind =
   | ahead, behind -> sprintf "ahead %d, behind %d" ahead behind
 ;;
 
-(* A commit's row (phase 8): its graph row ([graph], by full hash), short hash, refs
+(* A commit's row: its graph row ([graph], by full hash), short hash, refs
    and subject. *)
 let item_text ~graph : B.item -> string = function
   | File { section; entry } ->
@@ -963,7 +962,7 @@ let file_scope ~root ({ path; label } : File_log.t) =
   | Some _ | None -> Error (sprintf "%s is not in the repository at %s" label root)
 ;;
 
-(* A new log scope (phase 8): the Commits cursor reset, focus on Commits (Visual
+(* A new log scope: the Commits cursor reset, focus on Commits (Visual
    ended), the diff following it. The caller refreshes. *)
 let set_scope t scope =
   request_diff
@@ -1089,8 +1088,8 @@ let anchor_offset text (diff : Diff.t) (anchor : Anchor.t) =
     |> Option.value ~default:0
 ;;
 
-(* Where a commit's diff shown for the first time starts in a file's history
-   (phase 8): the first file whose path or original path is the history's, else the
+(* Where a commit's diff shown for the first time starts in a file's history:
+   the first file whose path or original path is the history's, else the
    top. [None] outside a file's history or for other targets. *)
 let history_offset t text (diff : Diff.t) (target : B.diff_target) =
   match target, t.snapshot with
@@ -1387,7 +1386,7 @@ let prepare_finished t (report : Job.Report.t) =
         , `Error message )
       | Ok { message_file; head_message } ->
         let path =
-          Ches_core.Resource.normalize ~cwd:(Git.Repository.root repository) message_file
+          Cobalt_core.Resource.normalize ~cwd:(Git.Repository.root repository) message_file
         in
         let status =
           match t.snapshot with
@@ -1520,7 +1519,7 @@ type action =
   | Checkout_previous (** [-] in Branches. *)
   | New_branch (** [n] in Branches: the name prompt. *)
   | Create_branch of string (** The name prompt's answer. *)
-  | Log_popup (** [l] in a list panel (phase 8). *)
+  | Log_popup (** [l] in a list panel. *)
   | Log_choice of Git.Log.Choice.t (** The log popup's answer. *)
   | More_commits (** [+] in Commits. *)
   | Next_file of
@@ -1550,7 +1549,7 @@ let split_count (keys : Key.t list) =
     let digits, rest = List.split_while keys ~f:(fun key -> Option.is_some (Key.digit key)) in
     ( Some
         (List.fold digits ~init:0 ~f:(fun n key ->
-           Int.min Ches_core.Command.max_count ((n * 10) + Option.value_exn (Key.digit key))))
+           Int.min Cobalt_core.Command.max_count ((n * 10) + Option.value_exn (Key.digit key))))
     , rest )
   | _ -> None, keys
 ;;
@@ -1633,7 +1632,7 @@ let signal t : View_registry.Signal.t -> action option = function
        let root = Git.Repository.root repository in
        Option.some_if
          (List.exists paths ~f:(fun path ->
-            (not (Ches_core.Resource.within ~root:repository.git_dir path))
+            (not (Cobalt_core.Resource.within ~root:repository.git_dir path))
             && (under ~dir:root path || under ~dir:t.cwd path)))
          Refresh
      | Unknown | Detecting | Not_a_repository _ | No_work_tree _ | Failed _ -> None)
@@ -1741,7 +1740,7 @@ let action_of t (verb : Verb.t) : (B.action * Anchor.t option, string) Result.t 
                  , Some { Anchor.target; path; hunk } )))))
 ;;
 
-(* The conflicted file [x] resolves (phase 7): a Conflicted item selected in Files, or
+(* The conflicted file [x] resolves: a Conflicted item selected in Files, or
    the header lines of a file in a Conflicted diff, with its conflict from the
    snapshot. [None] otherwise ([x] then plans a discard, which the backend refuses for
    a Conflicted section or hunk). *)
@@ -1783,8 +1782,8 @@ let in_progress t kind =
     Git.Operation.in_progress snapshot.operations kind)
 ;;
 
-(* What Visual [s u x] act on: the lines of one file the diff's selection touches
-   (phase 4), anchored on the first touched hunk. [Error] is the notice instead. *)
+(* What Visual [s u x] act on: the lines of one file the diff's selection touches,
+   anchored on the first touched hunk. [Error] is the notice instead. *)
 let lines_action_of t (verb : Verb.t) : (B.action * Anchor.t option, string) Result.t =
   match t.diff with
   | Loading _ -> Error "The diff is still loading"
@@ -2324,7 +2323,7 @@ let perform t controller ~context ~rows ~width action =
          t
          ~effect:
            (Text_view.Effect.Copy
-              (Ches_core.Register.Text { text = item_name item; kind = Characterwise })))
+              (Cobalt_core.Register.Text { text = item_name item; kind = Characterwise })))
   | Text action ->
     let w, h = diff_area t ~rows ~width in
     let diff_view, effect = Text_view.perform t.diff_view ~width:w ~rows:h action in

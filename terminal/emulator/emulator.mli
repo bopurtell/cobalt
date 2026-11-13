@@ -1,5 +1,5 @@
 open! Core
-open Ches_terminal
+open Cobalt_terminal
 
 type t
 val create : rows:int -> cols:int -> t

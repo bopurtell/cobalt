@@ -1,6 +1,6 @@
 # Executable configuration runtime
 
-Editor library: `Ches_config_runtime` (`core`/`async` internally). Public entry points:
+Editor library: `Cobalt_config_runtime` (`core`/`async` internally). Public entry points:
 
 ```ocaml
 module Settings : sig
@@ -13,7 +13,7 @@ module Settings : sig
     ; completion_colors : (string * string) list
     ; line_numbers : bool
     ; theme : string
-    ; snippets : Ches_completion.User_snippets.operation list
+    ; snippets : Cobalt_completion.User_snippets.operation list
     }
   val default : t
   val validate : t -> t Core.Or_error.t
@@ -36,7 +36,7 @@ builtin catalog using `User_snippets.apply`. `Settings` also derives `sexp` and 
 The following is ordinary, executable OCaml using only Stdlib:
 
 ```ocaml
-open Ches_config
+open Cobalt_config
 
 let () =
   Completion.set_enabled true;
@@ -80,7 +80,7 @@ normalizing duplicates, so even an invalid value later overwritten rejects the
 complete snapshot. Qualified calls work without opening the API module:
 
 ```ocaml
-let () = Ches_config.Completion.set_color ~role:"selected_background" "#283447"
+let () = Cobalt_config.Completion.set_color ~role:"selected_background" "#283447"
 ```
 
 Snippet declarations are ordered: the last operation for an ID wins, including
@@ -114,7 +114,7 @@ literal |} and escaped dollar \$; $0|snippet};
 The matching closing delimiter is `|snippet}`. In ordinary OCaml string literals,
 backslashes must instead be escaped for OCaml as well as for snippet syntax.
 
-Provider contract (`Ches_completion.User_snippets`):
+Provider contract (`Cobalt_completion.User_snippets`):
 
 ```ocaml
 type declaration =
@@ -139,21 +139,21 @@ details, not supported user API.
 
 ## Loading and limits
 
-- Resolve a nonempty absolute `$XDG_CONFIG_HOME/ches/config.ml`; otherwise use
-  `$HOME/.config/ches/config.ml`. With no usable location or a missing file,
+- Resolve a nonempty absolute `$XDG_CONFIG_HOME/cobalt/config.ml`; otherwise use
+  `$HOME/.config/cobalt/config.ml`. With no usable location or a missing file,
   return defaults. Other read, compile, execution, protocol, and validation errors
   return a diagnostic string. Explicit `~path` bypasses environment resolution.
 - Every explicit load **executes** a fresh standalone program. Compiled helpers,
   never settings/results, are cached (details below). On a miss, the Dune-generated
-  `Api_source` supplies the exact `ches_config.ml` source; it, the user source,
+  `Api_source` supplies the exact `cobalt_config.ml` source; it, the user source,
   and a result writer are compiled in a private `0700` temp directory. `ocamlc`
-  is resolved from `PATH`. No installed Ches `.cmi`, Dune, editor dependency,
+  is resolved from `PATH`. No installed Cobalt `.cmi`, Dune, editor dependency,
   or PPX is needed to execute a user's configuration.
 - Compiler diagnostics use an OCaml line directive for the original filename
   and line numbers. Argument vectors are passed directly, without a shell.
 - Source and result reads are each capped at **1 MiB**; nonregular files are
   rejected. The helper bounds its entire encoded result to 1 MiB before writing,
-   and accepts at most **1000 snippet operations**. `CHES_SETTINGS_4` uses newline
+   and accepts at most **1000 snippet operations**. `COBALT_SETTINGS_4` uses newline
   framing: magic; enabled; ghost; minimum prefix; prefer local; line numbers;
   hex theme; signature-help enabled; decimal operation count; then ordered operations. A `disable` tag
   is followed by hex ID. An `add` tag is followed by hex ID, hex prefix, decimal
@@ -187,11 +187,11 @@ details, not supported user API.
 
 ## Compiled-helper cache
 
-Production uses a nonempty absolute `$XDG_CACHE_HOME/ches/config`, otherwise an
-absolute `$HOME/.cache/ches/config`. Without either location, or when the cache
+Production uses a nonempty absolute `$XDG_CACHE_HOME/cobalt/config`, otherwise an
+absolute `$HOME/.cache/cobalt/config`. Without either location, or when the cache
 cannot be created, read, or written, loading falls back to temporary compilation.
 The final cache directory must be owned by the current user and private (`0700`).
-Entries use the `ches-<key>` namespace. Nonblocking directory locks serialize
+Entries use the `cobalt-<key>` namespace. Nonblocking directory locks serialize
 publication/pruning against readers; lock contention can fall back to compilation
 instead of waiting on the input path. Only recognized entries containing the two
 owned regular files are removed; unrelated names, extra contents and linked files

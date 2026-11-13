@@ -1,4 +1,4 @@
-(** The commit graph of the Commits panel (phase 8), drawn lazygit's way: one row per
+(** The commit graph of the Commits panel, drawn lazygit's way: one row per
     commit, no connector-only rows, computed from each commit's parents alone. Pure
     and backend-agnostic: commits are ids with parent ids, newest first, in an order
     where a commit comes before its parents (git's [--topo-order]).

@@ -6,8 +6,8 @@
 
 open! Core
 
-val id : Ches_tile.View_id.t
-val spec : Ches_tile.Spec.t
+val id : Cobalt_tile.View_id.t
+val spec : Cobalt_tile.Spec.t
 
 module Item : sig
   type t =
@@ -27,7 +27,7 @@ val create : Item.t list -> t
 val demo : Item.t list
 
 val items : t -> Item.t list
-val selection : t -> string Ches_tile.Navigation.Selection.t
+val selection : t -> string Cobalt_tile.Navigation.Selection.t
 
 (** Whether the selected item's details are open, and their first visible row. *)
 val details : t -> bool
@@ -35,7 +35,7 @@ val details : t -> bool
 val detail_top : t -> int
 
 (** The open details as read-only text. *)
-val text_view : t -> Ches_tile.Text_view.t option
+val text_view : t -> Cobalt_tile.Text_view.t option
 
 (** Reconcile the selection and open details with a [width] by [rows] content viewport.
     Details close when the selected item changes. *)
@@ -47,8 +47,8 @@ type action [@@deriving sexp_of]
 
 (** In the list, shared list motions select, [yy]/[Y] copy the selected item's text,
     and edit keys are rejected. [e] or Enter opens its details as read-only text
-    ({!Ches_tile.Text_view}: movement, Visual selection, yank), and closes them again. *)
-val interpret : t -> Ches_input.Key.t list -> action Ches_tile.Content_key.t
+    ({!Cobalt_tile.Text_view}: movement, Visual selection, yank), and closes them again. *)
+val interpret : t -> Cobalt_input.Key.t list -> action Cobalt_tile.Content_key.t
 
 (** Escape ends Visual, then closes details. *)
 val escape : t -> action option
@@ -61,7 +61,7 @@ val perform
   -> rows:int
   -> width:int
   -> action
-  -> t * Ches_tile.Text_view.Effect.t option
+  -> t * Cobalt_tile.Text_view.Effect.t option
 
 (** Shell content for a [width] by [rows] content viewport.
     Hotkey hints are hidden unless [hotkey_hints] is [true]. Counts and
@@ -78,7 +78,7 @@ val render
 
 (** [toggle-details] ([e]); then [copy-item] and the shared list motions in the
     list, or the read-only text's commands in details. *)
-val commands : t -> Ches_tile.Local_command.t list
+val commands : t -> Cobalt_tile.Local_command.t list
 
 (** Typed access to this view's state in a {!View_registry}. *)
 val key : t Type_equal.Id.t

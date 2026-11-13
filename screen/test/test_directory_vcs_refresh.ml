@@ -5,8 +5,8 @@
    repository. *)
 
 open! Core
-open Ches_screen
-module Fixture = Ches_vcs_fixture.Fixture_repo
+open Cobalt_screen
+module Fixture = Cobalt_vcs_fixture.Fixture_repo
 
 let width = 100
 let height = 24
@@ -28,7 +28,7 @@ let create ~cwd directory =
     ~tiles_visible:false
     ~source_attached:true
     ~views:[ Vcs_view.entry ~cwd () ]
-    (Ches_app.Startup.open_path ~cell_width:Cell_map.width directory |> Or_error.ok_exn)
+    (Cobalt_app.Startup.open_path ~cell_width:Cell_map.width directory |> Or_error.ok_exn)
 ;;
 
 (* Keys, then every job the view submits, run to completion. *)
@@ -65,7 +65,7 @@ let requests t =
   print_s
     [%sexp
       (List.map requests ~f:(fun request ->
-         match (request : Ches_error.Source_request.t) with
+         match (request : Cobalt_error.Source_request.t) with
          | Document_saved { resource; _ } -> "saved " ^ Filename.basename resource
          | _ -> "other")
        : string list)];
@@ -80,7 +80,7 @@ let%expect_test "deleting and renaming tracked files in a directory buffer refre
     [%expect {|
       jobs: detect g1.1, refresh g1.2
       ╭─ VCS: work (main) ────────────────────────────╮|
-      │ Head: main 43c6f14                            │|
+      │ Head: main f357226                            │|
       │ 1 Files (0)                                   │|
       │   (none)                                      │|
       │                                               │|
@@ -97,7 +97,7 @@ let%expect_test "deleting and renaming tracked files in a directory buffer refre
     [%expect {|
       jobs: refresh g1.3, diff g1.4
       ╭─ VCS: work (main) ────────────────────────────╮|
-      │ Head: main 43c6f14                            │|
+      │ Head: main f357226                            │|
       │ 1 Files (1)                                   │|
       │ > - Unstaged changes (1)                      │|
       │   deleted    b.txt                            │|
@@ -113,7 +113,7 @@ let%expect_test "deleting and renaming tracked files in a directory buffer refre
     [%expect {|
       jobs: refresh g1.5, diff g1.6
       ╭─ VCS: work (main) ────────────────────────────╮|
-      │ Head: main 43c6f14                            │|
+      │ Head: main f357226                            │|
       │ 1 Files (3)                                   │|
       │   - Untracked files (1)                       │|
       │   a.txt.renamed                               │|

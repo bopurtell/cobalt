@@ -3,7 +3,7 @@
 [Documentation index](README.md) · [Configuration](configuration.md#snippets) ·
 [Field controls](editor_reference.md#snippet-placeholders)
 
-Ches bundles 93 templates in seven collections. All collections are enabled by
+Cobalt bundles 93 templates in seven collections. All collections are enabled by
 default. File scopes still apply: SV templates appear in `.sv`/`.svh`, while
 OCaml and Hardcaml share OCaml files. Implementation-only OCaml templates are
 restricted to `.ml`; declarations intended for interfaces also appear in `.mli`.
@@ -19,7 +19,7 @@ trigger in Insert mode and accept its completion with Enter to activate fields.
 In `config.ml`:
 
 ```ocaml
-open Ches_config
+open Cobalt_config
 
 let () =
   Snippets.set_collection_enabled ~collection:"hardcaml" false;

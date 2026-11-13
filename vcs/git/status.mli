@@ -5,7 +5,7 @@
     quoted), and may contain spaces, newlines or non-UTF-8 bytes. *)
 
 open! Core
-open Ches_vcs
+open Cobalt_vcs
 
 module Change : sig
   (** One side of an [XY] status field. *)

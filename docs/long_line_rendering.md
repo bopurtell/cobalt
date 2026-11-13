@@ -70,7 +70,7 @@ All Dune invocations were sequential, using:
 
 ```sh
 opam exec --switch=5.2.0+ox -- dune runtest -j 10 test screen/test
-opam exec --switch=5.2.0+ox -- dune build -j 10 core screen ui bin/ches.exe scripts/long_line_probe/probe.exe
+opam exec --switch=5.2.0+ox -- dune build -j 10 core screen ui bin/cobalt.exe scripts/long_line_probe/probe.exe
 opam exec --switch=5.2.0+ox -- dune exec -j 10 ./scripts/long_line_probe/probe.exe
 ```
 

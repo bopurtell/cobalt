@@ -1,9 +1,9 @@
 open! Core
-open Ches_core
-open Ches_screen
-module Feedback = Ches_error.Error
-module Controller = Ches_app.Controller
-module View_id = Ches_tile.View_id
+open Cobalt_core
+open Cobalt_screen
+module Feedback = Cobalt_error.Error
+module Controller = Cobalt_app.Controller
+module View_id = Cobalt_tile.View_id
 
 let width = 80
 let height = 16
@@ -82,7 +82,7 @@ let%expect_test "report details: the text cursor reaches rows beyond the viewpor
   print_s
     [%sexp
       (focused t : string)
-    , (Ui_state.minor_cursor t ~width ~height : (int * int * Ches_tile.Cursor.Shape.t) option)
+    , (Ui_state.minor_cursor t ~width ~height : (int * int * Cobalt_tile.Cursor.Shape.t) option)
     , (Report_tile.details (Option.value_exn (Ui_state.report t)) : bool)];
   [%expect {| (demo-report () false) |}]
 ;;
@@ -104,9 +104,9 @@ let%expect_test "Visual selection copies canonical text to the register and clip
   print_s
     [%sexp
       (notice t : string)
-    , (Ches_tile.Text_view.visual
+    , (Cobalt_tile.Text_view.visual
          (Option.value_exn (Report_tile.text_view (Option.value_exn (Ui_state.report t))))
-       : Ches_tile.Text_view.Kind.t option)];
+       : Cobalt_tile.Text_view.Kind.t option)];
   [%expect {| ("Copied 8 characters" ()) |}];
   (* A linewise copy is the whole logical line, not the rows it wraps to. *)
   let t, clipboard = Ui_state.take_clipboard (run t "Vy") in
@@ -189,7 +189,7 @@ let%expect_test "problems: copying, selecting, rejection, and updates keep the l
   let t = run t "y<Esc>" |> copied in
   print_s
     [%sexp
-      (Option.map (Problems_tile.text_view (Ui_state.problems_tile t)) ~f:Ches_tile.Text_view.text
+      (Option.map (Problems_tile.text_view (Ui_state.problems_tile t)) ~f:Cobalt_tile.Text_view.text
        : string option)];
   [%expect
     {|

@@ -1,6 +1,6 @@
 open! Core
 
-module Syntax = Ches_highlight.Category
+module Syntax = Cobalt_highlight.Category
 
 module Overlay = struct
   type t =
@@ -34,7 +34,7 @@ module Document = struct
 end
 
 type t =
-  | Terminal of Ches_terminal.Model.style
+  | Terminal of Cobalt_terminal.Model.style
   | Backdrop
   | Document of Document.t
   | Completion of Completion.t
@@ -47,7 +47,7 @@ type t =
   | Status
   | Status_special
   | Hint
-  | Mode of Ches_core.Mode.t
+  | Mode of Cobalt_core.Mode.t
   | Dirty
   | Pending
   | Info

@@ -11,8 +11,8 @@ type state = Loading | Ready of payload | Truncated of payload * truncation
   | Empty of source | Missing | Unreadable of string | Unsupported of unsupported
 [@@deriving sexp_of, equal]
 type request =
-  { session : Ches_file_picker.Model.Discovery.request
-  ; selected : Ches_file_picker.Model.Candidate.Id.t; generation : int }
+  { session : Cobalt_file_picker.Model.Discovery.request
+  ; selected : Cobalt_file_picker.Model.Candidate.Id.t; generation : int }
 [@@deriving sexp_of, equal]
 type snapshot = { request : request; state : state } [@@deriving sexp_of, equal]
 let accept ~expected snapshot = Option.exists expected ~f:(equal_request snapshot.request)
@@ -78,7 +78,7 @@ let collect ~source ~cancelled ~read =
   in loop ()
 ;;
 let of_buffer ~revision buffer =
-  let module Text = Ches_core.Text_buffer in
+  let module Text = Cobalt_core.Text_buffer in
   let line_end = if Text.line_count buffer > max_lines then Text.line_start buffer max_lines
     else Text.length buffer in
   let capped = Int.min max_bytes line_end in

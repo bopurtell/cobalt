@@ -1,5 +1,5 @@
 open! Core
-open Ches_screen
+open Cobalt_screen
 
 let fit
   ?(from = Scroll.zero)

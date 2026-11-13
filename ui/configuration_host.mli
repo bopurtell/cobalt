@@ -1,6 +1,6 @@
 open! Core
 
-type configuration = (Ches_config_runtime.Settings.t, string) Result.t
+type configuration = (Cobalt_config_runtime.Settings.t, string) Result.t
 type t
 
 (** Loader injection is per instance. Production uses [Loader.load ()], including

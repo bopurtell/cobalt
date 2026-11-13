@@ -1,9 +1,9 @@
 open! Core
-open Ches_core
-open Ches_screen
+open Cobalt_core
+open Cobalt_screen
 open Helpers
-module Feedback = Ches_error.Error
-module Controller = Ches_app.Controller
+module Feedback = Cobalt_error.Error
+module Controller = Cobalt_app.Controller
 
 let id i : Feedback.Identity.t =
   { source = sprintf "checker%d" i; kind = Save; resource = if i = 1 then "b" else "a" }
@@ -202,14 +202,14 @@ let%expect_test "focused list/details remain bounded in every status position an
 let%expect_test "Normal pending input has precedence and pane workspace routing honors configuration" =
   let t = create () |> fun t -> run t "3 vo" in
   assert (not (focused t));
-  assert (Option.is_none (Ches_input.Keymap.pending (Controller.keymap (Ui_state.controller t))));
+  assert (Option.is_none (Cobalt_input.Keymap.pending (Controller.keymap (Ui_state.controller t))));
   let t = run t "/ vo" in
   assert (not (focused t));
-  assert (Option.is_some (Ches_input.Keymap.search_preview (Controller.keymap (Ui_state.controller t))));
+  assert (Option.is_some (Cobalt_input.Keymap.search_preview (Controller.keymap (Ui_state.controller t))));
   let t = run t "<Esc> vo<Esc>" in
   assert (not (focused t));
-  assert (Option.is_none (Ches_input.Keymap.pending (Controller.keymap (Ui_state.controller t))));
-  let open Ches_input in
+  assert (Option.is_none (Cobalt_input.Keymap.pending (Controller.keymap (Ui_state.controller t))));
+  let open Cobalt_input in
   let bindings = Bindings.create
     [ [Key.char 'o'], Bindings.Target.View (Focus_view Problems_tile.id)
     ; [Key.char ' '; Key.char 'v'; Key.char 'h'], View Toggle_status

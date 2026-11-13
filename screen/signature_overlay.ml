@@ -1,5 +1,5 @@
 open! Core
-module Q = Ches_error.Language_query
+module Q = Cobalt_error.Language_query
 
 type t = { payload : Q.signature_help; index : int }
 

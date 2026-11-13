@@ -1,6 +1,6 @@
 open! Core
-open Ches_screen
-open Ches_core
+open Cobalt_screen
+open Cobalt_core
 
 let%expect_test "the smear is opt-in, advances, and settles" =
   let animation = Animation.create ~enabled:false in
@@ -70,16 +70,16 @@ let%expect_test "Space v s enables the cursor effect without touching the editor
     |> Result.map_error ~f:Text_buffer.Invalid_text.to_string_hum
     |> Result.ok_or_failwith
   in
-  let controller = Ches_app.Controller.create (Ches_core.Editor.create ~path:"f" ~cell_width:Cell_map.width text) in
+  let controller = Cobalt_app.Controller.create (Cobalt_core.Editor.create ~path:"f" ~cell_width:Cell_map.width text) in
   let ui = Ui_state.create ~tiles_visible:false controller in
   let ui, _ =
     Ui_state.apply_all
       ui
       ~width:30
       ~height:5
-      [ Ui_state.Input.Key (Ches_input.Key.char ' ')
-      ; Ui_state.Input.Key (Ches_input.Key.char 'v')
-      ; Ui_state.Input.Key (Ches_input.Key.char 's')
+      [ Ui_state.Input.Key (Cobalt_input.Key.char ' ')
+      ; Ui_state.Input.Key (Cobalt_input.Key.char 'v')
+      ; Ui_state.Input.Key (Cobalt_input.Key.char 's')
       ]
   in
   print_s [%sexp (Animation.enabled (Ui_state.animation ui) : bool)];

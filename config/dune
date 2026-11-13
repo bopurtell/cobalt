@@ -1,12 +1,12 @@
 (library
- (name ches_config_runtime)
+ (name cobalt_config_runtime)
  (modules settings loader api_source compiled_cache)
- (libraries core core_unix async ches_completion)
+ (libraries core core_unix async cobalt_completion)
  (preprocess (pps ppx_jane)))
 
 (rule
  (targets api_source.ml)
- (deps ches_config.ml embed.ml)
+ (deps cobalt_config.ml embed.ml)
  (action
   (with-stdout-to %{targets}
-   (run %{ocaml} %{dep:embed.ml} %{dep:ches_config.ml}))))
+   (run %{ocaml} %{dep:embed.ml} %{dep:cobalt_config.ml}))))

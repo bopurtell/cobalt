@@ -1,10 +1,10 @@
 open! Core
-open Ches_core
-open Ches_screen
-open Ches_highlight
+open Cobalt_core
+open Cobalt_screen
+open Cobalt_highlight
 open Helpers
 
-let editor ui = Ches_app.Controller.editor (Ui_state.controller ui)
+let editor ui = Cobalt_app.Controller.editor (Ui_state.controller ui)
 let key ?(document = Snapshot.Document_id.create ()) ?(language = Language.Ocaml)
     ?(configuration = "synthetic-v1") ui =
   Snapshot.Key.create ~document ~revision:(Editor.revision (editor ui)) ~language ~configuration

@@ -6,11 +6,11 @@ let limit = 1024 * 1024
 let config_path ~getenv =
   match getenv "XDG_CONFIG_HOME" with
   | Some root when not (String.is_empty root) && not (Filename.is_relative root) ->
-    Some (Filename.concat root "ches/config.ml")
+    Some (Filename.concat root "cobalt/config.ml")
   | _ ->
     Option.bind (getenv "HOME") ~f:(fun home ->
       if String.is_empty home || Filename.is_relative home then None
-      else Some (Filename.concat home ".config/ches/config.ml"))
+      else Some (Filename.concat home ".config/cobalt/config.ml"))
 ;;
 
 let read_bounded path =
@@ -63,9 +63,9 @@ let decode text =
       Char.of_int_exn ((hex_digit encoded.[i * 2] * 16) + hex_digit encoded.[i * 2 + 1]))
   in
   let version = match next () with
-    | "CHES_SETTINGS_2" -> 2
-    | "CHES_SETTINGS_3" -> 3
-    | "CHES_SETTINGS_4" -> 4
+    | "COBALT_SETTINGS_2" -> 2
+    | "COBALT_SETTINGS_3" -> 3
+    | "COBALT_SETTINGS_4" -> 4
     | _ -> failwith "malformed or unsupported settings result" in
   let completion_enabled = boolean () in
   let completion_ghost_preview = boolean () in
@@ -83,7 +83,7 @@ let decode text =
     loop count []
   in
   let snippets = read_list count (fun () ->
-    let open Ches_completion.User_snippets in
+    let open Cobalt_completion.User_snippets in
     match next () with
     | "disable" -> Disable (hex ())
     | "collection" when version >= 3 ->
@@ -200,8 +200,8 @@ let remove_directory root =
   remove root
 ;;
 
-let writer_source = "let () = Ches_config.write_result Sys.argv.(1)\n"
-let compile_args = [ "-o"; "config.exe"; "ches_config.ml"; "user_config.ml"; "result_writer.ml" ]
+let writer_source = "let () = Cobalt_config.write_result Sys.argv.(1)\n"
+let compile_args = [ "-o"; "config.exe"; "cobalt_config.ml"; "user_config.ml"; "result_writer.ml" ]
 let compile_variables =
   [ "OCAMLPARAM"; "OCAMLLIB"; "CAMLLIB"; "CAML_LD_LIBRARY_PATH"
   ; "OCAML_FLEXLINK"; "OCAMLTOP_INCLUDE_PATH"; "PATH" ]
@@ -236,7 +236,7 @@ let load_impl ?path ?cache_dir ?(api_source = Api_source.source)
     | Ok None -> return (Ok Settings.default)
     | Ok (Some source) ->
       let%bind result = Monitor.try_with (fun () ->
-        let%bind root = In_thread.run (fun () -> Core_unix.mkdtemp "/tmp/ches-config-") in
+        let%bind root = In_thread.run (fun () -> Core_unix.mkdtemp "/tmp/cobalt-config-") in
         Monitor.protect ~finally:(fun () -> In_thread.run (fun () -> remove_directory root))
           (fun () ->
             let file name = Filename.concat root name in
@@ -289,7 +289,7 @@ let load_impl ?path ?cache_dir ?(api_source = Api_source.source)
               | Some (dir, key, _, _) -> Compiled_cache.restore ~dir ~key ~target:(file "config.exe")) in
             let%bind compiled = if restored then return (Ok ()) else (
               let%bind () = In_thread.run (fun () ->
-                Out_channel.write_all (file "ches_config.ml") ~data:api_source;
+                Out_channel.write_all (file "cobalt_config.ml") ~data:api_source;
                 Out_channel.write_all (file "user_config.ml")
                   ~data:(sprintf "# 1 %S\n%s\n" path source);
                 Out_channel.write_all (file "result_writer.ml") ~data:writer_source) in

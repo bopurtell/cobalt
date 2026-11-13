@@ -1,6 +1,6 @@
 ; Pure picker data and acceptance boundary. IO lives in discovery/ separately.
 (library
- (name ches_file_picker)
- (libraries core ches_palette)
+ (name cobalt_file_picker)
+ (libraries core cobalt_palette)
  (preprocess
   (pps ppx_jane)))

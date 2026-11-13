@@ -1,11 +1,11 @@
 open! Core
-open Ches_core
-open Ches_screen
+open Cobalt_core
+open Cobalt_screen
 open Helpers
 
 let text t =
   Text_buffer.to_string
-    (Editor.text (Ches_app.Controller.editor (Ui_state.controller t)))
+    (Editor.text (Cobalt_app.Controller.editor (Ui_state.controller t)))
 ;;
 
 let message t = print_s [%sexp (Ui_state.message t : Ui_state.Message.t option)]
@@ -94,7 +94,7 @@ let%expect_test "quitting: refused while dirty, forced, and clean" =
   [%expect {| EXIT |}];
   (* Inputs after the exit are not applied. *)
   let t, status = Ui_state.apply_all (ui "abc") ~width:40 ~height:8 (keys " qx") in
-  print_s [%message (status : Ches_app.Controller.Status.t) (text t : string)];
+  print_s [%message (status : Cobalt_app.Controller.Status.t) (text t : string)];
   [%expect {| ((status Exit) ("text t" abc)) |}];
   (* Nor are later batches: a save typed right after a forced quit does nothing. *)
   let t = run (ui ~path:"/nonexistent-dir/f.txt" "abc") (keys "x Q") in
@@ -306,7 +306,7 @@ let%expect_test "layout commands leave the document, cursor, history, and dirty 
                  alone"
   =
   let t = run (ui "abc\ndef\n") (keys "jlx") in
-  let editor = Ches_app.Controller.editor (Ui_state.controller t) in
+  let editor = Cobalt_app.Controller.editor (Ui_state.controller t) in
   let state (e : Editor.t) =
     [%sexp
       (Text_buffer.to_string (Editor.text e) : string)
@@ -317,12 +317,12 @@ let%expect_test "layout commands leave the document, cursor, history, and dirty 
   in
   print_s (state editor);
   let t = run t (keys " vc vl vL v- v+ vH vh vr v=") in
-  let editor' = Ches_app.Controller.editor (Ui_state.controller t) in
+  let editor' = Cobalt_app.Controller.editor (Ui_state.controller t) in
   print_s (state editor');
   print_s [%sexp (phys_equal editor editor' : bool)];
   (* One undo still undoes the [x]; no layout step was recorded. *)
   let t = run t (keys "u") in
-  print_s (state (Ches_app.Controller.editor (Ui_state.controller t)));
+  print_s (state (Cobalt_app.Controller.editor (Ui_state.controller t)));
   [%expect {|
     ( "abc\
      \ndf\
@@ -450,9 +450,9 @@ let%expect_test "line-number toggles leave the document, cursor, history, and di
                  alone"
   =
   let t = run (ui "abc\ndef\n") (keys "jlx") in
-  let editor = Ches_app.Controller.editor (Ui_state.controller t) in
+  let editor = Cobalt_app.Controller.editor (Ui_state.controller t) in
   let t = run t (keys " vn vN vn vN vN") in
-  let editor' = Ches_app.Controller.editor (Ui_state.controller t) in
+  let editor' = Cobalt_app.Controller.editor (Ui_state.controller t) in
   print_s [%sexp (phys_equal editor editor' : bool)];
   (* A count is rejected, with feedback, and the style is unchanged. *)
   let t = run t (keys "3 vn") in
@@ -468,7 +468,7 @@ let%expect_test "line-number toggles leave the document, cursor, history, and di
    the message when there is one. The viewport has 10 text rows. *)
 let scrolled ?(width = 40) ?(height = 13) t k =
   let t = run ~width ~height t (keys k) in
-  let editor = Ches_app.Controller.editor (Ui_state.controller t) in
+  let editor = Cobalt_app.Controller.editor (Ui_state.controller t) in
   printf
     "%-12S top %d, cursor %d:%d%s\n"
     k
@@ -642,7 +642,7 @@ let%expect_test "zz / zt / zb move the view, not the cursor, and take no count" 
 let%expect_test "scrolling leaves text, history, and dirty state alone, and needs rows" =
   let t = run (ui (numbered 50)) (keys "x") in
   let t = run t (keys "<C-e><C-e><C-d>zz<C-u><C-y>zt") in
-  let editor = Ches_app.Controller.editor (Ui_state.controller t) in
+  let editor = Cobalt_app.Controller.editor (Ui_state.controller t) in
   print_s
     [%sexp
       (Editor.revision editor : int)

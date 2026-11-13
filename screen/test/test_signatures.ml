@@ -1,8 +1,8 @@
 open! Core
-open Ches_core
-open Ches_app
-open Ches_screen
-module Q = Ches_error.Language_query
+open Cobalt_core
+open Cobalt_app
+open Cobalt_screen
+module Q = Cobalt_error.Language_query
 
 let width = 100
 let height = 25
@@ -16,7 +16,7 @@ let create ?keymap_config ?(path = "/tmp/signatures.ml") text =
     (Controller.create ?keymap_config (Editor.create ~path ~cell_width:Cell_map.width text))
 let queries t =
   let t, requests = Ui_state.take_source_requests t in
-  t, List.filter_map requests ~f:(function Ches_error.Source_request.Query q -> Some q | _ -> None)
+  t, List.filter_map requests ~f:(function Cobalt_error.Source_request.Query q -> Some q | _ -> None)
 let request t keys =
   let t, requests = queries (press t keys) in
   t, List.last_exn requests
@@ -74,7 +74,7 @@ let%test_unit "invalid byte boundaries never split Unicode labels" =
 ;;
 
 let%test_unit "Normal Ctrl-k respects configured bindings, counts and pending search" =
-  let module I = Ches_input in
+  let module I = Cobalt_input in
   let normal = I.Bindings.create [[I.Key.Ctrl 'k'], Move Right] |> Or_error.ok_exn in
   let keymap_config = {I.Keymap.Config.default with normal} in
   let t, qs = queries (press (create ~keymap_config "abc") "<C-k>") in
@@ -132,7 +132,7 @@ let%test_unit "stale cursor revision mode focus supersession server stop and mod
   check (run t [Source (Stopped {source = "fake"; root = "/tmp"; reason = "stopped"})]);
   check (run t [Source (Instance_context_changed { source = "fake"; revision = 1; module_name = Some "other"; hier_path = None })]);
   let cancelled, requests = Ui_state.take_source_requests (press t "<Esc>") in
-  assert (List.exists requests ~f:(function Cancel_query token -> Ches_completion.Model.Token.equal token q.token | _ -> false));
+  assert (List.exists requests ~f:(function Cancel_query token -> Cobalt_completion.Model.Token.equal token q.token | _ -> false));
   assert (not (shown cancelled))
 ;;
 
@@ -200,7 +200,7 @@ let%test_unit "completion and signatures coexist on opposite sides without movin
 
 let%test_unit "atomic configuration signature setting validates before changing state" =
   let t = opened (create "abc") "<C-k>" in
-  let settings = {Ches_config_runtime.Settings.default with signature_help_enabled = false} in
+  let settings = {Cobalt_config_runtime.Settings.default with signature_help_enabled = false} in
   let invalid = {settings with theme = "missing-theme"} in
   assert (Result.is_error (Ui_state.apply_configuration t invalid));
   assert (shown t && Ui_state.signature_help_enabled t);
@@ -209,7 +209,7 @@ let%test_unit "atomic configuration signature setting validates before changing 
 ;;
 
 let%test_unit "companion switches reuse unsaved target cursor, multiple picker and jump history; missing never creates" =
-  let root = Helpers.scratch_dir "ches-companions-" in
+  let root = Helpers.scratch_dir "cobalt-companions-" in
   let a = Filename.concat root "a.ml" and b = Filename.concat root "a.mli"
   and c = Filename.concat root "other.mli" and missing = Filename.concat root "missing.mli" in
   List.iter [a; b; c] ~f:(fun path -> Out_channel.write_all path ~data:"abcdef");
@@ -246,7 +246,7 @@ let%test_unit "companion switches reuse unsaved target cursor, multiple picker a
 ;;
 
 let%test_unit "invalid counterpart targets leave cursor and jump history intact" =
-  let root = Helpers.scratch_dir "ches-companion-errors-" in
+  let root = Helpers.scratch_dir "cobalt-companion-errors-" in
   let a = Filename.concat root "a.ml" and b = Filename.concat root "a.mli"
   and bad = Filename.concat root "bad.mli" and denied = Filename.concat root "denied.mli" in
   List.iter [a; b; denied] ~f:(fun path -> Out_channel.write_all path ~data:"abcdef");

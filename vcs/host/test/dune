@@ -1,10 +1,10 @@
 ; Tests of the Async runner against real child processes: git in isolated fixture
-; repositories (Ches_vcs_fixture.Fixture_repo, with a local bare remote for network
-; commands) and small /bin/sh scripts. Never the Ches repository, never a network.
+; repositories (Cobalt_vcs_fixture.Fixture_repo, with a local bare remote for network
+; commands) and small /bin/sh scripts. Never the Cobalt repository, never a network.
 
 (library
- (name ches_vcs_host_test)
- (libraries ches_vcs ches_vcs_host ches_vcs_fixture core core_unix
+ (name cobalt_vcs_host_test)
+ (libraries cobalt_vcs cobalt_vcs_host cobalt_vcs_fixture core core_unix
   core_unix.filename_unix core_unix.signal_unix core_unix.sys_unix async
   expect_test_helpers_core expect_test_helpers_async)
  ; See core/dune for why this flag is needed.

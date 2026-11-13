@@ -1,13 +1,13 @@
 (* Runs the language-server client against the real ocamllsp on PATH, in a throwaway
-   dune project, and prints what it reports: a manual check of phase 10's client that
+   dune project, and prints what it reports: a manual check of the client that
    the tests (against a scripted server) cannot make. Not a test, since the output
    depends on the installed server. With [-build], runs [dune build] in the project
    first, as a user's watch would have, so merlin has the project's configuration. *)
 open! Core
 open! Async
-module Source = Ches_source.Source
-module Lsp_client = Ches_source.Lsp_client
-module Source_event = Ches_error.Source_event
+module Source = Cobalt_source.Source
+module Lsp_client = Cobalt_source.Lsp_client
+module Source_event = Cobalt_error.Source_event
 
 let show ~root (event : Source_event.t) =
   let hide = String.substr_replace_all ~pattern:root ~with_:"<root>" in
@@ -28,7 +28,7 @@ let show ~root (event : Source_event.t) =
       in
       printf
         "  %s %d:%d %s\n%!"
-        (Sexp.to_string [%sexp (f.severity : Ches_error.Error.Severity.t)])
+        (Sexp.to_string [%sexp (f.severity : Cobalt_error.Error.Severity.t)])
         line
         column
         f.message)
@@ -58,7 +58,7 @@ let broken = "let s = \"h\xc3\xa9llo \xf0\x9f\x98\x80\" let x : string = 1\nlet 
 let fixed = "let s = \"h\xc3\xa9llo \xf0\x9f\x98\x80\" let x : string = \"1\"\nlet () = print_endline s\n"
 
 let main ~build () =
-  let root = Filename_unix.realpath (Filename_unix.temp_dir "ches-lsp-probe" "") in
+  let root = Filename_unix.realpath (Filename_unix.temp_dir "cobalt-lsp-probe" "") in
   let file = Filename.concat root "a.ml" in
   let%bind () = Writer.save (Filename.concat root "dune-project") ~contents:"(lang dune 3.0)\n" in
   let%bind () = Writer.save (Filename.concat root "dune") ~contents:"(executable (name a))\n" in
@@ -73,7 +73,7 @@ let main ~build () =
   let%bind version = Process.run ~prog:"ocamllsp" ~args:[ "--version" ] () in
   printf "ocamllsp --version: %s\n" (match version with Ok v -> String.strip v | Error e -> Error.to_string_hum e);
   let source =
-    Lsp_client.start ~cell_width:Ches_screen.Cell_map.width ~root ()
+    Lsp_client.start ~cell_width:Cobalt_screen.Cell_map.width ~root ()
   in
   Source.send source (Document_changed { resource = file; text = broken; revision = 1 });
   let%bind () = until source ~root ~seconds:30 ~f:(for_revision 1) in

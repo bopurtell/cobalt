@@ -1,7 +1,7 @@
 open! Core
-open Ches_core
-open Ches_input
-module Feedback = Ches_error.Error
+open Cobalt_core
+open Cobalt_input
+module Feedback = Cobalt_error.Error
 
 type buffer = { id : Buffer_id.t; controller : Controller.t; generation : int }
 type placement = Major | Side

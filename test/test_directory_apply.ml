@@ -1,6 +1,6 @@
 open! Core
-open Ches_core
-open Ches_app
+open Cobalt_core
+open Cobalt_app
 
 let width _ = 1
 let child = Filename.concat
@@ -13,13 +13,13 @@ let rec remove_fixture path =
   else Core_unix.unlink path
 ;;
 let fixture f =
-  let root = Temp_fixture.scratch_dir "ches-directory-apply-" in
+  let root = Temp_fixture.scratch_dir "cobalt-directory-apply-" in
   Exn.protect ~f:(fun () -> f root) ~finally:(fun () -> remove_fixture root)
 ;;
 let write root name text = Out_channel.write_all (child root name) ~data:text
 let read root name = In_channel.read_all (child root name)
 let load root = Directory_buffer.load ~config:Exposed ~id:(Buffer_id.of_int 1) ~path:root ~cell_width:width
-  ~keymap_config:Ches_input.Keymap.Config.default () |> Or_error.ok_exn
+  ~keymap_config:Cobalt_input.Keymap.Config.default () |> Or_error.ok_exn
 let edit (d : Directory_buffer.t) renames fresh =
   let entries = List.map d.entries ~f:(fun e ->
     { e with name = Option.value (List.Assoc.find renames e.name ~equal:String.equal) ~default:e.name }) in
@@ -41,7 +41,7 @@ let snapshot (d : Directory_buffer.t) raw =
     ~text:(Text_buffer.of_string raw |> Result.ok |> Option.value_exn) }
 let row (d : Directory_buffer.t) name destination =
   let entry = List.find_exn d.entries ~f:(fun e -> String.equal e.name name) in
-  sprintf "@ches[%d]\t%s%s" entry.id destination (if Directory_identity.Kind.equal entry.kind Directory then "/" else "")
+  sprintf "@cobalt[%d]\t%s%s" entry.id destination (if Directory_identity.Kind.equal entry.kind Directory then "/" else "")
 let copy_row (d : Directory_buffer.t) name destination =
   let entry = List.find_exn d.entries ~f:(fun e -> String.equal e.name name) in
   sprintf "@copy[%d]\t%s%s" entry.id destination (if Directory_identity.Kind.equal entry.kind Directory then "/" else "")
@@ -59,7 +59,7 @@ let%test_unit "directory row memo reuses success and errors across presentation 
       assert (Option.is_some (Directory_buffer.backing_entry moved row)));
     assert (Option.is_none (Directory_buffer.row_at d (-1)));
     assert (Option.is_none (Directory_buffer.row_at d 2));
-    let invalid = snapshot d "@ches[999]\tunknown" in
+    let invalid = snapshot d "@cobalt[999]\tunknown" in
     let error = Directory_buffer.rows invalid in
     assert (Result.is_error error);
     for line = 0 to 47 do
@@ -82,12 +82,12 @@ let%test_unit "directory memo keys include anchors baseline entries and undo sna
   fixture (fun root ->
     write root "alpha" ""; write root "beta" "";
     let d = Directory_buffer.load ~id:(Buffer_id.of_int 1) ~path:root ~cell_width:width
-      ~keymap_config:Ches_input.Keymap.Config.default () |> Or_error.ok_exn in
+      ~keymap_config:Cobalt_input.Keymap.Config.default () |> Or_error.ok_exn in
     let initial = Editor.text (Controller.editor d.controller) in
     let saved_rows = Directory_buffer.rows d |> Or_error.ok_exn in
     let replace text = { d with controller = Controller.rebase_text d.controller ~saved:initial ~text } in
     let metadata_only = Text_buffer.with_identities initial ~scope:d.identity_scope
-      ((0, "@ches[999]") :: Text_buffer.identities initial) |> replace in
+      ((0, "@cobalt[999]") :: Text_buffer.identities initial) |> replace in
     assert (String.equal (Text_buffer.to_string initial)
       (Text_buffer.to_string (Editor.text (Controller.editor metadata_only.controller))));
     assert (Result.is_error (Directory_buffer.rows metadata_only));
@@ -112,7 +112,7 @@ let%test_unit "directory memo keys include anchors baseline entries and undo sna
     assert ([%equal: Directory_identity.Row.t list] saved_rows (Directory_buffer.rows d |> Or_error.ok_exn));
     write root "aardvark" "";
     let refreshed = Directory_buffer.load ~previous:(Directory_buffer.select d "beta" |> Directory_buffer.toggle_mark)
-      ~id:d.id ~path:root ~cell_width:width ~keymap_config:Ches_input.Keymap.Config.default () |> Or_error.ok_exn in
+      ~id:d.id ~path:root ~cell_width:width ~keymap_config:Cobalt_input.Keymap.Config.default () |> Or_error.ok_exn in
     assert (List.length (Directory_buffer.rows refreshed |> Or_error.ok_exn) = 3);
     assert (String.equal (Directory_buffer.selected refreshed |> Option.value_exn).name "beta");
     assert (List.equal String.equal (List.map (Directory_buffer.marked_entries refreshed) ~f:(fun e -> e.name)) [ "beta" ]);
@@ -174,19 +174,19 @@ let%test_unit "copy publication rechecks its parent and cleanup never removes a 
     let d = load src in
     let raw = row d "a" "a" ^ "\n" ^ copy_row d "a" "../dst/copy" in
     let first = Directory_apply.apply (snapshot d raw) ~before_copy_publish:(fun _ ->
-      let temporary = Array.find_exn (Stdlib.Sys.readdir dst) ~f:(String.is_prefix ~prefix:".ches-copy-") in
+      let temporary = Array.find_exn (Stdlib.Sys.readdir dst) ~f:(String.is_prefix ~prefix:".cobalt-copy-") in
       Core_unix.rename ~src:dst ~dst:(child root "retired");
       Core_unix.mkdir dst;
       Core_unix.mkdir (child dst temporary);
       write (child dst temporary) "unrelated" "keep") in
     assert (first.completed = 0 && Option.is_some first.error);
     assert (not (exists (child dst "copy")));
-    let temporary = Array.find_exn (Stdlib.Sys.readdir dst) ~f:(String.is_prefix ~prefix:".ches-copy-") in
+    let temporary = Array.find_exn (Stdlib.Sys.readdir dst) ~f:(String.is_prefix ~prefix:".cobalt-copy-") in
     assert (String.equal (read (child dst temporary) "unrelated") "keep");
     Controller.close first.buffer.controller)
 ;;
 
-let%test_unit "phase8 permanent deletion preserves missing clean/dirty buffers and explicit exclusive recovery" =
+let%test_unit "permanent deletion preserves missing clean/dirty buffers and explicit exclusive recovery" =
   fixture (fun root ->
     write root "a" "AAA"; write root "b" "BBB";
     Core_unix.mkdir (child root "empty");
@@ -280,7 +280,7 @@ let%test_unit "directory surfaces reuse labels; subtree moves invalidate suffixe
     Session.dispose t)
 ;;
 
-let%test_unit "phase8 nonempty delete refuses whole plan and symlink unlink never deletes target" =
+let%test_unit "nonempty delete refuses whole plan and symlink unlink never deletes target" =
   fixture (fun root ->
     Core_unix.mkdir (child root "dir"); write (child root "dir") "nested" "keep";
     write root "file" "keep";
@@ -296,7 +296,7 @@ let%test_unit "phase8 nonempty delete refuses whole plan and symlink unlink neve
     Controller.close result.buffer.controller)
 ;;
 
-let%test_unit "phase8 recursive copy preserves contents modes and link bytes, not link targets" =
+let%test_unit "recursive copy preserves contents modes and link bytes, not link targets" =
   fixture (fun root ->
     Core_unix.mkdir (child root "tree"); write (child root "tree") "file" "payload";
     Core_unix.chmod (child (child root "tree") "file") ~perm:0o751;
@@ -315,14 +315,14 @@ let%test_unit "phase8 recursive copy preserves contents modes and link bytes, no
     Controller.close result.buffer.controller)
 ;;
 
-let%test_unit "phase8 every copy move delete create failure boundary retains only unresolved intent" =
+let%test_unit "every copy move delete create failure boundary retains only unresolved intent" =
   List.iter [1; 2; 3; 4; 5; 6] ~f:(fun fail_at -> fixture (fun root ->
     Core_unix.mkdir (child root "src"); Core_unix.mkdir (child root "dst");
     let src = child root "src" and dst = child root "dst" in
     write src "a" "AAA"; write src "remove" "gone";
     let d = load src in
     let raw = String.concat ~sep:"\n" [row d "a" "../dst/moved"; copy_row d "a" "copied"; "fresh"] in
-    let first = Directory_apply.apply (snapshot d raw) ~before_mutation:(fun step -> if step = fail_at then failwith "injected phase8 fault") in
+    let first = Directory_apply.apply (snapshot d raw) ~before_mutation:(fun step -> if step = fail_at then failwith "injected directory operation fault") in
     if fail_at <= 5 then assert (first.completed = fail_at - 1 && Option.is_some first.error)
     else assert (Option.is_none first.error);
     List.iter first.moves ~f:(fun (_, path) -> assert (String.equal (In_channel.read_all path) "AAA"));
@@ -331,11 +331,11 @@ let%test_unit "phase8 every copy move delete create failure boundary retains onl
     assert (String.equal (read dst "moved") "AAA" && String.equal (read src "copied") "AAA");
     assert (not (exists (child src "remove")) && exists (child src "fresh"));
     assert (not (Directory_buffer.is_dirty retry.buffer));
-    assert (not (Array.exists (Stdlib.Sys.readdir src) ~f:(String.is_prefix ~prefix:".ches-")));
+    assert (not (Array.exists (Stdlib.Sys.readdir src) ~f:(String.is_prefix ~prefix:".cobalt-")));
     Controller.close retry.buffer.controller))
 ;;
 
-let%test_unit "phase8 cross-directory move reindexes dirty descendants and refreshes destination cache" =
+let%test_unit "cross-directory move reindexes dirty descendants and refreshes destination cache" =
   fixture (fun root ->
     Core_unix.mkdir (child root "src"); Core_unix.mkdir (child root "dst");
     let src = child root "src" and dst = child root "dst" in
@@ -365,7 +365,7 @@ let%test_unit "phase8 cross-directory move reindexes dirty descendants and refre
     Session.dispose t)
 ;;
 
-let%test_unit "phase8 dirty destination and normalized collisions refuse before mutation" =
+let%test_unit "dirty destination and normalized collisions refuse before mutation" =
   fixture (fun root ->
     Core_unix.mkdir (child root "src"); Core_unix.mkdir (child root "dst");
     let src = child root "src" and dst = child root "dst" in write src "a" "AAA";
@@ -380,7 +380,7 @@ let%test_unit "phase8 dirty destination and normalized collisions refuse before 
     Session.dispose t)
 ;;
 
-let%test_unit "phase8 no-overwrite and destination-parent replacement race blocks moves" =
+let%test_unit "no-overwrite and destination-parent replacement race blocks moves" =
   fixture (fun root ->
     Core_unix.mkdir (child root "src"); Core_unix.mkdir (child root "dst");
     let src = child root "src" and dst = child root "dst" in write src "a" "AAA";
@@ -398,7 +398,7 @@ let%test_unit "phase8 no-overwrite and destination-parent replacement race block
     Controller.close retry.buffer.controller)
 ;;
 
-let%test_unit "phase8 copy publication fault and concurrent occupant leave no private tree or replay" =
+let%test_unit "copy publication fault and concurrent occupant leave no private tree or replay" =
   List.iter [ `Failure; `Occupant ] ~f:(fun fault -> fixture (fun root ->
     write root "a" "AAA";
     let d = load root in
@@ -409,7 +409,7 @@ let%test_unit "phase8 copy publication fault and concurrent occupant leave no pr
       | `Occupant -> Out_channel.write_all path ~data:"unrelated") in
     assert (first.completed = 1 && Option.is_some first.error);
     assert (String.equal (read root "first") "AAA");
-    assert (not (Array.exists (Stdlib.Sys.readdir root) ~f:(String.is_prefix ~prefix:".ches-copy-")));
+    assert (not (Array.exists (Stdlib.Sys.readdir root) ~f:(String.is_prefix ~prefix:".cobalt-copy-")));
     (match fault with `Failure -> () | `Occupant ->
       assert (String.equal (read root "second") "unrelated"); Core_unix.unlink (child root "second"));
     let retry = Directory_apply.apply first.buffer in
@@ -418,7 +418,7 @@ let%test_unit "phase8 copy publication fault and concurrent occupant leave no pr
     Controller.close retry.buffer.controller))
 ;;
 
-let%test_unit "phase8 external deletion also blocks direct controller routine save" =
+let%test_unit "external deletion also blocks direct controller routine save" =
   fixture (fun root ->
     write root "a" "recoverable";
     let c = Controller.open_file ~cell_width:width (child root "a") |> Or_error.ok_exn in
@@ -431,9 +431,9 @@ let%test_unit "phase8 external deletion also blocks direct controller routine sa
     Controller.close c)
 ;;
 
-let%test_unit "phase8 cross-device move is rejected before staging while copy may cross devices" =
+let%test_unit "cross-device move is rejected before staging while copy may cross devices" =
   fixture (fun root ->
-    match Option.try_with (fun () -> Core_unix.mkdtemp "/dev/shm/ches-phase8-") with
+    match Option.try_with (fun () -> Core_unix.mkdtemp "/dev/shm/cobalt-directory-cross-device-") with
     | None -> () (* Environment does not provide a second writable filesystem. *)
     | Some target -> Exn.protect ~finally:(fun () -> remove_fixture target) ~f:(fun () ->
       if (Core_unix.stat root).st_dev <> (Core_unix.stat target).st_dev then (
@@ -447,7 +447,7 @@ let%test_unit "phase8 cross-device move is rejected before staging while copy ma
         Controller.close result.buffer.controller)))
 ;;
 
-let%test_unit "phase8 directory copy/move reject symlink aliases into source with zero operations" =
+let%test_unit "directory copy/move reject symlink aliases into source with zero operations" =
   fixture (fun root ->
     Core_unix.mkdir (child root "tree"); write (child root "tree") "file" "keep";
     Core_unix.symlink ~target:"tree" ~link_name:(child root "alias");
@@ -461,7 +461,7 @@ let%test_unit "phase8 directory copy/move reject symlink aliases into source wit
     Controller.close d.controller)
 ;;
 
-let%test_unit "phase8 partial deletion marks the live buffer missing before retrying other intent" =
+let%test_unit "partial deletion marks the live buffer missing before retrying other intent" =
   fixture (fun root ->
     write root "a" "recover";
     let t, id = Session.open_or_activate (start root) (child root "a") |> Or_error.ok_exn in
@@ -494,7 +494,7 @@ let%test_unit "exclusive create, directory create, cycles, symlink and successfu
     assert (List.is_empty (Directory_buffer.plan result.buffer |> Or_error.ok_exn));
     let controller, _, _ = Controller.dispatch result.buffer.controller [ Editor Undo ] in
     assert (Text_buffer.equal (Editor.text (Controller.editor controller)) (Directory_identity.text result.buffer.baseline));
-    assert (not (Array.exists (Stdlib.Sys.readdir root) ~f:(String.is_prefix ~prefix:".ches-stage-")));
+    assert (not (Array.exists (Stdlib.Sys.readdir root) ~f:(String.is_prefix ~prefix:".cobalt-stage-")));
     Controller.close controller)
 ;;
 
@@ -502,10 +502,10 @@ let%test_unit "hidden partial apply rebases protected names and safely retries p
   fixture (fun root ->
     write root "a" "contents";
     let d = Directory_buffer.load ~id:(Buffer_id.of_int 1) ~path:root ~cell_width:width
-      ~keymap_config:Ches_input.Keymap.Config.default () |> Or_error.ok_exn in
+      ~keymap_config:Cobalt_input.Keymap.Config.default () |> Or_error.ok_exn in
     let actions = List.map [ Command.Enter_insert Line_end; Insert_text ".renamed"; Exit_insert
                            ; Open_line_below; Insert_text "fresh"; Exit_insert ]
-      ~f:(fun command -> Ches_input.Keymap.Action.Editor command) in
+      ~f:(fun command -> Cobalt_input.Keymap.Action.Editor command) in
     let controller, _, _ = Controller.dispatch d.controller actions in
     let result = Directory_apply.apply ~before_mutation:(fun n -> if n = 3 then failwith "injected") { d with controller } in
     assert (Option.is_some result.error && result.completed = 2);
@@ -559,7 +559,7 @@ let%test_unit "faults at every stage of a swap reconcile actual backing paths an
       assert (Option.is_none retry.error && not (Directory_buffer.is_dirty retry.buffer));
       assert (String.equal (read root "a") "BBB" && String.equal (read root "b") "AAA");
       assert (List.length retry.buffer.entries = 4);
-      assert (not (Array.exists (Stdlib.Sys.readdir root) ~f:(String.is_prefix ~prefix:".ches-stage-")));
+      assert (not (Array.exists (Stdlib.Sys.readdir root) ~f:(String.is_prefix ~prefix:".cobalt-stage-")));
       if fail_at = 6 then (
         assert (retry.completed = 1);
         assert (List.equal Directory_plan.equal_operation retry.applied [ Create_directory "sub" ]));
@@ -574,7 +574,7 @@ let%test_unit "destination races never overwrite and replaced staged sources ref
     assert (result.completed = 1 && Option.is_some result.error);
     assert (String.equal (read root "b") "racer");
     let backing = (List.hd_exn result.buffer.entries).name in
-    assert (String.is_prefix backing ~prefix:".ches-stage-");
+    assert (String.is_prefix backing ~prefix:".cobalt-stage-");
     assert (String.equal (read root backing) "AAA");
     assert ((Directory_apply.apply result.buffer).completed = 0);
     Core_unix.unlink (child root "b");
@@ -625,7 +625,7 @@ let%test_unit "session dirty files descendants caches tabs language and resource
     assert (Editor.is_dirty (Controller.editor after));
     assert (Option.equal String.equal (Controller.display_path after) (Some (child root "a.ml")));
     let key, _ = Controller.highlights after in
-    assert (Ches_highlight.Language.equal (Ches_highlight.Snapshot.Key.language key) Ocaml);
+    assert (Cobalt_highlight.Language.equal (Cobalt_highlight.Snapshot.Key.language key) Ocaml);
     assert (Option.is_none (Session.find_resource t (child root "a.txt")));
     assert (Buffer_id.equal (fst (Session.find_resource t (child root "a.ml") |> Option.value_exn)) aid);
     let t = Session.show_directory t (child root "moved") |> Or_error.ok_exn in
@@ -671,7 +671,7 @@ let%test_unit "partial session apply points dirty open files at actual staged pa
     assert (Directory_buffer.is_dirty (directory t));
     let path id = Editor.path (Controller.editor (Session.find t id |> Option.value_exn)) |> Option.value_exn in
     assert (String.equal (path aid) (child root "b"));
-    assert (String.is_prefix (Filename.basename (path bid)) ~prefix:".ches-stage-");
+    assert (String.is_prefix (Filename.basename (path bid)) ~prefix:".cobalt-stage-");
     assert (String.equal (In_channel.read_all (path aid)) "AAA");
     assert ((Session.source_generation t aid |> Option.value_exn) <> generation);
     let staged = path bid in
@@ -711,7 +711,7 @@ let%test_unit "staging skips occupied and session-reserved paths without overwri
       ~before_mutation:(fun step -> if step = 2 then failwith "stop after staging") in
     let staged = (List.hd_exn result.buffer.entries).name in
     let serial = String.rsplit2 staged ~on:'-' |> Option.value_exn |> snd |> Int.of_string in
-    let name n = sprintf ".ches-stage-%d-%d" (Pid.to_int (Core_unix.getpid ())) n in
+    let name n = sprintf ".cobalt-stage-%d-%d" (Pid.to_int (Core_unix.getpid ())) n in
     let reserved = child root (name (serial + 1)) in
     write root (name (serial + 2)) "unrelated staging occupant";
     let retry = Directory_apply.apply result.buffer ~reserved_paths:[ reserved ]

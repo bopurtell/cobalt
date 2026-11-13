@@ -1,5 +1,5 @@
 open! Core
-open Ches_vcs
+open Cobalt_vcs
 
 let file ?(change = Diff.File.Change.Modified) ?(hunks = 0) ?(binary = false)
       ?(submodule = false) ?(combined = false) ?old_mode ?new_mode () : Diff.File.t

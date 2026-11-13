@@ -1,15 +1,15 @@
 # Tree-sitter highlight assets
 
-`ches_highlight_tree_sitter` links the **existing pinned `tree-sitter.0.1.0` opam
+`cobalt_highlight_tree_sitter` links the **existing pinned `tree-sitter.0.1.0` opam
 package** (`tree-sitter` and `tree-sitter.ocaml` Dune libraries). Its C runtime and
-implementation/interface grammars are compiled into the executable. Ches does not
+implementation/interface grammars are compiled into the executable. Cobalt does not
 vendor the OCaml grammars, regenerate them, fetch them at runtime, or search a
 development path. The shared provider also supports a vendored SystemVerilog grammar;
 see [grammar/ASSETS.md](grammar/ASSETS.md) for its pin, checksums, and license.
 AT&T/GAS assembly uses a separately vendored, locally patched **GPLv3** grammar;
 see [gas_grammar/ASSETS.md](gas_grammar/ASSETS.md) for its source, checksums,
 regeneration recipe, notices and distribution implications. This is not an MIT/ISC
-grammar, and its license does not replace the license of existing Ches code.
+grammar, and its license does not replace the license of existing Cobalt code.
 No Tree-sitter CLI, Node, or external editor installation is required.
 
 Package release: Mosaic commit `bbaec9a2b49eccc7be958df1a3fc3f53443787b8`.
@@ -21,12 +21,12 @@ in the feasibility investigation:
 - Implementation: `67724008e33a04ac9585947e2ec9b7db82741f3c`.
 - Interface: `7866e97b42e8324687981cb685ff42e1ab04e70e`.
 
-`ocaml_queries.ml` contains **Ches-authored, predicate-free structural queries**, based
+`ocaml_queries.ml` contains **Cobalt-authored, predicate-free structural queries**, based
 on grammar symbol/field inspection and the phase 0 probe. No upstream highlight
 query file was copied. Both OCaml grammars compile the shared OCaml query independently when
 a provider is created. The OCaml configuration key is
-`tree-sitter.0.1.0/ches-ocaml-structural-v1`; bump its query version when changing
-highlight behavior. Normalization uses `ches_highlight.Snapshot`'s overlap policy,
+`tree-sitter.0.1.0/cobalt-ocaml-structural-v1`; bump its query version when changing
+highlight behavior. Normalization uses `cobalt_highlight.Snapshot`'s overlap policy,
 not query order. Function recognition is structural, not name resolution: bindings
 with parameters or a direct `fun`/`function` body, simple calls, and arrow-typed
 value/external specifications. Other value occurrences remain variables.

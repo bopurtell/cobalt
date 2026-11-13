@@ -1,13 +1,13 @@
 open! Core
-open Ches_screen
-open Ches_input
-module Controller = Ches_app.Controller
-module Editor = Ches_core.Editor
-module View_id = Ches_tile.View_id
-module Job = Ches_vcs.Job
-module Event = Ches_vcs.Event
-module Stamps = Ches_vcs.Stamps
-module Fixture = Ches_vcs_fixture.Fixture_repo
+open Cobalt_screen
+open Cobalt_input
+module Controller = Cobalt_app.Controller
+module Editor = Cobalt_core.Editor
+module View_id = Cobalt_tile.View_id
+module Job = Cobalt_vcs.Job
+module Event = Cobalt_vcs.Event
+module Stamps = Cobalt_vcs.Stamps
+module Fixture = Cobalt_vcs_fixture.Fixture_repo
 
 let width = 80
 let height = 16
@@ -58,7 +58,7 @@ module Keeper = struct
     | Submit ->
       let stamps, id = Stamps.issue t.stamps in
       let job =
-        Job.create ~id [ Read_file { path = "/nonexistent-ches-test/keeper"; limit = 16 } ]
+        Job.create ~id [ Read_file { path = "/nonexistent-cobalt-test/keeper"; limit = 16 } ]
         |> Or_error.ok_exn
       in
       log { t with stamps } "submit", outcome ~jobs:[ job ] ()
@@ -67,7 +67,7 @@ module Keeper = struct
     | Event (Started _ | Output _) -> t, outcome ()
   ;;
 
-  let interpret _ (keys : Key.t list) : action Ches_tile.Content_key.t =
+  let interpret _ (keys : Key.t list) : action Cobalt_tile.Content_key.t =
     match keys with
     | [ Char c ] ->
       (match Uchar.to_char c with
@@ -82,7 +82,7 @@ module Keeper = struct
   let key = Type_equal.Id.create ~name:"keeper" sexp_of_t
 
   let adapter : (t, action) View_registry.Adapter.t =
-    { spec = Ches_tile.Spec.read_only_text (View_id.of_string "keeper") ~title:"Keeper"
+    { spec = Cobalt_tile.Spec.read_only_text (View_id.of_string "keeper") ~title:"Keeper"
     ; key
     ; fit = (fun t _ ~rows:_ ~width:_ -> t)
     ; leave = Fn.id
@@ -137,7 +137,7 @@ let editor t =
   let editor = Controller.editor (Ui_state.controller t) in
   printf "focused %s; %s: %S, line %d, column %d, dirty %b\n" (focused t)
     (Option.value_map (Editor.path editor) ~default:"none" ~f:Filename.basename)
-    (Ches_core.Text_buffer.to_string (Editor.text editor))
+    (Cobalt_core.Text_buffer.to_string (Editor.text editor))
     (Editor.cursor_line editor + 1) (Editor.cursor_column editor + 1) (Editor.is_dirty editor)
 ;;
 

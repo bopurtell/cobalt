@@ -1,13 +1,13 @@
 open! Core
-open Ches_input
-open Ches_palette
-module Selection = Ches_tile.Navigation.Selection
+open Cobalt_input
+open Cobalt_palette
+module Selection = Cobalt_tile.Navigation.Selection
 
-let id = Ches_tile.View_id.of_string "palette"
-let spec = Ches_tile.Spec.result_picker id ~title:"Commands"
+let id = Cobalt_tile.View_id.of_string "palette"
+let spec = Cobalt_tile.Spec.result_picker id ~title:"Commands"
 
 type t =
-  { palette : (Ches_tile.View_id.t Palette.t[@sexp.opaque])
+  { palette : (Cobalt_tile.View_id.t Palette.t[@sexp.opaque])
   ; view : Catalog.Id.t Selection.t
   ; shortcuts : (Catalog.Id.t * string) list (** The first binding of each entry. *)
   }
@@ -49,7 +49,7 @@ type action =
   | Accept
 [@@deriving sexp_of]
 
-let interpret (keys : Key.t list) : action Ches_tile.Content_key.t =
+let interpret (keys : Key.t list) : action Cobalt_tile.Content_key.t =
   match keys with
   | [ Char c ] -> Action (Event (Insert c))
   | [ Backspace ] -> Action (Event Backspace)

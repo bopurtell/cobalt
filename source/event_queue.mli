@@ -11,10 +11,10 @@ open! Core
 type t [@@deriving sexp_of]
 
 val empty : t
-val push : t -> Ches_error.Source_event.t -> t
+val push : t -> Cobalt_error.Source_event.t -> t
 
 (** Up to [max] events, oldest first, and the queue without them. *)
-val take : t -> max:int -> t * Ches_error.Source_event.t list
+val take : t -> max:int -> t * Cobalt_error.Source_event.t list
 
 val length : t -> int
 

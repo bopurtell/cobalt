@@ -3,7 +3,7 @@ open! Async
 
 module Driver = struct
   type t =
-    { handle : Ches_error.Source_request.t -> unit
+    { handle : Cobalt_error.Source_request.t -> unit
     ; stop : unit -> unit
     }
 end

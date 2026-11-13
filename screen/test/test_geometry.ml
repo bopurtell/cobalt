@@ -1,5 +1,5 @@
 open! Core
-open Ches_screen
+open Cobalt_screen
 
 (* These tests are about the gutter, so they start from hybrid line numbers and no
    padding rather than the default, which has 2 cells of padding and no numbers. *)

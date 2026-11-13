@@ -1,14 +1,14 @@
-(* Whole-file conflict resolution (phase 7): Resolution.has_file, labels and the resolve
+(* Whole-file conflict resolution: Resolution.has_file, labels and the resolve
    popup as pure functions; then the Resolve plans against a fixture merge with every kind
    of conflict git produces (both modified, both added, modified/deleted both ways, and a
    rename/rename conflict for added by us, added by them and both deleted), each side
    taken and run. Helpers in plan_fixture.ml. *)
 
 open! Core
-open Ches_vcs
+open Cobalt_vcs
 open Plan_fixture
-module Resolution = Ches_vcs_git.Resolution
-module Conflict = Ches_vcs_git.Status.Conflict
+module Resolution = Cobalt_vcs_git.Resolution
+module Conflict = Cobalt_vcs_git.Status.Conflict
 
 let conflicts : Conflict.t list =
   [ Both_modified
@@ -222,7 +222,7 @@ let%expect_test "resolve: take ours for every kind" =
     status t);
   [%expect
     {|
-      head: main; Merging 8fa8851; conflicted aa.txt; conflicted dd-main.txt; conflicted dd-other.txt; conflicted dd.txt; conflicted du.txt; conflicted ud.txt; conflicted uu.txt
+      head: main; Merging f7d5b43; conflicted aa.txt; conflicted dd-main.txt; conflicted dd-other.txt; conflicted dd.txt; conflicted du.txt; conflicted ud.txt; conflicted uu.txt
     confirm "Resolve uu.txt": Take ours (HEAD) for uu.txt? The other side's changes and any edits to the file are lost; it is marked resolved.
       plan "Take ours for uu.txt" (rewrites the work tree)
       $ --literal-pathspecs checkout --ours -- uu.txt (Mutate)
@@ -273,41 +273,41 @@ let%expect_test "resolve: take theirs for every kind" =
     status t);
   [%expect
     {|
-    confirm "Resolve uu.txt": Take theirs (8fa8851) for uu.txt? The other side's changes and any edits to the file are lost; it is marked resolved.
+    confirm "Resolve uu.txt": Take theirs (f7d5b43) for uu.txt? The other side's changes and any edits to the file are lost; it is marked resolved.
       plan "Take theirs for uu.txt" (rewrites the work tree)
       $ --literal-pathspecs checkout --theirs -- uu.txt (Mutate)
       $ --literal-pathspecs add --all -- uu.txt (Mutate)
       ok
       -> M  uu.txt; work tree: "theirs\n"
-    confirm "Resolve aa.txt": Take theirs (8fa8851) for aa.txt? The other side's changes and any edits to the file are lost; it is marked resolved.
+    confirm "Resolve aa.txt": Take theirs (f7d5b43) for aa.txt? The other side's changes and any edits to the file are lost; it is marked resolved.
       plan "Take theirs for aa.txt" (rewrites the work tree)
       $ --literal-pathspecs checkout --theirs -- aa.txt (Mutate)
       $ --literal-pathspecs add --all -- aa.txt (Mutate)
       ok
       -> M  aa.txt; work tree: "theirs\n"
-    confirm "Resolve ud.txt": Resolve ud.txt by deleting it, as theirs (8fa8851) did? Any edits to the file are lost.
+    confirm "Resolve ud.txt": Resolve ud.txt by deleting it, as theirs (f7d5b43) did? Any edits to the file are lost.
       plan "Delete ud.txt (resolved)" (rewrites the work tree)
       $ --literal-pathspecs rm --quiet -- ud.txt (Mutate)
       ok
       -> D  ud.txt; work tree: absent
-    confirm "Resolve du.txt": Take theirs (8fa8851) for du.txt? The other side's changes and any edits to the file are lost; it is marked resolved.
+    confirm "Resolve du.txt": Take theirs (f7d5b43) for du.txt? The other side's changes and any edits to the file are lost; it is marked resolved.
       plan "Take theirs for du.txt" (rewrites the work tree)
       $ --literal-pathspecs checkout --theirs -- du.txt (Mutate)
       $ --literal-pathspecs add --all -- du.txt (Mutate)
       ok
       -> A  du.txt; work tree: "theirs\n"
-    confirm "Resolve dd-main.txt": Resolve dd-main.txt by deleting it, as theirs (8fa8851) did? Any edits to the file are lost.
+    confirm "Resolve dd-main.txt": Resolve dd-main.txt by deleting it, as theirs (f7d5b43) did? Any edits to the file are lost.
       plan "Delete dd-main.txt (resolved)" (rewrites the work tree)
       $ --literal-pathspecs rm --quiet -- dd-main.txt (Mutate)
       ok
       -> D  dd-main.txt; work tree: absent
-    confirm "Resolve dd-other.txt": Take theirs (8fa8851) for dd-other.txt? The other side's changes and any edits to the file are lost; it is marked resolved.
+    confirm "Resolve dd-other.txt": Take theirs (f7d5b43) for dd-other.txt? The other side's changes and any edits to the file are lost; it is marked resolved.
       plan "Take theirs for dd-other.txt" (rewrites the work tree)
       $ --literal-pathspecs checkout --theirs -- dd-other.txt (Mutate)
       $ --literal-pathspecs add --all -- dd-other.txt (Mutate)
       ok
       -> A  dd-other.txt; work tree: "base\n"
-    confirm "Resolve dd.txt": Resolve dd.txt by deleting it, as theirs (8fa8851) did? Any edits to the file are lost.
+    confirm "Resolve dd.txt": Resolve dd.txt by deleting it, as theirs (f7d5b43) did? Any edits to the file are lost.
       plan "Delete dd.txt (resolved)" (rewrites the work tree)
       $ --literal-pathspecs rm --quiet -- dd.txt (Mutate)
       ok
@@ -405,7 +405,7 @@ let%expect_test "resolve: odd paths are literal pathspecs" =
     status t);
   [%expect
     {|
-    confirm "Resolve *-[x] :odd.txt": Take theirs (c98b42a) for *-[x] :odd.txt? The other side's changes and any edits to the file are lost; it is marked resolved.
+    confirm "Resolve *-[x] :odd.txt": Take theirs (b3ae052) for *-[x] :odd.txt? The other side's changes and any edits to the file are lost; it is marked resolved.
       plan "Take theirs for *-[x] :odd.txt" (rewrites the work tree)
       $ --literal-pathspecs checkout --theirs -- '*-[x] :odd.txt' (Mutate)
       $ --literal-pathspecs add --all -- '*-[x] :odd.txt' (Mutate)

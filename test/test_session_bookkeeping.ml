@@ -1,9 +1,9 @@
 open! Core
-open Ches_core
-open Ches_app
+open Cobalt_core
+open Cobalt_app
 
 let width _ = 1
-let base = "/__ches_session_bookkeeping__/"
+let base = "/__cobalt_session_bookkeeping__/"
 let start path = Session.create ~cell_width:width
   (Controller.create (Editor.create ~path ~cell_width:width Text_buffer.empty))
 let open_path t path = Session.open_or_activate t path |> Or_error.ok_exn
@@ -68,7 +68,7 @@ let%test_unit "labels reuse only metadata; current flags/controllers and old sna
   assert (phys_equal cached (Session.buffer_labels t));
   let t, _ = Session.take_source_changes t in
   let c = Session.active_controller t |> Option.value_exn |> fun c ->
-    Controller.update_feedback c (Ches_error.Error.Notify
+    Controller.update_feedback c (Cobalt_error.Error.Notify
       { source = "test"; scope = None; severity = Info; text = "feedback only"; history = false }) in
   let t = Session.replace_active t c in
   assert (phys_equal cached (Session.buffer_labels t));

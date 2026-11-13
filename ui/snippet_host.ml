@@ -1,17 +1,17 @@
 open! Core
 open! Async
-module Catalog = Ches_completion.User_snippets
+module Catalog = Cobalt_completion.User_snippets
 
 type catalog = (Catalog.t, string) Result.t
 
 let config_path ~getenv =
   match getenv "XDG_CONFIG_HOME" with
   | Some path when not (String.is_empty path) && not (Filename.is_relative path) ->
-    Ok (Filename.concat path "ches/snippets.json")
+    Ok (Filename.concat path "cobalt/snippets.json")
   | _ ->
     (match getenv "HOME" with
      | Some home when not (String.is_empty home) ->
-       Ok (Filename.concat home ".config/ches/snippets.json")
+       Ok (Filename.concat home ".config/cobalt/snippets.json")
      | _ -> Or_error.error_string "HOME is unset or empty; cannot locate snippets.json")
 ;;
 

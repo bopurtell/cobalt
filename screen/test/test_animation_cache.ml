@@ -1,5 +1,5 @@
 open! Core
-open Ches_screen
+open Cobalt_screen
 
 let equal_frame actual expected =
   assert (Sexp.equal (Frame.sexp_of_t actual) (Frame.sexp_of_t expected))

@@ -1,12 +1,12 @@
 open! Core
 open! Async
-open Ches_file_discovery
-module Model = Ches_file_picker.Model
+open Cobalt_file_discovery
+module Model = Cobalt_file_picker.Model
 module Candidate = Model.Candidate
 module Discovery = Model.Discovery
 
 let fake_rg = Filename_unix.realpath "fake_rg/fake_rg.exe"
-let temp () = Filename_unix.realpath (Filename_unix.temp_dir "ches-picker" "")
+let temp () = Filename_unix.realpath (Filename_unix.temp_dir "cobalt-picker" "")
 let write root path data =
   let path = Filename.concat root path in
   Core_unix.mkdir_p (Filename.dirname path);
@@ -176,11 +176,11 @@ let%expect_test "terminal-only delivery preserves candidates and does not resche
     let limits = { Provider.Limits.default with batch_size = 1 } in
     let provider = Provider.create ~prog:fake_rg ~limits () in
     let run = Provider.start provider ~root |> Or_error.ok_exn in
-    let session = Ches_file_picker.Interaction.create ~token:()
+    let session = Cobalt_file_picker.Interaction.create ~token:()
       ~discovery:(Option.value_exn (Provider.snapshot provider)) in
     let rec drain () =
-      if Ches_file_picker.Interaction.busy session then (
-        Ches_file_picker.Interaction.work session ~budget:8;
+      if Cobalt_file_picker.Interaction.busy session then (
+        Cobalt_file_picker.Interaction.work session ~budget:8;
         drain ())
     in
     drain ();
@@ -188,11 +188,11 @@ let%expect_test "terminal-only delivery preserves candidates and does not resche
       match Provider.poll provider ~max_batches:1 with
       | None -> let%bind () = pause () in poll previous
       | Some snapshot ->
-        assert (Ches_file_picker.Interaction.install session snapshot);
+        assert (Cobalt_file_picker.Interaction.install session snapshot);
         (match snapshot.status with
          | Complete _ ->
            assert (phys_equal previous.Discovery.candidates snapshot.candidates);
-           assert (not (Ches_file_picker.Interaction.busy session));
+           assert (not (Cobalt_file_picker.Interaction.busy session));
            return ()
          | Partial -> drain (); poll snapshot
          | _ -> assert false)
@@ -203,7 +203,7 @@ let%expect_test "terminal-only delivery preserves candidates and does not resche
 
 let%expect_test "failures are actionable bounded safe messages and retain partial results" =
   with_root (fun root ->
-    let%bind missing = run ~prog:"/no-such-ches-rg" root in
+    let%bind missing = run ~prog:"/no-such-cobalt-rg" root in
     (match missing.status with
      | Failed message -> assert (String.is_substring message ~substring:"Install ripgrep")
      | _ -> assert false);

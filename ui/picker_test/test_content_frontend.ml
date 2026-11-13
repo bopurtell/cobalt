@@ -2,22 +2,22 @@ open! Core
 open! Async
 open Bonsai_test
 open Bonsai_term
-open Ches_screen
-module Runtime = Ches_content_picker_host.Runtime
-module Model = Ches_content_picker.Model
+open Cobalt_screen
+module Runtime = Cobalt_content_picker_host.Runtime
+module Model = Cobalt_content_picker.Model
 module Expect_test_config = Async.Expect_test_config
 
 let%expect_test "content frontend deactivation closes session and rejects late snapshots and acceptance" =
-  let root = Filename_unix.realpath (Filename_unix.temp_dir "ches-content-lifecycle" "") in
+  let root = Filename_unix.realpath (Filename_unix.temp_dir "cobalt-content-lifecycle" "") in
   Out_channel.write_all (root ^ "/file.ml") ~data:"needle\n";
   let runtime = Runtime.create () in
-  let controller = Ches_app.Controller.create
-    (Ches_core.Editor.create ~cell_width:Cell_map.width Ches_core.Text_buffer.empty) in
+  let controller = Cobalt_app.Controller.create
+    (Cobalt_core.Editor.create ~cell_width:Cell_map.width Cobalt_core.Text_buffer.empty) in
   let opened = Runtime.open_picker runtime (Ui_state.create controller)
     ~root ~width:80 ~height:24 |> Or_error.ok_exn in
   let session = Content_picker_tile.session (Option.value_exn (Ui_state.content_picker opened)) in
   let consumed = ref 0 in
-  let content_picker : Ches_ui.Editor_view.Content_picker_host.t =
+  let content_picker : Cobalt_ui.Editor_view.Content_picker_host.t =
     { initial_ui = opened; runtime; consume = (fun _ -> incr consumed) } in
   let active = Bonsai.Expert.Var.create true in
   let component ~dimensions (local_ graph) =
@@ -25,7 +25,7 @@ let%expect_test "content frontend deactivation closes session and rejects late s
     let both = match%sub Bonsai.Expert.Var.value active with
       | false -> Bonsai.return (View.none, (fun _ -> Effect.Ignore))
       | true ->
-        let ~view, ~handler = Ches_ui.Editor_view.app ~content_picker controller
+        let ~view, ~handler = Cobalt_ui.Editor_view.app ~content_picker controller
           ~exit:(fun () -> Effect.Ignore) ~dimensions graph in
         let%arr view and handler in view, handler in
     let view = let%arr both in fst both in
@@ -48,7 +48,7 @@ let%expect_test "content frontend deactivation closes session and rejects late s
   Handle.recompute_view handle;
   assert (!consumed = 0 && Model.closed session);
   Core_unix.unlink (root ^ "/file.ml"); Core_unix.rmdir root;
-  Ches_app.Controller.close controller;
+  Cobalt_app.Controller.close controller;
   ignore ([%expect.output] : string);
   print_endline "content deactivation drops pending search and late delivery";
   [%expect {| content deactivation drops pending search and late delivery |}];
@@ -56,25 +56,25 @@ let%expect_test "content frontend deactivation closes session and rejects late s
 ;;
 
 let%expect_test "real rg content frontend: scheduling, edits, raw byte intent and released cursor" =
-  let root = Filename_unix.realpath (Filename_unix.temp_dir "ches-content-ui" "") in
+  let root = Filename_unix.realpath (Filename_unix.temp_dir "cobalt-content-ui" "") in
   List.iter (List.init 300 ~f:(fun n -> sprintf "file%03d.ml" n)) ~f:(fun p ->
     Out_channel.write_all (root ^ "/" ^ p) ~data:"界\tneedle needle\n");
   let runtime = Runtime.create
-    ~limits:{ Ches_content_search.Provider.Limits.default with batch_size = 2
+    ~limits:{ Cobalt_content_search.Provider.Limits.default with batch_size = 2
       ; debounce = Time_ns.Span.of_int_ms 10 } () in
   let%bind () = Monitor.protect (fun () ->
-    let text = Ches_core.Text_buffer.of_string "unsaved needle NOT searched" |> Result.map_error
-      ~f:Ches_core.Text_buffer.Invalid_text.to_string_hum |> Result.ok_or_failwith in
-    let controller = Ches_app.Controller.create (Ches_core.Editor.create ~cell_width:Cell_map.width text) in
+    let text = Cobalt_core.Text_buffer.of_string "unsaved needle NOT searched" |> Result.map_error
+      ~f:Cobalt_core.Text_buffer.Invalid_text.to_string_hum |> Result.ok_or_failwith in
+    let controller = Cobalt_app.Controller.create (Cobalt_core.Editor.create ~cell_width:Cell_map.width text) in
     let opened = Runtime.open_picker runtime (Ui_state.create ~tiles_visible:false controller)
       ~root ~width:100 ~height:24 |> Or_error.ok_exn in
     let session = Content_picker_tile.session (Option.value_exn (Ui_state.content_picker opened)) in
     let consumed = ref [] in
-    let content_picker : Ches_ui.Editor_view.Content_picker_host.t =
+    let content_picker : Cobalt_ui.Editor_view.Content_picker_host.t =
       { initial_ui = opened; runtime
       ; consume = (fun intent -> assert (Model.closed session); consumed := intent :: !consumed) } in
     let handle = Bonsai_term_test.create_handle ~initial_dimensions:{ width = 100; height = 24 }
-      (Ches_ui.Editor_view.app ~content_picker controller ~exit:(fun () -> Effect.Ignore)) in
+      (Cobalt_ui.Editor_view.app ~content_picker controller ~exit:(fun () -> Effect.Ignore)) in
     let rec settle () =
       Handle.recompute_view handle;
       if Model.pending session || (match (Model.snapshot session).status with Loading | Partial -> true | _ -> false)
@@ -137,14 +137,14 @@ let%expect_test "real rg content frontend: scheduling, edits, raw byte intent an
 ;;
 
 let%expect_test "content frontend interrupted paste and resize cancel search without document leakage" =
-  let root = Filename_unix.realpath (Filename_unix.temp_dir "ches-content-interrupt" "") in
+  let root = Filename_unix.realpath (Filename_unix.temp_dir "cobalt-content-interrupt" "") in
   Out_channel.write_all (root ^ "/file.ml") ~data:"needle\n";
   let runtime = Runtime.create
-    ~limits:{ Ches_content_search.Provider.Limits.default with debounce = Time_ns.Span.of_int_ms 100 } () in
+    ~limits:{ Cobalt_content_search.Provider.Limits.default with debounce = Time_ns.Span.of_int_ms 100 } () in
   let%bind () = Monitor.protect (fun () ->
-    let text = Ches_core.Text_buffer.of_string "untouched" |> Result.map_error
-      ~f:Ches_core.Text_buffer.Invalid_text.to_string_hum |> Result.ok_or_failwith in
-    let controller = Ches_app.Controller.create (Ches_core.Editor.create ~cell_width:Cell_map.width text) in
+    let text = Cobalt_core.Text_buffer.of_string "untouched" |> Result.map_error
+      ~f:Cobalt_core.Text_buffer.Invalid_text.to_string_hum |> Result.ok_or_failwith in
+    let controller = Cobalt_app.Controller.create (Cobalt_core.Editor.create ~cell_width:Cell_map.width text) in
     let opened = Runtime.open_picker runtime (Ui_state.create ~tiles_visible:false controller)
       ~root ~width:80 ~height:24 |> Or_error.ok_exn in
     (* This fixture tests paste feedback, independently of asynchronous startup
@@ -152,10 +152,10 @@ let%expect_test "content frontend interrupted paste and resize cancel search wit
     let opened, _ = Ui_state.take_snippet_reload_requests opened in
     let session = Content_picker_tile.session (Option.value_exn (Ui_state.content_picker opened)) in
     let consumed = ref 0 in
-    let content_picker : Ches_ui.Editor_view.Content_picker_host.t =
+    let content_picker : Cobalt_ui.Editor_view.Content_picker_host.t =
       { initial_ui = opened; runtime; consume = (fun _ -> incr consumed) } in
     let handle = Bonsai_term_test.create_handle ~initial_dimensions:{ width = 80; height = 24 }
-      (Ches_ui.Editor_view.app ~content_picker controller ~exit:(fun () -> Effect.Ignore)) in
+      (Cobalt_ui.Editor_view.app ~content_picker controller ~exit:(fun () -> Effect.Ignore)) in
     let send event = Bonsai_term_test.send_event handle event in
     List.iter (String.to_list "needle") ~f:(fun c -> send (Key_press { key = ASCII c; mods = [] }));
     Handle.recompute_view handle;

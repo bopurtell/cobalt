@@ -2,18 +2,18 @@ open! Core
 open! Async
 open Bonsai_test
 open Bonsai_term
-open Ches_screen
+open Cobalt_screen
 module Expect_test_config = Async.Expect_test_config
 
 let%expect_test "shipped line command chains yielded turns, accepts dirty text and reveals the target" =
   let contents = String.concat ~sep:"\n"
     (List.init 5000 ~f:(fun n -> if n = 4999 then "\t界é final" else sprintf "row %d" n)) in
-  let text = Ches_core.Text_buffer.of_string contents |> Result.map_error
-    ~f:Ches_core.Text_buffer.Invalid_text.to_string_hum |> Result.ok_or_failwith in
-  let controller = Ches_app.Controller.create
-    (Ches_core.Editor.create ~cell_width:Cell_map.width text) in
+  let text = Cobalt_core.Text_buffer.of_string contents |> Result.map_error
+    ~f:Cobalt_core.Text_buffer.Invalid_text.to_string_hum |> Result.ok_or_failwith in
+  let controller = Cobalt_app.Controller.create
+    (Cobalt_core.Editor.create ~cell_width:Cell_map.width text) in
   let handle = Bonsai_term_test.create_handle ~initial_dimensions:{ width = 100; height = 30 }
-    (Ches_ui.Editor_view.app controller ~exit:(fun () -> Effect.Ignore)) in
+    (Cobalt_ui.Editor_view.app controller ~exit:(fun () -> Effect.Ignore)) in
   let send key = Bonsai_term_test.send_event handle (Key_press { key; mods = [] }) in
   let type_ s = String.iter s ~f:(fun c -> send (ASCII c)) in
   let output () =

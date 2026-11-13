@@ -1,4 +1,4 @@
-open Ches_config
+open Cobalt_config
 
 (* These are the built-in defaults. Keep only the settings you want to change.
    Palette/keybinding changes are session-only. Reload configuration rebuilds

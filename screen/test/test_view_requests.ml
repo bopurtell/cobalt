@@ -1,13 +1,13 @@
 open! Core
-open Ches_screen
-open Ches_input
-module Controller = Ches_app.Controller
-module Editor = Ches_core.Editor
-module View_id = Ches_tile.View_id
-module Job = Ches_vcs.Job
-module Event = Ches_vcs.Event
-module Stamps = Ches_vcs.Stamps
-module Fixture = Ches_vcs_fixture.Fixture_repo
+open Cobalt_screen
+open Cobalt_input
+module Controller = Cobalt_app.Controller
+module Editor = Cobalt_core.Editor
+module View_id = Cobalt_tile.View_id
+module Job = Cobalt_vcs.Job
+module Event = Cobalt_vcs.Event
+module Stamps = Cobalt_vcs.Stamps
+module Fixture = Cobalt_vcs_fixture.Fixture_repo
 
 let width = 80
 let height = 16
@@ -56,7 +56,7 @@ module Desk = struct
   let job t =
     let stamps, id = Stamps.issue t.stamps in
     let job =
-      Job.create ~id [ Read_file { path = "/nonexistent-ches-test/desk"; limit = 16 } ]
+      Job.create ~id [ Read_file { path = "/nonexistent-cobalt-test/desk"; limit = 16 } ]
       |> Or_error.ok_exn
     in
     { t with stamps }, job
@@ -128,7 +128,7 @@ module Desk = struct
     | Was_shown -> { t with shown = t.shown + 1 }, outcome ()
   ;;
 
-  let interpret _ (keys : Key.t list) : action Ches_tile.Content_key.t =
+  let interpret _ (keys : Key.t list) : action Cobalt_tile.Content_key.t =
     match keys with
     | [ Char c ] ->
       (match Uchar.to_char c with
@@ -155,7 +155,7 @@ module Desk = struct
   ;;
 
   let adapter : (t, action) View_registry.Adapter.t =
-    { spec = Ches_tile.Spec.read_only id ~title:"Desk"
+    { spec = Cobalt_tile.Spec.read_only id ~title:"Desk"
     ; key
     ; fit = (fun t _ ~rows:_ ~width:_ -> t)
     ; leave = Fn.id
@@ -239,7 +239,7 @@ let show t =
        (List.map (Ui_state.tab_items t) ~f:(fun (item : Tab_strip.Item.t) ->
           (if item.active then "*" else "") ^ item.label)))
     (Option.value_map (Editor.path editor) ~default:"none" ~f:Filename.basename)
-    (Ches_core.Text_buffer.to_string (Editor.text editor))
+    (Cobalt_core.Text_buffer.to_string (Editor.text editor))
     (Editor.cursor_line editor + 1)
     (if Editor.is_dirty editor then " dirty" else "")
 ;;
@@ -381,7 +381,7 @@ let%expect_test "save writes the buffer before the jobs go out; a failed save dr
     let t, jobs = Ui_state.take_vcs_jobs t in
     printf "saved %s; jobs %d\n"
       (String.concat ~sep:","
-         (List.map (Ches_app.Session.saved (Ui_state.session t))
+         (List.map (Cobalt_app.Session.saved (Ui_state.session t))
             ~f:(fun (saved : Controller.Saved.t) -> Filename.basename saved.path)))
       (List.length jobs);
     [%expect {| saved note.txt; jobs 1 |}];

@@ -1,6 +1,6 @@
 open! Core
 open! Async
-module Model = Ches_file_picker.Model
+module Model = Cobalt_file_picker.Model
 module Candidate = Model.Candidate
 module Discovery = Model.Discovery
 
@@ -169,7 +169,7 @@ let collect run (limits : Limits.t) reader =
               + String.length (Candidate.display_path candidate)
             in
             (* Enforce policy even if the executable's defaults/config change. *)
-             if not (Ches_file_picker.Scope.visible_path path)
+             if not (Cobalt_file_picker.Scope.visible_path path)
             then loop ()
             else if Set.length !seen >= limits.max_candidates
                     || !retained_bytes + candidate_bytes > limits.max_total_path_bytes
@@ -190,7 +190,7 @@ let collect run (limits : Limits.t) reader =
 let worker t run =
   let%bind created =
     Process.create ~prog:t.prog
-      ~args:(Ches_file_picker.Scope.rg_args @ [ "--files"; "--null"; "--"; "." ])
+      ~args:(Cobalt_file_picker.Scope.rg_args @ [ "--files"; "--null"; "--"; "." ])
       ~working_dir:run.request.root ~buf_len:4096 ()
   in
   match created with

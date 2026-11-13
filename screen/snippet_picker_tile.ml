@@ -1,11 +1,11 @@
 open! Core
-module U = Ches_completion.User_snippets
-module Selection = Ches_tile.Navigation.Selection
-module Query = Ches_palette.Query
-module Fuzzy = Ches_palette.Fuzzy
+module U = Cobalt_completion.User_snippets
+module Selection = Cobalt_tile.Navigation.Selection
+module Query = Cobalt_palette.Query
+module Fuzzy = Cobalt_palette.Fuzzy
 
-let id = Ches_tile.View_id.of_string "snippet-picker"
-let spec = Ches_tile.Spec.result_picker id ~title:"Insert snippet"
+let id = Cobalt_tile.View_id.of_string "snippet-picker"
+let spec = Cobalt_tile.Spec.result_picker id ~title:"Insert snippet"
 
 type t =
   { items : U.item list
@@ -41,7 +41,7 @@ let selected t =
 let interpret = Palette_tile.interpret
 let cursor t ~width = Picker_text.cursor t.query ~width
 
-let update t ~rows (event : Ches_palette.Palette.Event.t) =
+let update t ~rows (event : Cobalt_palette.Palette.Event.t) =
   let query = match event with
     | Insert c -> Query.append t.query (Uchar.Utf8.to_string c)
     | Paste text -> Query.append t.query text

@@ -1,4 +1,4 @@
-(** Resolving a whole conflicted file by taking one side (phase 7): [x] on a
+(** Resolving a whole conflicted file by taking one side: [x] on a
     Conflicted item opens this popup. Resolving hunk by hunk is the editor's job, on
     the file's conflict markers ([Space x] keeps the upper, lower, both or base
     side). Magit's way: taking a side also stages the file (marks it resolved).
@@ -8,7 +8,7 @@
     while rebasing. The descriptions say which. *)
 
 open! Core
-open Ches_vcs
+open Cobalt_vcs
 
 module Side : sig
   type t =

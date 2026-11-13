@@ -1,4 +1,4 @@
-# Ches runtime and distribution audit
+# Cobalt runtime and distribution audit
 
 Audited 2026-11-03. This report owns only this new file. No builds, downloads,
 source changes, or Git mutations were performed. Paths below refer to the
@@ -22,7 +22,7 @@ project license, and an MIT field alone is not the missing license text.
 
 ## Exact binary and ABI evidence
 
-Input: `_build/default/bin/ches.exe`, 114,924,832 bytes, unstripped with debug info.
+Input: `_build/default/bin/cobalt.exe`, 114,924,832 bytes, unstripped with debug info.
 
 - SHA-256: `959cc2651fda924eb577e47e7b7097a4e036ecf6ce04398b89d7baa0d6f045ce`.
 - ELF build ID: `d19a9681d3f1709ae88c2b250a789fbff3d2d5f9`.
@@ -52,7 +52,7 @@ support every instruction emitted by the installed OxCaml/native libraries.
 ## Relocation and isolated execution performed
 
 Copied the existing binary to
-`/tmp/opencode/ches-runtime-audit.Ej6Vya/ches`; its checksum matched the input.
+`/tmp/opencode/cobalt-runtime-audit.Ej6Vya/cobalt`; its checksum matched the input.
 Created private empty `home`, `config`, `cache`, and `empty-path` directories
 there. Executed from that scratch directory, outside the workspace, with an
 environment consisting only of:
@@ -67,7 +67,7 @@ TERM=xterm-256color
 ```
 
 `--listthemes` was tried as requested: it exits with an unknown-flag error.
-The actual supported spelling is **`--list-themes`** (`bin/ches.ml:63-64`). That
+The actual supported spelling is **`--list-themes`** (`bin/cobalt.ml:63-64`). That
 command exited 0 and printed 52 built-in themes without a terminal or external
 commands. A second probe started the copied executable on a private, nonexistent
 `unsaved.ml` with `--no-lsp` in a 100x24 pseudo-terminal; Normal-mode `Space q`
@@ -79,7 +79,7 @@ workspace remained accessible, so these probes are relocation/environment tests,
 not a chroot proof of all filesystem access.
 
 `strings` found 47 distinct `/home/wayne/...` paths, including old switch build
-directories for Tree-sitter, Core, Notty, and OxCaml, and Ches C-stub build
+directories for Tree-sitter, Core, Notty, and OxCaml, and Cobalt C-stub build
 directories. These are consistent with compiler/debug information; there is no
 ELF loader search path to them. Do not claim the file contains no developer paths.
 Normal startup succeeded after relocation. This audit did not strip the binary.
@@ -93,9 +93,9 @@ Normal startup succeeded after relocation. This audit did not strip the binary.
 | SystemVerilog and GAS grammars | `highlight_tree_sitter/{grammar,gas_grammar}/dune` expand `parser.c.gz` at build time and compile C foreign stubs. Both `tree_sitter_systemverilog` and `tree_sitter_gas` are defined in the executable. No grammar download, gzip, Node, or Tree-sitter CLI is needed by end users. |
 | Highlight queries | `ocaml_queries.ml`, `systemverilog_queries.ml`, `gas_queries.ml` are linked OCaml string data, referenced by `highlight_tree_sitter/dune`. No runtime `.scm` resource installation is needed. |
 | Terminal emulation | `terminal/emulator/dune:1-11` compiles the vendored libvterm 0.3.3 C files into foreign stubs. `vterm_new` is defined in ELF. No system `libvterm.so` dependency. |
-| Themes and configuration API | Themes are built in; listing works without resources. `config/dune:7-12` embeds `config/ches_config.ml` into generated `Api_source.source`; there is no installed development-source-path requirement for that API. |
-| Dynamic loading | No `dlopen` or `Dynlink` calls were found in Ches `.ml/.mli/.c` sources. Native runtime symbols `caml_dlopen` / `caml_natdynlink_open` exist, but presence alone is not evidence that Ches loads plugins. Config is a separate compiled subprocess, not a dynamically loaded native plugin. Host libc facilities and optional children can use their own resources. |
-| Terminal/font/locale | Editing requires terminal stdin (`bin/ches.ml:100-114`) and a capable terminal emulator; a UTF-8 environment such as `C.UTF-8` is the tested setting. Fonts are rendered by the user's terminal, not loaded from Ches assets. Unicode glyph coverage affects appearance; no font file or mandatory Nerd Font dependency was found. No Ches locale catalog installation is needed. |
+| Themes and configuration API | Themes are built in; listing works without resources. `config/dune:7-12` embeds `config/cobalt_config.ml` into generated `Api_source.source`; there is no installed development-source-path requirement for that API. |
+| Dynamic loading | No `dlopen` or `Dynlink` calls were found in Cobalt `.ml/.mli/.c` sources. Native runtime symbols `caml_dlopen` / `caml_natdynlink_open` exist, but presence alone is not evidence that Cobalt loads plugins. Config is a separate compiled subprocess, not a dynamically loaded native plugin. Host libc facilities and optional children can use their own resources. |
+| Terminal/font/locale | Editing requires terminal stdin (`bin/cobalt.ml:100-114`) and a capable terminal emulator; a UTF-8 environment such as `C.UTF-8` is the tested setting. Fonts are rendered by the user's terminal, not loaded from Cobalt assets. Unicode glyph coverage affects appearance; no font file or mandatory Nerd Font dependency was found. No Cobalt locale catalog installation is needed. |
 | Shells/PTY | Tile Terms use the host's PTY devices and an absolute `$SHELL`, falling back to `/bin/sh -i`; child TERM is `xterm-256color` (`terminal/host/pty_stubs.c:92-126`). Shell binaries and their resources are external. This feature was source-inspected, not launched in this audit. |
 
 ### Feature-dependent external programs
@@ -110,16 +110,16 @@ Normal startup succeeded after relocation. This audit did not strip the binary.
 - **slang-server**: Verilog/SystemVerilog LSP; `$SLANG_SERVER`, PATH, then
   `~/slang-server/build/bin/slang-server` (`source/lsp_client.ml:91-105`). This is
   a deliberate user-home fallback, not a hardcoded developer path. LSP can be
-  disabled with `--no-lsp`. Ches does not run `dune build --watch` for the user.
+  disabled with `--no-lsp`. Cobalt does not run `dune build --watch` for the user.
 - **ocamlc plus its matching standard library and bytecode runtime**: required
   when evaluating an existing user configuration
-  `$XDG_CONFIG_HOME/ches/config.ml` or `~/.config/ches/config.ml`.
+  `$XDG_CONFIG_HOME/cobalt/config.ml` or `~/.config/cobalt/config.ml`.
   `config/loader.ml:223-315` writes the embedded API and user code into
-  `/tmp/ches-config-*`, invokes `ocamlc -o config.exe ...`, then executes the
+  `/tmp/cobalt-config-*`, invokes `ocamlc -o config.exe ...`, then executes the
   result. Absence of the config returns defaults without compiling. The helper
   normally has an absolute `ocamlrun` shebang; copying only `ocamlc` is insufficient.
   Writable/executable temporary space is needed for this feature. Cache location
-  is `$XDG_CACHE_HOME/ches/config` or `~/.cache/ches/config`; the cache fingerprints
+  is `$XDG_CACHE_HOME/cobalt/config` or `~/.cache/cobalt/config`; the cache fingerprints
   compiler, standard-library inputs and runtime (`config/compiled_cache.ml`).
 
 For a deb of this exact binary, use **Architecture: amd64** and an actual
@@ -136,14 +136,14 @@ Switch: `/home/wayne/.opam/5.2.0+ox`; `ocamlc -version`: `5.2.0+ox`.
 `opam list --installed` reports `ocaml 5.2.0`, `ocaml-variants 5.2.0+ox`,
 `oxcaml-compiler 5.2.0minus39`, and Dune `3.24.2`. Thus this is not evidence of
 a build using only stock upstream OCaml 5.2. The dependency constraints in
-`ches.opam` are not a reproducibility lock.
+`cobalt.opam` are not a reproducibility lock.
 
 In the following table, `S` means `/home/wayne/.opam/5.2.0+ox`. Preserve full
 notice texts and upstream copyright notices, not just SPDX labels in a summary.
 
 | Incorporated dependency / asset | Version / license evidence | Available notice or source location |
 | --- | --- | --- |
-| Ches | `dune-project:7`, `ches.opam:6`: MIT | Root `LICENSE` absent at inspection; owner must supply the intended text/copyright notice. |
+| Cobalt | `dune-project:7`, `cobalt.opam:6`: MIT | Root `LICENSE` absent at inspection; owner must supply the intended text/copyright notice. |
 | Core, Core_unix, Async, Bonsai, Bonsai_term, ppx_jane | All installed `v0.18~preview.130.106+341`; installed `lib/<package>/opam` metadata MIT | `S/doc/{core,core_unix,async,bonsai,bonsai_term,ppx_jane}/LICENSE.md`; build-time PPX packages are not all runtime code, but linked PPX runtime support also needs its notices. |
 | Yojson | `2.2.2+ox`, BSD-3-Clause | `S/doc/yojson/LICENSE.md`, copyright Martin Jambon; binary redistributions must reproduce notice/conditions/disclaimer. |
 | Base64 | `3.5.2`, ISC | `S/lib/base64/opam`, `S/doc/base64/LICENSE.md`. |
@@ -152,7 +152,7 @@ notice texts and upstream copyright notices, not just SPDX labels in a summary.
 | Tree-sitter OCaml binding | opam `tree-sitter 0.1.0`, ISC | `S/doc/tree-sitter/LICENSE`: copyright 2025 Thibaut Mattio. Existing `highlight_tree_sitter/ASSETS.md` pins Mosaic `bbaec9a2b49eccc7be958df1a3fc3f53443787b8`, archive SHA-256 `9e4e90d17f9b2af1b07071fe425bc2c519c849c4f1d1ab73cde512be2d874849`. |
 | Bundled Tree-sitter C runtime / OCaml grammars / Unicode tables | Existing ASSETS record identifies MIT runtime/grammar projects and separate Unicode notice; exact bundled revisions unresolved | Installed binding's ISC LICENSE is insufficient for the whole C bundle. Retrieve and verify exact bundled source and runtime/grammar/Unicode notices before publishing. No network retrieval performed. |
 | SystemVerilog grammar | `d6be6119fe4d04c65c567e7b79625aa6280fea34`, MIT | `highlight_tree_sitter/grammar/{LICENSE,ASSETS.md,parser.c.gz,tree_sitter/parser.h,node-types.json}`. Copyright 2024–2025 Gonzalo M. Larumbe. |
-| GAS grammar | `60f443646b20edee3b7bf18f3a4fb91dc214259a`, local `ches-gas-grammar-v2`, GPLv3 | `highlight_tree_sitter/gas_grammar/{LICENSE,ASSETS.md,grammar.js,parser.c.gz,node-types.json,tree_sitter/parser.h}`. ASSETS records modifications and checksums; no explicit upstream “or later” grant established. |
+| GAS grammar | `60f443646b20edee3b7bf18f3a4fb91dc214259a`, local `cobalt-gas-grammar-v2`, GPLv3 | `highlight_tree_sitter/gas_grammar/{LICENSE,ASSETS.md,grammar.js,parser.c.gz,node-types.json,tree_sitter/parser.h}`. ASSETS records modifications and checksums; no explicit upstream “or later” grant established. |
 | GAS generated parser header | Tree-sitter CLI 0.22.6, MIT | `highlight_tree_sitter/gas_grammar/LICENSE.tree-sitter`; keep alongside GPL notice rather than conflating the grants. |
 | libvterm | Vendored 0.3.3, MIT | `terminal/libvterm-0.3.3/LICENSE`, copyright 2008 Paul Evans; vendored source tree present. |
 
@@ -173,18 +173,18 @@ packages as a claim about what is linked.
 
 ## Concrete distributable contents and remaining source work
 
-For a usable **runtime tarball**: executable `bin/ches` (mode 0755), usage notes
+For a usable **runtime tarball**: executable `bin/cobalt` (mode 0755), usage notes
 stating Linux amd64/glibc >= 2.38 and the optional feature programs above, and
 the complete applicable license/copyright notices. No grammar/query resource
 directory is technically required at runtime. For a **deb**: the same executable
-under `/usr/bin/ches`, dependency metadata above, and notices/copyright under
-`/usr/share/doc/ches/`. A stripped staged copy may reduce size; that would be a
+under `/usr/bin/cobalt`, dependency metadata above, and notices/copyright under
+`/usr/share/doc/cobalt/`. A stripped staged copy may reduce size; that would be a
 new artifact and should get its own checksum and relocation smoke test.
 
 For public delivery of the current GPL-containing combined binary, accompany it
 with an applicable GPLv3 corresponding-source delivery arrangement. A concrete,
-manageable starting source bundle is the exact Ches source/build snapshot,
-including Dune files, `dune-project`, `ches.opam`, config embed generator/input,
+manageable starting source bundle is the exact Cobalt source/build snapshot,
+including Dune files, `dune-project`, `cobalt.opam`, config embed generator/input,
 C stubs, query modules, complete vendored libvterm source, and both vendored
 grammar directories **including compressed generated C, headers, patched GAS
 `grammar.js`, notices and ASSETS records**. Keep GAS's recorded modifications

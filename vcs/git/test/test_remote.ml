@@ -1,13 +1,13 @@
-(* Remotes (phase 6): the push and pull popups and Remote.hint as pure functions; then the
+(* Remotes: the push and pull popups and Remote.hint as pure functions; then the
    Fetch, Pull and Push plans against fixture repositories with a local bare remote
    ([origin], by path) and, where another pusher is needed, a second clone. The one
    non-local URL, ssh://git@example.invalid/x.git, is only ever reached through a fake
    GIT_SSH_COMMAND script: no test contacts a network. Helpers in plan_fixture.ml. *)
 
 open! Core
-open Ches_vcs
+open Cobalt_vcs
 open Plan_fixture
-module Remote = Ches_vcs_git.Remote
+module Remote = Cobalt_vcs_git.Remote
 
 (* Pure *)
 
@@ -162,12 +162,12 @@ let%expect_test "hint: every rule, rule order over position, only failed command
     {|
     "git@github.com: Permission denied (publicke" -> SSH refused the key: is one loaded in ssh-agent (ssh-add -l)?
     "Host key verification failed.\n"             -> SSH does not know the host's key: connect once with ssh in a terminal to accept it
-    "fatal: could not read Username for 'https:/" -> Git needs credentials and Ches cannot prompt: use an SSH key in ssh-agent or a credential helper
-    "fatal: could not read Username for 'https:/" -> Git needs credentials and Ches cannot prompt: use an SSH key in ssh-agent or a credential helper
-    "fatal: could not read Password for 'https:/" -> Git needs credentials and Ches cannot prompt: use an SSH key in ssh-agent or a credential helper
+    "fatal: could not read Username for 'https:/" -> Git needs credentials and Cobalt cannot prompt: use an SSH key in ssh-agent or a credential helper
+    "fatal: could not read Username for 'https:/" -> Git needs credentials and Cobalt cannot prompt: use an SSH key in ssh-agent or a credential helper
+    "fatal: could not read Password for 'https:/" -> Git needs credentials and Cobalt cannot prompt: use an SSH key in ssh-agent or a credential helper
     "ssh: Could not resolve hostname example.inv" -> Could not resolve the remote's host: check the network
     "fatal: unable to access 'https://x/': Could" -> Could not resolve the remote's host: check the network
-    "fatal: Not possible to fast-forward, aborti" -> The branch and its upstream have diverged: pull with rebase (p -r p) or merge outside Ches
+    "fatal: Not possible to fast-forward, aborti" -> The branch and its upstream have diverged: pull with rebase (p -r p) or merge outside Cobalt
     " ! [rejected]        main -> main (stale in" -> The remote branch moved since the last fetch: fetch (f) and look before forcing
     " ! [rejected]        main -> main (fetch fi" -> The remote has commits this branch lacks: pull first (p p)
     " ! [rejected]        main -> main (non-fast" -> The remote has commits this branch lacks: pull first (p p)
@@ -177,7 +177,7 @@ let%expect_test "hint: every rule, rule order over position, only failed command
     ""                                            -> (none)
     -- the first rule wins, wherever its text is
     " ! [rejected] main -> main (fetch first)\nPe" -> SSH refused the key: is one loaded in ssh-agent (ssh-add -l)?
-    "(stale info)\n(non-fast-forward)\nNot possibl" -> The branch and its upstream have diverged: pull with rebase (p -r p) or merge outside Ches
+    "(stale info)\n(non-fast-forward)\nNot possibl" -> The branch and its upstream have diverged: pull with rebase (p -r p) or merge outside Cobalt
     -- case-sensitive
     "permission denied (publickey)\n"             -> (none)
     -- a timeout or signal still ran and failed
@@ -211,7 +211,7 @@ let%expect_test "push: P u sets the upstream; P p names the destination exactly"
     print_s
       [%sexp
         ((Git.Backend.summary (snapshot t)).upstream
-         : Ches_vcs.Backend.Summary.Upstream.t option)];
+         : Cobalt_vcs.Backend.Summary.Upstream.t option)];
     print_endline "-- P p";
     Fixture.write t "f.txt" "2\n";
     commit t "Two";
@@ -312,7 +312,7 @@ let%expect_test "force with lease: confirmed; accepted, then refused as stale" =
     print_endline "-- P u -f";
     ignore
       (decide t (Push { target = Set_upstream; flags = [ "--force-with-lease" ] })
-       : Ches_vcs.Backend.Plan.t option));
+       : Cobalt_vcs.Backend.Plan.t option));
   [%expect
     {|
     -- a rewritten branch: a plain push is rejected
@@ -389,7 +389,7 @@ let%expect_test "pull: fast-forward only (whatever pull.rebase), diverged, rebas
       $ pull --progress --ff-only --no-rebase (Network, streamed)
       failed: exit 128
       | fatal: Not possible to fast-forward, aborting.
-      hint: The branch and its upstream have diverged: pull with rebase (p -r p) or merge outside Ches
+      hint: The branch and its upstream have diverged: pull with rebase (p -r p) or merge outside Cobalt
       HEAD unchanged: true
       HEAD: Local < Other one < One
       head: main
@@ -429,7 +429,7 @@ let%expect_test "a rebase pull stops on a conflict; r a restores the branch" =
       ; Create_branch "rescue"
       ; Abort Merge
       ]
-      ~f:(fun action -> ignore (decide t action : Ches_vcs.Backend.Plan.t option));
+      ~f:(fun action -> ignore (decide t action : Cobalt_vcs.Backend.Plan.t option));
     print_endline "-- r a";
     act t (Abort Rebase);
     printf
@@ -445,17 +445,17 @@ let%expect_test "a rebase pull stops on a conflict; r a restores the branch" =
       plan "Pull from origin/main (rebase)" (rewrites the work tree)
       $ pull --progress --rebase (Network, streamed)
       failed: exit 1
-      | error: could not apply 0b441d8... Ours
+      | error: could not apply cc7c69a... Ours
       hint: (none)
-      head: (detached); Rebasing main onto 1942d9f; conflicted f.txt
+      head: (detached); Rebasing main onto e7a3a02; conflicted f.txt
     -- while it is stopped (HEAD detached): in progress first, after an unknown flag
-    refused: Rebasing main onto 1942d9f in progress: finish or abort it first; nothing ran
+    refused: Rebasing main onto e7a3a02 in progress: finish or abort it first; nothing ran
     refused: Unknown pull switch --squash; nothing ran
-    refused: Rebasing main onto 1942d9f in progress: finish or abort it first; nothing ran
+    refused: Rebasing main onto e7a3a02 in progress: finish or abort it first; nothing ran
     refused: Unknown push switch --force; nothing ran
-    refused: Rebasing main onto 1942d9f in progress: finish or abort it first; nothing ran
-    refused: Rebasing main onto 1942d9f in progress: finish or abort it first; nothing ran
-    refused: Rebasing main onto 1942d9f in progress: finish or abort it first; nothing ran
+    refused: Rebasing main onto e7a3a02 in progress: finish or abort it first; nothing ran
+    refused: Rebasing main onto e7a3a02 in progress: finish or abort it first; nothing ran
+    refused: Rebasing main onto e7a3a02 in progress: finish or abort it first; nothing ran
     refused: No merge in progress; nothing ran
     -- r a
     confirm "Abort rebase": Abort the rebase? The branch returns to where it was before the rebase; commits and conflict resolutions made during it are lost.
@@ -491,14 +491,14 @@ let%expect_test "fetch --prune: an upstream deleted on the remote becomes Gone" 
         (Sexp.to_string
            [%sexp
              ((Git.Backend.summary s).upstream
-              : Ches_vcs.Backend.Summary.Upstream.t option)])
+              : Cobalt_vcs.Backend.Summary.Upstream.t option)])
     in
     show ();
     act t Fetch;
     show ();
     act t (Pull { flags = [ "--rebase" ] });
     ignore
-      (decide t (Push { target = Upstream; flags = [] }) : Ches_vcs.Backend.Plan.t option));
+      (decide t (Push { target = Upstream; flags = [] }) : Cobalt_vcs.Backend.Plan.t option));
   [%expect
     {|
       doomed -> (((name origin/doomed)(refname refs/remotes/origin/doomed)(tracking In_sync)(remote origin)(merge refs/heads/doomed)))
@@ -588,7 +588,7 @@ let%expect_test "authentication failure (fake ssh), and a missing remote" =
 
 let%expect_test "push and pull refusals, in order, with real snapshots" =
   Fixture.with_repo ~remote:true (fun t ->
-    let show action = ignore (decide t action : Ches_vcs.Backend.Plan.t option) in
+    let show action = ignore (decide t action : Cobalt_vcs.Backend.Plan.t option) in
     print_endline "-- unborn";
     show (Push { target = Upstream; flags = [ "--force" ] });
     show (Push { target = Set_upstream; flags = [] });

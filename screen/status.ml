@@ -1,7 +1,7 @@
 open! Core
-open Ches_core
-open Ches_input
-open Ches_app
+open Cobalt_core
+open Cobalt_input
+open Cobalt_app
 
 let fields ui : Status_field.t list =
   let editor = Controller.editor (Ui_state.controller ui) in

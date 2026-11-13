@@ -1,5 +1,5 @@
 (** The tab strip's order and its active view tab. File tabs are the session's
-    ({!Ches_app.Session}: identity, open order, activation and closing policy); view
+    ({!Cobalt_app.Session}: identity, open order, activation and closing policy); view
     tabs are the registered views placed [Tab] ({!View_registry}). This module only
     interleaves them and remembers which view tab, if any, is active over the
     session's active file tab. It owns no view or buffer state. *)
@@ -8,8 +8,8 @@ open! Core
 
 module Entry : sig
   type t =
-    | File of Ches_app.Buffer_id.t
-    | View of Ches_tile.View_id.t
+    | File of Cobalt_app.Buffer_id.t
+    | View of Cobalt_tile.View_id.t
   [@@deriving sexp_of, equal]
 end
 
@@ -23,7 +23,7 @@ module Item : sig
     }
   [@@deriving sexp_of]
 
-  val of_file : Ches_app.Open_buffers.t -> t
+  val of_file : Cobalt_app.Open_buffers.t -> t
 end
 
 type t [@@deriving sexp_of]
@@ -36,23 +36,23 @@ val empty : t
     are left out; files not yet seen follow at the end, in their order. *)
 val entries
   :  t
-  -> files:Ches_app.Buffer_id.t list
-  -> views:Ches_tile.View_id.t list
+  -> files:Cobalt_app.Buffer_id.t list
+  -> views:Cobalt_tile.View_id.t list
   -> Entry.t list
 
 (** The active view tab, if one was activated and not deactivated since. Callers
     check that it is still placed [Tab]. *)
-val active : t -> Ches_tile.View_id.t option
+val active : t -> Cobalt_tile.View_id.t option
 
 (** Insert [view] right after [after] (at the end when [after] is absent), out of any
     earlier position, and make it active. [files] and [views] are as for {!entries}. *)
 val add
   :  t
-  -> files:Ches_app.Buffer_id.t list
-  -> views:Ches_tile.View_id.t list
-  -> Ches_tile.View_id.t
+  -> files:Cobalt_app.Buffer_id.t list
+  -> views:Cobalt_tile.View_id.t list
+  -> Cobalt_tile.View_id.t
   -> after:Entry.t option
   -> t
 
 (** Activate a view tab, or [None] to show the session's active file tab. *)
-val activate : t -> Ches_tile.View_id.t option -> t
+val activate : t -> Cobalt_tile.View_id.t option -> t

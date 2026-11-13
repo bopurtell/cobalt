@@ -1,10 +1,10 @@
-module Editor_command = Ches_core.Command
+module Editor_command = Cobalt_core.Command
 open! Core
 module Command = Editor_command
 
 module Target = struct
   type t =
-    | Move of Ches_core.Motion.t
+    | Move of Cobalt_core.Motion.t
     | Editor of Command.t
     | View of View_command.t
     | Scroll of View_command.Scroll.t
@@ -15,7 +15,7 @@ module Target = struct
     | Delete_chars_backward
     | Delete_to_line_end
     | Paste of { before : bool }
-    | Find of { direction : Ches_core.Motion.Find.direction; till : bool }
+    | Find of { direction : Cobalt_core.Motion.Find.direction; till : bool }
     | Repeat_find of { opposite : bool }
     | Search_prompt of { forward : bool }
     | Repeat_search of { opposite : bool }
@@ -91,7 +91,7 @@ let create bindings =
 let default =
   let leader = Key.char ' ' in
   let editor keys (command : Command.t) = List.map keys ~f:Key.char, Target.Editor command in
-  let move keys (motion : Ches_core.Motion.t) =
+  let move keys (motion : Cobalt_core.Motion.t) =
     List.map keys ~f:Key.char, Target.Move motion
   in
   let scroll keys (scroll : View_command.Scroll.t) =
@@ -161,10 +161,10 @@ let default =
     ; editor [ ' '; 'x'; 'l' ] (Keep_conflict Lower)
     ; editor [ ' '; 'x'; 'a' ] (Keep_conflict Both)
     ; editor [ ' '; 'x'; 'b' ] (Keep_conflict Base)
-     ; [ Key.char 'f' ], Find { direction = Ches_core.Motion.Find.Forward; till = false }
-     ; [ Key.char 'F' ], Find { direction = Ches_core.Motion.Find.Backward; till = false }
-     ; [ Key.char 't' ], Find { direction = Ches_core.Motion.Find.Forward; till = true }
-     ; [ Key.char 'T' ], Find { direction = Ches_core.Motion.Find.Backward; till = true }
+     ; [ Key.char 'f' ], Find { direction = Cobalt_core.Motion.Find.Forward; till = false }
+     ; [ Key.char 'F' ], Find { direction = Cobalt_core.Motion.Find.Backward; till = false }
+     ; [ Key.char 't' ], Find { direction = Cobalt_core.Motion.Find.Forward; till = true }
+     ; [ Key.char 'T' ], Find { direction = Cobalt_core.Motion.Find.Backward; till = true }
      ; [ Key.char ';' ], Repeat_find { opposite = false }
      ; [ Key.char ',' ], Repeat_find { opposite = true }
      ; [ Key.char '/' ], Search_prompt { forward = true }

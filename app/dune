@@ -1,10 +1,10 @@
-; ches_app performs I/O for the editor and coordinates the core with the keymap.
-; Filesystem access lives here, never in ches_core. Like ches_core and ches_input it
+; cobalt_app performs I/O for the editor and coordinates the core with the keymap.
+; Filesystem access lives here, never in cobalt_core. Like cobalt_core and cobalt_input it
 ; must not depend on bonsai, bonsai_term, async, notty, or any terminal library.
 
 (library
- (name ches_app)
+ (name cobalt_app)
  (foreign_stubs (language c) (names directory_fs_stubs))
- (libraries ches_error ches_core ches_input ches_highlight ches_highlight_tree_sitter core core_unix)
+ (libraries cobalt_error cobalt_core cobalt_input cobalt_highlight cobalt_highlight_tree_sitter core core_unix)
  (preprocess
   (pps ppx_jane)))

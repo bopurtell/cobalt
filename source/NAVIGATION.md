@@ -1,6 +1,6 @@
 # Language query transport contract
 
-`Ches_error.Language_query` is the shared plain-data interface (published in
+`Cobalt_error.Language_query` is the shared plain-data interface (published in
 `error/language_query.mli`). Send `Source_request.Query request` or
 `Cancel_query token`; receive `Source_event.Query_result reply`, possibly inside
 `Owned`. K uses Hover, gd Declaration, gD Definition. Replies retain the original

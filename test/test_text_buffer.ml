@@ -1,5 +1,5 @@
 open! Core
-open Ches_core
+open Cobalt_core
 module B = Text_buffer
 
 let of_string_exn s =

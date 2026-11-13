@@ -77,7 +77,7 @@ opam exec --switch=5.2.0+ox -- dune runtest content_picker file_picker line_pick
 ```
 
 Async, Yojson and Base64 are declared in `dune-project` (which generates
-`ches.opam`). A C compiler and `gzip` are also needed for bundled highlighting.
+`cobalt.opam`). A C compiler and `gzip` are also needed for bundled highlighting.
 Install **ripgrep** using your OS package manager and put `rg` on `PATH`; version
 14.1.0 was used for the final provider checks. No `fzf` or shell subprocess wrapper
 is required. Missing rg/access failures produce actionable provider errors. Only

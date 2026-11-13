@@ -1,6 +1,6 @@
 # Distribution notices and source coverage
 
-Ches declares MIT in `dune-project`/`ches.opam`. No new copyright statement or
+Cobalt declares MIT in `dune-project`/`cobalt.opam`. No new copyright statement or
 license grant is inferred by this packaging tool. Existing repository notices
 are copied under `licenses/repository/`; available installed opam package license
 texts are copied under `licenses/opam/`. Additional local audit material, when

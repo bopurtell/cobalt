@@ -3,7 +3,7 @@
 ## Personal editing sessions
 
 The root README features five screenshots supplied by the author on 2026-11-03.
-They show Ches being used on an OCaml/Hardcaml networking project, rather than
+They show Cobalt being used on an OCaml/Hardcaml networking project, rather than
 this editor's own source. These are unmodified copies of the supplied PNGs;
 terminal chrome, local paths, source, and shell output are retained.
 
@@ -19,7 +19,7 @@ The capture script below does not generate or overwrite these `daily-*` assets.
 
 ## Reproducible terminal-frame captures
 
-The five original PNGs below show the real Ches executable editing this repository's source,
+The five original PNGs below show the real Cobalt executable editing this repository's source,
 captured on 2026-11-03. All are **1728 × 1056**, RGB, with embedded `Description`
 and `Capture` text metadata. The theme is the default **Vim Classic**; absolute
 line numbers are explicitly enabled for these captures.
@@ -37,10 +37,10 @@ line numbers are explicitly enabled for these captures.
 From the repository root, with the OCaml development environment active:
 
 ```sh
-dune build -j6 bin/ches.exe
-python3 -m venv /tmp/opencode/ches-image-venv
-/tmp/opencode/ches-image-venv/bin/python -m pip install Pillow==13.0.0
-/tmp/opencode/ches-image-venv/bin/python scripts/capture_readme.py
+dune build -j6 bin/cobalt.exe
+python3 -m venv /tmp/opencode/cobalt-image-venv
+/tmp/opencode/cobalt-image-venv/bin/python -m pip install Pillow==13.0.0
+/tmp/opencode/cobalt-image-venv/bin/python scripts/capture_readme.py
 ```
 
 The parent `/tmp/opencode` must exist. Other requirements: `tmux`, real `ocamllsp`,
@@ -50,13 +50,13 @@ for language-server navigation; the capture above used the existing development
 build. No fake language server or synthetic diagnostics are used. If needed,
 build the development targets first with `dune build -j6`.
 
-Options: `--binary /absolute/path/to/ches.exe` and `--font-dir /path/to/fonts`.
+Options: `--binary /absolute/path/to/cobalt.exe` and `--font-dir /path/to/fonts`.
 The script does not build or run the full test suite. It regenerates only these
 five PNGs in the checkout. The root README is maintained separately.
 
 ### Exact UI sequence
 
-The script launches `_build/default/bin/ches.exe completion/snippet.ml` from the
+The script launches `_build/default/bin/cobalt.exe completion/snippet.ml` from the
 repository root, with LSP enabled. Sequences below continue from the preceding
 row; `Space` denotes the Normal-mode leader and shell commands end with Enter.
 
@@ -81,19 +81,19 @@ dune --version
 The terminal starts in the current file's `completion/` directory; `cd ..` returns
 to the checkout root. The manually resized float is **82 × 30 cells**, including
 its frame; it does not illustrate the default **132 × 40** size. After the last
-capture, Escape closes references and `Space q` exits Ches. No source edits or
+capture, Escape closes references and `Space q` exits Cobalt. No source edits or
 saves are issued.
 
 ## Capture and rendering details
 
 `scripts/capture_readme.py` follows the private tmux harness pattern in
 `scripts/terminal_smoke.py`, `scripts/picker_smoke.py`, and `scripts/lsp_smoke.py`.
-Each run creates a new `/tmp/opencode/ches-readme-*` evidence directory and tmux
+Each run creates a new `/tmp/opencode/cobalt-readme-*` evidence directory and tmux
 socket, uses `-f /dev/null`, and disables tmux status. The PTY is **144 columns ×
 44 rows**. It isolates `HOME` and all XDG config/cache/data/state/runtime
 directories, launches `/bin/sh` with empty `ENV` and `BASH_ENV`, and sets
-`LC_ALL=C.UTF-8`, `TERM=tmux-256color`, `SHELL=/bin/sh`, and `PS1='ches $ '`. No
-personal shell startup or Ches configuration is loaded. It kills only its private
+`LC_ALL=C.UTF-8`, `TERM=tmux-256color`, `SHELL=/bin/sh`, and `PS1='cobalt $ '`. No
+personal shell startup or Cobalt configuration is loaded. It kills only its private
 tmux server, including on failure.
 
 Frames are captured with `tmux capture-pane -e -p`, then rasterized with **Pillow
@@ -125,9 +125,9 @@ all external-tool state or concurrent work in the checkout.
 Paths below are relative to the repository-root README:
 
 ```markdown
-![Ches Zen editor showing real OCaml snippet implementation with syntax highlighting and line numbers.](docs/images/editor.png)
-![Ches workspace with directory browser, source editor, status and support tiles.](docs/images/workspace.png)
-![Ches Tile Term running read-only project commands over the source editor.](docs/images/tile-terms.png)
-![Ches file picker with source/lsp_client.ml preview.](docs/images/navigation.png)
+![Cobalt Zen editor showing real OCaml snippet implementation with syntax highlighting and line numbers.](docs/images/editor.png)
+![Cobalt workspace with directory browser, source editor, status and support tiles.](docs/images/workspace.png)
+![Cobalt Tile Term running read-only project commands over the source editor.](docs/images/tile-terms.png)
+![Cobalt file picker with source/lsp_client.ml preview.](docs/images/navigation.png)
 ![Real ocamllsp references and source preview for the snippet implementation.](docs/images/references.png)
 ```

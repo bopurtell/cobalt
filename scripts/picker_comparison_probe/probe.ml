@@ -1,7 +1,7 @@
 (* Explicit, bounded headless lifecycle probe. No Async/terminal latency claim. *)
 open! Core
-open Ches_file_picker
-module Tile = Ches_screen.File_picker_tile
+open Cobalt_file_picker
+module Tile = Cobalt_screen.File_picker_tile
 
 let now () = Or_error.ok_exn Core_unix.Clock.gettime Core_unix.Clock.Monotonic
 let ms start = Int63.to_float (Int63.( - ) (now ()) start) /. 1e6
@@ -33,7 +33,7 @@ let report count name t =
     (Interaction.cache_entries t) (Interaction.cache_bytes t) (Interaction.cache_evictions t)
 
 let verify_oracle candidates =
-  let module F = Ches_palette.Fuzzy in
+  let module F = Cobalt_palette.Fuzzy in
   let candidates = List.take candidates 64 @
     List.map [ "界/模型.ml"; "café/École.ml"; "odd/line\nfile.ml"; "dir/a\\\xffb.ml" ]
       ~f:(fun relative_path -> Model.Candidate.create ~root:"/bench" ~relative_path |> Or_error.ok_exn) in
@@ -84,7 +84,7 @@ let run count =
   let _, movement = timed (fun () -> Tile.update picker ~rows:36 Next) in
   printf "n=%d phase=blank-next update_and_fit_ms=%.3f\n%!" count movement;
   render "blank-next";
-  List.iter [ "edit-m", Ches_palette.Palette.Event.Paste "m"
+  List.iter [ "edit-m", Cobalt_palette.Palette.Event.Paste "m"
             ; "extend-mo", Paste "o"; "extend-model", Paste "del"
             ; "backspace-mode", Backspace; "backspace-mod", Backspace
             ; "repeat-model", Paste "el"

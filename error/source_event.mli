@@ -1,4 +1,4 @@
-(** Messages a diagnostic source sends to Ches: the boundary between the asynchronous
+(** Messages a diagnostic source sends to Cobalt: the boundary between the asynchronous
     source library and the synchronous UI state. Plain data; no Async. *)
 module Feedback := Error
 open! Core
@@ -26,9 +26,9 @@ type t =
   | Query_result of Language_query.reply
   (** Independent of diagnostic coalescing. Consumers check the token and cursor
       against the current buffer lifetime, revision and pending request. *)
-  | Completion of Ches_completion.Model.Reply.t
+  | Completion of Cobalt_completion.Model.Reply.t
   (** Plain-text completion results; route immediately, independently of diagnostics. *)
-  | Completion_metadata of { token : Ches_completion.Model.Token.t; source : string; items : Completion_info.t list }
+  | Completion_metadata of { token : Cobalt_completion.Model.Token.t; source : string; items : Completion_info.t list }
   (** Initial metadata or revision-guarded lazy resolve results. Route immediately;
       see Completion_info and source/COMPLETION.md for acceptance semantics. *)
   | Servers of Server.t list

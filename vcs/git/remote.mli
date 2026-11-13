@@ -1,11 +1,11 @@
-(** Push, pull and fetch (phase 6): the push and pull popups, and the hints that
+(** Push, pull and fetch: the push and pull popups, and the hints that
     explain a failed network command. Pure, like the rest of this library: the view
-    asks the popups ({!Ches_vcs.Popup}) and hands their choices to {!Backend.plan}
+    asks the popups ({!Cobalt_vcs.Popup}) and hands their choices to {!Backend.plan}
     ([Push], [Pull]); [f] is planned at once ([Fetch]). The commands themselves are
-    in {!Backend}'s "Remotes and branches (phase 6)". *)
+    in {!Backend}'s "Remotes and branches". *)
 
 open! Core
-open Ches_vcs
+open Cobalt_vcs
 
 module Push : sig
   module Target : sig
@@ -62,12 +62,12 @@ end
     - ["Host key verification failed"]: ["SSH does not know the host's key: connect
       once with ssh in a terminal to accept it"]
     - ["terminal prompts disabled"], ["could not read Username"] or ["could not read
-      Password"]: ["Git needs credentials and Ches cannot prompt: use an SSH key in
+      Password"]: ["Git needs credentials and Cobalt cannot prompt: use an SSH key in
       ssh-agent or a credential helper"]
     - ["Could not resolve hostname"] or ["Could not resolve host"]: ["Could not
       resolve the remote's host: check the network"]
     - ["Not possible to fast-forward"]: ["The branch and its upstream have diverged:
-      pull with rebase (p -r p) or merge outside Ches"]
+      pull with rebase (p -r p) or merge outside Cobalt"]
     - ["(stale info)"]: ["The remote branch moved since the last fetch: fetch (f)
       and look before forcing"]
     - ["(fetch first)"] or ["(non-fast-forward)"]: ["The remote has commits this

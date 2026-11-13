@@ -1,10 +1,10 @@
 open! Core
 open! Async
-module Provider = Ches_file_discovery.Provider
-module Model = Ches_file_picker.Model
-module Ui_state = Ches_screen.Ui_state
-module Tile = Ches_screen.File_picker_tile
-module Interaction = Ches_file_picker.Interaction
+module Provider = Cobalt_file_discovery.Provider
+module Model = Cobalt_file_picker.Model
+module Ui_state = Cobalt_screen.Ui_state
+module Tile = Cobalt_screen.File_picker_tile
+module Interaction = Cobalt_file_picker.Interaction
 
 module Cache_limits = struct
   type t = { max_roots : int; max_bytes : int; ttl : Time_ns.Span.t }
@@ -91,7 +91,7 @@ let next t ui =
   | Some _ when Ui_state.exited ui -> Provider.cancel t.provider; return []
   | Some picker ->
     let session = Tile.session picker in
-    let request = Model.discovery_request (Ches_file_picker.Interaction.model session) in
+    let request = Model.discovery_request (Cobalt_file_picker.Interaction.model session) in
     if not (same_run t request) then return []
     else (
       if Interaction.acceptance_blocked session && not (Interaction.refreshing session) then (
@@ -109,13 +109,13 @@ let next t ui =
         then Scheduler.yield ()
         else Clock_ns.after (Time_ns.Span.of_int_ms 2)
       in
-      if not (same_run t request) || Ches_file_picker.Interaction.closed session
+      if not (same_run t request) || Cobalt_file_picker.Interaction.closed session
       then []
       else
        let snapshot = match ready with Some _ -> ready | None -> Provider.poll_update t.provider ~max_batches:1 in
        let events = Option.to_list (Option.map snapshot ~f:(fun s -> Ui_state.Input.File_picker_update s)) in
        let status = (Option.value_exn (Provider.current t.provider)).status in
-      let working = Ches_file_picker.Interaction.busy session || Option.is_some snapshot in
+      let working = Cobalt_file_picker.Interaction.busy session || Option.is_some snapshot in
       match status, working with
       | (Loading | Partial), _ | _, true -> events @ [ Ui_state.Input.File_picker_work request ]
       | (Complete _ | Failed _ | Cancelled), false -> [])
@@ -133,9 +133,9 @@ let rec pump t ~current ~inject =
     let ui = current () in
     let continue = Option.exists (Ui_state.file_picker ui) ~f:(fun picker ->
       let session = Tile.session picker in
-       let model = Ches_file_picker.Interaction.model session in
+       let model = Cobalt_file_picker.Interaction.model session in
        same_run t (Model.discovery_request model) && not (Ui_state.exited ui)
-      && (Ches_file_picker.Interaction.busy session
+      && (Cobalt_file_picker.Interaction.busy session
            || match Model.discovery_status model with Loading | Partial -> true | _ -> false)) in
     if continue then pump t ~current ~inject else return ()
   | _ ->

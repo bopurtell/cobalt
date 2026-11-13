@@ -1,9 +1,9 @@
 open! Core
-open Ches_core
-open Ches_app
-open Ches_screen
-module Q = Ches_error.Language_query
-module Preview = Ches_navigation_preview_model.Model
+open Cobalt_core
+open Cobalt_app
+open Cobalt_screen
+module Q = Cobalt_error.Language_query
+module Preview = Cobalt_navigation_preview_model.Model
 
 let width = 100
 let height = 25
@@ -18,7 +18,7 @@ let request t keys =
   let t = press t keys in
   let t, requests = Ui_state.take_source_requests t in
   let request = List.find_map_exn requests ~f:(function
-    | Ches_error.Source_request.Query request -> Some request | _ -> None) in
+    | Cobalt_error.Source_request.Query request -> Some request | _ -> None) in
   t, request, requests
 let reply t (request : Q.request) result =
   run t [ Source (Query_result { token = request.token; cursor = request.cursor
@@ -62,7 +62,7 @@ let%test_unit "hover scrolls, renders, closes, cancels and drops wrong cursor an
   assert (Option.is_none (Ui_state.hover closed));
   assert (Editor.cursor (editor closed) = 0);
   let _, commands = Ui_state.take_source_requests closed in
-  assert (List.exists commands ~f:(function Cancel_query token -> Ches_completion.Model.Token.equal token query.token | _ -> false));
+  assert (List.exists commands ~f:(function Cancel_query token -> Cobalt_completion.Model.Token.equal token query.token | _ -> false));
   let moved = press t "l" |> fun t -> reply t query (Hover_result (Some hover)) in
   assert (Option.is_none (Ui_state.hover moved));
   let cancelled = press t "<Esc>" |> fun t -> reply t query (Hover_result (Some hover)) in
@@ -74,7 +74,7 @@ let%test_unit "hover scrolls, renders, closes, cancels and drops wrong cursor an
 ;;
 
 let with_files f =
-  let root = Helpers.scratch_dir "ches-language-navigation-" in
+  let root = Helpers.scratch_dir "cobalt-language-navigation-" in
   let a = Filename.concat root "origin.ml" and b = Filename.concat root "target.ml" in
   Out_channel.write_all a ~data:"origin text";
   Out_channel.write_all b ~data:"disk";
@@ -193,13 +193,13 @@ let%test_unit "failed traversal preserves forward branch and Tab does not steal 
     let picker = press picker "<Tab>" in
     assert (String.equal (Option.value_exn (Editor.path (editor picker))) a);
     let terminal = press back " /" in
-    let terminal = run terminal [ Terminal_key Ches_terminal.Model.{ code = Tab; modifiers = no_modifiers } ] in
+    let terminal = run terminal [ Terminal_key Cobalt_terminal.Model.{ code = Tab; modifiers = no_modifiers } ] in
     assert (String.equal (Option.value_exn (Editor.path (editor terminal))) a))
 ;;
 
 let%test_unit "source stop invalidates pending replies even within one event batch" =
   let pending, query, _ = request (create "/tmp/navigation.ml" "abc") "K" in
-  let result = Ches_error.Source_event.Query_result
+  let result = Cobalt_error.Source_event.Query_result
       { token = query.token; cursor = query.cursor; kind = query.kind
       ; source = "fake"; result = Hover_result (Some hover) } in
   let stopped = run pending
@@ -297,8 +297,8 @@ let%test_unit "same file picker and hover closure return focus without moving or
       let pending, query, _ = request origin "K" in
       let opened = reply pending query (Hover_result (Some hover)) in
       let closed = press opened close in
-      assert (Ches_tile.View_id.equal (Ui_state.focused_view closed ~width ~height)
-                (Ches_tile.View_id.of_string "document"));
+      assert (Cobalt_tile.View_id.equal (Ui_state.focused_view closed ~width ~height)
+                (Cobalt_tile.View_id.of_string "document"));
       assert (Editor.cursor (editor closed) = Editor.cursor (editor origin));
       assert (String.equal (Text_buffer.to_string (Editor.text (editor closed)))
                 (Text_buffer.to_string (Editor.text (editor origin))));
@@ -448,13 +448,13 @@ let%test_unit "disk preview must match captured stamp even if the original path 
     let pending, query, _ = request (create a "origin text") "gr" in
     let picker = reply pending query (Locations [target b 0]) in
     let req = preview_request picker in
-    let original = Ches_app.Navigation_file_stamp.read b |> Option.value_exn in
+    let original = Cobalt_app.Navigation_file_stamp.read b |> Option.value_exn in
     let replacement = root ^ "/replacement" in
     Exn.protect ~f:(fun () ->
       Out_channel.write_all replacement ~data:"other version";
-      let other = Ches_app.Navigation_file_stamp.read replacement |> Option.value_exn in
+      let other = Cobalt_app.Navigation_file_stamp.read replacement |> Option.value_exn in
       let payload stamp text = Preview.Ready
-        { source = Disk { stamp = Some (Ches_app.Navigation_file_stamp.to_string stamp) }
+        { source = Disk { stamp = Some (Cobalt_app.Navigation_file_stamp.to_string stamp) }
         ; first_line = 0; truncated = false
         ; lines = [{ text; truncated = false; highlights = [{ start = 0; stop = 1 }] }] } in
       (* Delivery sees the original metadata again, but the worker's snapshot

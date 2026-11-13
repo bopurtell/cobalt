@@ -1,5 +1,5 @@
 open! Core
-open Ches_vcs
+open Cobalt_vcs
 
 let batch_ssh_command = "ssh -o BatchMode=yes"
 

@@ -1,5 +1,5 @@
 open! Core
-open Ches_screen
+open Cobalt_screen
 
 let%expect_test "both toggles from every style" =
   List.iter Line_numbers.all ~f:(fun style ->

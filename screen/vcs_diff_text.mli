@@ -1,11 +1,11 @@
 (** The VCS view's diff panel text (private to {!Vcs_view}): a parsed
-    {!Ches_vcs.Diff.t} laid out as read-only text, one logical line per diff line, with
+    {!Cobalt_vcs.Diff.t} laid out as read-only text, one logical line per diff line, with
     each line's kind (for its style) and the file and line that [e]/Enter opens from
     it.
 
     Layout: a [show]'s preamble (header lines; the indented message as plain text),
     then, when there is a preamble and at least one file, the commit's file list
-    (phase 8: one {!Kind.t.Listed} line per file, in order, separated from the
+    (one {!Kind.t.Listed} line per file, in order, separated from the
     message and from the first file by exactly one blank line), then per file its
     raw header lines, then its hunks (the [@@] header, then each
     line as its prefix and text). Binary, mode-only, rename-only and submodule files
@@ -20,7 +20,7 @@
     but it would split a line), shown as [^J]. *)
 
 open! Core
-open Ches_vcs
+open Cobalt_vcs
 
 module Kind : sig
   type t =
@@ -34,11 +34,11 @@ module Kind : sig
     | No_newline (** ["\ No newline at end of file"]. *)
     | Note (** Placeholders and notes the view adds. *)
     | Listed
-    (** A line of a commit's file list (phase 8): a change letter ([A] added, [D]
+    (** A line of a commit's file list: a change letter ([A] added, [D]
         deleted, [M] modified, [R] renamed, [C] copied, [T] type changed, [U]
-        unmerged), a space, {!Ches_vcs.Diff.File.path}, then, when its shown hunks
+        unmerged), a space, {!Cobalt_vcs.Diff.File.path}, then, when its shown hunks
         add or remove lines, two spaces and ["+<added> -<removed>"] counted over
-        them, and [" (truncated)"] when the file is {!Ches_vcs.Diff.File.truncated}.
+        them, and [" (truncated)"] when the file is {!Cobalt_vcs.Diff.File.truncated}.
         Its target is the file's ([line = None]); it has no {!Position.t}. *)
   [@@deriving sexp_of, equal]
 
@@ -82,7 +82,7 @@ val of_message : string -> t
 val line_at : t -> int -> Line.t option
 
 (** Where a line came from in the {!Diff.t} it was laid out from ({!of_diff}): what
-    the VCS view's hunk actions (phase 3) and line selections (phase 4) act on. *)
+    the VCS view's hunk actions and line selections act on. *)
 module Position : sig
   type t =
     { file : int (** Index into [Diff.t.files]. *)
@@ -103,7 +103,7 @@ val position_at : t -> int -> Position.t option
     [None] when it is not laid out (out of range, or a header-only file's hunks). *)
 val start_of : t -> file:int -> hunk:int option -> int option
 
-(** The diff lines a Visual selection touches (phase 4): one file and, per hunk,
+(** The diff lines a Visual selection touches: one file and, per hunk,
     its lines. *)
 module Span : sig
   type t =
@@ -111,7 +111,7 @@ module Span : sig
     ; hunks : (int * int list) list
     (** Hunk indices into that file's [hunks], ascending, each with the ascending
         indices into its [lines] of every touched hunk line ([Added], [Removed],
-        [Context] and [No_newline] alike; {!Ches_vcs_git.Patch} ignores what is not a
+        [Context] and [No_newline] alike; {!Cobalt_vcs_git.Patch} ignores what is not a
         change). A hunk whose only touched line is its [@@] line is not listed.
         Empty when only the file's header lines, its [@@] lines, a submodule's note
         or a truncation placeholder are touched. *)
@@ -120,7 +120,7 @@ module Span : sig
 end
 
 (** The lines touched by the byte range [\[start, stop)] of {!text} (Text_view's
-    {!Ches_tile.Text_view.selection}): every line holding at least one byte of it,
+    {!Cobalt_tile.Text_view.selection}): every line holding at least one byte of it,
     its line feed counting as its own (an empty range touches the line holding
     [start]). Lines outside any file (a commit's preamble, the cut note, an
     {!of_message} text) are ignored. [Ok None] when no touched line belongs to a
@@ -133,7 +133,7 @@ val span : t -> start:int -> stop:int -> (Span.t option, [ `Several_files ]) Res
 val hunk_starts : t -> int list
 
 (** The byte offset of every laid-out file's first header line, in file order
-    ([\}] and [\{] in the view, phase 8). *)
+    ([\}] and [\{] in the view). *)
 val file_starts : t -> int list
 
 (** The file (index into [Diff.t.files]) of the {!Kind.t.Listed} line containing

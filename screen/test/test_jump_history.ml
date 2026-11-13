@@ -1,5 +1,5 @@
 open! Core
-module H = Ches_screen.Jump_history
+module H = Cobalt_screen.Jump_history
 
 let loc offset : H.location = { path = "document"; offset }
 let back t current = H.peek_back t ~current:(loc current) |> Option.value_exn

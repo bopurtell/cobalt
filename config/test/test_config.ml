@@ -1,6 +1,6 @@
 open Core
 open Async
-open Ches_config_runtime
+open Cobalt_config_runtime
 
 let check condition message = if not condition then failwith message
 let ok = function Ok value -> value | Error error -> failwith error
@@ -16,7 +16,7 @@ let rec remove path =
 ;;
 
 let main () =
-  let root = Core_unix.mkdtemp "/tmp/ches-config-tests-" in
+  let root = Core_unix.mkdtemp "/tmp/cobalt-config-tests-" in
   Monitor.protect ~finally:(fun () -> In_thread.run (fun () -> remove root)) (fun () ->
     let path = Filename.concat root "user's config ; $(no shell).ml" in
     let marker = Filename.concat root "private directory" in
@@ -30,11 +30,11 @@ let main () =
     let env entries name = List.Assoc.find entries name ~equal:String.equal in
     check (Option.equal String.equal
       (Loader.config_path ~getenv:(env [ "XDG_CONFIG_HOME", "/xdg"; "HOME", "/home/test" ]))
-      (Some "/xdg/ches/config.ml")) "XDG path";
+      (Some "/xdg/cobalt/config.ml")) "XDG path";
     List.iter [ ""; "relative" ] ~f:(fun xdg ->
       check (Option.equal String.equal
         (Loader.config_path ~getenv:(env [ "XDG_CONFIG_HOME", xdg; "HOME", "/home/test" ]))
-        (Some "/home/test/.config/ches/config.ml")) "HOME fallback");
+        (Some "/home/test/.config/cobalt/config.ml")) "HOME fallback");
     check (Option.is_none (Loader.config_path ~getenv:(env []))) "no location";
     check (Option.is_none (Loader.config_path ~getenv:(env ["HOME", "relative"])))
       "relative HOME must not resolve configuration against cwd";
@@ -42,7 +42,7 @@ let main () =
     check (Settings.equal (ok missing) Settings.default) "missing defaults";
     let%bind absent_env = Loader.For_testing.load ~getenv:(env []) () in
     check (Settings.equal (ok absent_env) Settings.default) "missing environment defaults";
-    let%bind result = load (remember ^ {|open Ches_config
+    let%bind result = load (remember ^ {|open Cobalt_config
 let () =
   let words = String.split_on_char ',' "hello,world" in
   if List.length words = 2 then Completion.set_enabled false;
@@ -65,13 +65,13 @@ let () =
                 ; "source"; "selected_source"; "detail"; "selected_detail"
                 ; "match"; "selected_match"; "documentation" ] in
     let colors_equal = [%equal: (string * string) list] in
-    let%bind colored = load (remember ^ {|open Ches_config
+    let%bind colored = load (remember ^ {|open Cobalt_config
 let () =
   List.iter (fun role -> Completion.set_color ~role "#Ab09EF")
     [ "background"; "selected_background"; "label"; "selected_label"
     ; "source"; "selected_source"; "detail"; "selected_detail"
     ; "match"; "selected_match"; "documentation" ];
-  for _ = 1 to 20 do Ches_config.Completion.set_color ~role:"detail" "#C0fFeE" done;
+  for _ = 1 to 20 do Cobalt_config.Completion.set_color ~role:"detail" "#C0fFeE" done;
   Signature_help.set_enabled false;
   View.set_line_numbers true;
   Theme.set "custom-theme";
@@ -93,7 +93,7 @@ let () =
       ; "detail", "#１２３４５６"; "detail", ""; "detail", "#123\00056" ]
       ~f:(fun (role, color) ->
         let%map result = load (remember ^ sprintf
-          "let () = Ches_config.View.set_line_numbers true; Ches_config.Completion.set_color ~role:%S %S; Ches_config.Completion.set_color ~role:%S \"#abcdef\""
+          "let () = Cobalt_config.View.set_line_numbers true; Cobalt_config.Completion.set_color ~role:%S %S; Cobalt_config.Completion.set_color ~role:%S \"#abcdef\""
           role color role) in
         check (contains (error result) "Invalid_argument") "invalid color setter accepted";
         check_clean ();
@@ -107,16 +107,16 @@ let () =
         { colored with completion_colors = [entry; "detail", "#123456"] }))
         "host accepted invalid entry before overwrite");
     let%bind bypassed = load (remember ^ {|let () =
-  Ches_config.completion_colors := ["detail", "bad"; "detail", "#123456"]
+  Cobalt_config.completion_colors := ["detail", "bad"; "detail", "#123456"]
 |}) in
     check (contains (error bypassed) "Invalid settings result") "host color validation bypassed";
     check_clean ();
     let%bind oversized_colors = load (remember ^ {|let () =
-  Ches_config.completion_colors := List.init 12 (fun _ -> "detail", "#123456")
+  Cobalt_config.completion_colors := List.init 12 (fun _ -> "detail", "#123456")
 |}) in
     check (contains (error oversized_colors) "11 entries") "writer color entry bound missing";
     check_clean ();
-    let%bind result = load {config|open Ches_config
+    let%bind result = load {config|open Cobalt_config
 let () =
   Snippets.add ~id:"personal" ~prefix:"q" ~scope:["ocaml"; ".foo"]
     ~description:"quoted\ntext" {snip|${1|a\,b,c\|d|}
@@ -127,7 +127,7 @@ let () =
   Snippets.add ~id:"same" ~prefix:"last" "last"
 |config} in
     let settings = ok result in
-    let module U = Ches_completion.User_snippets in
+    let module U = Cobalt_completion.User_snippets in
     let expected_body = {snip|${1|a\,b,c\|d|}
 \$ \\ literal |} ${TM_FILENAME_BASE:untitled} $0|snip} in
     let expected_operations =
@@ -144,7 +144,7 @@ let () =
         (Sexp.to_string_hum ([%sexp_of: U.operation list] settings.snippets)));
     let%bind defaults = load "let () = ()" in
     check (List.is_empty (ok defaults).snippets) "fresh helper leaked snippet operations";
-    let%bind collections = load {|open Ches_config
+    let%bind collections = load {|open Cobalt_config
 let () =
   Snippets.set_collection_enabled ~collection:"hardcaml" false;
   Snippets.add ~id:"tagged" ~prefix:"q" ~collection:"hardcaml.fsm" "tagged";
@@ -169,11 +169,11 @@ let () =
       ; "Snippets.add ~id:\"bad.collection\" ~prefix:\"q\" ~collection:\"a..b\" \"ok\"", "bad.collection", "collection"
       ; "Snippets.set_collection_enabled ~collection:\"a.\" false", "snippets[0]", "collection"
       ] ~f:(fun (declaration, id, reason) ->
-        let%map result = load ("open Ches_config\nlet () = " ^ declaration) in
+        let%map result = load ("open Cobalt_config\nlet () = " ^ declaration) in
         let message = error result in
         check (contains message "Invalid settings result" && contains message id && contains message reason)
           "host must reject invalid declarations with ID details") in
-    let%bind result = load {|open Ches_config
+    let%bind result = load {|open Cobalt_config
 let () = Snippets.add ~id:"invalid.first" ~prefix:"q" "${UNKNOWN}";
          Snippets.disable ~id:"invalid.first"
 |} in
@@ -184,22 +184,22 @@ let () = Snippets.add ~id:"invalid.first" ~prefix:"q" "${UNKNOWN}";
     let%bind removed = Loader.load ~path () in
     check (Settings.equal (ok removed) Settings.default)
       "deleted configuration retained prior settings or snippet operations";
-    let%bind result = load {|let () = for _ = 1 to 1000 do Ches_config.Snippets.disable ~id:"same" done|} in
+    let%bind result = load {|let () = for _ = 1 to 1000 do Cobalt_config.Snippets.disable ~id:"same" done|} in
     check (List.length (ok result).snippets = 1000) "1000 duplicate ordered operations rejected";
     let%bind result = load {|let () = for _ = 1 to 1000 do
-  Ches_config.Snippets.set_collection_enabled ~collection:"hardcaml" false done|} in
+  Cobalt_config.Snippets.set_collection_enabled ~collection:"hardcaml" false done|} in
     check (List.length (ok result).snippets = 1000) "1000 collection-only operations rejected";
     let%bind result = load {|let () = for _ = 1 to 1001 do
-  Ches_config.Snippets.set_collection_enabled ~collection:"hardcaml" false done|} in
+  Cobalt_config.Snippets.set_collection_enabled ~collection:"hardcaml" false done|} in
     check (contains (error result) "1000") "collection-only operation limit not enforced";
-    let%bind result = load {|let () = for _ = 1 to 1001 do Ches_config.Snippets.disable ~id:"same" done|} in
+    let%bind result = load {|let () = for _ = 1 to 1001 do Cobalt_config.Snippets.disable ~id:"same" done|} in
     check (contains (error result) "1000") "operation limit not enforced";
-    let%bind result = load {|let () = Ches_config.Snippets.add ~id:"huge" ~prefix:"q"
+    let%bind result = load {|let () = Cobalt_config.Snippets.add ~id:"huge" ~prefix:"q"
   (String.make (1024 * 1024) 'x')|} in
     check (contains (error result) "exceeds 1 MiB") "snippet serializer unbounded";
-    let protocol = "CHES_SETTINGS_2\ntrue\nfalse\n1\ntrue\nfalse\n76696d\n" in
+    let protocol = "COBALT_SETTINGS_2\ntrue\nfalse\n1\ntrue\nfalse\n76696d\n" in
     List.iter
-      [ ""; "CHES_SETTINGS_1\n"; protocol ^ "0"; protocol ^ "0\nextra\n"
+      [ ""; "COBALT_SETTINGS_1\n"; protocol ^ "0"; protocol ^ "0\nextra\n"
       ; protocol ^ "01\n"; protocol ^ "-1\n"; protocol ^ "1001\n"
       ; protocol ^ "1\ndisable\n0g\n"; protocol ^ "1\nother\n"
       ; protocol ^ "1\nadd\n61\n62\n9999999999999999999999\n"
@@ -215,18 +215,18 @@ let () = Snippets.add ~id:"invalid.first" ~prefix:"q" "${UNKNOWN}";
       "legacy v2 add did not default to untagged";
     check legacy.signature_help_enabled "legacy signature default";
     check (List.is_empty legacy.completion_colors) "v2 colors must default empty";
-    let protocol3 = String.substr_replace_first protocol ~pattern:"CHES_SETTINGS_2" ~with_:"CHES_SETTINGS_3" ^ "true\n" in
+    let protocol3 = String.substr_replace_first protocol ~pattern:"COBALT_SETTINGS_2" ~with_:"COBALT_SETTINGS_3" ^ "true\n" in
     List.iter ["1\ncollection\n612e\nfalse\n"; "1\ncollection\n61\ninvalid\n";
                 "1\nadd\n61\n62\n0\ninvalid\nnone\n63\n"] ~f:(fun suffix ->
        check (Result.is_error (Loader.For_testing.decode (protocol3 ^ suffix))) "malformed v3 accepted");
     List.iter ["true"; "false"] ~f:(fun signature ->
-      let prefix = String.substr_replace_first protocol ~pattern:"CHES_SETTINGS_2" ~with_:"CHES_SETTINGS_3" in
+      let prefix = String.substr_replace_first protocol ~pattern:"COBALT_SETTINGS_2" ~with_:"COBALT_SETTINGS_3" in
        let decoded = Loader.For_testing.decode (prefix ^ signature ^ "\n0\n") |> Or_error.ok_exn in
        check (List.is_empty decoded.completion_colors) "v3 colors must default empty";
       check (Bool.equal decoded.signature_help_enabled (String.equal signature "true"))
         "v3 signature field decoded incorrectly");
-    let prefix3 = String.substr_replace_first protocol ~pattern:"CHES_SETTINGS_2" ~with_:"CHES_SETTINGS_3" in
-    let protocol4 = String.substr_replace_first protocol3 ~pattern:"CHES_SETTINGS_3" ~with_:"CHES_SETTINGS_4" ^ "0\n" in
+    let prefix3 = String.substr_replace_first protocol ~pattern:"COBALT_SETTINGS_2" ~with_:"COBALT_SETTINGS_3" in
+    let protocol4 = String.substr_replace_first protocol3 ~pattern:"COBALT_SETTINGS_3" ~with_:"COBALT_SETTINGS_4" ^ "0\n" in
     let hex text = String.concat (List.init (String.length text) ~f:(fun i ->
       sprintf "%02x" (Char.to_int text.[i]))) ^ "\n" in
     let pair role color = hex role ^ hex color in
@@ -253,9 +253,9 @@ let () = Snippets.add ~id:"invalid.first" ~prefix:"q" "${UNKNOWN}";
                "false\n0\nextra\n"; "true\n01\n"] ~f:(fun suffix ->
       check (Result.is_error (Loader.For_testing.decode (prefix3 ^ suffix)))
         "malformed v3 signature/framing accepted");
-    let%bind result = load "open Ches_config\nlet () = Completion.set_min_prefix_chars 0" in
+    let%bind result = load "open Cobalt_config\nlet () = Completion.set_min_prefix_chars 0" in
     check (contains (error result) "must be positive") "prefix validation";
-    let%bind result = load "open Ches_config\nlet () = Theme.set \"  \"" in
+    let%bind result = load "open Cobalt_config\nlet () = Theme.set \"  \"" in
     check (contains (error result) "nonempty") "theme validation";
     check (Result.is_error (Settings.validate { Settings.default with theme = "" })) "snapshot theme validation";
     let%bind result = load (remember ^ "let () = failwith \"config exception\"") in
@@ -281,8 +281,8 @@ let () = Snippets.add ~id:"invalid.first" ~prefix:"q" "${UNKNOWN}";
     let%bind result = load {|let () =
   let chunk = String.make 8192 'x' in
   for _ = 1 to 256 do print_string chunk; prerr_string chunk done;
-  print_endline "CHES_SETTINGS_1\nfalse\nfalse\n0";
-  Ches_config.View.set_line_numbers true
+  print_endline "COBALT_SETTINGS_1\nfalse\nfalse\n0";
+  Cobalt_config.View.set_line_numbers true
 |} in
     check (ok result).line_numbers "stdout noise contaminated protocol";
     let%bind result = load {|let () =
@@ -291,12 +291,12 @@ let () = Snippets.add ~id:"invalid.first" ~prefix:"q" "${UNKNOWN}";
 |} in
     check (String.length (error result) <= 1024 * 1024 + 1024) "unbounded diagnostic";
     let%bind result = load {|let () = at_exit (fun () ->
-  let c = open_out "settings.result" in output_string c "CHES_SETTINGS_999\n"; close_out c)
+  let c = open_out "settings.result" in output_string c "COBALT_SETTINGS_999\n"; close_out c)
 |} in
     check (contains (error result) "malformed") "malformed result accepted";
     let%bind result = load {|let () = at_exit (fun () ->
   let c = open_out_bin "settings.result" in
-  output_string c "CHES_SETTINGS_2\ntrue\nfalse\n";
+  output_string c "COBALT_SETTINGS_2\ntrue\nfalse\n";
   output_string c (String.make (512 * 1024) '\000');
   output_string c "\ntrue\nfalse\n76696d2d636c6173736963\n"; close_out c)
 |} in
@@ -304,7 +304,7 @@ let () = Snippets.add ~id:"invalid.first" ~prefix:"q" "${UNKNOWN}";
       "malformed protocol expanded diagnostic beyond limit";
     let%bind result = load {|let () = at_exit (fun () ->
   let c = open_out "settings.result" in
-  output_string c "CHES_SETTINGS_2\ntrue\nfalse\n1\ntrue\nfalse\n_1\n0\n"; close_out c)
+  output_string c "COBALT_SETTINGS_2\ntrue\nfalse\n1\ntrue\nfalse\n_1\n0\n"; close_out c)
 |} in
     check (contains (error result) "encoding") "non-hex theme encoding accepted";
     let%bind result = load {|let () = at_exit (fun () ->
@@ -312,12 +312,12 @@ let () = Snippets.add ~id:"invalid.first" ~prefix:"q" "${UNKNOWN}";
   output_string c (String.make (1024 * 1024 + 1) 'x'); close_out c)
 |} in
     check (contains (error result) "exceeds 1 MiB") "oversized result accepted";
-    let%bind result = load "let () = Ches_config.theme := String.make (1024 * 1024) 'x'" in
+    let%bind result = load "let () = Cobalt_config.theme := String.make (1024 * 1024) 'x'" in
     check (contains (error result) "exceeds 1 MiB") "writer did not bound result";
     let%bind result = load (String.make (1024 * 1024 + 1) ' ') in
     check (contains (error result) "exceeds 1 MiB") "oversized source accepted";
     (* Even bypassing setters cannot bypass host-side validation. *)
-    let%bind result = load "let () = Ches_config.min_prefix_chars := -1" in
+    let%bind result = load "let () = Cobalt_config.min_prefix_chars := -1" in
     check (contains (error result) "must be positive") "result validation";
     write (remember ^ "let () = while true do () done");
     let%bind result = Loader.For_testing.load ~path ~runtime_timeout:0.1 () in

@@ -1,5 +1,5 @@
 open! Core
-open Ches_vcs
+open Cobalt_vcs
 
 let switch key flag description = { Popup.Switch.key; flag; description; group = None }
 let action key description run = { Popup.Action.key; description; run }
@@ -82,13 +82,13 @@ let hints =
     , "SSH does not know the host's key: connect once with ssh in a terminal to accept it"
     )
   ; ( [ "terminal prompts disabled"; "could not read Username"; "could not read Password" ]
-    , "Git needs credentials and Ches cannot prompt: use an SSH key in ssh-agent or a \
+    , "Git needs credentials and Cobalt cannot prompt: use an SSH key in ssh-agent or a \
        credential helper" )
   ; ( [ "Could not resolve hostname"; "Could not resolve host" ]
     , "Could not resolve the remote's host: check the network" )
   ; ( [ "Not possible to fast-forward" ]
     , "The branch and its upstream have diverged: pull with rebase (p -r p) or merge \
-       outside Ches" )
+       outside Cobalt" )
   ; ( [ "(stale info)" ]
     , "The remote branch moved since the last fetch: fetch (f) and look before forcing" )
   ; ( [ "(fetch first)"; "(non-fast-forward)" ]

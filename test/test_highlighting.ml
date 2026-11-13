@@ -1,8 +1,8 @@
 open! Core
-open Ches_core
-open Ches_app
-open Ches_highlight
-module Provider = Ches_highlight_tree_sitter.Provider
+open Cobalt_core
+open Cobalt_app
+open Cobalt_highlight
+module Provider = Cobalt_highlight_tree_sitter.Provider
 
 let text source =
   Text_buffer.of_string source
@@ -55,7 +55,7 @@ let current t =
 ;;
 
 let with_dir f =
-  let dir = Temp_fixture.scratch_dir "ches-highlight-test." in
+  let dir = Temp_fixture.scratch_dir "cobalt-highlight-test." in
   Exn.protect ~f:(fun () -> f dir) ~finally:(fun () ->
     Array.iter (Stdlib.Sys.readdir dir) ~f:(fun file -> Core_unix.unlink (dir ^/ file));
     Core_unix.rmdir dir)
@@ -114,7 +114,7 @@ let%test_unit "literal multiline paste, block edits and block paste get fresh wh
   let t = create ~path:"f.ml" "let a = 1\nlet b = 2\n" in
   let t = run t "i" in
   let before = count t in
-  let t = input t (Ches_input.Keymap.Input.Paste "(* outer\n (* inner *) *)\n") in
+  let t = input t (Cobalt_input.Keymap.Input.Paste "(* outer\n (* inner *) *)\n") in
   assert (count t = before + 1);
   current t;
   let t = run t "<Esc>gg3j0<C-v>jI <Esc>" in
@@ -231,7 +231,7 @@ let%test_unit "acceptance: malformed mixed-width sources preserve save bytes, un
       let initial_parses = count t in
       assert (not (Editor.is_dirty (Controller.editor t)));
       current t;
-      let t = run t "i" |> fun t -> input t (Ches_input.Keymap.Input.Paste inserted)
+      let t = run t "i" |> fun t -> input t (Cobalt_input.Keymap.Input.Paste inserted)
               |> fun t -> run t "<Esc>" in
       let edited = inserted ^ original in
       [%test_result: string] (source t) ~expect:edited;
@@ -373,7 +373,7 @@ let%test_unit "capture fallback latches tiny edits, clears stale spans, recovers
   let t = create ~path:"f.ml" "let good = 1\n" in
   let old_key, old_snapshot = Controller.highlights t in
   let original = Snapshot.ranges old_snapshot in
-  let t = run t "i" |> fun t -> input t (Ches_input.Keymap.Input.Paste dense)
+  let t = run t "i" |> fun t -> input t (Cobalt_input.Keymap.Input.Paste dense)
           |> fun t -> run t "<Esc>" in
   assert (count t = 2);
   policy_plain t (Capture_limit Highlighting.Policy.max_captures);

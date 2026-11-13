@@ -1,6 +1,6 @@
 open! Core
 open! Async
-open Ches_source
+open Cobalt_source
 
 let%expect_test "synthetic sources and document workspace inspect as empty managed inventory" =
   let source = Synthetic.start ~root:"/" () in
@@ -10,7 +10,7 @@ let%expect_test "synthetic sources and document workspace inspect as empty manag
   let manager = Workspace.start ~create:(fun _ -> Some (Synthetic.start ~root:"/" ())) () in
   Source.send manager (Document_opened { resource = "/a.ml"; generation = 1 });
   let%bind () = Scheduler.yield_until_no_jobs_remain () in
-  ignore (Source.poll manager : Ches_error.Source_event.t list);
+  ignore (Source.poll manager : Cobalt_error.Source_event.t list);
   Source.send manager Inspect;
   assert (List.exists (Source.poll manager) ~f:(function Servers [] -> true | _ -> false));
   Source.stop manager;

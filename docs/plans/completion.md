@@ -14,7 +14,7 @@ toggled in the command palette.
 - Cycling replaces the same original slot, rather than querying the inserted word.
 - Candidate order freezes after the first insertion.
 - Ordinary typing accepts inserted text and starts a fresh query as appropriate.
-- Escape keeps inserted text and follows Ches's existing return-to-Normal behavior.
+- Escape keeps inserted text and follows Cobalt's existing return-to-Normal behavior.
 - Enter accepts the selected candidate and dismisses the menu, without a newline.
 - With no available candidates, Tab retains its existing editing behavior.
 - Ghost preview is independently configurable; previews never modify the buffer.

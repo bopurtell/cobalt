@@ -4,15 +4,15 @@ open! Core
     but never executed here; the host validates its snapshot and instantiates ID. *)
 type t [@@deriving sexp_of]
 
-val id : Ches_tile.View_id.t
-val spec : Ches_tile.Spec.t
-val create : Ches_completion.User_snippets.item list -> t
-val selected : t -> Ches_completion.User_snippets.item option
+val id : Cobalt_tile.View_id.t
+val spec : Cobalt_tile.Spec.t
+val create : Cobalt_completion.User_snippets.item list -> t
+val selected : t -> Cobalt_completion.User_snippets.item option
 val query : t -> string
 val fit : t -> rows:int -> t
-val interpret : Ches_input.Key.t list -> Palette_tile.action Ches_tile.Content_key.t
-val update : t -> rows:int -> Ches_palette.Palette.Event.t -> t
-val cursor : t -> width:int -> Ches_tile.Cursor.t
+val interpret : Cobalt_input.Key.t list -> Palette_tile.action Cobalt_tile.Content_key.t
+val update : t -> rows:int -> Cobalt_palette.Palette.Event.t -> t
+val cursor : t -> width:int -> Cobalt_tile.Cursor.t
 val render
   :  ?hotkey_hints:bool
   -> ?notice:string

@@ -211,7 +211,7 @@ val with_update : 'token t -> Discovery.Update.t -> 'token t
 
 (** Install results supplied by a matcher. Preserve selected path identity if
     present; otherwise select the first result, or none for an empty list.
-    Query sanitization, ranking, and snapshot freshness belong to later phases. *)
+    The caller is responsible for query sanitization, ranking, and snapshot freshness. *)
 val with_results : 'token t -> query:string -> Query_result.t list -> 'token t
 (** Publish a completed producer-owned index without enumerating/copying it. *)
 val with_result_index : 'token t -> query:string -> Result_index.t -> 'token t

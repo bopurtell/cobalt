@@ -4,7 +4,7 @@ module Pane_id = struct
   type t =
     | Document
     | Status
-    | Minor of Ches_tile.View_id.t
+    | Minor of Cobalt_tile.View_id.t
   [@@deriving sexp_of, equal]
 end
 

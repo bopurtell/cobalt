@@ -1,7 +1,7 @@
 open! Core
-module Candidate = Ches_file_picker.Model.Candidate
-module Run_id = Ches_file_picker.Model.Run_id
-module Status = Ches_file_picker.Model.Discovery
+module Candidate = Cobalt_file_picker.Model.Candidate
+module Run_id = Cobalt_file_picker.Model.Run_id
+module Status = Cobalt_file_picker.Model.Discovery
 
 type request = { run_id : Run_id.t; root : string; query : string }
 type hit =
@@ -66,7 +66,7 @@ let parse ~request raw =
         then failwith "Invalid literal match offsets";
         { candidate; line; start_byte; end_byte; text }) in
       if List.is_empty hits then failwith "Missing submatches";
-      if Ches_file_picker.Scope.visible_path path then hits else []
+      if Cobalt_file_picker.Scope.visible_path path then hits else []
     | _ -> failwith "Unknown ripgrep JSON record")
 ;;
 
@@ -125,11 +125,11 @@ let update t event =
                     |> Option.value_map ~default:0 ~f:fst in
         t.selected <- List.nth hits (Int.max 0 (Int.min (List.length hits - 1) (index + delta))))
     in
-    match (event : Ches_palette.Palette.Event.t) with
-    | Insert c -> edit (Ches_palette.Query.append t.query (Uchar.Utf8.to_string c))
-    | Paste text -> edit (Ches_palette.Query.append t.query text)
-    | Backspace -> edit (Ches_palette.Query.backspace t.query)
-    | Delete_word -> edit (Ches_palette.Query.delete_word t.query)
+    match (event : Cobalt_palette.Palette.Event.t) with
+    | Insert c -> edit (Cobalt_palette.Query.append t.query (Uchar.Utf8.to_string c))
+    | Paste text -> edit (Cobalt_palette.Query.append t.query text)
+    | Backspace -> edit (Cobalt_palette.Query.backspace t.query)
+    | Delete_word -> edit (Cobalt_palette.Query.delete_word t.query)
     | Next -> move 1
     | Previous -> move (-1))
 ;;

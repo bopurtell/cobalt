@@ -1,17 +1,17 @@
-(* The VCS view (phase 2), driven headlessly: installed through [Ui_state.create
+(* The VCS view, driven headlessly: installed through [Ui_state.create
    ~views] with test-only bindings, its git jobs run synchronously in isolated fixture
    repositories by [Vcs_driver]. Temp paths print as $DIR; commit hashes are
    reproducible. *)
 
 open! Core
-open Ches_screen
-open Ches_input
-module Controller = Ches_app.Controller
-module View_id = Ches_tile.View_id
-module Local_command = Ches_tile.Local_command
-module Fixture = Ches_vcs_fixture.Fixture_repo
-module Job = Ches_vcs.Job
-module Event = Ches_vcs.Event
+open Cobalt_screen
+open Cobalt_input
+module Controller = Cobalt_app.Controller
+module View_id = Cobalt_tile.View_id
+module Local_command = Cobalt_tile.Local_command
+module Fixture = Cobalt_vcs_fixture.Fixture_repo
+module Job = Cobalt_vcs.Job
+module Event = Cobalt_vcs.Event
 
 let vcs = Vcs_view.id
 
@@ -68,6 +68,7 @@ let screen env t =
   |> relative env
   |> String.split_lines
   |> mask_path_rows
+  |> List.map ~f:(Vcs_driver.normalize_printed_date ~padded:true)
   |> List.iter ~f:print_endline
 ;;
 
@@ -101,7 +102,7 @@ let%expect_test "wide: lists beside the diff, which follows the selection" =
   [%expect {|
      1:a.txt [2:VCS: main]                                                                              |
     ╭─ VCS: work (main) ───────────────────────────────────────────────────────────────────────────────╮|
-    │ Head: main 10cf1ae                    │ 0 Diff: none                                             │|
+    │ Head: main 86abc9c                    │ 0 Diff: none                                             │|
     │                                       │ No diff for this row                                     │|
     │ 1 Files (4)                           │                                                          │|
     │ > - Untracked files (1)               │                                                          │|
@@ -119,7 +120,7 @@ let%expect_test "wide: lists beside the diff, which follows the selection" =
     │                                       │                                                          │|
     │ 3 Commits (1)                         │                                                          │|
     │ > - Recent commits (1)                │                                                          │|
-    │   ● 10cf1ae (HEAD -> main) First      │                                                          │|
+    │   ● 86abc9c (HEAD -> main) First      │                                                          │|
     │                                       │                                                          │|
     ╰─ Files 1/7 ──────────────────────────────────────────────────────────────────────────────────────╯|
      NORMAL  VCS: main VCS focused                                                                      |
@@ -129,8 +130,8 @@ let%expect_test "wide: lists beside the diff, which follows the selection" =
 
 (* {2 Helpers for the remaining tests} *)
 
-module Panel = Ches_vcs.Panel
-module B = Ches_vcs_git.Backend
+module Panel = Cobalt_vcs.Panel
+module B = Cobalt_vcs_git.Backend
 
 let position : Panel.Position.t option -> string = function
   | None -> "none"
@@ -183,15 +184,15 @@ let top env t n =
 let diff_view t = Option.value_exn (Vcs_view.text_view (state t))
 
 let print_diff t =
-  String.split_lines (Ches_tile.Text_view.text (diff_view t))
+  String.split_lines (Cobalt_tile.Text_view.text (diff_view t))
   |> List.iteri ~f:(fun i line -> printf "%2d|%s\n" i line)
 ;;
 
 (* The diff cursor's line and byte column. *)
 let diff_cursor t =
   let view = diff_view t in
-  let text = Ches_tile.Text_view.text view in
-  let cursor = Ches_tile.Text_view.cursor view in
+  let text = Cobalt_tile.Text_view.text view in
+  let cursor = Cobalt_tile.Text_view.cursor view in
   let before = String.prefix text cursor in
   let line = String.count before ~f:(Char.equal '\n') in
   let column =
@@ -200,7 +201,7 @@ let diff_cursor t =
     | Some i -> cursor - i - 1
   in
   sprintf "line %d col %d%s" line column
-    (match Ches_tile.Text_view.visual view with
+    (match Cobalt_tile.Text_view.visual view with
      | None -> ""
      | Some Characterwise -> " visual"
      | Some Linewise -> " visual-line")
@@ -219,8 +220,8 @@ let editor_at env t =
   printf
     "focused %s, file %s, line %d\n"
     (focused env t)
-    (Option.value_map (Ches_core.Editor.path editor) ~default:"none" ~f:(relative env))
-    (Ches_core.Editor.cursor_line editor + 1)
+    (Option.value_map (Cobalt_core.Editor.path editor) ~default:"none" ~f:(relative env))
+    (Cobalt_core.Editor.cursor_line editor + 1)
 ;;
 
 let print_log env t =
@@ -266,7 +267,7 @@ let%expect_test "hidden, the view runs nothing; shown, it detects, refreshes and
     Files: untracked "new.txt"; diff (Untracked new.txt), 1 file(s)
      1:a.txt [2:VCS: main]                                                                              |
     ╭─ VCS: work (main) ───────────────────────────────────────────────────────────────────────────────╮|
-    │ Head: main 10cf1ae                    │ 0 Diff: Untracked: new.txt                               │|
+    │ Head: main 86abc9c                    │ 0 Diff: Untracked: new.txt                               │|
     │                                       │ diff --git a/new.txt b/new.txt                           │|
     │ 1 Files (4)                           │ new file mode 100644                                     │|
     │   - Untracked files (1)               │ index 0000000..92d5444                                   │|
@@ -284,7 +285,7 @@ let%expect_test "hidden, the view runs nothing; shown, it detects, refreshes and
     │                                       │                                                          │|
     │ 3 Commits (1)                         │                                                          │|
     │ > - Recent commits (1)                │                                                          │|
-    │   ● 10cf1ae (HEAD -> main) First      │                                                          │|
+    │   ● 86abc9c (HEAD -> main) First      │                                                          │|
     │                                       │                                                          │|
     ╰─ Files 2/7 ──────────────────────────────────────────────────────────────────────────────────────╯|
      NORMAL  VCS: main VCS focused                                                                      |
@@ -350,7 +351,7 @@ let%expect_test "stacked and single frames, in both focuses" =
   [%expect {|
      1:a.txt [2:VCS: main]                                      |
     ╭─ VCS: work (main) ───────────────────────────────────────╮|
-    │ Head: main 10cf1ae                                       │|
+    │ Head: main 86abc9c                                       │|
     │                                                          │|
     │ 1 Files (4)                                              │|
     │   - Untracked files (1)                                  │|
@@ -366,7 +367,7 @@ let%expect_test "stacked and single frames, in both focuses" =
     │                                                          │|
     │ 3 Commits (1)                                            │|
     │ > - Recent commits (1)                                   │|
-    │   ● 10cf1ae (HEAD -> main) First                         │|
+    │   ● 86abc9c (HEAD -> main) First                         │|
     │                                                          │|
     │ ──────────────────────────────────────────────────────── │|
     │  0 Diff: Unstaged: a.txt                                 │|
@@ -391,7 +392,7 @@ let%expect_test "stacked and single frames, in both focuses" =
     cursor: none
      1:a.txt [2:VCS: main]                                      |
     ╭─ VCS: work (main) ───────────────────────────────────────╮|
-    │ Head: main 10cf1ae                                       │|
+    │ Head: main 86abc9c                                       │|
      1:a.txt [2:VCS: main]                                      |
     ╭─ VCS: work (main) ───────────────────────────────────────╮|
     │  0 Diff: Unstaged: a.txt                                 │|
@@ -409,7 +410,7 @@ let%expect_test "stacked and single frames, in both focuses" =
     cursor: 3,3 Block
      1:a.txt [2:VCS: main]                                      |
     ╭─ VCS: work (main) ───────────────────────────────────────╮|
-    │ Head: main 10cf1ae                                       │|
+    │ Head: main 86abc9c                                       │|
     │ 1 Files (4)                                              │|
     │   - Untracked files (1)                                  │|
     │   new.txt                                                │|
@@ -437,7 +438,7 @@ let%expect_test "the command log, on and off" =
   [%expect {|
      1:a.txt [2:VCS: main]                                                                              |
     ╭─ VCS: work (main) ───────────────────────────────────────────────────────────────────────────────╮|
-    │ Head: main 10cf1ae                    │ 0 Diff: Unstaged: a.txt                                  │|
+    │ Head: main 86abc9c                    │ 0 Diff: Unstaged: a.txt                                  │|
     │                                       │ diff --git a/a.txt b/a.txt                               │|
     │ 1 Files (4)                           │ index 4cb29ea..6addb9b 100644                            │|
     │   - Untracked files (1)               │ --- a/a.txt                                              │|
@@ -520,11 +521,11 @@ let%expect_test "panel and focus keys: 1 2 3 0 Tab Escape, moves, folds, Enter" 
     2      Branches: header local; diff no diff
     j      Branches: local "main"; diff no diff
     3      Commits: header recent; diff no diff
-    j      Commits: recent "10cf1aeab695c84699dfd610ebd22b42a8e06666"; diff (Commit 10cf1aeab695c84699dfd610ebd22b42a8e06666), 3 file(s)
-    0      Diff (follows Commits): recent "10cf1aeab695c84699dfd610ebd22b42a8e06666"; diff (Commit 10cf1aeab695c84699dfd610ebd22b42a8e06666), 3 file(s)
-    <Tab>  Commits: recent "10cf1aeab695c84699dfd610ebd22b42a8e06666"; diff (Commit 10cf1aeab695c84699dfd610ebd22b42a8e06666), 3 file(s)
-    <Tab>  Diff (follows Commits): recent "10cf1aeab695c84699dfd610ebd22b42a8e06666"; diff (Commit 10cf1aeab695c84699dfd610ebd22b42a8e06666), 3 file(s)
-    <Esc>  Commits: recent "10cf1aeab695c84699dfd610ebd22b42a8e06666"; diff (Commit 10cf1aeab695c84699dfd610ebd22b42a8e06666), 3 file(s)
+    j      Commits: recent "86abc9cc4620ec0c4c959534c1888fc32537f9cc"; diff (Commit 86abc9cc4620ec0c4c959534c1888fc32537f9cc), 3 file(s)
+    0      Diff (follows Commits): recent "86abc9cc4620ec0c4c959534c1888fc32537f9cc"; diff (Commit 86abc9cc4620ec0c4c959534c1888fc32537f9cc), 3 file(s)
+    <Tab>  Commits: recent "86abc9cc4620ec0c4c959534c1888fc32537f9cc"; diff (Commit 86abc9cc4620ec0c4c959534c1888fc32537f9cc), 3 file(s)
+    <Tab>  Diff (follows Commits): recent "86abc9cc4620ec0c4c959534c1888fc32537f9cc"; diff (Commit 86abc9cc4620ec0c4c959534c1888fc32537f9cc), 3 file(s)
+    <Esc>  Commits: recent "86abc9cc4620ec0c4c959534c1888fc32537f9cc"; diff (Commit 86abc9cc4620ec0c4c959534c1888fc32537f9cc), 3 file(s)
     1      Files: header untracked; diff no diff
     G      Files: staged "gone.txt"; diff (Staged(gone.txt)), 1 file(s)
     gg     Files: header untracked; diff no diff
@@ -540,7 +541,7 @@ let%expect_test "panel and focus keys: 1 2 3 0 Tab Escape, moves, folds, Enter" 
     <CR>   Files: header staged; diff (Staged()), 2 file(s)
     2j     Branches: local "main"; diff no diff
     notice: Already on main; nothing ran
-    3j<CR> Diff (follows Commits): recent "10cf1aeab695c84699dfd610ebd22b42a8e06666"; diff (Commit 10cf1aeab695c84699dfd610ebd22b42a8e06666), 3 file(s)
+    3j<CR> Diff (follows Commits): recent "86abc9cc4620ec0c4c959534c1888fc32537f9cc"; diff (Commit 86abc9cc4620ec0c4c959534c1888fc32537f9cc), 3 file(s)
     |}]
 ;;
 
@@ -573,7 +574,7 @@ let%expect_test "y copies a path, a branch name, an abbreviated hash; q and Esca
     clipboard: (none)
     clipboard: "a.txt"
     clipboard: "main"
-    clipboard: "10cf1ae"
+    clipboard: "86abc9c"
     after Escape: focused vcs
     after q: focused document, active tab none
     q from the diff: focused document
@@ -602,9 +603,9 @@ let%expect_test "g r refreshes; @ toggles the log; ? and the palette list the co
     (* The palette lists the focused view's commands first, and runs them there. *)
     let t = run env t "<Esc><Tab> cc" in
     let palette = Palette_tile.palette (Option.value_exn (Ui_state.palette t)) in
-    List.iter (List.take (Ches_palette.Palette.results palette) 4) ~f:(fun result ->
+    List.iter (List.take (Cobalt_palette.Palette.results palette) 4) ~f:(fun result ->
       print_endline
-        (Ches_palette.Catalog.Id.to_string (Ches_palette.Catalog.Entry.id result.item)));
+        (Cobalt_palette.Catalog.Id.to_string (Cobalt_palette.Catalog.Entry.id result.item)));
     let t = run env t "focus commits<CR>" in
     describe t);
   [%expect {|
@@ -713,7 +714,7 @@ let%expect_test "the diff follows the selection across files, headers and commit
     ran: []
     Commits: header recent; diff no diff
     ran: [diff g1.9]
-    Commits: recent "10cf1aeab695c84699dfd610ebd22b42a8e06666"; diff (Commit 10cf1aeab695c84699dfd610ebd22b42a8e06666), 3 file(s)
+    Commits: recent "86abc9cc4620ec0c4c959534c1888fc32537f9cc"; diff (Commit 86abc9cc4620ec0c4c959534c1888fc32537f9cc), 3 file(s)
     ran: []
     Commits: header recent; diff no diff
     ran: []
@@ -741,11 +742,11 @@ let%expect_test "the diff follows the selection across files, headers and commit
      9|+four
      1:a.txt [2:VCS: main]                                                                              |
     ╭─ VCS: work (main) ───────────────────────────────────────────────────────────────────────────────╮|
-    │ Head: main 10cf1ae                    │ 0 Diff: Commit 10cf1ae                                   │|
-    │                                       │ commit 10cf1aeab695c84699dfd610ebd22b42a8e06666          │|
-    │ 1 Files (4)                           │ Author:     Ches Test <ches-test@example.invalid>        │|
+    │ Head: main 86abc9c                    │ 0 Diff: Commit 86abc9c                                   │|
+    │                                       │ commit 86abc9cc4620ec0c4c959534c1888fc32537f9cc          │|
+    │ 1 Files (4)                           │ Author:     Cobalt Test <cobalt-test@example.invalid>    │|
     │   new.txt                             │ AuthorDate: 2026-01-01T00:00:00+00:00                    │|
-    │   - Unstaged changes (1)              │ Commit:     Ches Test <ches-test@example.invalid>        │|
+    │   - Unstaged changes (1)              │ Commit:     Cobalt Test <cobalt-test@example.invalid>    │|
     │ > modified   a.txt                    │ CommitDate: 2026-01-01T00:00:00+00:00                    │|
     │                                       │                                                          │|
     │ 2 Branches (1)                        │     First                                                │|
@@ -754,7 +755,7 @@ let%expect_test "the diff follows the selection across files, headers and commit
     │                                       │ A b.txt  +1 -0                                           │|
     │ 3 Commits (1)                         │ A gone.txt  +1 -0                                        │|
     │   - Recent commits (1)                │                                                          │|
-    │ > ● 10cf1ae (HEAD -> main) First      │ diff --git a/a.txt b/a.txt                               │|
+    │ > ● 86abc9c (HEAD -> main) First      │ diff --git a/a.txt b/a.txt                               │|
     │                                       │ new file mode 100644                                     │|
     │                                       │ index 0000000..4cb29ea                                   │|
     │                                       │ --- /dev/null                                            │|
@@ -836,7 +837,7 @@ let%expect_test "padding: a blank column each side of the diff, blank rows betwe
   [%expect {|
      1:a.txt [2:VCS: main]                                                                              |
     ╭─ VCS: work (main) ───────────────────────────────────────────────────────────────────────────────╮|
-    │ Head: main 0e161fa                    │ 0 Diff: Untracked: wide.txt                              │|
+    │ Head: main a170abf                    │ 0 Diff: Untracked: wide.txt                              │|
     │                                       │ diff --git a/wide.txt b/wide.txt                         │|
     │ 1 Files (1)                           │ new file mode 100644                                     │|
     │   - Untracked files (1)               │ index 0000000..4daaa81                                   │|
@@ -854,7 +855,7 @@ let%expect_test "padding: a blank column each side of the diff, blank rows betwe
     │                                       │                                                          │|
     │ 3 Commits (1)                         │                                                          │|
     │ > - Recent commits (1)                │                                                          │|
-    │   ● 0e161fa (HEAD -> main) First      │                                                          │|
+    │   ● a170abf (HEAD -> main) First      │                                                          │|
     │                                       │                                                          │|
     ╰─ Files 2/2 ──────────────────────────────────────────────────────────────────────────────────────╯|
      NORMAL  VCS: main VCS focused                                                                      |
@@ -862,7 +863,7 @@ let%expect_test "padding: a blank column each side of the diff, blank rows betwe
     line 6 col 70
      1:a.txt [2:VCS: main]                                                                              |
     ╭─ VCS: work (main) ───────────────────────────────────────────────────────────────────────────────╮|
-    │ Head: main 0e161fa                    │ 0 Diff: Untracked: wide.txt                              │|
+    │ Head: main a170abf                    │ 0 Diff: Untracked: wide.txt                              │|
     │                                       │ diff --git a/wide.txt b/wide.txt                         │|
     │ 1 Files (1)                           │ new file mode 100644                                     │|
     │   - Untracked files (1)               │ index 0000000..4daaa81                                   │|
@@ -880,7 +881,7 @@ let%expect_test "padding: a blank column each side of the diff, blank rows betwe
     │                                       │                                                          │|
     │ 3 Commits (1)                         │                                                          │|
     │ > - Recent commits (1)                │                                                          │|
-    │   ● 0e161fa (HEAD -> main) First      │                                                          │|
+    │   ● a170abf (HEAD -> main) First      │                                                          │|
     │                                       │                                                          │|
     ╰─ Diff 1-8/8 ─────────────────────────────────────────────────────────────────────────────────────╯|
      NORMAL  VCS: main VCS focused                                                                      |
@@ -1061,9 +1062,9 @@ let conflicting_branches env =
 (* Run git expecting it to fail (a conflict). *)
 let git_fails env args =
   let result =
-    Fixture.run env.repo (Ches_vcs.Exec.Spec.create ~kind:Mutate ~cwd:env.repo.work "git" args)
+    Fixture.run env.repo (Cobalt_vcs.Exec.Spec.create ~kind:Mutate ~cwd:env.repo.work "git" args)
   in
-  printf "git %s: %s\n" (String.concat ~sep:" " args) (Ches_vcs.Exec.Result.status_hum result)
+  printf "git %s: %s\n" (String.concat ~sep:" " args) (Cobalt_vcs.Exec.Result.status_hum result)
 ;;
 
 let%expect_test "a conflict: the section, its combined diff, conflict markers, header-only files" =
@@ -1085,8 +1086,8 @@ let%expect_test "a conflict: the section, its combined diff, conflict markers, h
     git merge -q other: exit 1
      1:a.txt [2:VCS: main]                                                                              |
     ╭─ VCS: work (main) ───────────────────────────────────────────────────────────────────────────────╮|
-    │ Head: main 1d0798b                    │ 0 Diff: Conflicted: aa.txt, du.txt, ud.txt, uu.txt       │|
-    │ Merging 1cca8e7 (press m)             │ diff --cc aa.txt                                         │|
+    │ Head: main 762a9b2                    │ 0 Diff: Conflicted: aa.txt, du.txt, ud.txt, uu.txt       │|
+    │ Merging eb03179 (press m)             │ diff --cc aa.txt                                         │|
     │                                       │ index b19a1e9,950b81b..0000000                           │|
     │ 1 Files (4)                           │ --- a/aa.txt                                             │|
     │ > - Conflicted (4)                    │ +++ b/aa.txt                                             │|
@@ -1103,7 +1104,7 @@ let%expect_test "a conflict: the section, its combined diff, conflict markers, h
     │                                       │ @@@ -1,1 -1,1 +1,5 @@@                                   │|
     │ 3 Commits (2)                         │ ++<<<<<<< HEAD                                           │|
     │ > - Recent commits (2)                │  +ours                                                   │|
-    │   ● 1d0798b (HEAD -> main) main       │ ++=======                                                │|
+    │   ● 762a9b2 (HEAD -> main) main       │ ++=======                                                │|
     │                                       │ + theirs                                                 │|
     ╰─ Files 1/5 ──────────────────────────────────────────────────────────────────────────────────────╯|
      NORMAL  VCS: main VCS focused                                                                      |
@@ -1158,14 +1159,14 @@ let%expect_test "a rebase in progress, then a detached HEAD" =
   [%expect {|
     git rebase other: exit 1
      1:a.txt [2:VCS]                                                                                    |
-    ╭─ VCS: work (detached at 1cca8e7) ────────────────────────────────────────────────────────────────╮|
-    │ Head: detached at 1cca8e7             │ 0 Diff: Conflicted: aa.txt, du.txt, ud.txt, uu.txt       │|
-    │ Rebasing main onto 1cca8e7 (press r)  │ diff --cc aa.txt                                         │|
+    ╭─ VCS: work (detached at eb03179) ────────────────────────────────────────────────────────────────╮|
+    │ Head: detached at eb03179             │ 0 Diff: Conflicted: aa.txt, du.txt, ud.txt, uu.txt       │|
+    │ Rebasing main onto eb03179 (press r)  │ diff --cc aa.txt                                         │|
     │                                       │ index 950b81b,b19a1e9..0000000                           │|
     │ 1 Files (4)                           │ --- a/aa.txt                                             │|
-     1:a.txt [2:VCS: 7b0842b]                                                                           |
-    ╭─ VCS: work (detached at 7b0842b) ────────────────────────────────────────────────────────────────╮|
-    │ Head: detached at 7b0842b             │ 0 Diff                                                   │|
+     1:a.txt [2:VCS: 0a450f2]                                                                           |
+    ╭─ VCS: work (detached at 0a450f2) ────────────────────────────────────────────────────────────────╮|
+    │ Head: detached at 0a450f2             │ 0 Diff                                                   │|
     │                                       │                                                          │|
     |}]
 ;;
@@ -1195,7 +1196,7 @@ let%expect_test "upstreams: ahead and behind, in sync, gone" =
   [%expect {|
      1:a.txt [2:VCS: main]                                                                              |
     ╭─ VCS: work (main) ───────────────────────────────────────────────────────────────────────────────╮|
-    │ Head: main 5cd767d                    │ 0 Diff: none                                             │|
+    │ Head: main d132801                    │ 0 Diff: none                                             │|
     │ Upstream: origin/main, ahead 1, behin>│ No diff for this row                                     │|
     │                                       │                                                          │|
     │ 1 Files (0)                           │                                                          │|
@@ -1216,7 +1217,7 @@ let%expect_test "upstreams: ahead and behind, in sync, gone" =
     cursor: none
      1:a.txt [2:VCS: doomed]                                                                            |
     ╭─ VCS: work (doomed) ─────────────────────────────────────────────────────────────────────────────╮|
-    │ Head: doomed 5cd767d                  │ 0 Diff: none                                             │|
+    │ Head: doomed d132801                  │ 0 Diff: none                                             │|
     │ Upstream: origin/doomed (gone)        │ No diff for this row                                     │|
     |}]
 ;;
@@ -1321,7 +1322,7 @@ let%expect_test "stale reports are logged but never applied" =
     describe t;
     let t = settle env t in
     describe t;
-    printf "stamps generation %d\n" (Ches_vcs.Stamps.generation (Vcs_view.stamps (state t))));
+    printf "stamps generation %d\n" (Cobalt_vcs.Stamps.generation (Vcs_view.stamps (state t))));
   [%expect {|
     untracked: new.txt
     g1.1 rev-parse: exit 0
@@ -1372,8 +1373,8 @@ let%expect_test "selection identity across refreshes, and the removed-item rule"
     stage c.txt    Files: unstaged "d.txt"; diff (Unstaged(d.txt)), 1 file(s)
     stage d.txt    Files: unstaged "a.txt"; diff (Unstaged(a.txt)), 1 file(s)
     stage a.txt    Files: header staged; diff (Staged()), 3 file(s)
-    3G             Commits: recent "40fa40da8d836550978c2281e7e5e4aea3d15e06"; diff (Commit 40fa40da8d836550978c2281e7e5e4aea3d15e06), 3 file(s)
-    gr             Commits: recent "40fa40da8d836550978c2281e7e5e4aea3d15e06"; diff (Commit 40fa40da8d836550978c2281e7e5e4aea3d15e06), 3 file(s)
+    3G             Commits: recent "db74ef0d1f9d7482a49d64517adbb24d0f4d4076"; diff (Commit db74ef0d1f9d7482a49d64517adbb24d0f4d4076), 3 file(s)
+    gr             Commits: recent "db74ef0d1f9d7482a49d64517adbb24d0f4d4076"; diff (Commit db74ef0d1f9d7482a49d64517adbb24d0f4d4076), 3 file(s)
     |}]
 ;;
 
@@ -1424,7 +1425,7 @@ let%expect_test "a truncated file, and a diff cut at its output limit" =
       (lines (fun i -> if i % 10 = 5 then sprintf "changed %d\n" i else sprintf "line %d\n" i));
     let t = run env (create env) " vx" in
     let t = run env t "j<CR>G" in
-    let text = Ches_tile.Text_view.text (diff_view t) in
+    let text = Cobalt_tile.Text_view.text (diff_view t) in
     printf "%d lines\n" (List.length (String.split_lines text));
     screen env t;
     (* The same diff, run with a tiny output limit. *)
@@ -1451,7 +1452,7 @@ let%expect_test "a truncated file, and a diff cut at its output limit" =
     2255 lines
      1:a.txt [2:VCS: main]                                                                              |
     ╭─ VCS: work (main) ───────────────────────────────────────────────────────────────────────────────╮|
-    │ Head: main c06e27f                    │ 0 Diff: Unstaged: huge.txt                               │|
+    │ Head: main f37c839                    │ 0 Diff: Unstaged: huge.txt                               │|
     │ 1 Files (1)                           │  line 2492                                               │|
     │   - Unstaged changes (1)              │  line 2493                                               │|
     │ > modified   huge.txt                 │  line 2494                                               │|
@@ -1518,7 +1519,7 @@ let%expect_test "paths with spaces, unicode and control bytes are escaped for di
   [%expect {|
      1:a.txt [2:VCS: main]                                                                              |
     ╭─ VCS: work (main) ───────────────────────────────────────────────────────────────────────────────╮|
-    │ Head: main c17d7cb                    │ 0 Diff: Untracked: ctl^A^[.txt                           │|
+    │ Head: main cb8754a                    │ 0 Diff: Untracked: ctl^A^[.txt                           │|
     │ 1 Files (4)                           │ diff --git "a/ctl\001\033.txt" "b/ctl\001\033.txt"       │|
     │   - Untracked files (4)               │ new file mode 100644                                     │|
     │ > ctl^A^[.txt                         │ index 0000000..587be6b                                   │|
@@ -1529,7 +1530,7 @@ let%expect_test "paths with spaces, unicode and control bytes are escaped for di
     │   * main  One                         │                                                          │|
     │ 3 Commits (1)                         │                                                          │|
     │ > - Recent commits (1)                │                                                          │|
-    │   ● c17d7cb (HEAD -> main) One        │                                                          │|
+    │   ● cb8754a (HEAD -> main) One        │                                                          │|
     ╰─ Files 2/5 ──────────────────────────────────────────────────────────────────────────────────────╯|
      NORMAL  VCS: main VCS focused                                                                      |
     cursor: none
@@ -1556,7 +1557,7 @@ let%expect_test "diff lines are styled by kind" =
       | Some _ -> print_endline (relative env line)
       | None -> ()));
   [%expect {|
-    Border_focused[│] Status[ Head: main 10cf1ae              ] Border[│] Status[ ] Title[0 Diff: Unstaged: a.txt] Status[                        ] Border_focused[│]
+    Border_focused[│] Status[ Head: main 86abc9c              ] Border[│] Status[ ] Title[0 Diff: Unstaged: a.txt] Status[                        ] Border_focused[│]
     Border_focused[│] Status[ ] Pending[1 Files (4)] Status[                     ] Border[│] Status[ ] Diff_meta[diff --git a/a.txt b/a.txt                   ] Status[  ] Border_focused[│]
     Border_focused[│] Status[ ] Diff_meta[  - Untracked files (1)] Status[         ] Border[│] Status[ ] Diff_meta[index 4cb29ea..6addb9b 100644                ] Status[  ] Border_focused[│]
     Border_focused[│] Status[   new.txt                       ] Border[│] Status[ ] Diff_meta[--- a/a.txt                                  ] Status[  ] Border_focused[│]
@@ -1567,6 +1568,6 @@ let%expect_test "diff lines are styled by kind" =
     Border_focused[│] Status[   * main  First                 ] Border[│] Status[ ] Diff_added[+TWO                                         ] Status[  ] Border_focused[│]
     Border_focused[│] Status[ ] Title[3 Commits (1)] Status[                   ] Border[│] Status[  three                                         ] Border_focused[│]
     Border_focused[│] Status[ ] Diff_meta[> - Recent commits (1)] Status[          ] Border[│] Status[ ] Diff_added[+four                                        ] Status[  ] Border_focused[│]
-    Border_focused[│] Status[   ● 10cf1ae (HEAD -> main) First] Border[│] Status[                                                ] Border_focused[│]
+    Border_focused[│] Status[   ● 86abc9c (HEAD -> main) First] Border[│] Status[                                                ] Border_focused[│]
     |}]
 ;;

@@ -147,7 +147,7 @@
     never interpreted as Normal-mode keys. *)
 
 (* [open! Core] would shadow our [Command] with Core's command-line [Command]. *)
-module Editor_command := Ches_core.Command
+module Editor_command := Cobalt_core.Command
 
 open! Core
 module Command := Editor_command
@@ -216,7 +216,7 @@ val config : t -> Config.t
 
 (** [feed t ~mode input] interprets [input] in [mode] and returns the actions to
     perform, in order. *)
-val feed : t -> mode:Ches_core.Mode.t -> Input.t -> t * Action.t list
+val feed : t -> mode:Cobalt_core.Mode.t -> Input.t -> t * Action.t list
 
 (** The count and keys of an incomplete sequence, for the status line, e.g.
     ["Space"] or ["20"]. *)

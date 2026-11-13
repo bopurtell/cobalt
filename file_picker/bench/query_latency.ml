@@ -1,7 +1,7 @@
 (* Headless discovery-independent probe, not input-to-screen timing. *)
 open! Core
-open Ches_file_picker
-module Fuzzy = Ches_palette.Fuzzy
+open Cobalt_file_picker
+module Fuzzy = Cobalt_palette.Fuzzy
 
 let now = Or_error.ok_exn Core_unix.Clock.gettime
 let samples = 10

@@ -2,8 +2,8 @@
    cases a fixture cannot easily produce. No process runs here. *)
 
 open! Core
-open Ches_vcs
-open Ches_vcs_git
+open Cobalt_vcs
+open Cobalt_vcs_git
 
 let print_spec (spec : Exec.Spec.t) =
   print_s
@@ -54,7 +54,7 @@ let detect_with result =
   print_s
     [%sexp
       (Repository.detected ~cwd:"/w/sub" reports
-       : Repository.t Ches_vcs.Backend.Detection.t)]
+       : Repository.t Cobalt_vcs.Backend.Detection.t)]
 ;;
 
 let%expect_test "Repository.detect and detected" =
@@ -82,7 +82,7 @@ let%expect_test "Repository.detect and detected" =
        "");
   detect_with (Show.result ~status:(Not_started "No such file or directory") "");
   print_s
-    [%sexp (Repository.detected ~cwd:"/w" [] : Repository.t Ches_vcs.Backend.Detection.t)];
+    [%sexp (Repository.detected ~cwd:"/w" [] : Repository.t Cobalt_vcs.Backend.Detection.t)];
   [%expect
     {|
     (Run
@@ -455,7 +455,7 @@ let%expect_test "Branch_list: empty, cut, malformed" =
   branches
     "main\000aaaa\000*\000refs/remotes/o/m\000o/m\000\0001\000s\000\000refs/heads/m\000\n";
   branches "main\000aaaa\000*\000refs/remotes/o/m\000o/m\000\0001\000s\000o\000\000\n";
-  print_endline "-- the phase 5 format (two fields short)";
+  print_endline "-- the legacy format (two fields short)";
   branches "main\000aaaa\000*\000\000\000\0001\000s\000\n";
   [%expect
     {|
@@ -488,7 +488,7 @@ let%expect_test "Branch_list: empty, cut, malformed" =
      ("malformed branch line"
       (line
        "main\000aaaa\000*\000refs/remotes/o/m\000o/m\000\0001\000s\000o\000\000")))
-    -- the phase 5 format (two fields short)
+    -- the legacy format (two fields short)
     (Error
      ("malformed branch line"
       (line "main\000aaaa\000*\000\000\000\0001\000s\000")))
@@ -555,8 +555,8 @@ let%expect_test "Log.command: each scope" =
 
 let two_commits =
   "a757577ac7f79aa5fd48614f00553a6319b37a4a\000f6f211b39c22b5c8f9d4e43f9c3f1e2fe1181c49 \
-   90c5cb54338b3e966f85a53c2456c64507430730\000Ches \
-   Test\000ches-test@example.invalid\0001767225600\000HEAD -> main, origin/main, tag: \
+   90c5cb54338b3e966f85a53c2456c64507430730\000Cobalt \
+   Test\000cobalt-test@example.invalid\0001767225600\000HEAD -> main, origin/main, tag: \
    v1\000Merge: \"x\" into \
    y\000f6f211b39c22b5c8f9d4e43f9c3f1e2fe1181c49\000\000Zo\195\171\000zoe@example.invalid\0001767225500\000\000First, \
    second\000"
@@ -579,7 +579,7 @@ let%expect_test "Log: refs, a merge and a root commit, empty, cut, malformed" =
       (parents
        (f6f211b39c22b5c8f9d4e43f9c3f1e2fe1181c49
         90c5cb54338b3e966f85a53c2456c64507430730))
-      (author_name "Ches Test") (author_email ches-test@example.invalid)
+      (author_name "Cobalt Test") (author_email cobalt-test@example.invalid)
       (author_time 1767225600) (refs ("HEAD -> main" origin/main "tag: v1"))
       (subject "Merge: \"x\" into y"))
      ((hash f6f211b39c22b5c8f9d4e43f9c3f1e2fe1181c49) (parents ())
@@ -590,11 +590,11 @@ let%expect_test "Log: refs, a merge and a root commit, empty, cut, malformed" =
       (parents
        (f6f211b39c22b5c8f9d4e43f9c3f1e2fe1181c49
         90c5cb54338b3e966f85a53c2456c64507430730))
-      (author_name "Ches Test") (author_email ches-test@example.invalid)
+      (author_name "Cobalt Test") (author_email cobalt-test@example.invalid)
       (author_time 1767225600) (refs ("HEAD -> main" origin/main "tag: v1"))
       (subject "Merge: \"x\" into y")))
     ()
-    (Error ("unterminated log record" (tail f6f211b39c22b5c8f9d4e43f9c3)))
+    (Error ("unterminated log record" (tail f6f211b39c22b5c8f9d4e43)))
     (Error ("malformed log record" (fields (a "" n e t "" s))))
     (Error ("malformed log record" (fields ("" "" n e 1 "" s))))
     (Error ("malformed log record" (fields (a "" n e 1 s))))

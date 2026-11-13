@@ -1,15 +1,15 @@
 open! Core
 open Bonsai_term
-open Ches_ui
+open Cobalt_ui
 
 (* A closed PTY host keeps these event-routing tests deterministic: they exercise
    the production app and its clock without starting shells or receiving output. *)
 let create ?(smear_enabled = false) () =
-  let text = Ches_core.Text_buffer.of_string "seed"
-    |> Result.map_error ~f:Ches_core.Text_buffer.Invalid_text.to_string_hum
+  let text = Cobalt_core.Text_buffer.of_string "seed"
+    |> Result.map_error ~f:Cobalt_core.Text_buffer.Invalid_text.to_string_hum
     |> Result.ok_or_failwith in
-  let controller = Ches_app.Controller.create
-      (Ches_core.Editor.create ~cell_width:Ches_screen.Cell_map.width text) in
+  let controller = Cobalt_app.Controller.create
+      (Cobalt_core.Editor.create ~cell_width:Cobalt_screen.Cell_map.width text) in
   let terminal = Terminal_host.create () in
   Terminal_host.stop terminal;
   Bonsai_term_test.create_handle ~initial_dimensions:{ width = 120; height = 40 }

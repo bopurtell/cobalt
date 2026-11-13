@@ -1,5 +1,5 @@
 open! Core
-open Ches_file_picker.Model
+open Cobalt_file_picker.Model
 
 let candidate ?(root = "/project") path =
   Candidate.create ~root ~relative_path:path |> Or_error.ok_exn

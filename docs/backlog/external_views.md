@@ -3,7 +3,7 @@
 Deferred by the owner on 2026-10-06 to close out the workspace-tiles feature set after
 phase 10. Moved verbatim from [`workspace_tiles_design.md`](../workspace_tiles_design.md). Nothing here is
 implemented. The service-agnostic tile foundation it would reuse (phases 7A–7C:
-`ches_tile` host, `Tile_shell`, read-only text) is done. Phase 9's `ches_source`
+`cobalt_tile` host, `Tile_shell`, read-only text) is done. Phase 9's `cobalt_source`
 (Async sources, `Event_queue` latest-snapshot coalescing) is a likely starting
 point for the transport side.
 
@@ -18,21 +18,21 @@ point for the transport side.
 ### Motivation
 
 The owner works on HFT/FPGA trading projects with demanding computation and
-dashboard requirements. Those computations should run independently; Ches can be
+dashboard requirements. Those computations should run independently; Cobalt can be
 a presentation client for their results.
 
 Separate three possible boundaries:
 
 1. **External computation, local presentation:** a producer sends metrics, table
-   rows, or chart samples; Ches lays them out and renders them.
+   rows, or chart samples; Cobalt lays them out and renders them.
 2. **External layout, local composition:** a producer sends a bounded cell grid or
-   drawing description; Ches validates, clips, and composites it into a pane.
+   drawing description; Cobalt validates, clips, and composites it into a pane.
 3. **Remote pixel/video rendering:** a producer sends images or video. This requires
    graphics/backend support beyond the current terminal-cell renderer and is a
    substantially different feature.
 
 The first is simplest and adapts naturally to local styles and sizes. The second
-matches the idea of piping precomputed frames into Ches. Neither makes a terminal
+matches the idea of piping precomputed frames into Cobalt. Neither makes a terminal
 dashboard a hard-real-time display or part of a latency-critical trading loop.
 
 ### Recommended initial boundary
@@ -55,10 +55,10 @@ compute engine -> telemetry/snapshot publisher -> bounded transport
                                                    |
                                         latest snapshot for pane
                                                    |
-                                           Ches compositor
+                                           Cobalt compositor
 ```
 
-The compute engine must not wait for Ches. Keep publishing off its critical path,
+The compute engine must not wait for Cobalt. Keep publishing off its critical path,
 and specify bounded/drop behavior at the producer as well as the client. A blocked
 pipe or TCP writer can otherwise backpressure the computation despite process
 separation. Producer-owned ring buffers, aggregation, or a separate publisher are
@@ -66,7 +66,7 @@ possible implementations depending on the existing application.
 
 Send display-rate summaries rather than every market event or internal update.
 Choose a configurable display cadence appropriate to the view and terminal; measure
-it rather than promising a particular frame rate. Ches still pays for decoding,
+it rather than promising a particular frame rate. Cobalt still pays for decoding,
 validation, composition, and terminal output.
 
 ### Protocol considerations
@@ -87,7 +87,7 @@ A future protocol should define:
 
 For cell frames, specify Unicode display width, wide-character continuation cells,
 style encoding, and clipping. Accept structured data, not arbitrary terminal escape
-sequences written to Ches's host terminal. A cell-frame pane is distinct from a
+sequences written to Cobalt's host terminal. A cell-frame pane is distinct from a
 terminal-emulation pane even if both eventually display grids.
 
 Start with self-contained snapshots: a bounded latest-value slot can replace an

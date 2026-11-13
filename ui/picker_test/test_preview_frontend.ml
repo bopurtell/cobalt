@@ -2,25 +2,25 @@ open! Core
 open! Async
 open Bonsai_test
 open Bonsai_term
-open Ches_screen
-module App = Ches_app
-module Model = Ches_file_picker.Model
-module Runtime = Ches_file_picker_host.Runtime
-module Preview = Ches_file_preview_model.Model
+open Cobalt_screen
+module App = Cobalt_app
+module Model = Cobalt_file_picker.Model
+module Runtime = Cobalt_file_picker_host.Runtime
+module Preview = Cobalt_file_preview_model.Model
 module Expect_test_config = Async.Expect_test_config
 
 let%expect_test "production frontend preview follows rapid selection, dirty buffer, resize and closure" =
-  let root = Filename_unix.realpath (Filename_unix.temp_dir "ches-preview-frontend" "") in
+  let root = Filename_unix.realpath (Filename_unix.temp_dir "cobalt-preview-frontend" "") in
   let a = root ^ "/a.ml" and b = root ^ "/b.ml" in
   Out_channel.write_all a ~data:"ON_DISK_A\n";
   Out_channel.write_all b ~data:"DISK_B_PREVIEW\n";
   let runtime = Runtime.create () in
   let%bind () = Monitor.protect (fun () ->
     let controller = App.Controller.open_file ~cell_width:Cell_map.width a |> Or_error.ok_exn in
-    let dirty = Ches_core.Text_buffer.of_string "DIRTY_A_PREVIEW\n\t界é\027\n"
+    let dirty = Cobalt_core.Text_buffer.of_string "DIRTY_A_PREVIEW\n\t界é\027\n"
       |> Result.ok |> Option.value_exn in
     let controller = App.Controller.rebase_text controller
-      ~saved:(Ches_core.Editor.text (App.Controller.editor controller)) ~text:dirty in
+      ~saved:(Cobalt_core.Editor.text (App.Controller.editor controller)) ~text:dirty in
     let state = ref (Runtime.open_picker runtime (Ui_state.create controller)
       ~root ~width:140 ~height:24 |> Or_error.ok_exn) in
     let%bind () = Runtime.pump runtime ~current:(fun () -> !state) ~inject:(fun inputs ->
@@ -30,12 +30,12 @@ let%expect_test "production frontend preview follows rapid selection, dirty buff
     let active = App.Session.active_id session in
     let parses = App.Controller.highlight_parse_count controller in
     let consumed = ref [] in
-    let host : Ches_ui.Editor_view.File_picker_host.t =
+    let host : Cobalt_ui.Editor_view.File_picker_host.t =
       { initial_ui = !state; runtime; consume = (fun intent ->
-          assert (Ches_file_picker.Interaction.closed (File_picker_tile.session picker));
+          assert (Cobalt_file_picker.Interaction.closed (File_picker_tile.session picker));
           consumed := intent.Model.Request.path :: !consumed) } in
     let handle = Bonsai_term_test.create_handle ~initial_dimensions:{ width = 140; height = 24 }
-      (Ches_ui.Editor_view.app ~file_picker:host controller ~exit:(fun () -> Effect.Ignore)) in
+      (Cobalt_ui.Editor_view.app ~file_picker:host controller ~exit:(fun () -> Effect.Ignore)) in
     let output () =
       Handle.recompute_view handle;
       Bonsai_term_test.print_view (Bonsai_term_test.last_view handle); [%expect.output] in

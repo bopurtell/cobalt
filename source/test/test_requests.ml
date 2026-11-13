@@ -1,16 +1,16 @@
 (* What Ui_state asks a source, through [take_source_requests]. *)
 open! Core
 open! Async
-open Ches_screen
+open Cobalt_screen
 module H = Harness
 
 let recording requests ~time:_ ~root:_ =
-  Ches_source.Source.create (fun ~emit:_ ->
+  Cobalt_source.Source.create (fun ~emit:_ ->
     { handle = (fun request -> requests := request :: !requests); stop = ignore })
 ;;
 
 let show t requests =
-  List.iter (List.rev !requests) ~f:(fun (request : Ches_error.Source_request.t) ->
+  List.iter (List.rev !requests) ~f:(fun (request : Cobalt_error.Source_request.t) ->
     print_s
       (match request with
        | Query _ -> [%message "query"]

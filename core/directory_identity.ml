@@ -111,13 +111,13 @@ let create entries =
   else
     let by_id = Int.Map.of_alist_exn (List.map entries ~f:(fun e -> e.Entry.id, e)) in
     let by_token = String.Map.of_alist_exn (List.concat_map entries ~f:(fun e ->
-      [ sprintf "@ches[%d]" e.Entry.id, e; sprintf "@copy[%d]" e.id, e ])) in
+      [ sprintf "@cobalt[%d]" e.Entry.id, e; sprintf "@copy[%d]" e.id, e ])) in
     Ok { entries; by_id; by_token }
 ;;
 
 let text ?scope entries =
   List.map entries.entries ~f:(fun (entry : Entry.t) ->
-    sprintf "@ches[%d]\t%s%s" entry.id (encode_name entry.name)
+    sprintf "@cobalt[%d]\t%s%s" entry.id (encode_name entry.name)
       (if Kind.equal entry.kind Directory then "/" else ""))
   |> String.concat ~sep:"\n"
   |> Text_buffer.of_string
@@ -130,7 +130,7 @@ let text ?scope entries =
         encode_name entry.name ^ (if Kind.equal entry.kind Directory then "/" else "")) in
       let visible = Text_buffer.of_string (String.concat ~sep:"\n" names) |> Result.ok |> Option.value_exn in
       Text_buffer.with_identities visible ~scope
-        (List.mapi entries.entries ~f:(fun line entry -> Text_buffer.line_start visible line, sprintf "@ches[%d]" entry.id))
+        (List.mapi entries.entries ~f:(fun line entry -> Text_buffer.line_start visible line, sprintf "@cobalt[%d]" entry.id))
 ;;
 
 let missing_ids entries rows =
@@ -156,14 +156,14 @@ let parse entries text =
         (match tokens with
          | [] -> Ok raw
          | [ token ] ->
-           if String.is_prefix raw ~prefix:"@copy " && String.is_prefix token ~prefix:"@ches["
-           then Ok ("@copy[" ^ String.drop_prefix token 6 ^ "\t" ^ String.drop_prefix raw 6)
+           if String.is_prefix raw ~prefix:"@copy " && String.is_prefix token ~prefix:"@cobalt["
+           then Ok ("@copy[" ^ String.drop_prefix token (String.length "@cobalt[") ^ "\t" ^ String.drop_prefix raw 6)
            else Ok (token ^ "\t" ^ raw)
          | _ -> Or_error.error_string "joined protected identities; undo the join or delete whole rows") in
     let%bind identity, encoded =
       if (Option.is_none (Text_buffer.identity_scope text)
            || not (List.is_empty tokens_by_line.(line)))
-         && (String.is_prefix raw ~prefix:"@ches[" || String.is_prefix raw ~prefix:"@copy[")
+         && (String.is_prefix raw ~prefix:"@cobalt[" || String.is_prefix raw ~prefix:"@copy[")
       then (
         match String.lsplit2 raw ~on:'\t' with
         | Some (token, name) ->

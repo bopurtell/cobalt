@@ -1,4 +1,4 @@
-(* Ches-authored structural captures; no upstream query or predicates. Snapshot
+(* Cobalt-authored structural captures; no upstream query or predicates. Snapshot
    prefers narrower spans, then category priority. Capture immediate contents
    directly, and omit '@' punctuation so directive types stay wholly Property. *)
 let source =

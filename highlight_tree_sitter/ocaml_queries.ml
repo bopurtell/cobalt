@@ -1,7 +1,7 @@
 open! Core
 
-(* Ches-owned structural queries, authored against the bundled grammar symbols
-   and phase 0 probe. No upstream query file or text predicates are used. *)
+(* Cobalt-owned structural queries, authored against the bundled grammar symbols
+   and feasibility probe. No upstream query file or text predicates are used. *)
 let common =
   {|
   (comment) @comment
@@ -45,6 +45,6 @@ let common =
 ;;
 
 let source = function
-  | Ches_highlight.Language.Plain | Systemverilog | Gas -> None
+  | Cobalt_highlight.Language.Plain | Systemverilog | Gas -> None
   | Ocaml | Ocaml_interface -> Some common
 ;;

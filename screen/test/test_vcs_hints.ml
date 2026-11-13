@@ -10,10 +10,10 @@
    the fixture print as $DIR. *)
 
 open! Core
-open Ches_screen
-module Controller = Ches_app.Controller
-module View_id = Ches_tile.View_id
-module Fixture = Ches_vcs_fixture.Fixture_repo
+open Cobalt_screen
+module Controller = Cobalt_app.Controller
+module View_id = Cobalt_tile.View_id
+module Fixture = Cobalt_vcs_fixture.Fixture_repo
 
 let wide = 100
 let height = 30

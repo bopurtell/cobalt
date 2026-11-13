@@ -1,9 +1,9 @@
-(** Runs {!Ches_vcs.Job.t}s as child processes and reports {!Ches_vcs.Event.t}s, for
-    one consumer. Owned by the frontend (phase 2: [ches_ui]), like a diagnostic
-    [Ches_source.Source.t]: the UI transition hands jobs out as data, the frontend
+(** Runs {!Cobalt_vcs.Job.t}s as child processes and reports {!Cobalt_vcs.Event.t}s, for
+    one consumer. Owned by the frontend ([cobalt_ui]), like a diagnostic
+    [Cobalt_source.Source.t]: the UI transition hands jobs out as data, the frontend
     {!submit}s them, and pumps {!next_batch} into [Ui_state] inputs. The runner never
     touches UI state and never decides staleness: it echoes job ids, and the consumer
-    drops what {!Ches_vcs.Stamps} says is stale.
+    drops what {!Cobalt_vcs.Stamps} says is stale.
 
     Scheduling:
     - [Read] jobs start at once. Their steps are independent and run concurrently, at
@@ -22,13 +22,13 @@
     - runs [spec.prog] with [spec.args] (no shell) in [spec.cwd], in a new process
       group, with environment {!Auth.environment} over [inherited] overlaid with
       [spec.env];
-    - stdin per {!Ches_vcs.Exec.Stdin.t}: a pipe that is closed at once ([Null]) or
+    - stdin per {!Cobalt_vcs.Exec.Stdin.t}: a pipe that is closed at once ([Null]) or
       after writing the data, never the terminal;
     - keeps the first [stdout_limit] bytes of stdout and the last [stderr_limit] of
       stderr; a [Read] child whose stdout passes its limit is terminated, other kinds
       are drained to the end;
     - with [spec.stream], reports each stdout and stderr line as it arrives
-      ({!Ches_vcs.Event.Output}): lines end at ['\n'] or ['\r'] (the latter
+      ({!Cobalt_vcs.Event.Output}): lines end at ['\n'] or ['\r'] (the latter
       [transient]); a final unterminated line is reported at end of file; a line over
       4 KiB is reported in 4 KiB pieces. A transient line may be dropped when a later
       line of the same step and stream is already pending;
@@ -51,7 +51,7 @@
 
 open! Core
 open! Async
-open Ches_vcs
+open Cobalt_vcs
 
 module Config : sig
   type t =
@@ -68,11 +68,11 @@ type t
 
 (** [inherited] is the base environment of every child; default this process's
     environment when [create] is called. Tests pass the fixture's
-    ([Ches_vcs_fixture.Fixture_repo.environment]). Raises on an invalid config. *)
+    ([Cobalt_vcs_fixture.Fixture_repo.environment]). Raises on an invalid config. *)
 val create : ?config:Config.t -> ?inherited:(string * string) list -> unit -> t
 
 (** Queue or start a job, per the scheduling rules above. A job whose id was submitted
-    before is reported at once as {!Ches_vcs.Job.never_started}. After {!stop}, does
+    before is reported at once as {!Cobalt_vcs.Job.never_started}. After {!stop}, does
     nothing. *)
 val submit : t -> Job.t -> unit
 
@@ -92,7 +92,7 @@ val poll : t -> Event.t list
 (** Whether any job is queued or running. *)
 val busy : t -> bool
 
-(** Ches is quitting. Idempotent. Every queued job is dropped and every running child
+(** Cobalt is quitting. Idempotent. Every queued job is dropped and every running child
     terminated, with no further events: pending events are discarded and
     {!next_batch} is never determined again. *)
 val stop : t -> unit

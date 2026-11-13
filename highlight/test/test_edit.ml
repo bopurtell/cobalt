@@ -1,5 +1,5 @@
 open! Core
-open Ches_highlight
+open Cobalt_highlight
 
 let check ~old_source ~new_source =
   match Edit.between ~old_source ~new_source with

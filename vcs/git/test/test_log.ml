@@ -1,15 +1,15 @@
-(* Log scopes against real repositories (phase 8): each scope's read through
+(* Log scopes against real repositories: each scope's read through
    Backend.refresh and snapshot, printed as the Commits panel's section title, then one
    row per commit (the graph as the view draws it, refs, subject), then any problems.
    Also the log popup (Log.popup, enabled, scope) as pure functions. Commit hashes are
    reproducible (fixed dates) but rows show subjects, which read better. *)
 
 open! Core
-open Ches_vcs
-module Fixture = Ches_vcs_fixture.Fixture_repo
-module Git = Ches_vcs_git
-module B = Ches_vcs_git.Backend
-module Log = Ches_vcs_git.Log
+open Cobalt_vcs
+module Fixture = Cobalt_vcs_fixture.Fixture_repo
+module Git = Cobalt_vcs_git
+module B = Cobalt_vcs_git.Backend
+module Log = Cobalt_vcs_git.Log
 
 let relative (t : Fixture.t) text =
   String.substr_replace_all text ~pattern:t.dir ~with_:"$DIR"

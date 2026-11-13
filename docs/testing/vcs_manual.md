@@ -15,14 +15,14 @@ looks and feels in your terminal, and a real remote. Key reference:
 ## Automated coverage
 
 ```sh
-cd ~/devel/ches
-dune build -j 4 bin/ches.exe
+cd ~/devel/cobalt
+dune build -j 4 bin/cobalt.exe
 python3 scripts/vcs_smoke.py           # about 4 s; prints PASS/FAIL per check
 dune runtest -j 4
 ```
 
 The smoke builds its own sandbox in a temporary directory (never
-`/tmp/ches-vcs-sandbox`), runs git with `GIT_CONFIG_GLOBAL=/dev/null`, and keeps
+`/tmp/cobalt-vcs-sandbox`), runs git with `GIT_CONFIG_GLOBAL=/dev/null`, and keeps
 colored captures of the review screens in a directory it prints (`less -R` them, or
 `cat` them in your terminal to see its colors). In order, it checks:
 
@@ -44,8 +44,8 @@ Setup, as before (the sandbox's contents are described at the top of
 `scripts/vcs_sandbox.sh`; re-run it to start over):
 
 ```sh
-scripts/vcs_sandbox.sh                 # wipes and builds /tmp/ches-vcs-sandbox
-./_build/default/bin/ches.exe /tmp/ches-vcs-sandbox/work/a.txt
+scripts/vcs_sandbox.sh                 # wipes and builds /tmp/cobalt-vcs-sandbox
+./_build/default/bin/cobalt.exe /tmp/cobalt-vcs-sandbox/work/a.txt
 ```
 
 - [ ] **Glyphs in your font.** In Commits, `+` then `G`: the merge reads `●─╮`, the
@@ -64,7 +64,7 @@ scripts/vcs_sandbox.sh                 # wipes and builds /tmp/ches-vcs-sandbox
   tests feed synthetic progress.
 - [ ] **A real ssh remote** (optional): point a scratch clone's `origin` at one. `f`,
   `p p`, `P p` work, there is never a terminal prompt, and a missing ssh-agent key or
-  an unknown host gives Ches's explanation rather than a hang.
+  an unknown host gives Cobalt's explanation rather than a hang.
 - [ ] **Narrow and wide layouts**: 80 columns (the stacked layout, only the focused
   part when short), the split at a narrow width, and a very wide terminal.
 - [ ] **Footer hints** (`Space v ?`): read them in the view. `test_vcs_hints.ml`
@@ -77,7 +77,7 @@ popups without switches, hints naming refused keys) were fixed on 2026-11-01: ev
 panel footer starts with `? help` and fits in 100 columns, and `test_vcs_hints.ml`
 pins them.
 
-- **The empty log's title** (phase 8 gap): a logged branch deleted outside Ches, then
+- **The empty log's title** (phase 8 gap): a logged branch deleted outside Cobalt, then
   `g r`, shows `3 Commits (0)` / `(none)` with no title naming the log. Left as is
   for now (owner, 2026-11-01); `test_vcs_log.ml`'s last test records it.
 
@@ -86,7 +86,7 @@ pins them.
 - That the smoke's quit really lands while git runs: it sends `f q Space q` at once,
   but a fetch from a local remote may finish first. The lock check is meaningful
   either way; the race itself is not proven.
-- Copying with `y` into the system clipboard (Ches's register is tested; the
+- Copying with `y` into the system clipboard (Cobalt's register is tested; the
   terminal's clipboard is not).
 - Cursor shape and the smear cursor in the view (tmux does not report them).
 

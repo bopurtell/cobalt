@@ -1,14 +1,14 @@
 open! Core
 open! Async
-open Ches_source
-open Ches_error.Language_query
+open Cobalt_source
+open Cobalt_error.Language_query
 module H = Test_completion.H
 
 let request resource revision id kind : request =
   { token = { resource; generation = 7; revision; request = id }; cursor = 11; kind }
 
 let rec replies events = List.concat_map events ~f:(function
-  | Ches_error.Source_event.Query_result reply -> [reply]
+  | Cobalt_error.Source_event.Query_result reply -> [reply]
   | Owned { event; _ } -> replies [event] | _ -> [])
 
 let rec receive source =
@@ -198,7 +198,7 @@ let%expect_test "late cancelled activation still invalidates pooled context with
     let q = request resource 2 2 (Activate_instance { module_name = "leaf"; hier_path = "top.narrow" }) in
     Source.send source (Query q);
     let%bind () = Clock_ns.after (Time_ns.Span.of_int_ms 100) in
-    ignore (Source.poll source : Ches_error.Source_event.t list);
+    ignore (Source.poll source : Cobalt_error.Source_event.t list);
     Source.send source (Cancel_query q.token);
     Source.send source (Document_changed { resource; revision = 3; text = "changed" });
     Source.send source (Document_saved { resource; revision = 3 });
@@ -226,7 +226,7 @@ let%expect_test "OCaml and Slang capabilities, both preference orders, fallback 
       let q = request resource 2 1 kind in
       Source.send source (Query q);
        let%bind reply = receive source in
-       assert (equal_kind reply.kind kind && Ches_completion.Model.Token.equal q.token reply.token);
+       assert (equal_kind reply.kind kind && Cobalt_completion.Model.Token.equal q.token reply.token);
        let sole_primary = (String.equal caps "slang" && equal_kind kind Definition)
          || (String.equal caps "declaration" && equal_kind kind Declaration) in
        let suffix s = String.is_suffix mode ~suffix:s in
@@ -466,8 +466,8 @@ let%expect_test "32 connection queries are bounded and timeout reports failure" 
 let%expect_test "query results do not coalesce with diagnostics or other query results" =
   let reply : reply = {token = (request "a.ml" 1 1 Hover).token; cursor = 11;
     kind = Hover; source = "fake"; result = Hover_result None} in
-  let result = Ches_error.Source_event.Query_result reply in
-  let diagnostic = Ches_error.Source_event.Diagnostics {source = "fake"; resource = "a.ml";
+  let result = Cobalt_error.Source_event.Query_result reply in
+  let diagnostic = Cobalt_error.Source_event.Diagnostics {source = "fake"; resource = "a.ml";
     revision = Some 1; findings = []} in
   let queue = List.fold [result; diagnostic; result; diagnostic] ~init:Event_queue.empty ~f:Event_queue.push in
   let _, events = Event_queue.take queue ~max:10 in

@@ -1,5 +1,5 @@
 open! Core
-open Ches_screen
+open Cobalt_screen
 
 let rect x y width height : Geometry.Rect.t = { x; y; width; height }
 

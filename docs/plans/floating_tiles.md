@@ -98,9 +98,9 @@ resize behavior with pure geometry tests.
 - Terminal smoke verification: the full `scripts/smoke.sh` run passed, including
   the existing docked-palette input/cancel/paste/accept scenario. It ran outside the
   sandbox (private tmux sockets are blocked inside) against a stable executable
-  copy at `/tmp/ches-floating-phase1.exe`. Log:
-  `/tmp/ches-floating-phase1-smoke-final.log`; terminal captures:
-  `/tmp/ches-smoke-screens.JvBI7S`. Human visual acceptance has not been performed;
+  copy at `/tmp/cobalt-floating-phase1.exe`. Log:
+  `/tmp/cobalt-floating-phase1-smoke-final.log`; terminal captures:
+  `/tmp/cobalt-smoke-screens.JvBI7S`. Human visual acceptance has not been performed;
   a visible floating palette is not part of phase 1.
 
 ## 2. Compose the floating layer
@@ -218,7 +218,7 @@ human visual acceptance.
   no-match Enter, Ctrl-c, typed and pasted queries, command execution, zen, clamped
   and 14×4 minimum placement, query/selection retention across resize, tiny-terminal
   refusal, interrupted paste dropping even after growth, unchanged saved bytes,
-  and terminal restoration. `--palette-only [PATH-TO-CHES]` runs just these scenarios.
+  and terminal restoration. `--palette-only [PATH-TO-COBALT]` runs just these scenarios.
 - Resize/open checks wait for the application's cursor geometry, rather than only
   tmux's dimensions, so keys cannot race an unprocessed resize. The interrupted
   paste smoke assertion allows the narrow status tile's clipped notice; headless
@@ -233,13 +233,13 @@ human visual acceptance.
   `git diff --check` pass. Full `dune runtest` still reports the previously
   documented stale snapshots in `ui/test/test_editor_view.ml`; no
   unrelated expectations were promoted. Log:
-  `/tmp/opencode/ches-floating-phase4-runtest.log`.
+  `/tmp/opencode/cobalt-floating-phase4-runtest.log`.
 - Corrected targeted terminal smoke passes. Log:
-  `/tmp/opencode/ches-floating-phase4-palette-final.log`; colored captures:
-  `/tmp/opencode/ches-smoke-screens.lMJXfa`. The complete `scripts/smoke.sh` run also
+  `/tmp/opencode/cobalt-floating-phase4-palette-final.log`; colored captures:
+  `/tmp/opencode/cobalt-smoke-screens.lMJXfa`. The complete `scripts/smoke.sh` run also
   passes, including all existing terminal scenarios and the extended palette checks.
-  Full smoke log: `/tmp/opencode/ches-floating-phase4-smoke-final.log`; full colored
-  captures: `/tmp/opencode/ches-smoke-screens.zyYmUF`.
+  Full smoke log: `/tmp/opencode/cobalt-floating-phase4-smoke-final.log`; full colored
+  captures: `/tmp/opencode/cobalt-smoke-screens.zyYmUF`.
 - **Human visual acceptance: pending, not performed by the agent.** Review the
   saved `palette-*.ansi` captures and a live terminal at 80×24 and 120×40, with all
   docked tiles and in zen: centering, size/readability, a single bar cursor, no

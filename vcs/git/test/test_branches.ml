@@ -1,14 +1,14 @@
-(* Branches and aborts (phase 6): Branch_name.refusal and the abort actions of the
-   operation popups (Git.Operation, phase 7) as pure functions, the name rules
+(* Branches and aborts: Branch_name.refusal and the abort actions of the
+   operation popups (Git.Operation) as pure functions, the name rules
    cross-checked against git check-ref-format --branch; then the Checkout,
    Checkout_previous, Create_branch and Abort plans against fixture repositories. Helpers
    in plan_fixture.ml. *)
 
 open! Core
-open Ches_vcs
+open Cobalt_vcs
 open Plan_fixture
-module Branch_name = Ches_vcs_git.Branch_name
-module Operation = Ches_vcs_git.Operation
+module Branch_name = Cobalt_vcs_git.Branch_name
+module Operation = Cobalt_vcs_git.Operation
 
 let%expect_test "Branch_name.refusal: every rule, in order" =
   let show ?(existing = [ "main"; "feature/x" ]) name =
@@ -198,7 +198,7 @@ let%expect_test "Branch_name.refusal agrees with git check-ref-format --branch" 
         (if ours then "valid" else "invalid")
         (match git, ours with
          | true, false -> "  stricter (documented in branch_name.mli)"
-         | false, true -> "  DIFFERENT: Ches accepts what git refuses"
+         | false, true -> "  DIFFERENT: Cobalt accepts what git refuses"
          | _ -> "")));
   [%expect
     {|
@@ -292,7 +292,7 @@ let%expect_test "Abort: the operation popups' a, in_progress" =
 
 let%expect_test "checkout, the previous branch, a branch named -x" =
   Fixture.with_repo (fun t ->
-    let show action = ignore (decide t action : Ches_vcs.Backend.Plan.t option) in
+    let show action = ignore (decide t action : Cobalt_vcs.Backend.Plan.t option) in
     Fixture.write t "f.txt" "main\n";
     commit t "One";
     print_endline "-- no previous branch yet: git fails the step";
@@ -367,7 +367,7 @@ let%expect_test "checkout, the previous branch, a branch named -x" =
 
 let%expect_test "create branch: at HEAD, checked out, changes kept; refusals" =
   Fixture.with_repo (fun t ->
-    let show action = ignore (decide t action : Ches_vcs.Backend.Plan.t option) in
+    let show action = ignore (decide t action : Cobalt_vcs.Backend.Plan.t option) in
     print_endline "-- unborn";
     show (Create_branch "feature/x");
     show (Create_branch "");
@@ -419,7 +419,7 @@ let%expect_test "create branch: at HEAD, checked out, changes kept; refusals" =
 
 let%expect_test "merge abort, and the refusals while a merge is in progress" =
   Fixture.with_repo (fun t ->
-    let show action = ignore (decide t action : Ches_vcs.Backend.Plan.t option) in
+    let show action = ignore (decide t action : Cobalt_vcs.Backend.Plan.t option) in
     Fixture.write t "f.txt" "base\n";
     commit t "Base";
     git t [ "switch"; "-q"; "-c"; "other" ];
@@ -454,18 +454,18 @@ let%expect_test "merge abort, and the refusals while a merge is in progress" =
   [%expect
     {|
     refused: No merge in progress; nothing ran
-      head: main; Merging 1942d9f; conflicted f.txt
-    refused: Merging 1942d9f in progress: finish or abort it first; nothing ran
+      head: main; Merging e7a3a02; conflicted f.txt
+    refused: Merging e7a3a02 in progress: finish or abort it first; nothing ran
     refused: Already on main; nothing ran
     refused: nosuch is no longer listed; refresh (g r); nothing ran
-    refused: Merging 1942d9f in progress: finish or abort it first; nothing ran
-    refused: Merging 1942d9f in progress: finish or abort it first; nothing ran
+    refused: Merging e7a3a02 in progress: finish or abort it first; nothing ran
+    refused: Merging e7a3a02 in progress: finish or abort it first; nothing ran
     refused: No rebase in progress; nothing ran
-    refused: Merging 1942d9f in progress: finish or abort it first; nothing ran
+    refused: Merging e7a3a02 in progress: finish or abort it first; nothing ran
     -- n: in progress before the name's own refusals
-    refused: Merging 1942d9f in progress: finish or abort it first; nothing ran
-    refused: Merging 1942d9f in progress: finish or abort it first; nothing ran
-    refused: Merging 1942d9f in progress: finish or abort it first; nothing ran
+    refused: Merging e7a3a02 in progress: finish or abort it first; nothing ran
+    refused: Merging e7a3a02 in progress: finish or abort it first; nothing ran
+    refused: Merging e7a3a02 in progress: finish or abort it first; nothing ran
     -- m a
     confirm "Abort merge": Abort the merge? Its changes and your conflict resolutions are lost; HEAD stays where it is.
       plan "Abort merge" (rewrites the work tree)

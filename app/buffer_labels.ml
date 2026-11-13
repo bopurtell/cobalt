@@ -1,5 +1,5 @@
 open! Core
-open Ches_core
+open Cobalt_core
 
 (* Local reverse-component trie. Counts include terminal paths, preserving the
    old rule that a full path is allowed even when it is another path's suffix. *)

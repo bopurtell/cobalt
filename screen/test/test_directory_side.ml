@@ -1,7 +1,7 @@
 open! Core
-open Ches_core
-open Ches_app
-open Ches_screen
+open Cobalt_core
+open Cobalt_app
+open Cobalt_screen
 open Helpers
 
 let width = 100
@@ -15,7 +15,7 @@ let files ui = List.map (Session.buffers (Ui_state.session ui)) ~f:(fun (_, c) -
   Filename.basename (Option.value_exn (Editor.path (Controller.editor c))))
 
 let fixture f =
-  let root = scratch_dir "ches-side-test-" in
+  let root = scratch_dir "cobalt-side-test-" in
   let names = [ "a.txt"; "b.txt"; "bad.txt" ] @ List.init 40 ~f:(fun i -> sprintf "z%02d.txt" i) in
   List.iter names ~f:(fun name -> Out_channel.write_all (Filename.concat root name)
     ~data:(if String.equal name "bad.txt" then "\000" else "one\ntwo\nthree\n"));
@@ -89,13 +89,13 @@ let%test_unit "side opens keep browser and target group; tabs and editor input s
     let p = presentation ui in
     assert (Poly.equal p.placement Side && Group_id.equal p.target_group (Session.group_id (Ui_state.session ui)));
     assert (List.equal String.equal (files ui) [ "a.txt" ]);
-    assert (Ches_tile.View_id.equal (focused ui) Ui_state.document_id);
+    assert (Cobalt_tile.View_id.equal (focused ui) Ui_state.document_id);
     assert (Option.is_none (Session.input_directory (Ui_state.session ui)));
     assert (Option.is_some (Ui_state.side_layout ui ~width ~height));
     let rendered = Frame.to_string (Frame.render ui ~width ~height) in
     assert (String.is_substring rendered ~substring:"Directory");
     assert (String.is_substring rendered ~substring:"0 marked");
-    assert (not (String.is_substring rendered ~substring:"@ches["));
+    assert (not (String.is_substring rendered ~substring:"@cobalt["));
     assert (String.is_substring rendered ~substring:"one");
     let frame = Frame.render ui ~width ~height in
     List.iter frame.rows ~f:(fun row ->
@@ -112,7 +112,7 @@ let%test_unit "side opens keep browser and target group; tabs and editor input s
     assert (Option.is_none (Ui_state.side_layout ui ~width ~height));
     assert (String.equal (Directory_buffer.selected (dir ui) |> Option.value_exn).name "a.txt");
     let ui = run ui " o" in
-    assert (Ches_tile.View_id.equal (focused ui) Ui_state.document_id);
+    assert (Cobalt_tile.View_id.equal (focused ui) Ui_state.document_id);
     assert_frame ui ~width ~height;
     Session.dispose (Ui_state.session ui))
 ;;
@@ -178,7 +178,7 @@ let%test_unit "failed main toggle leaves the existing side presentation and file
     assert (Option.is_some (Ui_state.side_layout ui ~width ~height));
     assert (Option.is_none (Session.input_directory (Ui_state.session ui)));
     assert (Option.equal Buffer_id.equal (Some file) (Session.context_id (Ui_state.session ui)));
-    assert (Ches_tile.View_id.equal (focused ui) Ui_state.document_id);
+    assert (Cobalt_tile.View_id.equal (focused ui) Ui_state.document_id);
     assert (Option.is_some (Ui_state.message ui));
     Session.dispose (Ui_state.session ui))
 ;;
@@ -189,11 +189,11 @@ let%test_unit "side Insert Tab edits text; Normal Tab returns focus" =
     let before = Editor.text (editor ui) |> Text_buffer.to_string in
     let ui = run ui "A<Tab>" in
     assert (Mode.equal (Editor.mode (editor ui)) Insert);
-    assert (Ches_tile.View_id.equal (focused ui) Ui_state.directory_id);
+    assert (Cobalt_tile.View_id.equal (focused ui) Ui_state.directory_id);
     assert (not (String.equal before (Text_buffer.to_string (Editor.text (editor ui)))));
     let ui = run ui "<Esc>u<Tab>" in
     assert (String.equal before (Text_buffer.to_string (Editor.text (Controller.editor (dir ui).controller))));
-    assert (Ches_tile.View_id.equal (focused ui) Ui_state.document_id);
+    assert (Cobalt_tile.View_id.equal (focused ui) Ui_state.document_id);
     Session.dispose (Ui_state.session ui))
 ;;
 
@@ -202,7 +202,7 @@ let%test_unit "floating palette and directory-line picker cover the side pane an
     let initial = create root |> fun ui -> run ui " ds<CR> df" in
     let before = Frame.render initial ~width ~height in
     let opened = run initial " cc" in
-    assert (Ches_tile.View_id.equal (focused opened) Palette_tile.id);
+    assert (Cobalt_tile.View_id.equal (focused opened) Palette_tile.id);
     let layout = Ui_state.palette_layout opened ~width ~height |> Option.value_exn in
     let palette = Ui_state.palette opened |> Option.value_exn in
     let layer = Tile_shell.render layout ~focused:true
@@ -213,15 +213,15 @@ let%test_unit "floating palette and directory-line picker cover the side pane an
         ~x:layout.outer.x ~width:layout.outer.width row |> Span.merge in
       assert (Poly.equal expected (List.nth_exn frame.rows (layout.outer.y + i))));
     let closed = run opened "<Esc>" in
-    assert (Ches_tile.View_id.equal (focused closed) Ui_state.directory_id);
+    assert (Cobalt_tile.View_id.equal (focused closed) Ui_state.directory_id);
     assert (String.equal (Frame.to_string before) (Frame.to_string (Frame.render closed ~width ~height)));
     let lines = run closed " fl" in
-    assert (Ches_tile.View_id.equal (focused lines) Line_picker_tile.id);
+    assert (Cobalt_tile.View_id.equal (focused lines) Line_picker_tile.id);
     let picker = Ui_state.line_picker lines |> Option.value_exn in
     assert_frame lines ~width ~height;
     assert (Line_picker_tile.validate picker (Ui_state.controller lines));
     let closed = run lines "<Esc>" in
-    assert (Ches_tile.View_id.equal (focused closed) Ui_state.directory_id);
+    assert (Cobalt_tile.View_id.equal (focused closed) Ui_state.directory_id);
     Session.dispose (Ui_state.session closed))
 ;;
 
@@ -242,7 +242,7 @@ let%test_unit "placement and hiding retain controller, selection, scroll and mar
     let x, y, _ = Ui_state.minor_cursor ui ~width ~height |> Option.value_exn in
     assert (cursor.x = x && cursor.y = y);
     let ui = run ui "<Esc> cc<Esc>" in
-    assert (Ches_tile.View_id.equal (focused ui) Ui_state.directory_id);
+    assert (Cobalt_tile.View_id.equal (focused ui) Ui_state.directory_id);
     (* Reestablish the same selection after testing palette focus restoration. *)
     let ui = run ui "Vk" in
     let selection = Editor.selection (editor ui) in
@@ -263,7 +263,7 @@ let%test_unit "side visual and marked batches share ordering, partial failures a
       let ui = create root |> fun ui -> run ui (" ds mm" ^ selection ^ "<CR>") in
       assert (List.equal String.equal (files ui) [ "a.txt"; "b.txt" ]);
       assert (Set.length (dir ui).marks = 1);
-      assert (Ches_tile.View_id.equal (focused ui) Ui_state.document_id);
+      assert (Cobalt_tile.View_id.equal (focused ui) Ui_state.document_id);
     let ui = run ui " dfggV3j ms<Esc> mo" in
       assert (Set.length (dir ui).marks = 2);
       assert (List.equal String.equal (List.map (Directory_buffer.marked_entries (dir ui)) ~f:(fun e -> e.name)) [ "bad.txt"; "child" ]);
@@ -282,7 +282,7 @@ let%test_unit "side navigation uses cached buffers and explicit return target" =
     assert (Set.length (dir ui).marks = 1);
     let ui = run ui " o" in
     assert (Option.is_some (Ui_state.side_layout ui ~width ~height));
-    assert (Ches_tile.View_id.equal (focused ui) Ui_state.document_id);
+    assert (Cobalt_tile.View_id.equal (focused ui) Ui_state.document_id);
     Session.dispose (Ui_state.session ui))
 ;;
 
@@ -294,7 +294,7 @@ let%test_unit "zen and tiny resize suppress side safely, preserve state and rest
     let ui = run ui " vz" in
     assert (Option.is_none (Ui_state.side_layout ui ~width ~height));
     assert (Option.is_none (Session.input_directory (Ui_state.session ui)));
-    assert (Ches_tile.View_id.equal (focused ui) Ui_state.document_id);
+    assert (Cobalt_tile.View_id.equal (focused ui) Ui_state.document_id);
     let ui = run ui " vz df" in
     assert (Set.length (dir ui).marks = 1 && Buffer_id.equal id (dir ui).id);
     let ui = Helpers.run ~width:8 ~height:2 ui [ Resize ] in
@@ -304,7 +304,7 @@ let%test_unit "zen and tiny resize suppress side safely, preserve state and rest
       assert_frame resized ~width:w ~height:h));
     let ui = Helpers.run ~width ~height ui [ Resize ] in
     assert ((Ui_state.side_layout ui ~width ~height |> Option.value_exn).outer.width = 40);
-    assert (Ches_tile.View_id.equal (focused ui) Ui_state.document_id);
+    assert (Cobalt_tile.View_id.equal (focused ui) Ui_state.document_id);
     let ui = run ui " df dh" in
     assert (Option.is_none (Session.directory_presentation (Ui_state.session ui)));
     let ui = run ui " ds" in

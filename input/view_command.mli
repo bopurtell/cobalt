@@ -1,6 +1,6 @@
 (** Frontend commands for layout, scrolling and file-tab lifetime. Layout commands
     change preferences without editing; tab commands use session policy rather than
-    document-local effects. Terminal-independent, like the rest of [ches_input]. *)
+    document-local effects. Terminal-independent, like the rest of [cobalt_input]. *)
 
 open! Core
 

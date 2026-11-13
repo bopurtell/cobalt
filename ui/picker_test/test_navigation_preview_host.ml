@@ -1,8 +1,8 @@
 open! Core
 open! Async
-module Host = Ches_ui.Navigation_preview_host
-module Model = Ches_navigation_preview_model.Model
-module Q = Ches_error.Language_query
+module Host = Cobalt_ui.Navigation_preview_host
+module Model = Cobalt_navigation_preview_model.Model
+module Q = Cobalt_error.Language_query
 module Expect_test_config = Async.Expect_test_config
 
 let request ?(line = 0) generation path : Model.request =
@@ -69,7 +69,7 @@ let%expect_test "timeout delivers while disk remains occupied; retained results 
   [%expect {| bounded timeout delivery and authoritative late retained lookup |}]; return ()
 
 let%expect_test "disk windows reach far lines and bound giant lines, scans, and special files" =
-  let root = Filename_unix.temp_dir "ches-navigation-host" "" in
+  let root = Filename_unix.temp_dir "cobalt-navigation-host" "" in
   let path = root ^ "/source" and fifo = root ^ "/fifo" and loop = root ^ "/loop" in
   let read ?(line = 0) path = Host.For_testing.disk_read
     ~cancelled:(Atomic.make false) (request ~line 1 path) in

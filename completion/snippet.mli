@@ -1,5 +1,5 @@
 open! Core
-open Ches_core
+open Cobalt_core
 
 type range = { start : int; stop : int } [@@deriving sexp_of, equal, compare]
 type field = { number : int; ranges : range list } [@@deriving sexp_of, equal, compare]

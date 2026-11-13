@@ -19,7 +19,7 @@ let fill ~(rect : Geometry.Rect.t) rows =
 ;;
 
 (* The glyphs of [row] from [selected] offsets, exactly [width] cells. *)
-let text_row (row : Ches_tile.Text_view.Row.t) ~width ~selected =
+let text_row (row : Cobalt_tile.Text_view.Row.t) ~width ~selected =
   let selection = Style.document ~overlay:Selection () in
   let spans =
     Array.to_list row.glyphs
@@ -46,27 +46,27 @@ let text_row (row : Ches_tile.Text_view.Row.t) ~width ~selected =
 ;;
 
 let text_view view ~width ~rows =
-  let view = Ches_tile.Text_view.fit view ~width ~rows in
+  let view = Cobalt_tile.Text_view.fit view ~width ~rows in
   let selected =
-    match Ches_tile.Text_view.selection view with
+    match Cobalt_tile.Text_view.selection view with
     | None -> fun _ -> false
     | Some (start, stop) -> fun offset -> start <= offset && offset < stop
   in
-  Ches_tile.Text_view.rows view ~width
-  |> Fn.flip List.drop (Ches_tile.Text_view.top view)
+  Cobalt_tile.Text_view.rows view ~width
+  |> Fn.flip List.drop (Cobalt_tile.Text_view.top view)
   |> Fn.flip List.take (Int.max 0 rows)
   |> List.map ~f:(text_row ~width ~selected)
 ;;
 
 let text_footer ?(hotkey_hints = false) view ~width ~rows =
-  let view = Ches_tile.Text_view.fit view ~width ~rows in
-  let total = List.length (Ches_tile.Text_view.rows view ~width) in
-  let top = Ches_tile.Text_view.top view in
+  let view = Cobalt_tile.Text_view.fit view ~width ~rows in
+  let total = List.length (Cobalt_tile.Text_view.rows view ~width) in
+  let top = Cobalt_tile.Text_view.top view in
   let range =
     sprintf "Details %d-%d/%d" (top + 1) (Int.min total (top + Int.max 1 rows)) total
   in
   let state, keys =
-    match Ches_tile.Text_view.visual view with
+    match Cobalt_tile.Text_view.visual view with
     | None -> "", " | hjkl w b v V yy; e/Esc back"
     | Some Characterwise -> " | VISUAL", ": y copy, o swap; Esc cancel"
     | Some Linewise -> " | VISUAL LINE", ": y copy, o swap; Esc cancel"

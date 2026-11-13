@@ -22,18 +22,18 @@ Archive URL:
 <https://codeload.github.com/gmlarumbe/tree-sitter-systemverilog/tar.gz/d6be6119fe4d04c65c567e7b79625aa6280fea34>
 
 Dune expands the roughly 2.6 MB compressed source to roughly 64 MB of generated C
-using `gzip`, then compiles and links it into Ches with `binding.c`. Rebuilding the
+using `gzip`, then compiles and links it into Cobalt with `binding.c`. Rebuilding the
 grammar can take longer than rebuilding OCaml code. The OCaml wrapper constructs
 `Tree_sitter.Language.t` from that static grammar pointer; it cannot outlive the
 grammar. No runtime file search, download, CLI, Node, or grammar regeneration is
 required. There is only one Tree-sitter runtime, supplied by the opam package.
 
-`../systemverilog_queries.ml` contains Ches-authored structural queries using the
+`../systemverilog_queries.ml` contains Cobalt-authored structural queries using the
 pinned grammar's node types and fields. No upstream editor query was copied. Queries
 have no predicates, matching the OCaml binding's capabilities. The provider shares
 incremental parsing, UTF-8 validation, immutable snapshots, and failure handling
 with OCaml. Its freshness configuration is
-`tree-sitter-systemverilog.d6be6119/ches-sv-structural-v1`; bump this when changing
+`tree-sitter-systemverilog.d6be6119/cobalt-sv-structural-v1`; bump this when changing
 the grammar or queries.
 
 Highlighting is grammatical rather than semantic. The query recognizes declarations,

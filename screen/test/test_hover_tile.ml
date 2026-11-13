@@ -1,7 +1,7 @@
 open! Core
-open Ches_screen
+open Cobalt_screen
 module H = Hover_tile
-module L = Ches_error.Language_query
+module L = Cobalt_error.Language_query
 
 let create kind value = H.create { L.contents = [{ kind; value }]; range = None }
 let body t ~width ~rows = (H.render t ~width ~rows).body
@@ -54,7 +54,7 @@ let%test_unit "tiny windows Unicode controls and hostile lines remain bounded" =
             List.iter spans ~f:(fun span ->
               assert (String.length span.Span.text < 10_000);
               assert (not (String.contains span.text '\027'));
-              assert (Result.is_ok (Ches_core.Text_buffer.validate span.text)))))));
+              assert (Result.is_ok (Cobalt_core.Text_buffer.validate span.text)))))));
   let t = create Plaintext ("e" ^ String.concat (List.init 50_000 ~f:(fun _ -> "́"))) in
   assert (String.length (text t ~width:2 ~rows:1) < 100);
   let t = create Plaintext (String.make 100_000 'x') in
@@ -63,7 +63,7 @@ let%test_unit "tiny windows Unicode controls and hostile lines remain bounded" =
 ;;
 
 let%test_unit "hover keys expose closure and shared scroll prefixes" =
-  let open Ches_input in
+  let open Cobalt_input in
   List.iter [Key.Escape; Key.char 'q'] ~f:(fun key ->
     match H.interpret [key] with Action Close -> () | _ -> failwith "close");
   List.iter [Key.char 'j'; Key.char 'k'; Key.Ctrl 'e'; Key.Ctrl 'y';

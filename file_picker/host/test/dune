@@ -1,6 +1,6 @@
 (library
- (name ches_file_picker_host_test)
- (libraries core core_unix core_unix.filename_unix core_unix.sys_unix async ches_app ches_core ches_input ches_tile ches_screen ches_file_picker ches_file_discovery ches_file_picker_host)
+ (name cobalt_file_picker_host_test)
+ (libraries core core_unix core_unix.filename_unix core_unix.sys_unix async cobalt_app cobalt_core cobalt_input cobalt_tile cobalt_screen cobalt_file_picker cobalt_file_discovery cobalt_file_picker_host)
  (inline_tests
   (deps fake_rg/fake_rg.exe)
   (flags (:standard -source-tree-root .)))

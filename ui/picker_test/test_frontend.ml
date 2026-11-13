@@ -2,34 +2,34 @@ open! Core
 open! Async
 open Bonsai_test
 open Bonsai_term
-open Ches_screen
-module Runtime = Ches_file_picker_host.Runtime
-module Interaction = Ches_file_picker.Interaction
-module Model = Ches_file_picker.Model
+open Cobalt_screen
+module Runtime = Cobalt_file_picker_host.Runtime
+module Interaction = Cobalt_file_picker.Interaction
+module Model = Cobalt_file_picker.Model
 module Expect_test_config = Async.Expect_test_config
 
 let%expect_test "frontend chains async turns and consumes only after release, without a live binding" =
-  let root = Filename_unix.realpath (Filename_unix.temp_dir "ches-picker-ui" "") in
+  let root = Filename_unix.realpath (Filename_unix.temp_dir "cobalt-picker-ui" "") in
   List.iter (List.init 300 ~f:(fun n -> sprintf "file%03d.ml" n)) ~f:(fun p ->
     Out_channel.write_all (root ^ "/" ^ p) ~data:"");
   let runtime = Runtime.create () in
   let cursor_output = ref "" in
   let%bind () = Monitor.protect (fun () ->
-    let text = Ches_core.Text_buffer.of_string "underlying" |> Result.map_error
-      ~f:Ches_core.Text_buffer.Invalid_text.to_string_hum |> Result.ok_or_failwith in
-    let controller = Ches_app.Controller.create
-      (Ches_core.Editor.create ~cell_width:Cell_map.width text) in
+    let text = Cobalt_core.Text_buffer.of_string "underlying" |> Result.map_error
+      ~f:Cobalt_core.Text_buffer.Invalid_text.to_string_hum |> Result.ok_or_failwith in
+    let controller = Cobalt_app.Controller.create
+      (Cobalt_core.Editor.create ~cell_width:Cell_map.width text) in
     let initial = Ui_state.create ~tiles_visible:false controller in
     let opened = Runtime.open_picker runtime initial ~root ~width:80 ~height:24 |> Or_error.ok_exn in
     let session = File_picker_tile.session (Option.value_exn (Ui_state.file_picker opened)) in
     let consumed = ref [] in
-    let file_picker : Ches_ui.Editor_view.File_picker_host.t =
+    let file_picker : Cobalt_ui.Editor_view.File_picker_host.t =
       { initial_ui = opened; runtime
       ; consume = (fun intent ->
           assert (Interaction.closed session);
           consumed := intent.Model.Request.path :: !consumed) } in
     let handle = Bonsai_term_test.create_handle ~initial_dimensions:{ width = 80; height = 24 }
-      (Ches_ui.Editor_view.app ~file_picker controller ~exit:(fun () -> Effect.Ignore)) in
+      (Cobalt_ui.Editor_view.app ~file_picker controller ~exit:(fun () -> Effect.Ignore)) in
     let rec settle () =
       Handle.recompute_view handle;
       let status = (Model.discovery (Interaction.model session)).status in
@@ -89,14 +89,14 @@ let%expect_test "frontend chains async turns and consumes only after release, wi
 ;;
 
 let%expect_test "frontend deactivation drops retained file results and rejects late work" =
-  let root = Filename_unix.realpath (Filename_unix.temp_dir "ches-picker-deactivate" "") in
+  let root = Filename_unix.realpath (Filename_unix.temp_dir "cobalt-picker-deactivate" "") in
   Out_channel.write_all (root ^ "/file.ml") ~data:"";
   let runtime = Runtime.create () in
   let%bind () = Monitor.protect (fun () ->
-    let text = Ches_core.Text_buffer.of_string "untouched" |> Result.map_error
-      ~f:Ches_core.Text_buffer.Invalid_text.to_string_hum |> Result.ok_or_failwith in
-    let controller = Ches_app.Controller.create
-      (Ches_core.Editor.create ~cell_width:Cell_map.width text) in
+    let text = Cobalt_core.Text_buffer.of_string "untouched" |> Result.map_error
+      ~f:Cobalt_core.Text_buffer.Invalid_text.to_string_hum |> Result.ok_or_failwith in
+    let controller = Cobalt_app.Controller.create
+      (Cobalt_core.Editor.create ~cell_width:Cell_map.width text) in
     let state = ref (Runtime.open_picker runtime (Ui_state.create controller)
       ~root ~width:80 ~height:24 |> Or_error.ok_exn) in
     let%bind result = Clock_ns.with_timeout (Time_ns.Span.of_int_sec 10)
@@ -109,7 +109,7 @@ let%expect_test "frontend deactivation drops retained file results and rejects l
     assert (Interaction.prepared_count session = 0);
     assert (List.length (Model.results (Interaction.model session)) = 1);
     let consumed = ref 0 in
-    let file_picker : Ches_ui.Editor_view.File_picker_host.t =
+    let file_picker : Cobalt_ui.Editor_view.File_picker_host.t =
       { initial_ui = !state; runtime; consume = (fun _ -> incr consumed) } in
     let active = Bonsai.Expert.Var.create true in
     let component ~dimensions (local_ graph) =
@@ -118,7 +118,7 @@ let%expect_test "frontend deactivation drops retained file results and rejects l
         match%sub Bonsai.Expert.Var.value active with
         | false -> Bonsai.return (View.none, (fun _ -> Effect.Ignore))
         | true ->
-          let ~view, ~handler = Ches_ui.Editor_view.app ~file_picker controller
+          let ~view, ~handler = Cobalt_ui.Editor_view.app ~file_picker controller
             ~exit:(fun () -> Effect.Ignore) ~dimensions graph in
           let%arr view and handler in view, handler in
       let view = let%arr both in fst both in
@@ -131,7 +131,7 @@ let%expect_test "frontend deactivation drops retained file results and rejects l
     let rec wait_preview () =
       Handle.recompute_view handle;
       match File_picker_tile.preview picker with
-      | Some { state = Ches_file_preview_model.Model.Empty _; _ } -> return ()
+      | Some { state = Cobalt_file_preview_model.Model.Empty _; _ } -> return ()
       | _ -> let%bind () = Clock_ns.after (Time_ns.Span.of_int_ms 2) in wait_preview () in
     let%bind result = Clock_ns.with_timeout (Time_ns.Span.of_int_sec 10) (wait_preview ()) in
     assert (match result with `Result () -> true | `Timeout -> false);

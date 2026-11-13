@@ -1,5 +1,5 @@
 open! Core
-open Ches_source
+open Cobalt_source
 
 let%test_unit "module identity uses enclosing definitions rather than nested Slang instantiation symbols" =
   let point character = `Assoc ["line", `Int 0; "character", `Int character] in
@@ -28,5 +28,5 @@ let%test_unit "standard reference arrays preserve zero one and many locations wi
       List.iteri targets ~f:(fun character target ->
         assert (String.equal target.path "/tmp/dirty target.sv");
         assert (target.selection.start.character = character);
-        assert (Ches_error.Language_query.equal_encoding target.encoding Utf16))
+        assert (Cobalt_error.Language_query.equal_encoding target.encoding Utf16))
     | _ -> assert false)

@@ -1,8 +1,8 @@
 open! Core
 open! Async
-open Ches_vcs
+open Cobalt_vcs
 open Helpers
-module Auth = Ches_vcs_host.Auth
+module Auth = Cobalt_vcs_host.Auth
 
 let show ~kind ~base ~ssh_command_configured =
   print_s

@@ -9,7 +9,7 @@
     static: there is no runtime registration. *)
 
 open! Core
-open Ches_input
+open Cobalt_input
 
 module Id : sig
   (** A stable, unique name such as ["view.toggle-relative-numbers"]: lowercase ASCII
@@ -22,7 +22,7 @@ end
 
 module Context : sig
   (** Where the palette was opened from, against which availability is checked. *)
-  type t = { mode : Ches_core.Mode.t } [@@deriving sexp_of]
+  type t = { mode : Cobalt_core.Mode.t } [@@deriving sexp_of]
 end
 
 module Entry : sig

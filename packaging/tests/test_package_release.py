@@ -26,13 +26,13 @@ class PackagingTests(unittest.TestCase):
     def test_deterministic_archive_and_metadata(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
-            entries = [("pkg/z", b"payload", False), ("pkg/bin/ches", b"executable", True)]
+            entries = [("pkg/z", b"payload", False), ("pkg/bin/cobalt", b"executable", True)]
             pack.archive(root / "a.gz", entries, 1234)
             pack.archive(root / "b.gz", reversed(entries), 1234)
             self.assertEqual((root / "a.gz").read_bytes(), (root / "b.gz").read_bytes())
             self.assertEqual((root / "a.gz").read_bytes()[4:8], b"\0" * 4)
             with tarfile.open(root / "a.gz") as tar:
-                self.assertEqual(tar.getnames(), ["pkg/bin/ches", "pkg/z"])
+                self.assertEqual(tar.getnames(), ["pkg/bin/cobalt", "pkg/z"])
                 for member in tar.getmembers():
                     self.assertEqual((member.uid, member.gid, member.uname, member.gname, member.mtime),
                                      (0, 0, "", "", 1234))
@@ -113,8 +113,8 @@ class PackagingTests(unittest.TestCase):
                 stage = Path(staging)
 
                 def fail_strip(command, **kwargs):
-                    self.assertEqual(Path(command[-1]), stage / "ches")
-                    (stage / "ches").write_bytes(b"damaged copy")
+                    self.assertEqual(Path(command[-1]), stage / "cobalt")
+                    (stage / "cobalt").write_bytes(b"damaged copy")
                     raise subprocess.CalledProcessError(1, command)
 
                 with patch.object(pack.shutil, "which", return_value="/usr/bin/strip"), \

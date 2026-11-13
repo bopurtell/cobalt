@@ -10,7 +10,7 @@ from pathlib import Path
 
 def main():
     executable = Path(sys.argv[1] if len(sys.argv) > 1 else
-                      Path(__file__).resolve().parents[1] / "_build/default/bin/ches.exe").resolve()
+                      Path(__file__).resolve().parents[1] / "_build/default/bin/cobalt.exe").resolve()
     root = Path(tempfile.mkdtemp(prefix="directory-toggle-", dir="/tmp"))
     filename = "b-current-file-with-a-long-directory-entry-name.txt"
     marker = "MAIN_FILE_EDITOR_SENTINEL"

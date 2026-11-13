@@ -16,7 +16,7 @@ type result =
   ; deleted : string list
   ; affected : string list
   ; completed : int
-  ; applied : Ches_core.Directory_plan.operation list
+  ; applied : Cobalt_core.Directory_plan.operation list
   (** Completed syscalls in order, including staging renames. [moves] instead
       maps each original backing resource directly to its current actual path. *)
   ; error : Error.t option

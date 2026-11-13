@@ -54,9 +54,9 @@ let location ~getenv =
     | _ -> None
   in
   match absolute (getenv "XDG_CACHE_HOME") with
-  | Some root -> Some (Filename.concat root "ches/config")
+  | Some root -> Some (Filename.concat root "cobalt/config")
   | None -> Option.map (absolute (getenv "HOME")) ~f:(fun home ->
-      Filename.concat home ".cache/ches/config")
+      Filename.concat home ".cache/cobalt/config")
 ;;
 
 let executable path =
@@ -155,13 +155,13 @@ let runtime program =
 ;;
 
 let metadata ~key program =
-  String.concat ~sep:"\n" [ "CHES_COMPILED_1"; key; file_digest program; digest (runtime program); "" ]
+  String.concat ~sep:"\n" [ "COBALT_COMPILED_1"; key; file_digest program; digest (runtime program); "" ]
 ;;
 
 let restore ~dir ~key ~target =
   try
     with_lock ~shared:true dir (fun () ->
-    let entry = Filename.concat dir ("ches-" ^ key) in
+    let entry = Filename.concat dir ("cobalt-" ^ key) in
     let stat = Core_unix.lstat entry in
     if not (Poly.equal stat.st_kind Core_unix.S_DIR)
        || stat.st_uid <> Core_unix.getuid () || stat.st_perm land 0o077 <> 0
@@ -183,8 +183,8 @@ let restore ~dir ~key ~target =
 ;;
 
 let owned_entry name =
-  String.is_prefix name ~prefix:"ches-" && String.length name = 37
-  && String.for_all (String.drop_prefix name 5) ~f:(function
+  String.is_prefix name ~prefix:"cobalt-" && String.length name = String.length "cobalt-" + 32
+  && String.for_all (String.drop_prefix name (String.length "cobalt-")) ~f:(function
     | '0' .. '9' | 'a' .. 'f' -> true | _ -> false)
 ;;
 
@@ -222,7 +222,7 @@ let prune_unlocked dir =
         let size = entry_size path in
         let meta = read ~max:4096 (Filename.concat path "metadata") in
         if not (String.is_prefix meta
-          ~prefix:("CHES_COMPILED_1\n" ^ String.drop_prefix name 5 ^ "\n"))
+          ~prefix:("COBALT_COMPILED_1\n" ^ String.drop_prefix name (String.length "cobalt-") ^ "\n"))
         then failwith "foreign cache metadata";
         Some (path, (Core_unix.lstat path).st_mtime, size)
       with _ -> None)
@@ -246,7 +246,7 @@ let publish ~dir ~key ~program =
       Core_unix.chmod target ~perm:0o700;
       Out_channel.write_all (Filename.concat staging "metadata") ~data:(metadata ~key target);
       Core_unix.chmod (Filename.concat staging "metadata") ~perm:0o600;
-      let entry = Filename.concat dir ("ches-" ^ key) in
+      let entry = Filename.concat dir ("cobalt-" ^ key) in
       (* Readers and publishers hold the same directory lock. Refuse to replace
          symlinks or directories containing anything beyond our two files. *)
       (try remove_entry entry with Core_unix.Unix_error (ENOENT, _, _) -> ());

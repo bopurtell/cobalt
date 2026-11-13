@@ -1,10 +1,10 @@
 open! Core
-open Ches_core
-open Ches_screen
+open Cobalt_core
+open Cobalt_screen
 open Helpers
-module Feedback = Ches_error.Error
-module Source_event = Ches_error.Source_event
-module Controller = Ches_app.Controller
+module Feedback = Cobalt_error.Error
+module Source_event = Cobalt_error.Source_event
+module Controller = Cobalt_app.Controller
 
 let width = 80
 let height = 16

@@ -1,5 +1,5 @@
 open! Core
-open Ches_vcs
+open Cobalt_vcs
 
 type action =
   | Commit of string list
@@ -13,7 +13,7 @@ let action key description run =
   { Popup.Action.key; description; run = (fun ~enabled -> run enabled) }
 ;;
 
-(* Phase 5's commit popup, plus a grouped pair to show exclusion. *)
+(* The commit popup, plus a grouped pair to show exclusion. *)
 let commit =
   Popup.create
     ~title:"Commit"

@@ -1,17 +1,17 @@
 (** The problems content adapter: translates shared feedback into a selectable list
     and details, and the shared host's actions back into selected acknowledgement,
     inspection, and validated same-document navigation. This is the only tile module
-    that knows [Ches_error]; the host and shared navigation never see a problem.
+    that knows [Cobalt_error]; the host and shared navigation never see a problem.
 
     View-local state (filter, selection, details) is independent of the feedback it
     presents: filtering, selecting, hiding, or leaving never acknowledges, resolves, or
     removes a problem. *)
 
 open! Core
-module Feedback = Ches_error.Error
+module Feedback = Cobalt_error.Error
 
-val id : Ches_tile.View_id.t
-val spec : Ches_tile.Spec.t
+val id : Cobalt_tile.View_id.t
+val spec : Cobalt_tile.Spec.t
 
 type t [@@deriving sexp_of]
 
@@ -23,7 +23,7 @@ val current_document : t -> bool
 val toggle_filter : t -> t
 
 (** The stored selection; use {!fit} first for one that matches current feedback. *)
-val selection : t -> Problems.Key.t Ches_tile.Navigation.Selection.t
+val selection : t -> Problems.Key.t Cobalt_tile.Navigation.Selection.t
 
 (** Whether the selected row's details are open, and their first visible row. *)
 val details : t -> bool
@@ -31,20 +31,20 @@ val details : t -> bool
 val detail_top : t -> int
 
 (** The open details: the selected row's description as read-only text. *)
-val text_view : t -> Ches_tile.Text_view.t option
+val text_view : t -> Cobalt_tile.Text_view.t option
 
 (** Record that [source]'s list for the open document was applied against [text]. *)
-val applied : t -> source:string -> resource:string -> text:Ches_core.Text_buffer.t -> t
+val applied : t -> source:string -> resource:string -> text:Cobalt_core.Text_buffer.t -> t
 val forget_resource : t -> string -> t
 
 (** The open document as this view matches findings in it. *)
-val document : t -> Ches_core.Editor.t -> Problems.Document.t
+val document : t -> Cobalt_core.Editor.t -> Problems.Document.t
 
 val entries : t -> Feedback.t -> document:Problems.Document.t -> Problems.Row.t list
 
 (** Reconcile selection with current feedback in a [width] by [rows] content viewport.
     When the selected key changes, details close. When its description changes,
-    open details take the new text through {!Ches_tile.Text_view.update}, which ends
+    open details take the new text through {!Cobalt_tile.Text_view.update}, which ends
     any Visual selection rather than retargeting it. *)
 val fit : t -> Feedback.t -> document:Problems.Document.t -> rows:int -> width:int -> t
 
@@ -65,9 +65,9 @@ type action [@@deriving sexp_of]
     current document, in the list or details.
     Otherwise, in the list, shared list motions ([j/k], [gg/G], [Ctrl-d/u]) select,
     [yy]/[Y] copy the selected problem's description, and edit keys are rejected; in
-    details, keys go to the read-only text ({!Ches_tile.Text_view}: movement, Visual
+    details, keys go to the read-only text ({!Cobalt_tile.Text_view}: movement, Visual
     selection, yank). Copying never inspects, acknowledges, or jumps. *)
-val interpret : t -> Ches_input.Key.t list -> action Ches_tile.Content_key.t
+val interpret : t -> Cobalt_input.Key.t list -> action Cobalt_tile.Content_key.t
 
 (** Escape ends Visual, then closes open details. *)
 val escape : t -> action option
@@ -77,10 +77,10 @@ val hint : string
 module Outcome : sig
   type nonrec t =
     { tile : t
-    ; controller : Ches_app.Controller.t
+    ; controller : Cobalt_app.Controller.t
     ; notice : [ `Post of string | `Show of string ] option
     (** [`Post] also reports the notice as feedback; [`Show] only displays it. *)
-    ; effect : Ches_tile.Text_view.Effect.t option (** A copy or read-only notice. *)
+    ; effect : Cobalt_tile.Text_view.Effect.t option (** A copy or read-only notice. *)
     ; return : bool (** Return focus to the document (after a jump). *)
     }
 end
@@ -88,7 +88,7 @@ end
 (** [rows] and [width] are the focused view's content viewport. *)
 val perform
   :  t
-  -> Ches_app.Controller.t
+  -> Cobalt_app.Controller.t
   -> rows:int
   -> width:int
   -> action
@@ -97,7 +97,7 @@ val perform
 (** In the list: [inspect] ([e]), [acknowledge] ([a]), [jump] (Enter), [copy-item],
     and the shared list motions; with details open: [inspect] (closing them),
     [acknowledge], [jump], and the read-only text's commands. *)
-val commands : t -> Ches_tile.Local_command.t list
+val commands : t -> Cobalt_tile.Local_command.t list
 
 (** Typed access to this view's state in a {!View_registry}. *)
 val key : t Type_equal.Id.t

@@ -1,9 +1,9 @@
 open! Core
 open! Async
-module Provider = Ches_content_search.Provider
-module Model = Ches_content_picker.Model
-module Ui_state = Ches_screen.Ui_state
-module Tile = Ches_screen.Content_picker_tile
+module Provider = Cobalt_content_search.Provider
+module Model = Cobalt_content_picker.Model
+module Ui_state = Cobalt_screen.Ui_state
+module Tile = Cobalt_screen.Content_picker_tile
 
 type t =
   { provider : Provider.t

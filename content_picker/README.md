@@ -1,9 +1,9 @@
-# Project on-disk literal search — phase 8 software complete
+# Project on-disk literal search
 
 Normal `Space f g` and palette **Search project contents** (`project.contents`)
 use the shared float and Async/Bonsai runtime. Acceptance opens/activates a retained
-session buffer and reveals a validated location. Phase-9 build/full tests and real
-file/content terminal smoke pass (`python3 scripts/picker_smoke.py`). Human visual,
+session buffer and reveals a validated location. Recorded build/full-test and real
+file/content terminal smoke results are in `RESULTS.md`. Human visual,
 owner-ranking and agreed live performance acceptance remain separate/unperformed.
 
 ## Scope and semantics
@@ -11,10 +11,10 @@ owner-ranking and agreed live performance acceptance remain separate/unperformed
 - Requires `rg` on PATH (or an explicitly configured executable). The provider
   reports actionable spawn errors; it never invokes a shell.
 - Host retains an explicit absolute project root. Reuse
-  `Ches_file_discovery.Project_root.find`: nearest `.git` file/directory or
+  `Cobalt_file_discovery.Project_root.find`: nearest `.git` file/directory or
   `dune-project`, fallback to starting document directory. Do not silently move
   root when activating another same-project file or change diagnostics policy.
-- Shares `Ches_file_picker.Scope` with file discovery: `--no-config`, normal
+- Shares `Cobalt_file_picker.Scope` with file discovery: `--no-config`, normal
   ignore rules, untracked included, hidden/`.git` omitted, no directory-symlink
   following. Global/parent ignore rules remain ripgrep's normal defaults.
 - `rg --json --fixed-strings --case-sensitive --line-number --color never --
@@ -32,7 +32,7 @@ owner-ranking and agreed live performance acceptance remain separate/unperformed
 
 ## Host/lifecycle
 
-Use `Ches_content_search.Provider` on the Async scheduler. Reuse one provider.
+Use `Cobalt_content_search.Provider` on the Async scheduler. Reuse one provider.
 `start ~root ~query` validates before disturbing an active run, assigns a fresh
 run/root/query identity and immediately clears prior hits. It cancels the old
 run, waits for its descriptor closure/reaping, debounces 150ms, and then launches.
@@ -60,7 +60,7 @@ selection or edited-but-not-requested query is inert, not queued. Partial matche
 may be accepted. Accept/cancel closes exactly once, drops retained hits, releases
 capture/provider, then delivers one typed intent to the injected consumer.
 
-`Ches_content_picker_host.Runtime.open_picker` preflights the shared host before
+`Cobalt_content_picker_host.Runtime.open_picker` preflights the shared host before
 starting an empty request; `next` chains yielded 2ms turns and polls at most one
 batch. Changed literals promptly start new runs and call `expect`; provider owns
 debounce/serial kill/reap. Obsolete queries, closed sessions and replaced opening

@@ -1,6 +1,6 @@
 open! Core
-val id : Ches_tile.View_id.t
-val spec : Ches_tile.Spec.t
+val id : Cobalt_tile.View_id.t
+val spec : Cobalt_tile.Spec.t
 val default_size : width:int -> height:int -> Floating.Size.t
 (** Eighty percent of each window dimension, subject to the minimum tile size. *)
 val placement : width:int -> height:int -> Tile_shell.Layout.t option
@@ -10,9 +10,9 @@ type inspection
 (** Frozen screen grid, canonical UTF-8 text and read-only modal cursor. The grid
     never reflows when the float is resized: rendering clips around its cursor.
     No backend history is captured. *)
-val inspect : Ches_terminal.Model.snapshot option -> inspection
+val inspect : Cobalt_terminal.Model.snapshot option -> inspection
 (** Starts at the child cursor, snapped to the leading cell of a wide glyph. *)
-val inspection_text : inspection -> Ches_tile.Text_view.t
+val inspection_text : inspection -> Cobalt_tile.Text_view.t
 (** In block mode the underlying Text_view keeps a latent characterwise Visual
     for motions and endpoints; use [block_selection] to distinguish its kind. *)
 type block_selection =
@@ -24,7 +24,7 @@ val block_selection : inspection -> block_selection option
     marks. Block yanks export [Register.Block], width at least the rectangle's
     width and large enough for every copied row. *)
 val toggle_block : inspection -> rows:int -> inspection
-val perform : inspection -> rows:int -> Ches_tile.Text_view.Action.t -> inspection * Ches_tile.Text_view.Effect.t option
-val render : ?hotkey_hints:bool -> ?number:int -> ?inspection:inspection -> Ches_terminal.Model.snapshot option -> failure:string option -> width:int -> rows:int -> Tile_shell.Content.t
+val perform : inspection -> rows:int -> Cobalt_tile.Text_view.Action.t -> inspection * Cobalt_tile.Text_view.Effect.t option
+val render : ?hotkey_hints:bool -> ?number:int -> ?inspection:inspection -> Cobalt_terminal.Model.snapshot option -> failure:string option -> width:int -> rows:int -> Tile_shell.Content.t
 (** Hotkey hints default to [false]; mode and process status remain in the footer. *)
-val cursor : ?inspection:inspection -> Ches_terminal.Model.snapshot option -> width:int -> rows:int -> Ches_tile.Cursor.t option
+val cursor : ?inspection:inspection -> Cobalt_terminal.Model.snapshot option -> width:int -> rows:int -> Cobalt_tile.Cursor.t option

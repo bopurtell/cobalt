@@ -1,12 +1,12 @@
 (** Output bookkeeping for one child process, kept pure so it can be tested without
-    processes. Internal to [ches_vcs_host]: {!Runner} is the only user.
+    processes. Internal to [cobalt_vcs_host]: {!Runner} is the only user.
 
     - {!Head} keeps the first bytes of a stream (stdout: the start is the answer).
     - {!Tail} keeps the last bytes of a stream (stderr: the end holds the error).
-    - {!Lines} splits a stream into {!Ches_vcs.Event.Line.t}s for streaming specs. *)
+    - {!Lines} splits a stream into {!Cobalt_vcs.Event.Line.t}s for streaming specs. *)
 
 open! Core
-open Ches_vcs
+open Cobalt_vcs
 
 module Head : sig
   type t

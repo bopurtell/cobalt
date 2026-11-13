@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Embedded-terminal smoke against built ches; Python stdlib, tmux and POSIX tools.
+"""Embedded-terminal smoke against built cobalt; Python stdlib, tmux and POSIX tools.
 
 Run after dune build (optionally pass the executable). Uses a private tmux server,
 an isolated /bin/sh environment, and temporary fixtures. Captures/results are kept
@@ -65,7 +65,7 @@ try:
     # Ask both emulator and frontend to preserve bracketed-paste semantics.
     os.write(1, b"\x1b[?2004h")
     for name, expected in cases:
-        os.write(1, ("\r\nCHES_PROBE_READY=" + name + "\r\n").encode())
+        os.write(1, ("\r\nCOBALT_PROBE_READY=" + name + "\r\n").encode())
         data = b""
         deadline = time.monotonic() + 10
         while time.monotonic() < deadline:
@@ -84,7 +84,7 @@ try:
 finally:
     os.write(1, b"\x1b[?2004l")
     termios.tcsetattr(fd, termios.TCSANOW, saved)
-print("CHES_PROBE_DONE", flush=True)
+print("COBALT_PROBE_DONE", flush=True)
 '''
 
 
@@ -100,7 +100,7 @@ data = b""
 try:
     tty.setraw(fd)
     os.write(1, b"\x1b[?2004h")
-    os.write(1, ("\r\nCHES_RAW_READY=" + label + "\r\n").encode())
+    os.write(1, ("\r\nCOBALT_RAW_READY=" + label + "\r\n").encode())
     (root / (label + ".ready")).touch()
     deadline = time.monotonic() + 20
     while time.monotonic() < deadline:
@@ -117,12 +117,12 @@ finally:
 
 def main():
     binary = Path(sys.argv[1] if len(sys.argv) > 1 else
-                  Path(__file__).resolve().parents[1] / "_build/default/bin/ches.exe").resolve()
+                  Path(__file__).resolve().parents[1] / "_build/default/bin/cobalt.exe").resolve()
     if not binary.is_file():
-        raise SystemExit(f"Build ches first; executable not found: {binary}")
+        raise SystemExit(f"Build cobalt first; executable not found: {binary}")
     if shutil.which("tmux") is None:
         raise SystemExit("tmux is required")
-    root = Path(tempfile.mkdtemp(prefix="ches-terminal-"))
+    root = Path(tempfile.mkdtemp(prefix="cobalt-terminal-"))
     project = root / "project"
     project.mkdir()
     fixture = project / "document.txt"
@@ -138,20 +138,20 @@ def main():
         "    if time.monotonic() >= deadline: raise SystemExit(1)\n"
         "    time.sleep(.05)\n"
         "for _ in range(128): os.write(1, b'3' * 1023 + b'\\r\\n')\n"
-        "os.write(1, b'CHES_BACKGROUND_THREE\\r\\n')\n"
+        "os.write(1, b'COBALT_BACKGROUND_THREE\\r\\n')\n"
         "(root / 'numbered-background.done').touch()\n")
     (root / "inspection.py").write_text(
         "import os, sys, time\nfrom pathlib import Path\n"
-        "os.write(1, b'\\x1b[2J\\x1b[HCHES_SELECTION_ALPHA\\r\\nCHES_SELECTION_BETA\\x1b[H')\n"
+        "os.write(1, b'\\x1b[2J\\x1b[HCOBALT_SELECTION_ALPHA\\r\\nCOBALT_SELECTION_BETA\\x1b[H')\n"
         "time.sleep(1)\n"
-        "os.write(1, b'\\x1b[4;1HCHES_UNFROZEN\\x1b[H')\n"
+        "os.write(1, b'\\x1b[4;1HCOBALT_UNFROZEN\\x1b[H')\n"
         "Path(sys.argv[1]).touch()\n"
         "sys.stdin.readline()\n")
     # exec retains the recorded PID: Ctrl-C must terminate a genuine foreground
     # sleep, not merely clear an idle shell's input line.
     (root / "foreground.sh").write_text(
         f"printf '%s' \"$$\" > {shlex.quote(str(root / 'sleep.pid'))}\nexec sleep 30\n")
-    socket_dir = Path(tempfile.mkdtemp(prefix="ches-term-tmux.", dir="/tmp"))
+    socket_dir = Path(tempfile.mkdtemp(prefix="cobalt-term-tmux.", dir="/tmp"))
     tmux = ["tmux", "-S", str(socket_dir / "sock"), "-f", "/dev/null"]
     target = "terminal:0.0"
 
@@ -193,8 +193,8 @@ def main():
 
     def marker(name):
         # The complete marker never appears in the echoed command itself.
-        command(f"printf 'CHES_%s\\n' {shlex.quote(name)}")
-        wait(lambda: f"CHES_{name}" in screen(), name)
+        command(f"printf 'COBALT_%s\\n' {shlex.quote(name)}")
+        wait(lambda: f"COBALT_{name}" in screen(), name)
 
     def normal():
         key("C-Space")
@@ -241,9 +241,9 @@ def main():
              f"select terminal {number} in Insert")
 
     def persistent(number, pid, value):
-        command(f"printf 'CHES_%s=%s:%s:%s\\n' SESSION_{number} "
-                '"$CHES_SMOKE_VALUE" "$$" "$PWD"')
-        wait(lambda: f"CHES_SESSION_{number}={value}:{pid}:{project}" in screen(),
+        command(f"printf 'COBALT_%s=%s:%s:%s\\n' SESSION_{number} "
+                '"$COBALT_SMOKE_VALUE" "$$" "$PWD"')
+        wait(lambda: f"COBALT_SESSION_{number}={value}:{pid}:{project}" in screen(),
              f"terminal {number} retains its environment, PID and cwd")
 
     def alive(pid):
@@ -257,9 +257,9 @@ def main():
         path = root / f"{label}.size"
         command(f"stty size > {shlex.quote(str(path))}; "
                 f"read rows cols < {shlex.quote(str(path))}; "
-                f"printf 'CHES_%s=%s,%s\\n' {label} \"$rows\" \"$cols\"")
+                f"printf 'COBALT_%s=%s,%s\\n' {label} \"$rows\" \"$cols\"")
         wait(lambda: path.exists() and len(path.read_text().split()) == 2
-             and f"CHES_{label}=" in screen(), f"stty size {label}")
+             and f"COBALT_{label}=" in screen(), f"stty size {label}")
         result = tuple(map(int, path.read_text().split()))
         assert all(n > 0 for n in result), result
         capture(label)
@@ -308,10 +308,10 @@ def main():
         wait(lambda: terminal_mode("INSERT"),
              "editor Insert Space / opens terminal")
         assert "Tile Term 1" in screen(), "uncounted first open must select terminal 1"
-        command("PS1='CHILD> '; CHES_SMOKE_VALUE=persist-token; "
-                "printf 'CHES_%s=%s\\n' CWD \"$PWD\"; "
+        command("PS1='CHILD> '; COBALT_SMOKE_VALUE=persist-token; "
+                "printf 'COBALT_%s=%s\\n' CWD \"$PWD\"; "
                 f"printf '%s' \"$$\" > {shlex.quote(str(root / 'shell.pid'))}")
-        wait(lambda: f"CHES_CWD={project}" in screen() and (root / "shell.pid").exists(),
+        wait(lambda: f"COBALT_CWD={project}" in screen() and (root / "shell.pid").exists(),
              "shell cwd and marker")
         shell_pid = int((root / "shell.pid").read_text())
         capture("startup")
@@ -389,14 +389,14 @@ def main():
 
         # Output must continue to be drained while the float is hidden, and reopening
         # must retain the same process/variables instead of starting a new shell.
-        command("(sleep .4; printf 'CHES_%s\\n' BACKGROUND; "
+        command("(sleep .4; printf 'COBALT_%s\\n' BACKGROUND; "
                 f": > {shlex.quote(str(root / 'background.done'))}) &")
         hide()
         wait(lambda: (root / "background.done").exists(), "hidden shell output")
         reopen()
-        wait(lambda: "CHES_BACKGROUND" in screen(), "retained background output")
-        command("printf 'CHES_%s=%s:%s\\n' PERSIST \"$CHES_SMOKE_VALUE\" \"$$\"")
-        wait(lambda: f"CHES_PERSIST=persist-token:{shell_pid}" in screen(), "persistent shell")
+        wait(lambda: "COBALT_BACKGROUND" in screen(), "retained background output")
+        command("printf 'COBALT_%s=%s:%s\\n' PERSIST \"$COBALT_SMOKE_VALUE\" \"$$\"")
+        wait(lambda: f"COBALT_PERSIST=persist-token:{shell_pid}" in screen(), "persistent shell")
         capture("persistent")
         print("ok: Ctrl-Space enters Normal, Space / hides; reopen retains PID, variables and hidden output")
 
@@ -411,7 +411,7 @@ def main():
                   "lone-space", "lone-digits", "slow-space-slash", "slow-count-space",
                   "quick-mismatch", "unicode-prefix", "paste"]
         for name, input_key in zip(names, keys + [None] * (len(names) - len(keys))):
-            wait(lambda name=name: f"CHES_PROBE_READY={name}" in screen(), f"input probe {name}")
+            wait(lambda name=name: f"COBALT_PROBE_READY={name}" in screen(), f"input probe {name}")
             if input_key is not None:
                 key(input_key)
             elif name == "rapid-jk":
@@ -463,7 +463,7 @@ def main():
             elif name in ("lone-space", "lone-digits"):
                 elapsed = results[-1]["received_at"] - sent_at
                 assert .16 <= elapsed < 1., (name, "200ms idle flush", elapsed)
-        wait(lambda: "CHES_PROBE_DONE" in screen(), "input probe completion")
+        wait(lambda: "COBALT_PROBE_DONE" in screen(), "input probe completion")
         capture("input")
         print("ok: arrows, Home/End, Delete/Backspace, Tab/Shift-Tab, Ctrl, Alt, F5 and UTF-8 bracketed paste; Ctrl-J stays LF, Enter stays CR; Escape and Ctrl-backslash sequences reach child raw")
         print("ok: rapid jk is consumed and enters Normal; idle j flushes after 150ms; slow jk, mismatch jx and pasted jk reach child in order")
@@ -471,18 +471,18 @@ def main():
 
         # Exercise canonical shell editing as well as the raw byte assertions.
         # /bin/sh need not provide readline-style arrow editing/completion.
-        send("printf 'CHES_%s\\n' EDIx")
+        send("printf 'COBALT_%s\\n' EDIx")
         key("BSpace")
         send("T")
         key("Enter")
-        wait(lambda: "CHES_EDIT" in screen(), "backspace edits the shell command")
+        wait(lambda: "COBALT_EDIT" in screen(), "backspace edits the shell command")
         send("printf")
         key("Tab")
-        send("'CHES_%s\\n'")
+        send("'COBALT_%s\\n'")
         key("Tab")
         send("TAB_COMMAND")
         key("Enter")
-        wait(lambda: "CHES_TAB_COMMAND" in screen(), "Tab reaches shell command parsing")
+        wait(lambda: "COBALT_TAB_COMMAND" in screen(), "Tab reaches shell command parsing")
         print("ok: Backspace edits a real shell command; Tab reaches the shell as whitespace")
 
         command(f"/bin/sh {shlex.quote(str(root / 'foreground.sh'))}")
@@ -503,14 +503,14 @@ def main():
         inspection_done = root / "inspection.done"
         command(f"{shlex.quote(sys.executable)} {shlex.quote(str(root / 'inspection.py'))} "
                 f"{shlex.quote(str(inspection_done))}")
-        wait(lambda: any(line.strip().startswith("│CHES_SELECTION_ALPHA")
-                         or "CHES_SELECTION_ALPHA" in line and "printf" not in line
+        wait(lambda: any(line.strip().startswith("│COBALT_SELECTION_ALPHA")
+                         or "COBALT_SELECTION_ALPHA" in line and "printf" not in line
                          for line in screen().splitlines()), "selection fixture")
         normal()
         frozen = screen()
         wait(inspection_done.exists, "output produced during inspection")
         time.sleep(.2)
-        assert "CHES_UNFROZEN" not in screen(), "inspection did not freeze terminal output"
+        assert "COBALT_UNFROZEN" not in screen(), "inspection did not freeze terminal output"
         assert screen() == frozen, "inspected frame changed while output arrived"
         capture("frozen")
 
@@ -534,15 +534,15 @@ def main():
             reopen()
             normal()
 
-        yank_into_editor("vlll", b"CHES" + original, "CHES", "character-yank")
+        yank_into_editor("vlllll", b"COBALT" + original, "COBALT", "character-yank")
         # A terminal line is the entire current-screen row, including blank cells.
-        selected_line = b"CHES_SELECTION_ALPHA".ljust(inspection_cols) + b"\n"
+        selected_line = b"COBALT_SELECTION_ALPHA".ljust(inspection_cols) + b"\n"
         yank_into_editor("V", selected_line + original, selected_line.decode(), "line-yank")
         yank_into_editor("y", selected_line + original, selected_line.decode(), "yy-yank")
-        yank_into_editor("lj", b"CHTERMINAL_SMOKE_DOCUMENT\nCHunchanged editor contents\n",
-                         "CH\nCH", "block-yank", block=True)
+        yank_into_editor("lj", b"COTERMINAL_SMOKE_DOCUMENT\nCOunchanged editor contents\n",
+                         "CO\nCO", "block-yank", block=True)
         send("a")
-        wait(lambda: "INSERT" in screen() and "CHES_UNFROZEN" in screen(),
+        wait(lambda: "INSERT" in screen() and "COBALT_UNFROZEN" in screen(),
              "a resumes Insert with latest output")
         normal()
         send("i")
@@ -624,12 +624,12 @@ def main():
         numbered_pids = {}
         for number in (3, 4):
             selected(number)
-            command(f"printf 'CHES_%s=%s\\n' FRESH_{number} "
-                    '"${CHES_SMOKE_VALUE-unset}"; '
-                    f"CHES_SMOKE_VALUE=token-{number}; "
+            command(f"printf 'COBALT_%s=%s\\n' FRESH_{number} "
+                    '"${COBALT_SMOKE_VALUE-unset}"; '
+                    f"COBALT_SMOKE_VALUE=token-{number}; "
                     f"printf '%s' \"$$\" > {shlex.quote(str(root / f'shell-{number}.pid'))}")
             path = root / f"shell-{number}.pid"
-            wait(lambda: path.exists() and f"CHES_FRESH_{number}=unset" in screen(),
+            wait(lambda: path.exists() and f"COBALT_FRESH_{number}=unset" in screen(),
                  f"fresh shell {number}")
             numbered_pids[number] = int(path.read_text())
             persistent(number, numbered_pids[number], f"token-{number}")
@@ -654,12 +654,12 @@ def main():
         (root / "numbered-background.go").touch()
         wait(lambda: (root / "numbered-background.done").exists(),
              "terminal 3 drains more than a PTY buffer while terminal 4 is active")
-        assert "Tile Term 4" in screen() and "CHES_BACKGROUND_THREE" not in screen(), screen()
+        assert "Tile Term 4" in screen() and "COBALT_BACKGROUND_THREE" not in screen(), screen()
         assert size("FOUR_UNCHANGED") == initial
         marker("ONLY_FOUR")
         selected(3)
-        wait(lambda: "CHES_BACKGROUND_THREE" in screen(), "terminal 3 retained background output")
-        assert "CHES_ONLY_FOUR" not in screen(), "terminal 4 output leaked into terminal 3"
+        wait(lambda: "COBALT_BACKGROUND_THREE" in screen(), "terminal 3 retained background output")
+        assert "COBALT_ONLY_FOUR" not in screen(), "terminal 4 output leaked into terminal 3"
         assert size("THREE_REOPEN") == delta(initial, 2)
         persistent(3, numbered_pids[3], "token-3")
         print("ok: numbered 3/4 have independent PID/env/cwd/output and default 132x40 sizes; direct switches, same-ID hide, latest-ID toggle, per-session sizing and background PTY draining")
@@ -672,7 +672,7 @@ def main():
                     f"{shlex.quote(str(root / 'isolation_probe.py'))} "
                     f"{shlex.quote(str(root))} {label}")
             wait(lambda: (root / f"{label}.ready").exists()
-                 and f"CHES_RAW_READY={label}" in screen(), f"raw reader {number}")
+                 and f"COBALT_RAW_READY={label}" in screen(), f"raw reader {number}")
             return label
 
         label3 = isolation_start(3)
@@ -714,25 +714,25 @@ def main():
         assert size("ONE_UNCHANGED") == initial
         print("ok: exact per-session raw bytes preserve pasted jk/2 / /Unicode, route deferred j/digits/space to their original shells and consume Insert toggles without leaks; terminal 1 retains PID/env/size")
 
-        command("printf 'CHES_%s\\n' BEFORE_EXIT; exit 7")
+        command("printf 'COBALT_%s\\n' BEFORE_EXIT; exit 7")
         wait(lambda: "Exited:" in screen() and terminal_mode("NORMAL"),
              "retained exit status")
-        assert "CHES_BEFORE_EXIT" in screen(), screen()
+        assert "COBALT_BEFORE_EXIT" in screen(), screen()
         assert "7" in next(line for line in screen().splitlines() if "Exited:" in line), screen()
         assert_quiet_footer("NORMAL")
         capture("exited")
         hide()
         editor_normal()
         send(" /")
-        wait(lambda: "Exited:" in screen() and "CHES_BEFORE_EXIT" in screen(),
+        wait(lambda: "Exited:" in screen() and "COBALT_BEFORE_EXIT" in screen(),
              "reopening retains exited snapshot")
         normal()
         send("r")
         wait(lambda: terminal_mode("INSERT") and "Exited:" not in screen(),
              "explicit restart")
-        command("printf 'CHES_%s=%s\\n' RESTART \"${CHES_SMOKE_VALUE-unset}\"; "
+        command("printf 'COBALT_%s=%s\\n' RESTART \"${COBALT_SMOKE_VALUE-unset}\"; "
                 f"printf '%s' \"$$\" > {shlex.quote(str(root / 'restart.pid'))}")
-        wait(lambda: "CHES_RESTART=unset" in screen() and (root / "restart.pid").exists(),
+        wait(lambda: "COBALT_RESTART=unset" in screen() and (root / "restart.pid").exists(),
              "fresh shell after restart")
         restart_pid = int((root / "restart.pid").read_text())
         assert restart_pid != shell_pid

@@ -1,6 +1,6 @@
 open! Core
-open Ches_input
-open Ches_tile
+open Cobalt_input
+open Cobalt_tile
 
 let document = View_id.of_string "document"
 let status = View_id.of_string "status"

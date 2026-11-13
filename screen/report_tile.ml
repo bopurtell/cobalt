@@ -1,10 +1,10 @@
 open! Core
-module Navigation = Ches_tile.Navigation
+module Navigation = Cobalt_tile.Navigation
 module Selection = Navigation.Selection
-module Text_view = Ches_tile.Text_view
+module Text_view = Cobalt_tile.Text_view
 
-let id = Ches_tile.View_id.of_string "demo-report"
-let spec = Ches_tile.Spec.read_only_text id ~title:"Demo report"
+let id = Cobalt_tile.View_id.of_string "demo-report"
+let spec = Cobalt_tile.Spec.read_only_text id ~title:"Demo report"
 
 module Item = struct
   type t =
@@ -77,18 +77,18 @@ type action =
   | Text of Text_view.Action.t
 [@@deriving sexp_of]
 
-let interpret t (keys : Ches_input.Key.t list) : action Ches_tile.Content_key.t =
+let interpret t (keys : Cobalt_input.Key.t list) : action Cobalt_tile.Content_key.t =
   match keys, t.details with
   | [ Enter ], _ -> Action Toggle_details
-  | [ key ], _ when Ches_input.Key.equal key (Ches_input.Key.char 'e') -> Action Toggle_details
-  | keys, Some view -> Ches_tile.Content_key.map (Text_view.interpret view keys) ~f:(fun a -> Text a)
+  | [ key ], _ when Cobalt_input.Key.equal key (Cobalt_input.Key.char 'e') -> Action Toggle_details
+  | keys, Some view -> Cobalt_tile.Content_key.map (Text_view.interpret view keys) ~f:(fun a -> Text a)
   | keys, None ->
     (match Navigation.interpret keys with
      | Unbound ->
-       Ches_tile.Content_key.map (Text_view.interpret_item keys) ~f:(function
+       Cobalt_tile.Content_key.map (Text_view.interpret_item keys) ~f:(function
          | `Copy -> Copy_item
          | `Edit -> Edit)
-     | motion -> Ches_tile.Content_key.map motion ~f:(fun m -> Move m))
+     | motion -> Cobalt_tile.Content_key.map motion ~f:(fun m -> Move m))
 ;;
 
 let escape t =
@@ -182,7 +182,7 @@ let render ?(hotkey_hints = false) ?(focused = false) ?notice ?pending
 
 let commands t =
   let toggle description =
-    Ches_tile.Local_command.create "toggle-details" ~keys:[ Ches_input.Key.char 'e' ]
+    Cobalt_tile.Local_command.create "toggle-details" ~keys:[ Cobalt_input.Key.char 'e' ]
       description
   in
   match t.details with

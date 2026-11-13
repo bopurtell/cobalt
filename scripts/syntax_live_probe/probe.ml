@@ -1,8 +1,8 @@
-(* Explicit controller latency observation (incremental since phase 5). No benchmarks or GC work
+(* Explicit incremental controller latency observation. No benchmarks or GC work
    run in the editor. Input latency includes text-buffer/editor work, not rendering. *)
-open Ches_core
-open Ches_input
-open Ches_app
+open Cobalt_core
+open Cobalt_input
+open Cobalt_app
 
 let read path =
   let channel = open_in_bin path in
@@ -17,19 +17,19 @@ let feed controller key =
 
 let check controller =
   let key, snapshot = Controller.highlights controller in
-  if not (Ches_highlight.Snapshot.matches snapshot key)
-     || Ches_highlight.Snapshot.Key.revision key <> Editor.revision (Controller.editor controller)
+  if not (Cobalt_highlight.Snapshot.matches snapshot key)
+     || Cobalt_highlight.Snapshot.Key.revision key <> Editor.revision (Controller.editor controller)
   then failwith "stale benchmark snapshot";
   match Controller.highlight_status controller with
   | Some (Highlighted _) -> "highlighted"
   | Some (Plain (Source_byte_limit _)) ->
-    if Ches_highlight.Snapshot.ranges snapshot <> [] then failwith "nonempty fallback";
+    if Cobalt_highlight.Snapshot.ranges snapshot <> [] then failwith "nonempty fallback";
     "plain: byte limit"
   | Some (Plain (Source_line_limit _)) ->
-    if Ches_highlight.Snapshot.ranges snapshot <> [] then failwith "nonempty fallback";
+    if Cobalt_highlight.Snapshot.ranges snapshot <> [] then failwith "nonempty fallback";
     "plain: line limit"
   | Some (Plain (Capture_limit _)) ->
-    if Ches_highlight.Snapshot.ranges snapshot <> [] then failwith "nonempty fallback";
+    if Cobalt_highlight.Snapshot.ranges snapshot <> [] then failwith "nonempty fallback";
     "plain: capture limit"
   | Some (Plain _) | None -> failwith "unexpected benchmark fallback"
 ;;
@@ -64,7 +64,7 @@ let measure path source =
     controller := feed !controller (Key.char 'l')
   done;
   if Controller.highlight_parse_count !controller <> before then failwith "parsing on movement";
-  let spans = Ches_highlight.Snapshot.ranges (snd (Controller.highlights !controller)) |> List.length in
+  let spans = Cobalt_highlight.Snapshot.ranges (snd (Controller.highlights !controller)) |> List.length in
   let mean = List.fold_left ( +. ) 0. !elapsed /. 20. in
   let max_ms = List.fold_left Float.max 0. !elapsed in
   Printf.printf "%s: %d bytes, %d spans, %s; initial %.3f ms; 20 edits mean %.3f ms, max %.3f ms; 100 moves: no parses\n%!"

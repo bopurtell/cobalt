@@ -1,6 +1,6 @@
 open! Core
 open! Async
-open Ches_vcs
+open Cobalt_vcs
 
 module Config = struct
   type t =
@@ -113,7 +113,7 @@ let create ?(config = Config.default) ?inherited () =
   if config.max_concurrent_reads <= 0
      || Time_ns.Span.( < ) config.termination_grace Time_ns.Span.zero
      || config.max_batch <= 0
-  then raise_s [%message "Ches_vcs_host.Runner: invalid config" (config : Config.t)];
+  then raise_s [%message "Cobalt_vcs_host.Runner: invalid config" (config : Config.t)];
   let inherited =
     match inherited with
     | Some inherited -> inherited

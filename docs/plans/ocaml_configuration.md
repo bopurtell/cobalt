@@ -4,16 +4,16 @@
 
 Each startup/reload creates complete supported defaults, executes the user's
 `config.ml`, validates the result, then applies it as one settings update. Runtime
-palette/key changes are session-only. Ches never writes user configuration or
+palette/key changes are session-only. Cobalt never writes user configuration or
 persists preference overrides. A failed reload preserves active settings; a failed
 startup uses defaults and reports the diagnostic. Buffers and unsaved edits survive.
 
-Path: absolute nonempty `$XDG_CONFIG_HOME/ches/config.ml`, otherwise
-`$HOME/.config/ches/config.ml`. Missing file means defaults. Existing
+Path: absolute nonempty `$XDG_CONFIG_HOME/cobalt/config.ml`, otherwise
+`$HOME/.config/cobalt/config.ml`. Missing file means defaults. Existing
 `snippets.json` remains independently loaded; no format migration in this phase.
 
 ```ocaml
-open Ches_config
+open Cobalt_config
 
 let () =
   Completion.set_enabled true;
@@ -27,9 +27,9 @@ let () =
 ## Implementation boundary
 
 1. `config/`: validated immutable Settings snapshot and standalone Stdlib-only
-   `Ches_config` API source. A helper compiles the embedded API, user source and
+   `Cobalt_config` API source. A helper compiles the embedded API, user source and
    result writer using `ocamlc`, then runs the program outside the editor. No Dune,
-   installed Ches `.cmi`, PPX, or editor dependencies are required for user configs.
+   installed Cobalt `.cmi`, PPX, or editor dependencies are required for user configs.
    The API resets defaults in every fresh helper. Results use a versioned internal
    protocol; output/diagnostics and execution time are bounded, child processes
    are cleaned up, and no shell evaluates user paths. Config code is ordinary
@@ -54,9 +54,9 @@ No staging/commits/pushes or modification of personal config files.
 
 ## Status
 
-Implemented and validated. `Ches_config_runtime` exposes settings and loader APIs;
+Implemented and validated. `Cobalt_config_runtime` exposes settings and loader APIs;
 the embedded Stdlib API is compiled afresh on each explicit load using `ocamlc`
-from PATH. No external Ches installation libraries are needed. There is no cache
+from PATH. No external Cobalt installation libraries are needed. There is no cache
 yet. Private helper processes use a dedicated versioned result file, original
 source line directives, bounded output/reads, compile/runtime deadlines, and
 process-group cleanup. Technical details are in `config/README.md`.

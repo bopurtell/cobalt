@@ -1,13 +1,13 @@
 (* Manual integration probe: both real built-in servers through the production pool. *)
 open! Core
 open! Async
-module Source = Ches_source.Source
-module Lsp_client = Ches_source.Lsp_client
-module Server = Ches_error.Source_event.Server
+module Source = Cobalt_source.Source
+module Lsp_client = Cobalt_source.Lsp_client
+module Server = Cobalt_error.Source_event.Server
 
 let main () =
-  let root = Filename_unix.realpath (Filename_unix.temp_dir "ches-mixed-lsp" "") in
-  let source = Lsp_client.start_workspace ~cell_width:Ches_screen.Cell_map.width () in
+  let root = Filename_unix.realpath (Filename_unix.temp_dir "cobalt-mixed-lsp" "") in
+  let source = Lsp_client.start_workspace ~cell_width:Cobalt_screen.Cell_map.width () in
   Monitor.protect (fun () ->
     let%bind () = Writer.save (Filename.concat root "dune-project") ~contents:"(lang dune 3.0)\n" in
     let files = [ "a.ml", "let answer = 42\n"; "a.sv", "module example; endmodule\n" ] in
@@ -19,7 +19,7 @@ let main () =
     let rec await_running () =
       let%bind events = Source.next_batch source in
       let inventories = List.filter_map events ~f:(function
-        | Ches_error.Source_event.Servers servers -> Some servers | _ -> None) in
+        | Cobalt_error.Source_event.Servers servers -> Some servers | _ -> None) in
       List.iter inventories ~f:(fun servers -> print_s [%sexp (servers : Server.t list)]);
       if List.exists inventories ~f:(fun servers ->
         List.length servers = 2 && List.for_all servers ~f:(fun s -> Server.equal_status s.status Running))

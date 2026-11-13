@@ -20,8 +20,8 @@ type t =
   | Instance_context_changed of
       { source : string; revision : int; module_name : string option; hier_path : string option }
   | Query_result of Language_query.reply
-  | Completion of Ches_completion.Model.Reply.t
-  | Completion_metadata of { token : Ches_completion.Model.Token.t; source : string; items : Completion_info.t list }
+  | Completion of Cobalt_completion.Model.Reply.t
+  | Completion_metadata of { token : Cobalt_completion.Model.Token.t; source : string; items : Completion_info.t list }
   | Servers of Server.t list
   | Owned of { resource : string; generation : int; event : t }
   | Diagnostics of

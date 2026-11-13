@@ -1,9 +1,9 @@
 open! Core
-open Ches_core
-open Ches_screen
+open Cobalt_core
+open Cobalt_screen
 open Helpers
-module Feedback = Ches_error.Error
-module Controller = Ches_app.Controller
+module Feedback = Cobalt_error.Error
+module Controller = Cobalt_app.Controller
 
 let state t = Controller.feedback (Ui_state.controller t)
 let problem_count t = List.length (Feedback.problems (state t))
@@ -67,7 +67,7 @@ let%expect_test "identity, recovery, renewed attention, and cycling retained det
 let%expect_test "real save/reload failures survive input and layouts until matching \
                  recovery"
   =
-  let dir = Core_unix.mkdtemp "/tmp/ches-feedback" in
+  let dir = Core_unix.mkdtemp "/tmp/cobalt-feedback" in
   Exn.protect
     ~finally:(fun () ->
       ignore (Core_unix.system ("rm -rf " ^ Filename.quote dir) : _ Result.t))

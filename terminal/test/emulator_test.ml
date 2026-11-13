@@ -1,6 +1,6 @@
 open! Core
-open Ches_terminal
-module E = Ches_terminal_emulator.Emulator
+open Cobalt_terminal
+module E = Cobalt_terminal_emulator.Emulator
 
 let check (condition : bool) (message : string) : unit =
   if not condition then failwith message

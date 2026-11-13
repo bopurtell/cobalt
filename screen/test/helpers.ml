@@ -1,6 +1,6 @@
 open! Core
-open Ches_core
-open Ches_screen
+open Cobalt_core
+open Cobalt_screen
 
 let ui ?(path = "f.txt") ?prefs s =
   let text =
@@ -8,7 +8,7 @@ let ui ?(path = "f.txt") ?prefs s =
     |> Result.map_error ~f:Text_buffer.Invalid_text.to_string_hum
     |> Result.ok_or_failwith
   in
-  Ui_state.create ~tiles_visible:false ?prefs (Ches_app.Controller.create (Editor.create ~path ~cell_width:Cell_map.width text))
+  Ui_state.create ~tiles_visible:false ?prefs (Cobalt_app.Controller.create (Editor.create ~path ~cell_width:Cell_map.width text))
 ;;
 
 (* Keys in [Key_notation]'s notation, as UI inputs. *)

@@ -1,13 +1,13 @@
 open Core
 open Async
-open Ches_config_runtime
+open Cobalt_config_runtime
 
 let check condition message = if not condition then failwith message
 let ok = function Ok value -> value | Error message -> failwith message
 let failed result = check (Result.is_error result) "expected failure"
 
 let main () =
-  let root = Core_unix.mkdtemp "/tmp/ches-cache-tests-" in
+  let root = Core_unix.mkdtemp "/tmp/cobalt-cache-tests-" in
   Monitor.protect ~finally:(fun () -> In_thread.run (fun () -> Compiled_cache.remove root)) (fun () ->
     let file name = Filename.concat root name in
     let path = file "user.ml" in
@@ -29,11 +29,11 @@ let main () =
   let c = open_out_gen [Open_creat; Open_append; Open_text] 0o600 %S in
   output_string c (Sys.getcwd () ^ "\n"); close_out c;
   let c = open_in %S in let value = input_line c in close_in c;
-  Ches_config.Theme.set (value ^ (match Sys.getenv_opt "OCAMLPARAM" with None -> "" | Some s -> s));
-  Ches_config.Signature_help.set_enabled (value = "first");
-  Ches_config.Completion.set_color ~role:"detail" (if value = "first" then "#AbC123" else "#456DEF");
-  if value = "first" then Ches_config.Completion.set_color ~role:"documentation" "#112233";
-  Ches_config.Snippets.add ~id:"fresh" ~prefix:"q" value
+  Cobalt_config.Theme.set (value ^ (match Sys.getenv_opt "OCAMLPARAM" with None -> "" | Some s -> s));
+  Cobalt_config.Signature_help.set_enabled (value = "first");
+  Cobalt_config.Completion.set_color ~role:"detail" (if value = "first" then "#AbC123" else "#456DEF");
+  if value = "first" then Cobalt_config.Completion.set_color ~role:"documentation" "#112233";
+  Cobalt_config.Snippets.add ~id:"fresh" ~prefix:"q" value
 |} executions data in
     Out_channel.write_all path ~data:source;
     Out_channel.write_all data ~data:"first\n";
@@ -59,7 +59,7 @@ let main () =
         ["detail", "#456def"])
       "cached colors instead of fresh values or fresh empty role defaults";
     let body settings = match settings.Settings.snippets with
-      | [Ches_completion.User_snippets.Add declaration] -> declaration.body
+      | [Cobalt_completion.User_snippets.Add declaration] -> declaration.body
       | _ -> failwith "missing fresh snippet" in
     check (String.equal (body (ok cold)) "first" && String.equal (body (ok warm)) "second")
       "cached snippet declarations instead of program";
@@ -175,7 +175,7 @@ let main () =
     let preprocessor = file "preprocessor" in
     let write_pp theme =
       Out_channel.write_all preprocessor ~data:(sprintf
-        "#!/bin/sh\n/bin/cat \"$1\"\ncase \"$1\" in *user_config.ml) printf '\\nlet () = Ches_config.Theme.set %s\\n';; esac\n"
+        "#!/bin/sh\n/bin/cat \"$1\"\ncase \"$1\" in *user_config.ml) printf '\\nlet () = Cobalt_config.Theme.set %s\\n';; esac\n"
         (sprintf "%S" theme));
       Core_unix.chmod preprocessor ~perm:0o700 in
     let pp_env name = if String.equal name "OCAMLPARAM"
@@ -206,8 +206,8 @@ let main () =
     let%bind () = Deferred.List.iter ~how:`Sequential
       [ "let () = exit 0", "missing protocol"
       ; "let () = at_exit (fun () -> let c = open_out Sys.argv.(1) in output_string c \"bad\\n\"; close_out c)", "bad protocol"
-       ; "let () = Ches_config.theme := \"\"", "invalid settings"
-       ; "let () = Ches_config.completion_colors := [\"detail\", \"invalid\"]", "invalid colors"
+       ; "let () = Cobalt_config.theme := \"\"", "invalid settings"
+       ; "let () = Cobalt_config.completion_colors := [\"detail\", \"invalid\"]", "invalid colors"
       ; "let () = while true do () done", "timeout"
       ] ~f:(fun (ending, label) ->
         Out_channel.write_all path ~data:(source ^ "\n" ^ ending ^ "\n");
@@ -232,7 +232,7 @@ let main () =
     Out_channel.write_all path ~data:source;
     let%bind result = Loader.For_testing.load ~path ~compiler () in
     ignore (ok result : Settings.t);
-    Out_channel.write_all path ~data:"let () = Ches_config.Theme.set __FILE__\n";
+    Out_channel.write_all path ~data:"let () = Cobalt_config.Theme.set __FILE__\n";
     let%bind result = load () in
     check (String.equal (ok result).theme path) "original __FILE__ on cold load";
     let%bind result = load () in
@@ -241,10 +241,10 @@ let main () =
     List.iter [""; "relative"] ~f:(fun xdg ->
       check (Option.equal String.equal
         (Loader.For_testing.cache_path ~getenv:(env ["XDG_CACHE_HOME", xdg; "HOME", "/home/test"]))
-        (Some "/home/test/.cache/ches/config")) "cache HOME fallback");
+        (Some "/home/test/.cache/cobalt/config")) "cache HOME fallback");
     check (Option.equal String.equal
       (Loader.For_testing.cache_path ~getenv:(env ["XDG_CACHE_HOME", "/xdg"]))
-      (Some "/xdg/ches/config")) "cache XDG location";
+      (Some "/xdg/cobalt/config")) "cache XDG location";
     check (Option.is_none (Loader.For_testing.cache_path ~getenv:(env []))) "absent cache location";
     check (Option.is_none (Loader.For_testing.cache_path ~getenv:(env ["HOME", "relative"]))) "relative HOME cache";
     (* Pruning only recognizes owned key directories, leaves unrelated files alone. *)
@@ -254,11 +254,11 @@ let main () =
     Core_unix.mkdir foreign ~perm:0o700;
     Out_channel.write_all (Filename.concat foreign "program") ~data:"foreign";
     Out_channel.write_all (Filename.concat foreign "metadata") ~data:"foreign metadata";
-    let extra = Filename.concat cache_dir ("ches-" ^ Compiled_cache.digest "extra-files") in
+    let extra = Filename.concat cache_dir ("cobalt-" ^ Compiled_cache.digest "extra-files") in
     Core_unix.mkdir extra ~perm:0o700;
     Out_channel.write_all (Filename.concat extra "keep") ~data:"extra";
     let%bind () = Deferred.List.iter (List.init 18 ~f:Fn.id) ~how:`Sequential ~f:(fun i ->
-      Out_channel.write_all path ~data:(sprintf "let () = Ches_config.Theme.set %S\n" (Int.to_string i));
+      Out_channel.write_all path ~data:(sprintf "let () = Cobalt_config.Theme.set %S\n" (Int.to_string i));
       let%map result = load () in ignore (ok result : Settings.t)) in
     let entries = Stdlib.Sys.readdir cache_dir |> Array.to_list |> List.filter ~f:(fun name ->
       Compiled_cache.owned_entry name && not (String.equal (Filename.concat cache_dir name) extra)) in
@@ -270,7 +270,7 @@ let main () =
       "pruning recursively removed foreign contents";
     let%bind results = Deferred.all (List.init 6 ~f:(fun i ->
       let parallel_path = file (sprintf "parallel-%d.ml" i) in
-      Out_channel.write_all parallel_path ~data:(sprintf "let () = Ches_config.Theme.set %S\n"
+      Out_channel.write_all parallel_path ~data:(sprintf "let () = Cobalt_config.Theme.set %S\n"
         (sprintf "parallel-%d" i));
       load ~path:parallel_path ())) in
     List.iteri results ~f:(fun i result ->
@@ -285,13 +285,13 @@ let main () =
     Compiled_cache.prepare budget_dir;
     List.iter (List.init 14 ~f:Fn.id) ~f:(fun i ->
       let key = Compiled_cache.digest (Int.to_string i) in
-      let entry = Filename.concat budget_dir ("ches-" ^ key) in
+      let entry = Filename.concat budget_dir ("cobalt-" ^ key) in
       Core_unix.mkdir entry ~perm:0o700;
       let program = Filename.concat entry "program" in
       Out_channel.write_all program ~data:"";
       Core_unix.chmod program ~perm:0o700;
       let metadata = Filename.concat entry "metadata" in
-      Out_channel.write_all metadata ~data:("CHES_COMPILED_1\n" ^ key ^ "\n");
+      Out_channel.write_all metadata ~data:("COBALT_COMPILED_1\n" ^ key ^ "\n");
       Core_unix.chmod metadata ~perm:0o600;
       Core_unix.truncate program ~len:(Int64.of_int (5 * 1024 * 1024)));
     Compiled_cache.prune budget_dir;

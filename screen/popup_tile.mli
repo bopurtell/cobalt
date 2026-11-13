@@ -1,41 +1,41 @@
 (** The popup float: a registered view's popup question
-    ({!View_registry.Ask.t.Popup}, a {!Ches_vcs.Popup.t}, Magit's transient), opened
+    ({!View_registry.Ask.t.Popup}, a {!Cobalt_vcs.Popup.t}, Magit's transient), opened
     on the single float slot over that view, which is neither left nor changed
-    meanwhile. Read-only: keys are the popup's, per {!Ches_vcs.Popup.press}. [-] then
+    meanwhile. Read-only: keys are the popup's, per {!Cobalt_vcs.Popup.press}. [-] then
     a switch's key toggles that switch (enabling one disables its group's others); an
     action's key chooses it, which closes the float and performs the view's action for
     it with the enabled switches. Escape clears a pending [-], else declines; [q],
     Tab and Ctrl-c decline ({!Ui_state} routes the last two). [?] opens the help float
-    over the popup, listing {!Ches_vcs.Popup.help}; closing help returns to the popup
+    over the popup, listing {!Cobalt_vcs.Popup.help}; closing help returns to the popup
     as it was. An unbound key shows a hint in the footer. Switches start as the question
     asks ({!View_registry.Ask.t.Popup}'s [enabled]; the float itself remembers
     nothing between openings). *)
 
 open! Core
 
-val id : Ches_tile.View_id.t
+val id : Cobalt_tile.View_id.t
 
-(** {!Ches_tile.Spec.read_only}, title ["Popup"] (for paste notices). *)
-val spec : Ches_tile.Spec.t
+(** {!Cobalt_tile.Spec.read_only}, title ["Popup"] (for paste notices). *)
+val spec : Cobalt_tile.Spec.t
 
 type t [@@deriving sexp_of]
 
-(** [enabled] (default none) as {!Ches_vcs.Popup.initial} keeps it, no dash
+(** [enabled] (default none) as {!Cobalt_vcs.Popup.initial} keeps it, no dash
     pending. *)
 val create
   :  ?enabled:string list
-  -> origin:Ches_tile.View_id.t
-  -> unit Ches_vcs.Popup.t
+  -> origin:Cobalt_tile.View_id.t
+  -> unit Cobalt_vcs.Popup.t
   -> t
 
 (** The view that asked, and that focus returns to. *)
-val origin : t -> Ches_tile.View_id.t
+val origin : t -> Cobalt_tile.View_id.t
 
 (** The popup's title, also the float's. *)
 val title : t -> string
 
-val popup : t -> unit Ches_vcs.Popup.t
-val state : t -> Ches_vcs.Popup.State.t
+val popup : t -> unit Cobalt_vcs.Popup.t
+val state : t -> Cobalt_vcs.Popup.State.t
 
 (** Outer size that shows every entry, the actions on one row and the switches one
     per row, when the screen allows (32 to 76 columns), and tall enough for the rows
@@ -56,11 +56,11 @@ type action =
 
 (** Single printable keys as above; everything else is unbound (the host's hint).
     Escape is given to the host as the content's back action. *)
-val interpret : Ches_input.Key.t list -> action Ches_tile.Content_key.t
+val interpret : Cobalt_input.Key.t list -> action Cobalt_tile.Content_key.t
 
 val hint : string
 
-(** {!Ches_vcs.Popup.press}: [`Updated] after a dash or a toggle; [`Choose (key,
+(** {!Cobalt_vcs.Popup.press}: [`Updated] after a dash or a toggle; [`Choose (key,
     enabled)] for an action key (the float then closes and answers
     {!View_registry.Answer.t.Choose}); [`Unbound] with the dash cleared and the
     footer hint ["<key> is unbound; ? lists keys"] (["-x"]
@@ -70,10 +70,10 @@ val press
   -> char
   -> [ `Updated of t | `Choose of char * string list | `Unbound of t * string ]
 
-(** {!Ches_vcs.Popup.escape}: a pending dash is cleared, else [`Close]. *)
+(** {!Cobalt_vcs.Popup.escape}: a pending dash is cleared, else [`Close]. *)
 val escape : t -> [ `Close | `Updated of t ]
 
-(** {!Ches_vcs.Popup.help}, for the help float. *)
+(** {!Cobalt_vcs.Popup.help}, for the help float. *)
 val help : t -> (string * string) list
 
 (** Shell content for a [width] by [rows] content viewport. The title is the

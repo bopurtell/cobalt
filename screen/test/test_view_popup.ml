@@ -1,10 +1,10 @@
 open! Core
-open Ches_screen
-open Ches_input
-module Controller = Ches_app.Controller
-module View_id = Ches_tile.View_id
+open Cobalt_screen
+open Cobalt_input
+module Controller = Cobalt_app.Controller
+module View_id = Cobalt_tile.View_id
 module Ask = View_registry.Ask
-module Popup = Ches_vcs.Popup
+module Popup = Cobalt_vcs.Popup
 
 let width = 80
 let height = 16
@@ -43,7 +43,7 @@ module Kiln = struct
     |> Or_error.ok_exn
   ;;
 
-  let interpret _ (keys : Key.t list) : action Ches_tile.Content_key.t =
+  let interpret _ (keys : Key.t list) : action Cobalt_tile.Content_key.t =
     match keys with
     | [ Char c ] ->
       (match Uchar.to_char c with
@@ -71,7 +71,7 @@ module Kiln = struct
   ;;
 
   let adapter : (t, action) View_registry.Adapter.t =
-    { spec = Ches_tile.Spec.read_only id ~title:"Kiln"
+    { spec = Cobalt_tile.Spec.read_only id ~title:"Kiln"
     ; key
     ; fit = (fun t _ ~rows:_ ~width:_ -> t)
     ; leave = Fn.id
@@ -81,7 +81,7 @@ module Kiln = struct
     ; hint = "Kiln: c fires"
     ; perform
     ; commands =
-        (fun _ -> [ Ches_tile.Local_command.create "fire" ~keys:[ Key.char 'c' ] "Fire" ])
+        (fun _ -> [ Cobalt_tile.Local_command.create "fire" ~keys:[ Key.char 'c' ] "Fire" ])
     ; signal = (fun _ _ -> None)
     ; text_area = (fun _ ~rows:_ ~width:_ -> None)
     ; label = (fun _ -> None)

@@ -28,7 +28,7 @@ val instantiate
   :  t
   -> id:string
   -> path:string option
-  -> text:Ches_core.Text_buffer.t
+  -> text:Cobalt_core.Text_buffer.t
   -> cursor:int
   -> Model.Candidate.t Or_error.t
 
@@ -59,7 +59,7 @@ val parse : string -> t Or_error.t
 val candidates
   :  t
   -> path:string option
-  -> text:Ches_core.Text_buffer.t
+  -> text:Cobalt_core.Text_buffer.t
   -> cursor:int
   -> limit:int
   -> Model.Candidate.t list

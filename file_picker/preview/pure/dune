@@ -1,4 +1,4 @@
 (library
- (name ches_file_preview_model)
- (libraries ches_file_picker ches_core core)
+ (name cobalt_file_preview_model)
+ (libraries cobalt_file_picker cobalt_core core)
  (preprocess (pps ppx_jane)))

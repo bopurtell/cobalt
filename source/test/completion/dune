@@ -1,6 +1,6 @@
 (library
- (name ches_completion_source_test)
- (libraries ches_source ches_error ches_completion ches_core lsp core async core_unix)
+ (name cobalt_completion_source_test)
+ (libraries cobalt_source cobalt_error cobalt_completion cobalt_core lsp core async core_unix)
  (inline_tests
   (deps ../fake_lsp/fake_lsp.exe)
   (flags (:standard -source-tree-root .)))

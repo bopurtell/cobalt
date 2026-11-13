@@ -1,7 +1,7 @@
 open! Core
 open! Async
-module State = Ches_screen.Ui_state
-module Words = Ches_completion.Model.Buffer_words
+module State = Cobalt_screen.Ui_state
+module Words = Cobalt_completion.Model.Buffer_words
 type request = State.word_index_request
 type t =
   { mutable desired : request option
@@ -15,10 +15,10 @@ let create () =
 let notify t =
   let changed = t.changed in t.changed <- Ivar.create (); Ivar.fill_if_empty changed ()
 let same_document (a : request) (b : request) =
-  Option.equal Ches_app.Buffer_id.equal a.owner b.owner
-  && Ches_app.Controller.Document_id.equal a.document b.document
+  Option.equal Cobalt_app.Buffer_id.equal a.owner b.owner
+  && Cobalt_app.Controller.Document_id.equal a.document b.document
 let same_request (a : request) (b : request) =
-  same_document a b && Ches_completion.Model.Token.equal a.request.token b.request.token
+  same_document a b && Cobalt_completion.Model.Token.equal a.request.token b.request.token
 let rec launch t =
   match t.desired with
   | Some request when not t.active && not t.stopped ->

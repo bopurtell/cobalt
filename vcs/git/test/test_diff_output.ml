@@ -1,8 +1,8 @@
 (* Pure tests of Diff_output over literal captured patch output (git 2.43). *)
 
 open! Core
-open Ches_vcs
-open Ches_vcs_git
+open Cobalt_vcs
+open Cobalt_vcs_git
 
 let parse ?(limits = Diff.Limits.default) ?(cut = false) ?header text =
   Show.or_error (Show.diff ?header) (Diff_output.parse limits ~cut text)
@@ -290,9 +290,9 @@ index b19a1e9,950b81b..0000000
 let%expect_test "show: a commit's header and message, then its diff; a merge" =
   parse
     {|commit a757577ac7f79aa5fd48614f00553a6319b37a4a
-Author:     Ches Test <ches-test@example.invalid>
+Author:     Cobalt Test <cobalt-test@example.invalid>
 AuthorDate: 2026-01-01T00:00:00+00:00
-Commit:     Ches Test <ches-test@example.invalid>
+Commit:     Cobalt Test <cobalt-test@example.invalid>
 CommitDate: 2026-01-01T00:00:00+00:00
 
     Second
@@ -310,7 +310,7 @@ index 2019eda..be0cc06 100644
   parse
     {|commit fccb9f23e86da95d1fc3cbe2e744fff3ee40e500
 Merge: 90c5cb5 4e98047
-Author:     Ches Test <ches-test@example.invalid>
+Author:     Cobalt Test <cobalt-test@example.invalid>
 
     merge
 |};
@@ -332,9 +332,9 @@ index 1111111,2222222..3333333
   [%expect
     {|
     preamble |commit a757577ac7f79aa5fd48614f00553a6319b37a4a
-    preamble |Author:     Ches Test <ches-test@example.invalid>
+    preamble |Author:     Cobalt Test <cobalt-test@example.invalid>
     preamble |AuthorDate: 2026-01-01T00:00:00+00:00
-    preamble |Commit:     Ches Test <ches-test@example.invalid>
+    preamble |Commit:     Cobalt Test <cobalt-test@example.invalid>
     preamble |CommitDate: 2026-01-01T00:00:00+00:00
     preamble |
     preamble |    Second
@@ -347,7 +347,7 @@ index 1111111,2222222..3333333
         add   .   2 "+"  "TWO"
     preamble |commit fccb9f23e86da95d1fc3cbe2e744fff3ee40e500
     preamble |Merge: 90c5cb5 4e98047
-    preamble |Author:     Ches Test <ches-test@example.invalid>
+    preamble |Author:     Cobalt Test <cobalt-test@example.invalid>
     preamble |
     preamble |    merge
     preamble |commit fccb9f23e86da95d1fc3cbe2e744fff3ee40e500

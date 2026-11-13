@@ -1,6 +1,6 @@
 open! Core
 open! Async
-open Ches_vcs
+open Cobalt_vcs
 open Helpers
 
 let%expect_test "a multi-step mutation stops at its first failure; a read runs every step"

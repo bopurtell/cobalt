@@ -1,13 +1,13 @@
-(** Merges and rebases (phase 7): starting a merge, and continuing, skipping or
+(** Merges and rebases: starting a merge, and continuing, skipping or
     aborting the rebase or merge in progress. Magit's keys: [m] is the merge popup
     ([m m] merges the branch selected in Branches; while merging, [m m] commits the
     merge and [m a] aborts), [r] the rebase popup while rebasing ([r r] continues,
     [r s] skips the commit being applied, [r a] aborts). Starting a rebase is not
     offered (a pull with [--rebase] is the way in). The commands are in {!Backend}'s
-    "Merges, rebases and conflicts (phase 7)". *)
+    "Merges, rebases and conflicts". *)
 
 open! Core
-open Ches_vcs
+open Cobalt_vcs
 
 module Kind : sig
   type t =

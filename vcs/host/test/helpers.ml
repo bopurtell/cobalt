@@ -1,11 +1,11 @@
-(* Shared by the runner tests: specs built by hand (never via Ches_vcs_git), a scratch
+(* Shared by the runner tests: specs built by hand (never via Cobalt_vcs_git), a scratch
    directory, a runner that is always stopped and reaped, event collection with a
    deadline, and printing without timings or temp paths. *)
 open! Core
 open! Async
-open Ches_vcs
-module Runner = Ches_vcs_host.Runner
-module Fixture = Ches_vcs_fixture.Fixture_repo
+open Cobalt_vcs
+module Runner = Cobalt_vcs_host.Runner
+module Fixture = Cobalt_vcs_fixture.Fixture_repo
 
 let id sequence = { Job.Id.generation = 1; sequence }
 let ms = Time_ns.Span.of_int_ms
@@ -55,7 +55,7 @@ let rec remove_tree path =
 ;;
 
 let with_dir f =
-  let dir = Filename_unix.realpath (Filename_unix.temp_dir "ches-vcs-host" "") in
+  let dir = Filename_unix.realpath (Filename_unix.temp_dir "cobalt-vcs-host" "") in
   Monitor.protect
     (fun () -> f dir)
     ~finally:(fun () ->

@@ -1,4 +1,4 @@
-(* The VCS view's actions (phases 3 and 4): [s u x S U] from the Files panel and the
+(* The VCS view's actions: [s u x S U] from the Files panel and the
    diff, Visual [s u x] on selected lines, confirmations, the dirty-buffer refusal and
    the staging warning, busy, failures, reconciliation of open buffers, selection and
    the diff cursor afterwards, [] [].
@@ -9,18 +9,18 @@
    vcs/git). Jobs run synchronously in fixture repositories through [Vcs_driver]. *)
 
 open! Core
-open Ches_screen
-open Ches_input
-module Controller = Ches_app.Controller
-module Editor = Ches_core.Editor
-module Fixture = Ches_vcs_fixture.Fixture_repo
-module Diff = Ches_vcs.Diff
-module Job = Ches_vcs.Job
-module Panel = Ches_vcs.Panel
-module Plan = Ches_vcs.Backend.Plan
-module Git = Ches_vcs_git
+open Cobalt_screen
+open Cobalt_input
+module Controller = Cobalt_app.Controller
+module Editor = Cobalt_core.Editor
+module Fixture = Cobalt_vcs_fixture.Fixture_repo
+module Diff = Cobalt_vcs.Diff
+module Job = Cobalt_vcs.Job
+module Panel = Cobalt_vcs.Panel
+module Plan = Cobalt_vcs.Backend.Plan
+module Git = Cobalt_vcs_git
 module B = Git.Backend
-module Text_view = Ches_tile.Text_view
+module Text_view = Cobalt_tile.Text_view
 
 type env =
   { repo : Fixture.t
@@ -137,7 +137,7 @@ let fake ?(override = fun (_ : B.action) -> None) env : Vcs_view.planner =
     (* The fake applies a [Lines] target's touched hunks whole; [Patch] (tested in
        vcs/git) applies only their lines. *)
     let apply_hunks flags (file : Diff.File.t) hunks =
-      let stdin = Ches_vcs.Exec.Stdin.Data (hunks_patch file hunks) in
+      let stdin = Cobalt_vcs.Exec.Stdin.Data (hunks_patch file hunks) in
       [ git ~stdin ((("apply" :: flags) @ [ "--whitespace=nowarn"; "--check" ]))
       ; git ~stdin (("apply" :: flags) @ [ "--whitespace=nowarn" ])
       ]
@@ -349,7 +349,7 @@ let editor t =
   let editor = Controller.editor (Ui_state.controller t) in
   printf "editor %s: %S, dirty %b, missing %b\n"
     (Option.value_map (Editor.path editor) ~default:"none" ~f:Filename.basename)
-    (Ches_core.Text_buffer.to_string (Editor.text editor))
+    (Cobalt_core.Text_buffer.to_string (Editor.text editor))
     (Editor.is_dirty editor)
     (Controller.is_missing (Ui_state.controller t))
 ;;
@@ -888,16 +888,16 @@ let%expect_test "nothing to act on: a commit's diff, a loading diff, header line
     Diff: header unstaged; diff (Unstaged())
     commands: stage unstage discard stage-all unstage-all
     notice: Nothing to discard here: a commit's diff
-    Diff: recent 4b26c4706468e2271f1d7fb1229d054406fdf98f; diff (Commit 4b26c4706468e2271f1d7fb1229d054406fdf98f)
+    Diff: recent 2db03e5c5bf6905ad59623790291a06b70193c8b; diff (Commit 2db03e5c5bf6905ad59623790291a06b70193c8b)
     commands: stage-all unstage-all next-hunk previous-hunk
     commands:
     notice: Nothing to stage here: a commit's diff
-    Diff: recent 4b26c4706468e2271f1d7fb1229d054406fdf98f; diff (Commit 4b26c4706468e2271f1d7fb1229d054406fdf98f)
+    Diff: recent 2db03e5c5bf6905ad59623790291a06b70193c8b; diff (Commit 2db03e5c5bf6905ad59623790291a06b70193c8b)
     commands:
     |}]
 ;;
 
-(* {2 Visual s u x on selected lines (phase 4)} *)
+(* {2 Visual s u x on selected lines} *)
 
 let visual t =
   printf "visual: %s\n"
@@ -906,10 +906,10 @@ let visual t =
 ;;
 
 let line_commands t =
-  List.iter (Vcs_view.commands (state t)) ~f:(fun (command : Ches_tile.Local_command.t) ->
+  List.iter (Vcs_view.commands (state t)) ~f:(fun (command : Cobalt_tile.Local_command.t) ->
     if List.mem [ "stage"; "unstage"; "discard" ] command.name ~equal:String.equal
     then printf "command %s (%s): %s\n" command.name
-           (Ches_tile.Local_command.keys_hum command) command.description)
+           (Cobalt_tile.Local_command.keys_hum command) command.description)
 ;;
 
 let%expect_test "Visual s acts on the selected lines; a refusal keeps Visual, running \

@@ -1,7 +1,7 @@
 open! Core
-open Ches_core
-open Ches_app
-open Ches_screen
+open Cobalt_core
+open Cobalt_app
+open Cobalt_screen
 
 let width = 120
 let height = 24
@@ -138,7 +138,7 @@ let%test_unit "numbered bare tiny fallback refits tab and wide text and restores
 ;;
 
 let%test_unit "bare numbers survive opening and activating buffers and workspace focus" =
-  let root = Helpers.scratch_dir "ches-bare-numbers-" in
+  let root = Helpers.scratch_dir "cobalt-bare-numbers-" in
   let path = Filename.concat root "other.txt" in
   Out_channel.write_all path ~data:"other\nfile";
   Exn.protect ~f:(fun () ->
@@ -189,7 +189,7 @@ let%test_unit "bare feedback preserves pending search command and useful message
     assert (not (String.is_substring text ~substring:"bare.txt"));
     assert (not (String.is_substring text ~substring:"1:1")));
   let failed = Ui_state.update_feedback t ~width ~height
-      (Ches_error.Error.Failed
+      (Cobalt_error.Error.Failed
          ({ source = "file"; kind = Save; resource = "bare.txt" }, Error, "Cannot save file")) in
   assert (String.is_substring (bottom failed) ~substring:"Cannot save file");
   assert (not (String.is_substring (bottom failed) ~substring:"problems"));
@@ -225,7 +225,7 @@ let%test_unit "bare restores prior zen and retained workspace preferences withou
 let%test_unit "entering bare from view tab or focused minor returns to file and retains placements" =
   List.iter [ " vo"; " vo st"; " vo ss"; " gt" ] ~f:(fun commands ->
     let base = create "file contents" in
-    let t = Ui_state.create ~views:[ Vcs_view.entry ~cwd:"/nonexistent/ches-bare" () ]
+    let t = Ui_state.create ~views:[ Vcs_view.entry ~cwd:"/nonexistent/cobalt-bare" () ]
         (Ui_state.controller base) in
     let t = run t commands in
     let placements = View_registry.placements (Ui_state.views t) in
@@ -233,11 +233,11 @@ let%test_unit "entering bare from view tab or focused minor returns to file and 
     let bare = run t " vB" in
     check_bare bare ~width ~height;
     assert (Option.is_none (Ui_state.active_tab_view bare));
-    assert (Ches_tile.View_id.equal (Ui_state.focused_view bare ~width ~height) Ui_state.document_id);
+    assert (Cobalt_tile.View_id.equal (Ui_state.focused_view bare ~width ~height) Ui_state.document_id);
     assert (Option.is_none (Ui_state.capture_pending bare));
-    assert (Option.is_none (Ches_input.Keymap.pending (Controller.keymap (Ui_state.controller bare))));
+    assert (Option.is_none (Cobalt_input.Keymap.pending (Controller.keymap (Ui_state.controller bare))));
     let restored = run bare " vB" in
-    assert ([%equal: (Ches_tile.View_id.t * View_registry.Placement.t) list]
+    assert ([%equal: (Cobalt_tile.View_id.t * View_registry.Placement.t) list]
       placements (View_registry.placements (Ui_state.views restored)));
     assert ([%equal: Buffer_id.t list] buffers (List.map (Session.buffers (Ui_state.session restored)) ~f:fst)))
 ;;
@@ -248,7 +248,7 @@ let%test_unit "explicit workspace focus leaves bare but layout preference change
   check_bare ~style:Absolute resized ~width ~height;
   let focused = run resized " vo" in
   assert (not (Ui_state.bare focused));
-  assert (Ches_tile.View_id.equal (Ui_state.focused_view focused ~width ~height) Problems_tile.id)
+  assert (Cobalt_tile.View_id.equal (Ui_state.focused_view focused ~width ~height) Problems_tile.id)
 ;;
 
 let%test_unit "bare retains syntax selection and search overlays while suppressing cursor animation" =
@@ -256,7 +256,7 @@ let%test_unit "bare retains syntax selection and search overlays while suppressi
   let t = Ui_state.create ~bare:true ~smear_enabled:true controller in
   let spans t = List.concat (Frame.render t ~width ~height).rows in
   assert (List.exists (spans t) ~f:(fun span -> match span.Span.style with
-    | Document d -> Ches_highlight.Category.equal d.syntax Keyword
+    | Document d -> Cobalt_highlight.Category.equal d.syntax Keyword
     | _ -> false));
   let selected = run t "vll" in
   assert (List.exists (spans selected) ~f:(fun span -> match span.Span.style with
@@ -289,8 +289,8 @@ let%test_unit "palette and line picker are usable in bare and close back to bare
 
 let%test_unit "file and content pickers retain bare; palette can enter bare after releasing a picker" =
   let base = create ~bare:true "hello" in
-  let discovery : Ches_file_picker.Model.Discovery.t =
-    { request = { run_id = Ches_file_picker.Model.Run_id.of_int 901; root = "/project" }
+  let discovery : Cobalt_file_picker.Model.Discovery.t =
+    { request = { run_id = Cobalt_file_picker.Model.Run_id.of_int 901; root = "/project" }
     ; candidates = []; status = Complete { truncated = false } } in
   let released = ref 0 in
   let opened = Ui_state.open_file_picker base ~width ~height ~discovery
@@ -299,8 +299,8 @@ let%test_unit "file and content pickers retain bare; palette can enter bare afte
   let closed = run opened "<Esc>" in
   assert (!released = 1);
   check_bare closed ~width ~height;
-  let snapshot : Ches_content_picker.Model.snapshot =
-    { request = { run_id = Ches_content_picker.Model.Run_id.of_int 902; root = "/project"; query = "" }
+  let snapshot : Cobalt_content_picker.Model.snapshot =
+    { request = { run_id = Cobalt_content_picker.Model.Run_id.of_int 902; root = "/project"; query = "" }
     ; hits = []; status = Loading } in
   let opened = Ui_state.open_content_picker closed ~width ~height ~snapshot
       ~release:(fun () -> incr released) in
@@ -327,7 +327,7 @@ let%test_unit "entering bare from a help float releases capture and pending work
 ;;
 
 let%test_unit "directory-only startup remains operable; side directory focus yields to active file" =
-  let root = Helpers.scratch_dir "ches-bare-" in
+  let root = Helpers.scratch_dir "cobalt-bare-" in
   let path = Filename.concat root "file.txt" in
   Out_channel.write_all path ~data:"file contents";
   Exn.protect ~f:(fun () ->

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Real file/content picker smoke; private tmux and temp-dir fixtures only.
 
-Requires tmux, rg and a built ches. Captures are automated evidence, not visual,
+Requires tmux, rg and a built cobalt. Captures are automated evidence, not visual,
 ranking or performance acceptance. Fixtures/captures are retained for diagnosis.
 """
 import os
@@ -16,7 +16,7 @@ from pathlib import Path
 
 def main():
     binary = Path(sys.argv[1] if len(sys.argv) > 1 else
-                    Path(__file__).resolve().parents[1] / "_build/default/bin/ches.exe").resolve()
+                    Path(__file__).resolve().parents[1] / "_build/default/bin/cobalt.exe").resolve()
     root = Path(tempfile.mkdtemp(prefix="picker-terminal-"))
     artifacts = root / ".captures"
     artifacts.mkdir()  # Hidden: screenshots must never become search candidates.
@@ -36,7 +36,7 @@ def main():
     (root / "binary.txt").write_bytes(b"\x00binary")
     (root / "controls.txt").write_text("\t界é\x1b[31m\r\x01\u202ertl\nshort\n")
     # A socket path must stay short (108 bytes), whatever TMPDIR is.
-    socket_dir = Path(tempfile.mkdtemp(prefix="ches-picker-tmux.", dir="/tmp"))
+    socket_dir = Path(tempfile.mkdtemp(prefix="cobalt-picker-tmux.", dir="/tmp"))
     tmux = ["tmux", "-S", str(socket_dir / "sock"), "-f", "/dev/null"]
     captures = 0
 

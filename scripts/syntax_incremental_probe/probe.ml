@@ -3,8 +3,8 @@
    Never run by editor input/tests.
    Automatic GC is included; forced GC only separates benchmark modes. *)
 open! Core
-open Ches_highlight
-module Provider = Ches_highlight_tree_sitter.Provider
+open Cobalt_highlight
+module Provider = Cobalt_highlight_tree_sitter.Provider
 
 let measure ~incremental ~language source =
   let provider = Provider.create ~language in
@@ -37,20 +37,20 @@ let measure ~incremental ~language source =
 ;;
 
 let frame source path =
-  let text = Ches_core.Text_buffer.of_string source |> Result.map_error
-      ~f:Ches_core.Text_buffer.Invalid_text.to_string_hum |> Result.ok_or_failwith in
-  let controller = Ches_app.Controller.create
-      (Ches_core.Editor.create ~path ~cell_width:Ches_screen.Cell_map.width text) in
-  let ui = Ches_screen.Ui_state.create ~smear_enabled:false controller in
-  let count = Ches_app.Controller.highlight_parse_count controller in
+  let text = Cobalt_core.Text_buffer.of_string source |> Result.map_error
+      ~f:Cobalt_core.Text_buffer.Invalid_text.to_string_hum |> Result.ok_or_failwith in
+  let controller = Cobalt_app.Controller.create
+      (Cobalt_core.Editor.create ~path ~cell_width:Cobalt_screen.Cell_map.width text) in
+  let ui = Cobalt_screen.Ui_state.create ~smear_enabled:false controller in
+  let count = Cobalt_app.Controller.highlight_parse_count controller in
   let start = Stdlib.Sys.time () in
   for _ = 1 to 100 do
-    ignore (Ches_screen.Frame.render ui ~width:100 ~height:30 : Ches_screen.Frame.t)
+    ignore (Cobalt_screen.Frame.render ui ~width:100 ~height:30 : Cobalt_screen.Frame.t)
   done;
   printf "  frame 100x30 mean CPU ms=%.3f (100 renders, no parses)\n%!"
     ((Stdlib.Sys.time () -. start) *. 10.);
-  assert (Ches_app.Controller.highlight_parse_count controller = count);
-  Ches_app.Controller.close controller
+  assert (Cobalt_app.Controller.highlight_parse_count controller = count);
+  Cobalt_app.Controller.close controller
 ;;
 
 let () =

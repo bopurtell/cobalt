@@ -1,10 +1,10 @@
 open! Core
-open Ches_core
-module N = Ches_completion.Snippet
+open Cobalt_core
+module N = Cobalt_completion.Snippet
 module S = N.Session
-module D = Ches_completion.Snippet_definition
+module D = Cobalt_completion.Snippet_definition
 
-let catalog = Ches_completion.Ocaml_snippets.all
+let catalog = Cobalt_completion.Ocaml_snippets.all
 let find prefix = List.find_exn catalog ~f:(fun (d : D.t) -> String.equal d.prefix prefix)
 let parse (d : D.t) = N.parse d.body |> Or_error.ok_exn
 let expand prefix = N.text (parse (find prefix))

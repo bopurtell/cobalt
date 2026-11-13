@@ -2,7 +2,7 @@
 """Rendered mixed-LSP inspection smoke in a private tmux PTY.
 
 Default: deterministic existing fake_lsp for both language clients (CI-friendly).
---real: installed ocamllsp and Slang, using ches's normal server discovery.
+--real: installed ocamllsp and Slang, using cobalt's normal server discovery.
 Needs only Python's standard library, tmux, and the built binaries. Fixtures and
 screen captures are retained under /tmp for diagnosis; no checkout files change.
 """
@@ -20,14 +20,14 @@ import time
 def main():
     checkout = Path(__file__).resolve().parents[1]
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("binary", nargs="?", default=checkout / "_build/default/bin/ches.exe")
+    parser.add_argument("binary", nargs="?", default=checkout / "_build/default/bin/cobalt.exe")
     parser.add_argument("--real", action="store_true")
     parser.add_argument("--fake-lsp", default=os.environ.get(
-        "CHES_FAKE_LSP", checkout / "_build/default/source/test/fake_lsp/fake_lsp.exe"))
+        "COBALT_FAKE_LSP", checkout / "_build/default/source/test/fake_lsp/fake_lsp.exe"))
     args = parser.parse_args()
     binary = Path(args.binary).resolve()
     if not shutil.which("tmux") or not binary.is_file():
-        parser.error("requires tmux and a built ches binary")
+        parser.error("requires tmux and a built cobalt binary")
     fake = Path(args.fake_lsp).resolve()
     if not args.real and not fake.is_file():
         parser.error("build source/test/fake_lsp/fake_lsp.exe or pass --fake-lsp")
@@ -37,7 +37,7 @@ def main():
         if not shutil.which("ocamllsp") or not os.access(slang, os.X_OK):
             parser.error("--real requires ocamllsp and Slang (SLANG_SERVER, PATH, or HOME fallback)")
 
-    root = Path(tempfile.mkdtemp(prefix="ches-lsp-", dir="/tmp"))
+    root = Path(tempfile.mkdtemp(prefix="cobalt-lsp-", dir="/tmp"))
     captures = root / ".captures"
     captures.mkdir()
     ml, rtl = root, root / "rtl"

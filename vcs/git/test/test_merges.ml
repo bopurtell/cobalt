@@ -1,14 +1,14 @@
-(* Merges and rebases (phase 7): the operation and merge popups, Operation.in_progress and
+(* Merges and rebases: the operation and merge popups, Operation.in_progress and
    Operation.stopped_hint as pure functions; then the Merge, Continue, Skip_rebase_commit
    and Resolve plans against fixture repositories: a conflicting merge carried through
    resolution to a merge commit, the fast-forward switches, a rebase stopping twice
    (continue, then skip), and the refusals in order. Helpers in plan_fixture.ml. *)
 
 open! Core
-open Ches_vcs
+open Cobalt_vcs
 open Plan_fixture
-module Operation = Ches_vcs_git.Operation
-module Resolution = Ches_vcs_git.Resolution
+module Operation = Cobalt_vcs_git.Operation
+module Resolution = Cobalt_vcs_git.Resolution
 
 (* Pure *)
 
@@ -253,7 +253,7 @@ let%expect_test "a conflicting merge: m m stops, x takes sides, s marks, m m com
       > CONFLICT (content): Merge conflict in g
       > CONFLICT (content): Merge conflict in h
       hint: Stopped on conflicts: resolve each file (x, or Space x in the editor), mark it resolved with s, then continue
-      head: main; Merging 6e2ae65; conflicted f; conflicted g; conflicted h
+      head: main; Merging 3115a40; conflicted f; conflicted g; conflicted h
     -- m m again: conflicted, so refused
     refused: Resolve the conflicted files first (s marks one resolved); nothing ran
     -- x o on f, x t on g
@@ -262,7 +262,7 @@ let%expect_test "a conflicting merge: m m stops, x takes sides, s marks, m m com
       $ --literal-pathspecs checkout --ours -- f (Mutate)
       $ --literal-pathspecs add --all -- f (Mutate)
       ok
-    confirm "Resolve g": Take theirs (6e2ae65) for g? The other side's changes and any edits to the file are lost; it is marked resolved.
+    confirm "Resolve g": Take theirs (3115a40) for g? The other side's changes and any edits to the file are lost; it is marked resolved.
       plan "Take theirs for g" (rewrites the work tree)
       $ --literal-pathspecs checkout --theirs -- g (Mutate)
       $ --literal-pathspecs add --all -- g (Mutate)
@@ -333,7 +333,7 @@ let%expect_test "merge switches: a fast-forward, --ff-only refused when diverged
     printf "  behind2: %s\n" (subjects t "behind2");
     ignore
       (decide t (Merge { branch = "base"; flags = [ "--ff-only"; "--no-ff" ] })
-       : Ches_vcs.Backend.Plan.t option));
+       : Cobalt_vcs.Backend.Plan.t option));
   [%expect
     {|
     -- plain: fast-forwards
@@ -419,8 +419,8 @@ let%expect_test "a rebase stopping twice: x t, r r stops again, r s, the rebase 
     {|
       $ git rebase up: exit 1
       | CONFLICT (content): Merge conflict in f
-      | error: could not apply c062db9... One: change f
-      head: (detached); Rebasing main onto b6507b0; conflicted f
+      | error: could not apply da4df5c... One: change f
+      head: (detached); Rebasing main onto 7d9f5d0; conflicted f
     -- x on f: the sides named for a rebase
     o Take ours (the upstream); t Take theirs (your commit); m Restore the conflict markers
     -- r r while conflicted: refused
@@ -436,9 +436,9 @@ let%expect_test "a rebase stopping twice: x t, r r stops again, r s, the rebase 
       $ rebase --continue (Mutate, GIT_EDITOR=true)
       failed: exit 1
       > CONFLICT (content): Merge conflict in g
-      | error: could not apply 5af985d... Two: change g
+      | error: could not apply 98f3eaf... Two: change g
       hint: Stopped on conflicts: resolve each file (x, or Space x in the editor), mark it resolved with s, then continue
-      head: (detached); Rebasing main onto b6507b0; conflicted g
+      head: (detached); Rebasing main onto 7d9f5d0; conflicted g
     -- r s
     confirm "Skip commit": Skip the commit being applied? Its changes are left out of the rebased branch.
       plan "Skip commit" (rewrites the work tree)
@@ -480,9 +480,9 @@ let%expect_test "a rebase pull stops on a conflict (CONFLICT on stdout); x o, r 
       $ pull --progress --rebase (Network, streamed)
       failed: exit 1
       > CONFLICT (content): Merge conflict in f
-      | error: could not apply 920928a... Ours
+      | error: could not apply 8b6862b... Ours
       hint: Stopped on conflicts: resolve each file (x, or Space x in the editor), mark it resolved with s, then continue
-      head: (detached); Rebasing main onto 57d34b8; conflicted f
+      head: (detached); Rebasing main onto 0099ef3; conflicted f
     confirm "Resolve f": Take ours (the upstream) for f? The other side's changes and any edits to the file are lost; it is marked resolved.
       plan "Take ours for f" (rewrites the work tree)
       $ --literal-pathspecs checkout --ours -- f (Mutate)
@@ -501,7 +501,7 @@ let%expect_test "a rebase pull stops on a conflict (CONFLICT on stdout); x o, r 
 
 let%expect_test "refusals, in order, with real snapshots" =
   Fixture.with_repo (fun t ->
-    let show action = ignore (decide t action : Ches_vcs.Backend.Plan.t option) in
+    let show action = ignore (decide t action : Cobalt_vcs.Backend.Plan.t option) in
     let all ~branch =
       List.iter
         [ Git.Backend.Merge { branch; flags = [ "--squash" ] }
@@ -576,9 +576,9 @@ let%expect_test "refusals, in order, with real snapshots" =
       $ git merge --no-edit other: exit 1
       | CONFLICT (modify/delete): d deleted in other and modified in HEAD.  Version HEAD of d left in tree.
       | CONFLICT (content): Merge conflict in f
-      head: main; Merging c003125; conflicted d; conflicted f
+      head: main; Merging 94a1f2f; conflicted d; conflicted f
     refused: Unknown merge switch --squash; nothing ran
-    refused: Merging c003125 in progress: finish or abort it first; nothing ran
+    refused: Merging 94a1f2f in progress: finish or abort it first; nothing ran
     refused: Resolve the conflicted files first (s marks one resolved); nothing ran
     refused: No rebase in progress; nothing ran
     refused: No rebase in progress; nothing ran
@@ -590,14 +590,14 @@ let%expect_test "refusals, in order, with real snapshots" =
       plan "Restore conflict markers in f" (rewrites the work tree)
       $ --literal-pathspecs checkout --merge -- f (Mutate)
     refused: d has no conflict markers to restore (deleted by them); nothing ran
-    confirm "Resolve d": Resolve d by deleting it, as theirs (c003125) did? Any edits to the file are lost.
+    confirm "Resolve d": Resolve d by deleting it, as theirs (94a1f2f) did? Any edits to the file are lost.
       plan "Delete d (resolved)" (rewrites the work tree)
       $ --literal-pathspecs rm --quiet -- d (Mutate)
     -- merging, resolved: m m planned
     run
       plan "Commit merge" (rewrites the work tree)
       $ commit --no-edit --cleanup=strip (Mutate, GIT_EDITOR=true)
-    refused: Merging c003125 in progress: finish or abort it first; nothing ran
+    refused: Merging 94a1f2f in progress: finish or abort it first; nothing ran
     -- conflicted, nothing in progress (a stash that did not apply)
       $ git stash apply: exit 1
       | CONFLICT (content): Merge conflict in f

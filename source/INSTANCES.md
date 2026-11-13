@@ -45,7 +45,7 @@ Inspected `/home/wayne/devel/slang-server` and `/home/wayne/devel/slang-server.n
   despite string-valued notifications and the cloned plugin's string requests.
   Neither call requests focus or navigation.
 - The clone registers `slang.showHierLocation`, which has client showDocument
-  side effects, but no direct `getHierLocation` command. Ches does not invoke it.
+  side effects, but no direct `getHierLocation` command. Cobalt does not invoke it.
 - Module/Interface document symbols must enclose the cursor and belong to the
   current document. If available, the filesystem-path module index filters names;
   otherwise only those server-provided symbol identities are used. Nested variable
@@ -66,10 +66,10 @@ The live evidence in `screen/INSTANCE_PICKER.md` and
 `/tmp/opencode/instances-references-evidence.json` is for Slang
 `0.3.1+a7a2d08`. After successful selection and a separate getActiveInstance
 confirmation, fresh hover responses themselves still contain both width-8 and
-width-32 renderings. This is installed-server response behavior, not Ches
+width-32 renderings. This is installed-server response behavior, not Cobalt
 combining cached contexts or omitting an instance argument: standard
 textDocument/hover takes only the document and position, and the selected instance
-is server-side state. Ches preserves each returned Markdown value verbatim.
+is server-side state. Cobalt preserves each returned Markdown value verbatim.
 
 The inspected server's `ServerDriver::getDocHover` resolves DefinitionInfo and
 `DefinitionInfo::getHover` appends all distinct rendered targets. Its active-design

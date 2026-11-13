@@ -1,17 +1,17 @@
 open! Core
-open Ches_core
-module N = Ches_completion.Snippet
+open Cobalt_core
+module N = Cobalt_completion.Snippet
 module S = N.Session
-module D = Ches_completion.Snippet_definition
+module D = Cobalt_completion.Snippet_definition
 
-let all = Ches_completion.Sv_snippets.all
+let all = Cobalt_completion.Sv_snippets.all
 let find prefix = List.find_exn all ~f:(fun (d : D.t) -> String.equal d.prefix prefix)
 let parse prefix = N.parse (find prefix).body |> Or_error.ok_exn
 let expand prefix = N.text (parse prefix)
 let contains text substring = assert (String.is_substring text ~substring)
 
 let%test_unit "available SV descriptions expose Xilinx vocabulary for discovery" =
-  let module U = Ches_completion.User_snippets in
+  let module U = Cobalt_completion.User_snippets in
   let available = U.available U.builtins ~path:(Some "rtl/register.sv") in
   List.iter [ "FDRE", "affre"; "FDSE", "affse"; "FDCE", "affce"; "FDPE", "affpe" ]
     ~f:(fun (term, prefix) ->

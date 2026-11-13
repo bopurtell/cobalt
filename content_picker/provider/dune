@@ -1,4 +1,4 @@
 (library
- (name ches_content_search)
- (libraries ches_content_picker ches_file_picker ches_file_discovery core async)
+ (name cobalt_content_search)
+ (libraries cobalt_content_picker cobalt_file_picker cobalt_file_discovery core async)
  (preprocess (pps ppx_jane)))

@@ -1,4 +1,4 @@
-(* Phase 0 feasibility probe, not an editor provider or production query. *)
+(* Feasibility probe, not an editor provider or production query. *)
 open Tree_sitter
 
 let check condition message = if not condition then failwith message

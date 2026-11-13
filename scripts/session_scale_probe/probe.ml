@@ -1,11 +1,11 @@
 open! Core
-open Ches_core
-open Ches_app
-open Ches_screen
+open Cobalt_core
+open Cobalt_app
+open Cobalt_screen
 
 (* In-memory initial document + missing resources: reads only, no writes or LSP.
    Construction is deliberately outside the measured hot paths. *)
-let base = "/__ches_session_scale_probe__/"
+let base = "/__cobalt_session_scale_probe__/"
 let path i = sprintf "%s%d/common/deep/file.txt" base i
 let measure label samples f =
   let allocated = Gc.allocated_bytes () in
@@ -64,7 +64,7 @@ let () =
         if Buffer_id.equal id active then id, c else id, retained)));
     measure (name "active replacement") 1000 (fun () -> ignore (Session.replace_active session c));
     let changed = Ui_state.apply_all ui ~width:80 ~height:24
-      [ Key (Ches_input.Key.char 'i'); Key (Ches_input.Key.char 'X') ] |> fst in
+      [ Key (Cobalt_input.Key.char 'i'); Key (Cobalt_input.Key.char 'X') ] |> fst in
     measure (name "one changed source take") 100 (fun () ->
       let _, requests = Ui_state.take_source_requests changed in
       assert (List.length requests = 1));

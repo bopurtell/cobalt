@@ -9,7 +9,7 @@
     The text is split into logical lines at LF. Positions are byte offsets into the
     text, always the start of a glyph with display cells (a zero-width code point
     belongs to the glyph before it), or the start of an empty line. Lines are wrapped by
-    display cells into rows of the viewport width with {!Ches_core.Cell_layout}, using
+    display cells into rows of the viewport width with {!Cobalt_core.Cell_layout}, using
     the [cell_width] the screen draws with, so rows, the cursor cell, selection
     highlighting, and copied bytes all agree. A TAB keeps the width it has in its
     unwrapped line.
@@ -23,7 +23,7 @@
     and last row; [Ctrl-d]/[Ctrl-u] scroll and move by half the viewport.
 
     A count, as in Vim, is [1]-[9] then any digits (a leading [0] is still the line
-    start), at most [Ches_core.Command.max_count]. Before [h l j k w b Ctrl-d Ctrl-u]
+    start), at most [Cobalt_core.Command.max_count]. Before [h l j k w b Ctrl-d Ctrl-u]
     it repeats the motion, stopping at the text's ends ([10j] is ten rows down,
     [2 Ctrl-d] a whole viewport); before [G] or [gg] it names a logical line ([12G],
     [3gg]; past the last line is the last), whose start the cursor goes to. Before
@@ -40,7 +40,7 @@
     breaks, padding, markers, or escape forms. *)
 
 open! Core
-open Ches_input
+open Cobalt_input
 
 module Kind : sig
   type t =
@@ -73,7 +73,7 @@ module Action : sig
     | Move_count of int * Motion.t
     (** A counted motion, see Movement: [Move_count (3, Down)] is [3j], and
         [Move_count (12, Last)] is [12G], logical line 12. The count is from 1 to
-        [Ches_core.Command.max_count]. *)
+        [Cobalt_core.Command.max_count]. *)
     | Visual of Kind.t (** Start, switch to, or (the same kind) end Visual. *)
     | Swap_ends
     | Yank (** The Visual selection. *)
@@ -86,19 +86,19 @@ end
 (** What a performed action asks of the application. *)
 module Effect : sig
   type t =
-    | Copy of Ches_core.Register.t
+    | Copy of Cobalt_core.Register.t
     (** Copy to the shared clipboard destinations (see the application). *)
     | Notice of string
   [@@deriving sexp_of, equal]
 
   (** ["Copied 12 characters"], ["Copied 2 lines"]. *)
-  val describe_copy : Ches_core.Register.t -> string
+  val describe_copy : Cobalt_core.Register.t -> string
 end
 
 type t [@@deriving sexp_of]
 
 (** A view of [text] with the cursor at its start, not in Visual. *)
-val create : cell_width:Ches_core.Cell_layout.Width.t -> string -> t
+val create : cell_width:Cobalt_core.Cell_layout.Width.t -> string -> t
 
 val text : t -> string
 val cursor : t -> int
@@ -157,7 +157,7 @@ val update : t -> string -> t * [ `Same | `Changed of bool ]
 module Row : sig
   type t =
     { line_start : int (** Offset of the row's logical line; glyph [pos]es add to it. *)
-    ; glyphs : Ches_core.Cell_layout.Glyph.t array
+    ; glyphs : Cobalt_core.Cell_layout.Glyph.t array
     ; first_col : int (** Display column of the row's first cell within its line. *)
     ; break : int option
     (** The offset of the line break ending this row's logical line, on its last

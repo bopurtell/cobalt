@@ -1,8 +1,8 @@
 open! Core
-open Ches_core
-open Ches_app
-open Ches_screen
-module Theme = Ches_theme.Theme
+open Cobalt_core
+open Cobalt_app
+open Cobalt_screen
+module Theme = Cobalt_theme.Theme
 
 let width = 100
 let height = 25
@@ -63,7 +63,7 @@ let%test_unit "bare and zen preserve presentation, numbers and document while pi
     assert (Presentation.equal (Ui_state.presentation initial) (Ui_state.presentation opened));
     assert (Geometry.Prefs.equal prefs (Ui_state.prefs opened));
     assert (Presentation.Bare_prefs.equal bare_prefs (Ui_state.bare_prefs opened));
-    assert (Ches_tile.View_id.equal (Ui_state.focused_view opened ~width ~height) Theme_picker_tile.id);
+    assert (Cobalt_tile.View_id.equal (Ui_state.focused_view opened ~width ~height) Theme_picker_tile.id);
     let frame = Frame.render opened ~width ~height in
     assert (Option.is_some frame.cursor);
     assert (List.is_empty frame.smear);
@@ -90,8 +90,8 @@ let%test_unit "interrupted picker paste never enters document" =
 let%test_unit "global palette IDs are identical in bare and workspace, theme opens from palette" =
   let ids t =
     let palette = Ui_state.palette (run t " cc") |> Option.value_exn |> Palette_tile.palette in
-    Ches_palette.Palette.results palette |> List.map ~f:(fun r ->
-      Ches_palette.Catalog.Entry.id r.item |> Ches_palette.Catalog.Id.to_string) in
+    Cobalt_palette.Palette.results palette |> List.map ~f:(fun r ->
+      Cobalt_palette.Catalog.Entry.id r.item |> Cobalt_palette.Catalog.Id.to_string) in
   let workspace = create () and bare = create ~bare:true () in
   assert ([%equal: string list] (ids workspace) (ids bare));
   assert (List.mem (ids bare) "appearance.choose-theme" ~equal:String.equal);
@@ -115,8 +115,8 @@ let%test_unit "colored frame cache redraws on effective theme identity including
 let%test_unit "view-local commands augment globals only over the installed focused view" =
   let ids t =
     let palette = Ui_state.palette t |> Option.value_exn |> Palette_tile.palette in
-    Ches_palette.Palette.results palette |> List.map ~f:(fun r ->
-      Ches_palette.Catalog.Entry.id r.item |> Ches_palette.Catalog.Id.to_string) in
+    Cobalt_palette.Palette.results palette |> List.map ~f:(fun r ->
+      Cobalt_palette.Catalog.Entry.id r.item |> Cobalt_palette.Catalog.Id.to_string) in
   let globals = ids (run (create ~bare:true ()) " cc") in
   let local = ids (run (create ~report:Report_tile.demo ()) " vD cc") in
   assert (List.length local > List.length globals);
@@ -124,9 +124,9 @@ let%test_unit "view-local commands augment globals only over the installed focus
   assert (List.for_all globals ~f:(fun id ->
      List.mem [ "development.insert-demo-snippet"; "snippets.insert" ] id ~equal:String.equal
      || List.mem local id ~equal:String.equal));
-  let all_globals = Ches_palette.Catalog.entries Ches_palette.Catalog.default
-    |> List.map ~f:(fun entry -> Ches_palette.Catalog.Entry.id entry
-      |> Ches_palette.Catalog.Id.to_string) in
+  let all_globals = Cobalt_palette.Catalog.entries Cobalt_palette.Catalog.default
+    |> List.map ~f:(fun entry -> Cobalt_palette.Catalog.Entry.id entry
+      |> Cobalt_palette.Catalog.Id.to_string) in
   assert ([%equal: string list] globals all_globals);
   let over_document = ids (run (create ~report:Report_tile.demo ()) " cc") in
   assert ([%equal: string list] over_document globals)
@@ -136,7 +136,7 @@ let%test_unit "another float cancels preview, and picker cancellation returns to
   let initial = create ~report:Report_tile.demo () in
   let opened = run initial " vD vT<Tab>" in
   let closed = run opened "<Esc>" in
-  assert (Ches_tile.View_id.equal (Ui_state.focused_view closed ~width ~height) Report_tile.id);
+  assert (Cobalt_tile.View_id.equal (Ui_state.focused_view closed ~width ~height) Report_tile.id);
   assert (Theme.equal (Ui_state.theme closed) Theme.default);
   let replaced = Ui_state.open_line_picker opened ~width ~height in
   assert (Option.is_none (Ui_state.theme_picker replaced));

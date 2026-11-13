@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Capture real repository buffers in private tmux; rasterize ANSI with Pillow.
 
-Run after dune build -j6 bin/ches.exe. Requires tmux, rg, ocamllsp, Pillow and DejaVu Sans Mono.
+Run after dune build -j6 bin/cobalt.exe. Requires tmux, rg, ocamllsp, Pillow and DejaVu Sans Mono.
 Only docs/images PNGs are written in the checkout. Raw evidence stays in /tmp.
 """
 import argparse
@@ -85,33 +85,33 @@ def render(ansi, destination, description, font_dir):
                 x += width
     metadata = PngImagePlugin.PngInfo()
     metadata.add_text("Description", description)
-    metadata.add_text("Capture", "Real Ches tmux ANSI frame; Pillow rasterization; no added overlays")
+    metadata.add_text("Capture", "Real Cobalt tmux ANSI frame; Pillow rasterization; no added overlays")
     image.save(destination, pnginfo=metadata)
 
 
 def main():
     repo = Path(__file__).resolve().parents[1]
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--binary", type=Path, default=repo / "_build/default/bin/ches.exe")
+    parser.add_argument("--binary", type=Path, default=repo / "_build/default/bin/cobalt.exe")
     parser.add_argument("--font-dir", type=Path, default=Path("/usr/share/fonts/truetype/dejavu"))
     args = parser.parse_args()
     missing = [name for name in ("tmux", "ocamllsp", "rg", "git", "wc", "clear", "dune")
                if not shutil.which(name)]
     if not args.binary.is_file() or not os.access(args.binary, os.X_OK):
-        parser.error("requires an executable built Ches binary")
+        parser.error("requires an executable built Cobalt binary")
     if missing:
         parser.error("missing capture tools on PATH: " + ", ".join(missing))
     for name in ("DejaVuSansMono.ttf", "DejaVuSansMono-Bold.ttf"):
         if not (args.font_dir / name).is_file():
             parser.error("missing font: " + str(args.font_dir / name))
-    root = Path(tempfile.mkdtemp(prefix="ches-readme-", dir="/tmp/opencode"))
+    root = Path(tempfile.mkdtemp(prefix="cobalt-readme-", dir="/tmp/opencode"))
     for name in ("home", "config", "cache", "data", "state", "runtime"):
         (root / name).mkdir(mode=0o700)
     env = dict(os.environ)
     env.update(HOME=str(root / "home"), XDG_CONFIG_HOME=str(root / "config"),
                XDG_CACHE_HOME=str(root / "cache"), XDG_DATA_HOME=str(root / "data"),
                XDG_STATE_HOME=str(root / "state"), XDG_RUNTIME_DIR=str(root / "runtime"),
-               SHELL="/bin/sh", ENV="", BASH_ENV="", PS1="ches $ ",
+               SHELL="/bin/sh", ENV="", BASH_ENV="", PS1="cobalt $ ",
                 LC_ALL="C.UTF-8", TERM="tmux-256color", GIT_OPTIONAL_LOCKS="0")
     env.pop("TMUX", None)
     tmux = ["tmux", "-S", str(root / "sock"), "-f", "/dev/null"]
@@ -209,7 +209,7 @@ def main():
                 break
             time.sleep(.1)
         else:
-            raise RuntimeError("Ches did not exit cleanly")
+            raise RuntimeError("Cobalt did not exit cleanly")
     finally:
         subprocess.run(tmux + ["kill-server"], env=env, capture_output=True)
         after = git("status", "--porcelain=v1")

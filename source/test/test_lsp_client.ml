@@ -3,12 +3,12 @@
    real time; each wait gives up after 10 s. *)
 open! Core
 open! Async
-open Ches_source
-module Source_request = Ches_error.Source_request
-module Source_event = Ches_error.Source_event
+open Cobalt_source
+module Source_request = Cobalt_error.Source_request
+module Source_event = Cobalt_error.Source_event
 module Convert = Lsp_client.Convert
 
-let cell_width = Ches_screen.Cell_map.width
+let cell_width = Cobalt_screen.Cell_map.width
 
 let%expect_test "server selection and document language ids" =
   List.iter
@@ -39,7 +39,7 @@ let%expect_test "server selection and document language ids" =
 let%expect_test "conversions: severities, one-line messages, columns per encoding" =
   List.iter
     [ None; Some Lsp.Types.DiagnosticSeverity.Error; Some Warning; Some Information; Some Hint ]
-    ~f:(fun s -> print_s [%sexp (Convert.severity s : Ches_error.Error.Severity.t)]);
+    ~f:(fun s -> print_s [%sexp (Convert.severity s : Cobalt_error.Error.Severity.t)]);
   print_endline (Convert.message "This expression has type int\n  but\tone of\r\n  string ");
   let column encoding line character =
     printf
@@ -99,7 +99,7 @@ let config ?(args = []) ?prog () =
 ;;
 
 let with_root f =
-  let root = Filename_unix.realpath (Filename_unix.temp_dir "ches-lsp" "") in
+  let root = Filename_unix.realpath (Filename_unix.temp_dir "cobalt-lsp" "") in
   Monitor.protect
     (fun () -> f root)
     ~finally:(fun () -> Process.run ~prog:"rm" ~args:[ "-rf"; root ] () >>| ignore)
@@ -113,8 +113,8 @@ let show ~root (event : Source_event.t) =
   let hide = String.substr_replace_all ~pattern:root ~with_:"<root>" in
   match event with
   | Instance_context_changed _ -> ()
-  | Query_result reply -> print_s [%sexp (reply : Ches_error.Language_query.reply)]
-  | Completion reply -> print_s [%sexp (reply : Ches_completion.Model.Reply.t)]
+  | Query_result reply -> print_s [%sexp (reply : Cobalt_error.Language_query.reply)]
+  | Completion reply -> print_s [%sexp (reply : Cobalt_completion.Model.Reply.t)]
   | Completion_metadata _ -> ()
   | Servers _ -> ()
   | Owned _ -> failwith "unexpected owned event from standalone driver"
@@ -132,7 +132,7 @@ let show ~root (event : Source_event.t) =
       in
       printf
         "  %s %d:%d %s\n"
-        (String.lowercase (Sexp.to_string [%sexp (f.severity : Ches_error.Error.Severity.t)]))
+        (String.lowercase (Sexp.to_string [%sexp (f.severity : Cobalt_error.Error.Severity.t)]))
         line
         column
         f.message)
@@ -310,14 +310,14 @@ let%expect_test "a server that cannot run: missing, exits at once, or refuses to
       let%map () = until source ~root ~f:is_stop in
       Source.stop source
     in
-    let%bind () = attempt (config ~prog:"ches-no-such-server" ()) in
-    let%bind () = attempt (config ~prog:"/nonexistent/ches-server" ()) in
+    let%bind () = attempt (config ~prog:"cobalt-no-such-server" ()) in
+    let%bind () = attempt (config ~prog:"/nonexistent/cobalt-server" ()) in
     let%bind () = attempt (config ~args:[ "-exit-at-start" ] ()) in
     let%bind () = attempt (config ~args:[ "-fail-init" ] ()) in
     [%expect
       {|
-      unavailable fake: ches-no-such-server not found on PATH
-      unavailable fake: /nonexistent/ches-server is not an executable file
+      unavailable fake: cobalt-no-such-server not found on PATH
+      unavailable fake: /nonexistent/cobalt-server is not an executable file
       stopped fake: exited with code 2: fake: cannot start
       stopped fake: initialize failed: fake: refuses to initialize
       |}];
@@ -603,7 +603,7 @@ let%expect_test "pooled LSP isolates roots and effective configurations and reje
     let%bind _ = collect source (List.exists ~f:(owned_diagnostic a 0 1)) in
     Source.send source (Document_changed { resource = a; revision = 2; text = "CRASH" });
     let%bind stopped = collect source (List.exists ~f:(function Source_event.Stopped _ -> true | _ -> false)) in
-    let module Feedback = Ches_error.Error in
+    let module Feedback = Cobalt_error.Error in
     let feedback = List.fold (events @ stopped) ~init:Feedback.empty ~f:(fun state event ->
       Feedback.apply state (Source_event.to_update event ~current_revision:0)) in
     List.iter (Feedback.Diagnostics.collections (Feedback.diagnostics feedback)) ~f:(fun collection ->
@@ -627,7 +627,7 @@ let%expect_test "authoritative mixed-language inventory follows attachments and 
   with_root (fun root ->
     List.iter [ "one"; "two" ] ~f:(fun dir -> Core_unix.mkdir (Filename.concat root dir));
     let ml = { (config ~args:[ "-delay-init" ] ()) with root_markers = [] } in
-    let sv = { ml with source = "slang-server"; prog = "ches-definitely-missing-lsp" } in
+    let sv = { ml with source = "slang-server"; prog = "cobalt-definitely-missing-lsp" } in
     let source = Lsp_client.start_workspace ~cell_width ~config_for_path:(fun path ->
       if String.is_suffix path ~suffix:".ml" then Some ml
       else if String.is_suffix path ~suffix:".sv" then Some sv else None) () in
@@ -706,7 +706,7 @@ let%expect_test "pooled workspace diagnostics are one collection with disk-based
     let%bind events = collect source (fun events -> List.exists events ~f:workspace
       && List.exists events ~f:(owned_diagnostic a 0 0)
       && List.exists events ~f:(owned_diagnostic b 1 0)) in
-    let module Feedback = Ches_error.Error in
+    let module Feedback = Cobalt_error.Error in
     let feedback = List.fold events ~init:Feedback.empty ~f:(fun state event ->
       Feedback.apply state (Source_event.to_update event ~current_revision:0)) in
     let collections = Feedback.Diagnostics.collections (Feedback.diagnostics feedback) in

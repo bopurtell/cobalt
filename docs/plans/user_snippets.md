@@ -8,8 +8,8 @@ a `[snippet]` source tag. Automatic and Ctrl-n invocation both include them.
 
 ## Configuration contract
 
-Use `$XDG_CONFIG_HOME/ches/snippets.json` when the environment variable is an
-absolute nonempty path; otherwise `$HOME/.config/ches/snippets.json`.
+Use `$XDG_CONFIG_HOME/cobalt/snippets.json` when the environment variable is an
+absolute nonempty path; otherwise `$HOME/.config/cobalt/snippets.json`.
 
 ```json
 {

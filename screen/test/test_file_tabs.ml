@@ -1,8 +1,8 @@
 open! Core
-open Ches_core
-open Ches_app
-open Ches_input
-open Ches_screen
+open Cobalt_core
+open Cobalt_app
+open Cobalt_input
+open Cobalt_screen
 open Helpers
 
 let width = 80
@@ -11,7 +11,7 @@ let run ui s = Helpers.run ~width ~height ui (keys s)
 let active ui = Session.active_id (Ui_state.session ui)
 let editor ui = Controller.editor (Ui_state.controller ui)
 let with_files f =
-  let dir = scratch_dir "ches-tabs-" in
+  let dir = scratch_dir "cobalt-tabs-" in
   let one = Filename.concat dir "one" and two = Filename.concat dir "two" in
   Core_unix.mkdir one; Core_unix.mkdir two;
   let a = Filename.concat one "same.txt" and b = Filename.concat two "same.txt" in
@@ -170,9 +170,9 @@ let%test_unit "palette accepts tab commands once and derives the exact bindings"
               ; "tabs.close", "Space b c"; "tabs.close-discarding-changes", "Space b C"
               ; "buffers.top", "Space b t"; "buffers.status-rows", "Space b s" ]
       ~f:(fun (id, expected) ->
-        let entry = Ches_palette.Catalog.find Ches_palette.Catalog.default (Ches_palette.Catalog.Id.of_string id) |> Option.value_exn in
-        let shortcuts = Ches_palette.Shortcut.sequences (Bindings.to_list Bindings.default) (Ches_palette.Catalog.Entry.action entry) in
-        assert ([%equal: string list] (List.map shortcuts ~f:Ches_palette.Shortcut.to_string_hum) [ expected ]));
+        let entry = Cobalt_palette.Catalog.find Cobalt_palette.Catalog.default (Cobalt_palette.Catalog.Id.of_string id) |> Option.value_exn in
+        let shortcuts = Cobalt_palette.Shortcut.sequences (Bindings.to_list Bindings.default) (Cobalt_palette.Catalog.Entry.action entry) in
+        assert ([%equal: string list] (List.map shortcuts ~f:Cobalt_palette.Shortcut.to_string_hum) [ expected ]));
     Session.dispose (Ui_state.session ui))
 ;;
 

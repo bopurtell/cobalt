@@ -1,5 +1,5 @@
-(** Adapts Bonsai_term events to {!Ches_screen.Ui_state.Input.t}, following the
-    adapter contract in [Ches_input.Key].
+(** Adapts Bonsai_term events to {!Cobalt_screen.Ui_state.Input.t}, following the
+    adapter contract in [Cobalt_input.Key].
 
     - Characters become [Char]; Shift is already folded into them by the terminal.
     - Ctrl plus a letter becomes [Ctrl] of the lowercase letter. Ctrl-H, which some
@@ -23,4 +23,4 @@ open Bonsai_term
     Notty's [Enter] denotes LF and is forwarded as Ctrl-J, distinct from the
     physical Enter key's Ctrl-M (CR). The CLI disables CR/LF input translation.
     Paste boundaries are unchanged in either mode. *)
-val inputs : ?terminal:bool -> Event.t -> Ches_screen.Ui_state.Input.t list
+val inputs : ?terminal:bool -> Event.t -> Cobalt_screen.Ui_state.Input.t list

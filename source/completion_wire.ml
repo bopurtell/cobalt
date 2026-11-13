@@ -1,7 +1,7 @@
 open! Core
-module Model = Ches_completion.Model
-module Snippet = Ches_completion.Snippet
-module Text_edit = Ches_core.Text_edit
+module Model = Cobalt_completion.Model
+module Snippet = Cobalt_completion.Snippet
+module Text_edit = Cobalt_core.Text_edit
 
 type encoding = Utf8 | Utf16 | Utf32 [@@deriving sexp_of]
 
@@ -89,7 +89,7 @@ let effective_item defaults item =
   | _ -> item
 ;;
 
-(* Ches deliberately chooses replace, never insert, for InsertReplaceEdit.
+(* Cobalt deliberately chooses replace, never insert, for InsertReplaceEdit.
    Validate the protocol's same-start, single-line, insert-prefix constraints. *)
 let primary_edit encoding text request json =
   match field json "insert", field json "replace" with
@@ -113,7 +113,7 @@ let metadata ?revision ?additional ~resolvable candidate_id item =
     | Some (`String text) -> Some text
     | Some json -> string_field json "value"
     | None -> None in
-  { Ches_error.Completion_info.candidate_id; kind = int_field item "kind";
+  { Cobalt_error.Completion_info.candidate_id; kind = int_field item "kind";
     documentation; detail = string_field item "detail"; resolvable; additional; revision }
 ;;
 
@@ -127,7 +127,7 @@ let decode ~encoding ~text ~(request : Model.Request.t) ~source json =
   in
   let defaults = Option.value (field json "itemDefaults") ~default:`Null in
   let retained = ref [] in
-  let base = Ches_core.Text_buffer.of_string text |> Result.ok in
+  let base = Cobalt_core.Text_buffer.of_string text |> Result.ok in
   let candidates = List.take items 512 |> List.filter_mapi ~f:(fun index item ->
     let item = effective_item defaults item in
     let open Option.Let_syntax in
@@ -185,7 +185,7 @@ let resolved ~encoding ~text ~(candidate : Model.Candidate.t) raw json =
     | None | Some `Null -> Some candidate.additional
     | Some (`List edits) when List.length edits <= 128 -> Option.all (List.map edits ~f:(edit encoding text))
     | _ -> None in
-  let%bind base = Ches_core.Text_buffer.of_string text |> Result.ok in
+  let%bind base = Cobalt_core.Text_buffer.of_string text |> Result.ok in
   let%map _ = Text_edit.apply base [candidate.primary :: additional] |> Result.ok in
   fields, additional
 ;;

@@ -58,12 +58,12 @@ def main():
         raise SystemExit("usage: python3 packaging/smoke.py path/to/binary.tar.gz")
     if not shutil.which("tmux"):
         raise SystemExit("tmux is required for the extracted-package PTY smoke")
-    with tempfile.TemporaryDirectory(prefix="ches-package-smoke-", dir="/tmp") as temp:
+    with tempfile.TemporaryDirectory(prefix="cobalt-package-smoke-", dir="/tmp") as temp:
         root = Path(temp)
         package = extract(Path(sys.argv[1]).resolve(), root)
         verify(package)
         manifest = json.loads((package / "metadata/manifest.json").read_text())
-        binary = package / "bin/ches"
+        binary = package / "bin/cobalt"
         home = root / "empty-home"
         home.mkdir()
         path = root / "minimal-path"
@@ -77,7 +77,7 @@ def main():
         listing = subprocess.check_output([binary, "--list-themes"], cwd=root, env=env, text=True)
         assert "vim-classic\t" in listing and len(listing.splitlines()) >= 40
         fixture = root / "fixture.ml"
-        fixture.write_text('let package_probe = "CHES_PACKAGE_HIGHLIGHT"\n')
+        fixture.write_text('let package_probe = "COBALT_PACKAGE_HIGHLIGHT"\n')
         socket = root / "tmux.sock"
         tmux = [shutil.which("tmux"), "-S", str(socket), "-f", "/dev/null"]
 
@@ -112,10 +112,10 @@ def main():
             t("new-session", "-d", "-s", "package", "-x", "140", "-y", "44", "-c", str(root),
               "/bin/sh -c " + shlex.quote(command))
             t("set-option", "-t", "package", "status", "off")
-            wait(lambda: "CHES_PACKAGE_HIGHLIGHT" in screen(), "startup without LSP/compiler")
+            wait(lambda: "COBALT_PACKAGE_HIGHLIGHT" in screen(), "startup without LSP/compiler")
             ansi = screen(True)
             # Verify multiple foreground colors on the code line, not just UI chrome.
-            code = next(line for line in ansi.splitlines() if "CHES_PACKAGE_HIGHLIGHT" in line)
+            code = next(line for line in ansi.splitlines() if "COBALT_PACKAGE_HIGHLIGHT" in line)
             assert len(set(re.findall(r"38;2;\d+;\d+;\d+", code))) >= 2, code
             send("i(* packaged edit *) ")
             key("Escape")
@@ -123,8 +123,8 @@ def main():
             wait(lambda: fixture.read_text().startswith("(* packaged edit *) "), "edit/save")
             send(" /")
             wait(lambda: "Tile Term" in screen(), "embedded terminal")
-            send("printf 'CHES_%s\\n' PACKAGE_SHELL_OK\n")
-            wait(lambda: "CHES_PACKAGE_SHELL_OK" in screen(), "embedded shell output")
+            send("printf 'COBALT_%s\\n' PACKAGE_SHELL_OK\n")
+            wait(lambda: "COBALT_PACKAGE_SHELL_OK" in screen(), "embedded shell output")
             key("C-Space")
             send(" /")
             wait(lambda: "Tile Term" not in screen(), "hide terminal")
@@ -132,7 +132,7 @@ def main():
             wait(lambda: (root / "exit-code").exists(), "clean quit")
             assert (root / "exit-code").read_text() == "0"
             # A user config without a compiler must degrade to defaults, not prevent editing.
-            configuration = home / "config/ches/config.ml"
+            configuration = home / "config/cobalt/config.ml"
             configuration.parent.mkdir(parents=True, exist_ok=True)
             configuration.write_text('let () = failwith "must not run without compiler"\n')
             second = shlex.join(["/usr/bin/env", "-i", *(f"{k}={v}" for k, v in env.items()),
@@ -141,7 +141,7 @@ def main():
             t("pipe-pane", "-t", "package", "/bin/cat > " + shlex.quote(str(startup_log)))
             t("respawn-pane", "-k", "-t", "package", "-c", str(root),
               "/bin/sh -c " + shlex.quote(f"{second}; printf '%s' $? > config-exit-code; /bin/sleep 60"))
-            wait(lambda: "CHES_PACKAGE_HIGHLIGHT" in screen()
+            wait(lambda: "COBALT_PACKAGE_HIGHLIGHT" in screen()
                  and startup_log.exists()
                  and b"Configuration startup failed; using defaults" in startup_log.read_bytes(),
                  "configuration fallback without compiler")

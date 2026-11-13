@@ -1,6 +1,6 @@
 open! Core
 open! Async
-open Ches_vcs
+open Cobalt_vcs
 open Helpers
 
 (* Real git in a fixture repository, through the runner: a read, a mutation, and network
@@ -64,7 +64,7 @@ let%expect_test "git: status, commit, push and fetch against the local bare remo
           (started g1.2 1 "git --no-pager -c color.ui=false commit -q -m first")
           (started g1.2 2 "git --no-pager -c color.ui=false log '--format=%H %s'")
           (finished g1.2 complete (ran ("exit 0")) (ran ("exit 0"))
-           (ran ("exit 0" (stdout "ddfa11f7f8327da047d34b03016114690aae1fb1 first\n"))))
+           (ran ("exit 0" (stdout "ed5980f799167569b46a7c2c1098a70bacd4d235 first\n"))))
           |}];
         let%bind () =
           run_job [ git ~kind:Network ~stream:true [ "push"; "-u"; "origin"; "main" ] ]
@@ -101,7 +101,7 @@ let%expect_test "git: status, commit, push and fetch against the local bare remo
           {|
           (started g1.4 0 "git --no-pager -c color.ui=false fetch origin")
           (output g1.4 0 Stderr "From $DIR/remote" line)
-          (output g1.4 0 Stderr "   ddfa11f..e053900  main       -> origin/main" line)
+          (output g1.4 0 Stderr "   ed5980f..61ead3f  main       -> origin/main" line)
           (started g1.4 1
            "git --no-pager -c color.ui=false rev-list --count --left-right main...origin/main")
           (finished g1.4 complete
@@ -109,7 +109,7 @@ let%expect_test "git: status, commit, push and fetch against the local bare remo
             ("exit 0"
              (stderr
                "From $DIR/remote\
-              \n   ddfa11f..e053900  main       -> origin/main\
+              \n   ed5980f..61ead3f  main       -> origin/main\
               \n")))
            (ran ("exit 0" (stdout "0\t1\n"))))
           |}];

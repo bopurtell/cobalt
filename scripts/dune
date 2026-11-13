@@ -1,4 +1,4 @@
-; Terminal smoke tests, outside `dune runtest`. They drive the built ches in tmux or
+; Terminal smoke tests, outside `dune runtest`. They drive the built cobalt in tmux or
 ; a PTY, so they need tmux, python3, git, rg and a UTF-8 locale, and write fixtures
 ; under /tmp.
 ;
@@ -27,7 +27,7 @@
  (deps (universe))
  (locks /smoke)
  (action
-  (run python3 %{dep:lsp_smoke.py} %{dep:../bin/ches.exe}
+  (run python3 %{dep:lsp_smoke.py} %{dep:../bin/cobalt.exe}
    --fake-lsp %{dep:../source/test/fake_lsp/fake_lsp.exe})))
 
 (rule
@@ -36,37 +36,37 @@
  (locks /smoke)
  (action
   (setenv
-   CHES_FAKE_LSP
+   COBALT_FAKE_LSP
    %{dep:../source/test/fake_lsp/fake_lsp.exe}
-   (run bash %{dep:smoke.sh} %{dep:../bin/ches.exe}))))
+   (run bash %{dep:smoke.sh} %{dep:../bin/cobalt.exe}))))
 
 (rule
  (alias smoke-embedded-terminal)
  (deps (universe))
  (locks /smoke)
  (action
-  (run python3 %{dep:terminal_smoke.py} %{dep:../bin/ches.exe})))
+  (run python3 %{dep:terminal_smoke.py} %{dep:../bin/cobalt.exe})))
 
 (rule
  (alias smoke-theme)
  (deps (universe))
  (locks /smoke)
  (action
-  (run python3 %{dep:theme_smoke.py} %{dep:../bin/ches.exe})))
+  (run python3 %{dep:theme_smoke.py} %{dep:../bin/cobalt.exe})))
 
 (rule
  (alias smoke-vcs)
  (deps (universe) vcs_sandbox.sh)
  (locks /smoke)
  (action
-  (run python3 %{dep:vcs_smoke.py} %{dep:../bin/ches.exe})))
+  (run python3 %{dep:vcs_smoke.py} %{dep:../bin/cobalt.exe})))
 
 (rule
  (alias smoke-picker)
  (deps (universe))
  (locks /smoke)
  (action
-  (run python3 %{dep:picker_smoke.py} %{dep:../bin/ches.exe})))
+  (run python3 %{dep:picker_smoke.py} %{dep:../bin/cobalt.exe})))
 
 (rule
  (alias smoke-directory)
@@ -79,4 +79,4 @@
   directory_operations_smoke.py)
  (locks /smoke)
  (action
-  (run python3 %{dep:directory_workspace_smoke.py} %{dep:../bin/ches.exe})))
+  (run python3 %{dep:directory_workspace_smoke.py} %{dep:../bin/cobalt.exe})))

@@ -1,8 +1,8 @@
 (* Warm filesystem, ten headless samples; not terminal or p99 latency. *)
 open! Core
 open! Async
-module Provider = Ches_file_discovery.Provider
-module Discovery = Ches_file_picker.Model.Discovery
+module Provider = Cobalt_file_discovery.Provider
+module Discovery = Cobalt_file_picker.Model.Discovery
 
 let now () = Or_error.ok_exn Core_unix.Clock.gettime Core_unix.Clock.Monotonic
 let elapsed start = Int63.to_float (Int63.( - ) (now ()) start) /. 1e6

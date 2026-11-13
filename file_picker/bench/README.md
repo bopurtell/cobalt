@@ -1,4 +1,4 @@
-# File query latency probe (phase 3)
+# File query latency probe
 
 Run sequentially using the documented toolchain:
 
@@ -69,7 +69,7 @@ from 265.0 MB to 66.0 MB/query; no-match from 293.0 MB to 4.8 MB/query. All-matc
 alignment, and exhaustive acceptance tests protect against false negatives.
 The initial uncached prototype eagerly prepared the entire collection (190.606 ms
 for `model`); the final uncached API retains the original one-candidate-at-a-time
-preparation behavior. Do not treat that intermediate prototype as a pre-phase
+preparation behavior. Do not treat that intermediate prototype as an original
 command-palette baseline. Cached before/after workloads are unchanged apart from
 the feasibility prefilter.
 
@@ -82,7 +82,7 @@ and terminal responsiveness have **not** been measured here. This does not settl
 ranking or meet an agreed responsiveness target. Obtain actual owner queries
 and a target project before treating ranking/performance as release-ready.
 
-## Phase-4 interaction/cache scheduling probe
+## Interaction/cache scheduling probe
 
 Current bounded lifecycle/score/output/alignment/cache observations for slices 6a–6d are
 in `../../docs/picker_performance_recommendation.md`. The older query/interaction
@@ -118,14 +118,14 @@ Historical pre-6b observations, 2026-10-07, milliseconds
 Query update handlers measured 0.000–0.002 ms (tiny samples at clock resolution).
 At 50k the initial and broad query need 782 turns; selective queries need
 470 / 423 / 392. Scheduling one turn per 60 Hz redraw would be unacceptable;
-phase 5 must actually schedule yielding work between redraws/input turns. Chunked
-per-candidate matching and ordered inserts increase total CPU time versus phase
-3's whole-list query; this buys explicit yielding/cancellation points, not a
+the host must schedule yielding work between redraws/input turns. Chunked
+per-candidate matching and ordered inserts increase total CPU time versus the
+whole-list query; this buys explicit yielding/cancellation points, not a
 matching speedup or top-result cap. Per-candidate tokenization and cache/map lookup
 are included. No repeated full preparation occurs on a query or batch.
 
 Post-initial-publication live-word delta is about 1.65 / 16.49 / 82.44 MiB,
-excluding the already-constructed candidate dataset, versus phase 3's prepared
+excluding the already-constructed candidate dataset, versus the query probe's prepared
 fields alone at 1.56 / 15.61 / 78.05 MiB. This is a rough retained-state estimate,
 not peak RSS, in-flight-job peak, or a worst-case 4 KiB-path budget. It includes
 prepared cache and empty-query results; intermediate cache/ranking/output maps,
@@ -133,7 +133,7 @@ old results and natural allocations require more memory. Future host scheduling,
 long paths/queries, repeated incremental snapshots, GC tails, render scans and
 actual input-to-screen response remain unmeasured.
 
-## Phase-9 discovery probe
+## Discovery probe
 
 ```sh
 opam exec --switch=5.2.0+ox -- dune exec file_picker/bench/discovery_latency.exe -- "$PWD"

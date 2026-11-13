@@ -1,4 +1,4 @@
-# Ches feature expansion — MVP1
+# Cobalt feature expansion — MVP1
 
 **Status: archived (2026-10-06).** Phases 1–17 were implemented; this plan is
 kept for history. Deferred items carried forward are listed in the README's
@@ -19,7 +19,7 @@ Read alongside:
 - `mvp0_plan.md` (removed; in git history): established architecture, cursor, text, history,
   and effect contracts, plus implementation-session conventions.
 - [`README.md`](../../README.md): current behavior, build commands, and limitations.
-- [`ches_editor_prototype_brief.md`](../ches_editor_prototype_brief.md): long-term
+- [`cobalt_editor_prototype_brief.md`](../cobalt_editor_prototype_brief.md): long-term
   direction. Its future ideas are not requirements for this milestone.
 
 This plan extends MVP0 contracts only where stated. Follow existing code naming

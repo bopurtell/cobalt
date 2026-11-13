@@ -3,7 +3,7 @@
     ({!Job.Step.t}) and turns the runner's step reports back into values. It never runs
     anything itself, and owns every backend-specific notion: its panels' sections and
     item kinds, its diff targets, its actions (git's stage and unstage live in
-    [Ches_vcs_git]) and, from phase 5, its popups.
+    [Cobalt_vcs_git]) and its popups.
 
     Every [parse]-like function below takes the [Job.Report.steps] of a job built
     from exactly the steps the matching request function returned, in the same order.
@@ -16,7 +16,7 @@ module Detection : sig
   type 'repository t =
     | Found of 'repository
     | Not_a_repository of { cwd : string }
-    (** The view says so plainly (phase 2); not an error. *)
+    (** The view says so plainly; not an error. *)
     | No_work_tree of { cwd : string; message : string }
     (** A repository without a work tree here: bare, or [cwd] inside its metadata
         directory. *)
@@ -30,7 +30,7 @@ module Refresh : sig
   (** What a refresh reads, beyond what every refresh reads. *)
   type t =
     { ignored : bool (** Also list ignored files. *)
-    ; log : Log_scope.t (** The history the Commits panel lists (phase 8). *)
+    ; log : Log_scope.t (** The history the Commits panel lists. *)
     }
   [@@deriving sexp, equal]
 
@@ -69,7 +69,7 @@ module Plan : sig
     { title : string (** For the command log and notices, e.g. ["Stage a.txt"]. *)
     ; steps : Job.Step.t list
     ; rewrites_worktree : bool
-    (** It may rewrite work-tree files (discard, checkout, pull): refused while a Ches
+    (** It may rewrite work-tree files (discard, checkout, pull): refused while a Cobalt
         file buffer inside the repository is dirty, and followed by open-buffer
         reconciliation. *)
     }
@@ -85,7 +85,7 @@ module Plan : sig
           ; message : string
           ; plan : plan
           }
-      (** Destructive: ask first (default No; phase 0C's confirmation float). *)
+      (** Destructive: ask first (default No in the confirmation float). *)
       | Refused of string (** Not possible now, e.g. "Nothing staged to commit". *)
     [@@deriving sexp_of]
   end
@@ -122,8 +122,8 @@ module type S = sig
     type t [@@deriving sexp_of, equal]
   end
 
-  (** Everything the user can ask the backend to change. Grows with the phases that
-      introduce actions (stage in 3, commit in 5, push in 6). *)
+  (** Everything the user can ask the backend to change, including staging,
+      committing, and remote operations. *)
   module Action : sig
     type t [@@deriving sexp_of]
   end

@@ -10,8 +10,8 @@
     significant: placed views are allocated in registry order. *)
 
 open! Core
-open Ches_input
-module View_id = Ches_tile.View_id
+open Cobalt_input
+module View_id = Cobalt_tile.View_id
 
 (** Where an installed view is shown: exactly one placement at a time. Placement is
     the registry's, not the adapter's: hiding never discards the view's state.
@@ -30,7 +30,7 @@ end
 (** A question a view asks the user on a float over itself, and the view's own action
     that each answer performs. A confirmation's default answer is No: only [y]
     performs [yes]. A prompt's [accept] runs only on text that [validate] passes
-    ([None]; [Some error] is shown inline). A popup ({!Ches_vcs.Popup}: switches
+    ([None]; [Some error] is shown inline). A popup ({!Cobalt_vcs.Popup}: switches
     toggled with [-] and a key, actions run with one key) performs the chosen
     action's [run ~enabled]; its switches start as its [enabled] gives them. [no] and
     [cancel] are performed when the user declines; a question withdrawn without an
@@ -51,11 +51,11 @@ module Ask : sig
         ; cancel : 'action option
         }
     | Popup of
-        { popup : 'action Ches_vcs.Popup.t
+        { popup : 'action Cobalt_vcs.Popup.t
         ; enabled : string list
-        (** The switches' flags it opens with ({!Ches_vcs.Popup.initial}): [[]] for
+        (** The switches' flags it opens with ({!Cobalt_vcs.Popup.initial}): [[]] for
             popups that remember nothing, the current choice for one that does (the
-            VCS log popup, phase 8). *)
+            VCS log popup). *)
         ; cancel : 'action option
         }
 
@@ -72,9 +72,9 @@ module Ask : sig
           ; validate : string -> string option
           }
     | Popup of
-        { popup : unit Ches_vcs.Popup.t
+        { popup : unit Cobalt_vcs.Popup.t
         (** The view's popup with its actions' results dropped
-            ({!Ches_vcs.Popup.map}): what the popup float renders and presses keys
+            ({!Cobalt_vcs.Popup.map}): what the popup float renders and presses keys
             on. *)
         ; enabled : string list (** As asked. *)
         }
@@ -95,7 +95,7 @@ module Answer : sig
         { key : char (** The action's key. *)
         ; enabled : string list
         (** The enabled switches' flags, kept to the popup's own and its group rule
-            ({!Ches_vcs.Popup.initial}) before the action's [run] sees them. *)
+            ({!Cobalt_vcs.Popup.initial}) before the action's [run] sees them. *)
         }
     (** A key the popup has no action for declines. *)
   [@@deriving sexp_of, equal]
@@ -155,7 +155,7 @@ module Context : sig
       a leader key typed there) checks it. *)
   val active : t -> File.t option
 
-  (** The dirty files within [root] ({!Ches_core.Resource.within}), in tab order. *)
+  (** The dirty files within [root] ({!Cobalt_core.Resource.within}), in tab order. *)
   val dirty_within : t -> root:string -> File.t list
 end
 
@@ -164,8 +164,8 @@ end
     receives only its {!Ask.Question.t}. *)
 module Outcome : sig
   type 'ask t =
-    { controller : Ches_app.Controller.t (** The input controller, or a changed one. *)
-    ; effect : Ches_tile.Text_view.Effect.t option (** A copy or read-only notice. *)
+    { controller : Cobalt_app.Controller.t (** The input controller, or a changed one. *)
+    ; effect : Cobalt_tile.Text_view.Effect.t option (** A copy or read-only notice. *)
     ; notice : [ `Post of string | `Show of string ] option
     (** [`Post] also reports the notice as feedback; [`Show] only displays it. *)
     ; return : bool (** Return focus to the document afterwards. *)
@@ -175,12 +175,12 @@ module Outcome : sig
         pane when the view is in the split), and the cursor goes to [line]. A file
         that cannot be opened (missing, a directory) gives the view a notice and
         leaves focus where it was. *)
-    ; jobs : Ches_vcs.Job.t list
+    ; jobs : Cobalt_vcs.Job.t list
     (** Background work for the frontend's runner, in submission order
         ([Ui_state.take_vcs_jobs]). The job's events come back to this view as
         {!Signal.t.Job}. A job whose id is still in flight (submitted by any view and
         not yet [Finished]) is not submitted: the view is signalled its
-        {!Ches_vcs.Job.never_started} report at once instead. *)
+        {!Cobalt_vcs.Job.never_started} report at once instead. *)
     ; reconcile : string list
     (** Absolute paths (directories or files) whose retained file buffers the
         application reconciles with disk ([Session.reconcile]): clean buffers whose
@@ -197,7 +197,7 @@ module Outcome : sig
         no retained file buffer or its write fails, the error goes to the feedback
         line (["<Title>: <reason>; nothing ran"]), later paths are not written, and
         none of the outcome's [jobs] is submitted: each is answered at once with its
-        {!Ches_vcs.Job.never_started} report. *)
+        {!Cobalt_vcs.Job.never_started} report. *)
     ; dispose : string list
     (** Absolute paths of files the view created for editing and is done with (a
         commit message once committed or aborted): their retained buffers are
@@ -225,17 +225,17 @@ module Outcome : sig
   (** No effect, notice, return, file, jobs, reconciliation, saves, disposals,
       question or show; [controller] unchanged. *)
   val create
-    :  ?effect:Ches_tile.Text_view.Effect.t
+    :  ?effect:Cobalt_tile.Text_view.Effect.t
     -> ?notice:[ `Post of string | `Show of string ]
     -> ?return:bool
     -> ?open_file:Location.t
-    -> ?jobs:Ches_vcs.Job.t list
+    -> ?jobs:Cobalt_vcs.Job.t list
     -> ?reconcile:string list
     -> ?save:string list
     -> ?dispose:string list
     -> ?ask:'ask
     -> ?show:bool
-    -> Ches_app.Controller.t
+    -> Cobalt_app.Controller.t
     -> 'ask t
 end
 
@@ -263,13 +263,13 @@ module Signal : sig
     (** The session changed these paths on disk (absolute, at least one) during
         the last input: one signal for all of an input's saves (e.g. a save all).
         First the files it wrote (oldest first), then the paths directory-buffer
-        saves changed ({!Ches_app.Session.directory_changes}: created, deleted,
+        saves changed ({!Cobalt_app.Session.directory_changes}: created, deleted,
         copied to, both sides of a rename; a path may be a directory or no longer
         exist). Every installed view gets it, placed or hidden. *)
-    | Job of Ches_vcs.Event.t
+    | Job of Cobalt_vcs.Event.t
     (** An event of a job this view submitted ({!Outcome.t.jobs}), in the runner's
         order; nothing after its [Finished]. Delivered placed or hidden. Staleness
-        is the view's to decide ({!Ches_vcs.Stamps}). *)
+        is the view's to decide ({!Cobalt_vcs.Stamps}). *)
     | Request of string
     (** A named request from a workspace command
         ({!View_command.t.Request_view}, e.g. [Space g c]'s ["commit-finish"]),
@@ -285,27 +285,27 @@ module Adapter : sig
       [rows] and [width] are always the view's content viewport in its placement (one
       row and the screen width while it has none). *)
   type ('state, 'action) t =
-    { spec : Ches_tile.Spec.t (** Identity, title (for notices), and capabilities. *)
+    { spec : Cobalt_tile.Spec.t (** Identity, title (for notices), and capabilities. *)
     ; key : 'state Type_equal.Id.t (** Typed access for the application ({!find}). *)
-    ; fit : 'state -> Ches_app.Controller.t -> rows:int -> width:int -> 'state
+    ; fit : 'state -> Cobalt_app.Controller.t -> rows:int -> width:int -> 'state
     (** Reconcile with the application and the viewport, after every input. *)
     ; leave : 'state -> 'state
     (** Close capture-local state (details, Visual) when focus leaves the view. *)
-    ; text_view : 'state -> Ches_tile.Text_view.t option
+    ; text_view : 'state -> Cobalt_tile.Text_view.t option
     (** Open read-only text: the terminal cursor's position, and the shared
         [Details updated] notice when a fit changes its text. *)
-    ; interpret : 'state -> Key.t list -> 'action Ches_tile.Content_key.t
+    ; interpret : 'state -> Key.t list -> 'action Cobalt_tile.Content_key.t
     ; escape : 'state -> 'action option (** The content's own back action. *)
     ; hint : string (** For an unbound key. *)
     ; perform
       :  'state
-      -> Ches_app.Controller.t
+      -> Cobalt_app.Controller.t
       -> context:Context.t
       -> rows:int
       -> width:int
       -> 'action
       -> 'state * 'action Ask.t Outcome.t
-    ; commands : 'state -> Ches_tile.Local_command.t list
+    ; commands : 'state -> Cobalt_tile.Local_command.t list
     (** The local commands in this state, for [?] help and the palette. Each one's
         keys must {!interpret} to an action in the state that lists it. *)
     ; signal : 'state -> Signal.t -> 'action option
@@ -321,7 +321,7 @@ module Adapter : sig
         ["VCS: main"]; [None] is [spec.title]. Notices keep using the title. *)
     ; render
       :  'state
-      -> Ches_app.Controller.t
+      -> Cobalt_app.Controller.t
       -> hotkey_hints:bool
       -> focused:bool
       -> notice:string option
@@ -362,8 +362,8 @@ type t
 (** Raises on duplicate ids. *)
 val create : Entry.t list -> t
 
-(** Installed views' specs, for {!Ches_tile.Host.create}. *)
-val specs : t -> Ches_tile.Spec.t list
+(** Installed views' specs, for {!Cobalt_tile.Host.create}. *)
+val specs : t -> Cobalt_tile.Spec.t list
 
 (** Installed views, in order. *)
 val ids : t -> View_id.t list
@@ -407,14 +407,14 @@ val editor_companion : t -> path:string -> View_id.t option
 
 (** Fit every installed view, hidden ones included; [viewport id] is its
     [(rows, width)]. [companion] selects the view presented beside its editor. *)
-val fit : ?companion:View_id.t -> t -> Ches_app.Controller.t -> viewport:(View_id.t -> int * int) -> t
+val fit : ?companion:View_id.t -> t -> Cobalt_app.Controller.t -> viewport:(View_id.t -> int * int) -> t
 
-val text_view : t -> View_id.t -> Ches_tile.Text_view.t option
+val text_view : t -> View_id.t -> Cobalt_tile.Text_view.t option
 
 (** The adapter's {!Adapter.t.text_area}; [None] also when not installed. *)
 val text_area : t -> View_id.t -> rows:int -> width:int -> Geometry.Rect.t option
 
-val commands : t -> View_id.t -> Ches_tile.Local_command.t list
+val commands : t -> View_id.t -> Cobalt_tile.Local_command.t list
 
 (** The adapter's {!Adapter.t.label}; [None] also when not installed. *)
 val label : t -> View_id.t -> string option
@@ -422,7 +422,7 @@ val label : t -> View_id.t -> string option
 val render
   :  t
   -> View_id.t
-  -> Ches_app.Controller.t
+  -> Cobalt_app.Controller.t
   -> hotkey_hints:bool
   -> focused:bool
   -> notice:string option
@@ -444,19 +444,19 @@ module Step : sig
     (** The view's state is already updated, and any question is pending. *)
 end
 
-(** Route [key] through {!Ches_tile.Host.key} with the view's interpretation, then
+(** Route [key] through {!Cobalt_tile.Host.key} with the view's interpretation, then
     perform any content action. [None] when [id] is not installed. *)
 val key
   :  t
   -> View_id.t
-  -> Ches_tile.Host.t
+  -> Cobalt_tile.Host.t
   -> Key.t
   -> lookup:(Key.t list -> Bindings.lookup)
-  -> controller:Ches_app.Controller.t
+  -> controller:Cobalt_app.Controller.t
   -> context:Context.t
   -> rows:int
   -> width:int
-  -> (t * Ches_tile.Host.t * Step.t) option
+  -> (t * Cobalt_tile.Host.t * Step.t) option
 
 (** Run a local command by name, exactly as its keys would. An error when the view
     is not installed or does not declare the command in its current state. *)
@@ -464,7 +464,7 @@ val run
   :  t
   -> View_id.t
   -> string
-  -> controller:Ches_app.Controller.t
+  -> controller:Cobalt_app.Controller.t
   -> context:Context.t
   -> rows:int
   -> width:int
@@ -481,7 +481,7 @@ val answer
   :  t
   -> View_id.t
   -> Answer.t
-  -> controller:Ches_app.Controller.t
+  -> controller:Cobalt_app.Controller.t
   -> context:Context.t
   -> rows:int
   -> width:int
@@ -498,7 +498,7 @@ val signal
   :  t
   -> View_id.t
   -> Signal.t
-  -> controller:Ches_app.Controller.t
+  -> controller:Cobalt_app.Controller.t
   -> context:Context.t
   -> rows:int
   -> width:int

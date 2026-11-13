@@ -1,13 +1,13 @@
 open! Core
-open Ches_core
-open Ches_input
-open Ches_app
-module Host = Ches_tile.Host
-module View_id = Ches_tile.View_id
-module Completion = Ches_completion.Model
-module Snippet = Ches_completion.Snippet
-module Query = Ches_error.Language_query
-module Navigation_preview = Ches_navigation_preview_model.Model
+open Cobalt_core
+open Cobalt_input
+open Cobalt_app
+module Host = Cobalt_tile.Host
+module View_id = Cobalt_tile.View_id
+module Completion = Cobalt_completion.Model
+module Snippet = Cobalt_completion.Snippet
+module Query = Cobalt_error.Language_query
+module Navigation_preview = Cobalt_navigation_preview_model.Model
 
 type navigation_origin =
   { request : Query.request
@@ -55,7 +55,7 @@ type completion_session =
   ; owner : Buffer_id.t option
   ; document : Controller.Document_id.t
   ; installed : bool
-  ; metadata : Ches_error.Completion_info.t String.Map.t
+  ; metadata : Cobalt_error.Completion_info.t String.Map.t
   ; resolving : (string * int) option
   ; base : Text_buffer.t
   ; base_cursor : int
@@ -107,26 +107,26 @@ module Input = struct
     | Key of Key.t
     | Key_at of { key : Key.t; at : Time_ns.t }
     | Toggle_tick of Time_ns.t
-    | Terminal of Ches_terminal.Model.event
-    | Terminal_update of { generation : int; event : Ches_terminal.Model.event }
-    | Terminal_session_update of { terminal : int; generation : int; event : Ches_terminal.Model.event }
-    | Terminal_key of Ches_terminal.Model.key
-    | Terminal_key_at of { key : Ches_terminal.Model.key; at : Time_ns.t }
+    | Terminal of Cobalt_terminal.Model.event
+    | Terminal_update of { generation : int; event : Cobalt_terminal.Model.event }
+    | Terminal_session_update of { terminal : int; generation : int; event : Cobalt_terminal.Model.event }
+    | Terminal_key of Cobalt_terminal.Model.key
+    | Terminal_key_at of { key : Cobalt_terminal.Model.key; at : Time_ns.t }
     | Terminal_tick of Time_ns.t
     | Paste_start
     | Paste_end
     | Animation_tick of Time_ns.t
     | Resize
-    | Source of Ches_error.Source_event.t
-    | File_picker_snapshot of Ches_file_picker.Model.Discovery.t
-    | File_picker_update of Ches_file_picker.Model.Discovery.Update.t
-    | File_preview of Ches_file_preview_model.Model.snapshot
-    | File_picker_work of Ches_file_picker.Model.Discovery.request
-    | File_picker_accept of View_id.t Ches_file_picker.Model.Request.t
-    | Content_picker_accept of (View_id.t Ches_content_picker.Model.intent [@sexp.opaque])
+    | Source of Cobalt_error.Source_event.t
+    | File_picker_snapshot of Cobalt_file_picker.Model.Discovery.t
+    | File_picker_update of Cobalt_file_picker.Model.Discovery.Update.t
+    | File_preview of Cobalt_file_preview_model.Model.snapshot
+    | File_picker_work of Cobalt_file_picker.Model.Discovery.request
+    | File_picker_accept of View_id.t Cobalt_file_picker.Model.Request.t
+    | Content_picker_accept of (View_id.t Cobalt_content_picker.Model.intent [@sexp.opaque])
     | Line_picker_work of int
-    | Content_picker_snapshot of (Ches_content_picker.Model.snapshot [@sexp.opaque])
-    | Vcs of Ches_vcs.Event.t
+    | Content_picker_snapshot of (Cobalt_content_picker.Model.snapshot [@sexp.opaque])
+    | Vcs of Cobalt_vcs.Event.t
   [@@deriving sexp_of]
 end
 
@@ -135,7 +135,7 @@ end
 type terminal_session =
   { started : bool
   ; generation : int
-  ; snapshot : Ches_terminal.Model.snapshot option
+  ; snapshot : Cobalt_terminal.Model.snapshot option
   ; failure : string option
   ; size : (int * int) option
   ; preferred : Floating.Size.t option
@@ -156,7 +156,7 @@ type toggle_owner =
 
 type toggle_key =
   | Editor_key of Key.t
-  | Shell_key of Ches_terminal.Model.key
+  | Shell_key of Cobalt_terminal.Model.key
 
 type toggle_pending =
   { owner : toggle_owner
@@ -167,7 +167,7 @@ type toggle_pending =
 
 type t =
   { controller : Controller.t
-  ; harness_requests : Ches_harness.Protocol.work list
+  ; harness_requests : Cobalt_harness.Protocol.work list
   ; harness_busy : bool
   ; harness_root : string option
   ; waveform : Waveform_tile.t option
@@ -182,7 +182,7 @@ type t =
   ; instance_origin : instance_context option
   ; active_instance : instance_context option
   ; context_revisions : int String.Map.t
-  ; servers : Ches_error.Source_event.Server.t list option
+  ; servers : Cobalt_error.Source_event.Server.t list option
   ; destination_versions : destination_version String.Map.t
   ; navigation_preview : Navigation_preview.request option
   ; navigation_preview_key : navigation_preview_key option
@@ -193,11 +193,11 @@ type t =
   ; completion : completion_session option
   ; completion_acceptance : completion_acceptance option
   ; completion_serial : int
-  ; user_snippets : Ches_completion.User_snippets.t
+  ; user_snippets : Cobalt_completion.User_snippets.t
   (* Keep the base separate so removing configuration operations restores it,
      and late legacy replies can only replace the lower-priority layer. *)
-  ; legacy_snippets : Ches_completion.User_snippets.t
-  ; configuration_snippets : Ches_completion.User_snippets.operation list
+  ; legacy_snippets : Cobalt_completion.User_snippets.t
+  ; configuration_snippets : Cobalt_completion.User_snippets.operation list
   ; snippet_generation : int
   ; snippet_reload_requests : int list
   ; snippet_loading : bool
@@ -207,7 +207,7 @@ type t =
   ; completion_ghost_enabled : bool
   ; completion_min_prefix_chars : int
   ; completion_prefer_local_snippets : bool
-  ; configuration_theme_override : Ches_theme.Theme.t option
+  ; configuration_theme_override : Cobalt_theme.Theme.t option
   ; completion_colors : (string * string) list
   ; config_generation : int
   ; config_reload_requests : int list
@@ -238,18 +238,18 @@ type t =
   ; terminal_cwd : string option
   ; terminal_started : bool
   ; terminal_generation : int
-  ; terminal_snapshot : Ches_terminal.Model.snapshot option
+  ; terminal_snapshot : Cobalt_terminal.Model.snapshot option
   ; terminal_failure : string option
   ; terminal_size : (int * int) option
   ; terminal_preferred : Floating.Size.t option
   ; terminal_pending_j : (Time_ns.t * int) option
   ; toggle_pending : toggle_pending option
-  ; terminal_requests : (int * Ches_terminal.Model.request) list (** Newest first, stamped at enqueue. *)
+  ; terminal_requests : (int * Cobalt_terminal.Model.request) list (** Newest first, stamped at enqueue. *)
   ; terminal_return : View_id.t
   ; terminal_prefix : Key.t list
   ; terminal_inspection : Terminal_tile.inspection option
   ; terminal_paste : (string list * int * bool) option (** Chunks, bytes, valid. *)
-  ; theme : Ches_theme.Theme.t
+  ; theme : Cobalt_theme.Theme.t
   ; theme_picker : Theme_picker_tile.t option
   ; theme_picker_return : View_id.t
   ; snippet_picker : Snippet_picker_tile.t option
@@ -265,7 +265,7 @@ type t =
   ; file_picker : View_id.t File_picker_tile.t option
   ; file_picker_release : unit -> unit
   ; file_picker_return : View_id.t
-  ; file_requests : View_id.t Ches_file_picker.Model.Request.t list
+  ; file_requests : View_id.t Cobalt_file_picker.Model.Request.t list
   ; file_picker_activation : bool
   ; content_picker_activation : bool
   ; line_picker : Line_picker_tile.t option
@@ -274,7 +274,7 @@ type t =
   ; content_picker : View_id.t Content_picker_tile.t option
   ; content_picker_release : unit -> unit
   ; content_picker_return : View_id.t
-  ; content_requests : View_id.t Ches_content_picker.Model.intent list
+  ; content_requests : View_id.t Cobalt_content_picker.Model.intent list
   ; scroll : Scroll.t
   ; rows : int option
   (** Text rows the scroll was last fitted for: when they change, the fit fills the
@@ -283,15 +283,15 @@ type t =
   ; animation_time : Time_ns.t option
   ; fitted_dimensions : (int * int) option
   ; exited : bool
-  ; held : ((string * string) * Ches_error.Error.update * Text_buffer.t) list
+  ; held : ((string * string) * Cobalt_error.Error.update * Text_buffer.t) list
   (** Diagnostic snapshots that arrived during Insert, newest per (source, resource),
       in arrival order, with the text at arrival; applied when Insert ends. *)
   ; source_attached : bool (** A diagnostic source runs ([--synthetic-checker]). *)
   ; sent_revisions : (int * int) Buffer_id.Map.t
-  ; source_commands : Ches_error.Source_request.t list
+  ; source_commands : Cobalt_error.Source_request.t list
   (** Restart/kill requests not yet taken, newest first. *)
-  ; jobs : Ches_vcs.Job.t list (** Submitted by views, not yet taken; newest first. *)
-  ; job_owners : View_id.t Ches_vcs.Job.Id.Map.t
+  ; jobs : Cobalt_vcs.Job.t list (** Submitted by views, not yet taken; newest first. *)
+  ; job_owners : View_id.t Cobalt_vcs.Job.Id.Map.t
   (** The view that submitted each job in flight (taken or not), until its
       [Finished] event. *)
   ; shown : View_id.t list
@@ -373,8 +373,8 @@ let create
   ; completion = None
   ; completion_acceptance = None
   ; completion_serial = 0
-  ; user_snippets = Ches_completion.User_snippets.builtins
-  ; legacy_snippets = Ches_completion.User_snippets.builtins
+  ; user_snippets = Cobalt_completion.User_snippets.builtins
+  ; legacy_snippets = Cobalt_completion.User_snippets.builtins
   ; configuration_snippets = []
   ; snippet_generation = 1
   ; snippet_reload_requests = [1]
@@ -410,8 +410,8 @@ let create
       Host.create
         ~leader:(Key.char ' ')
         ~primary:document_id
-        ([ Ches_tile.Spec.primary document_id ~title:"Document"
-         ; Ches_tile.Spec.companion status_id ~title:"Status"
+        ([ Cobalt_tile.Spec.primary document_id ~title:"Document"
+         ; Cobalt_tile.Spec.companion status_id ~title:"Status"
          ]
          @ View_registry.specs views
           @ [ Palette_tile.spec
@@ -429,7 +429,7 @@ let create
            ; Confirm_tile.spec
            ; Prompt_tile.spec
            ; Popup_tile.spec
-           ; Ches_tile.Spec.read_only_text directory_id ~title:"Directory"
+           ; Cobalt_tile.Spec.read_only_text directory_id ~title:"Directory"
            ])
   ; views
   ; tabs = Tab_strip.empty
@@ -452,7 +452,7 @@ let create
   ; terminal_prefix = []
   ; terminal_inspection = None
   ; terminal_paste = None
-  ; theme = Option.value theme ~default:Ches_theme.Theme.default
+  ; theme = Option.value theme ~default:Cobalt_theme.Theme.default
   ; theme_picker = None
   ; theme_picker_return = document_id
   ; snippet_picker = None
@@ -486,7 +486,7 @@ let create
   ; sent_revisions = Buffer_id.Map.empty
   ; source_commands = []
   ; jobs = []
-  ; job_owners = Ches_vcs.Job.Id.Map.empty
+  ; job_owners = Cobalt_vcs.Job.Id.Map.empty
   ; shown = []
   ; saves_signalled = 0
   ; changes_signalled = 0
@@ -542,7 +542,7 @@ let take_terminal_requests t =
 ;;
 let theme t =
   let base = Option.value_map t.theme_picker ~f:Theme_picker_tile.preview ~default:t.theme in
-  Ches_theme.Theme.with_completion_colors base t.completion_colors |> Or_error.ok_exn
+  Cobalt_theme.Theme.with_completion_colors base t.completion_colors |> Or_error.ok_exn
 let theme_picker t = t.theme_picker
 let snippet_picker t = t.snippet_picker
 let hover t = t.hover
@@ -582,7 +582,7 @@ let active_instance_label t =
 ;;
 
 let clear_stale_instance_notice t =
-  match Ches_error.Error.notification (Controller.feedback t.controller) with
+  match Cobalt_error.Error.notification (Controller.feedback t.controller) with
   | Some notice when String.equal notice.source "navigation"
       && String.is_prefix notice.text ~prefix:"Instance: "
       && not (Option.equal String.equal (Some notice.text) (active_instance_label t)) ->
@@ -867,19 +867,19 @@ let expire_completion_acceptance t ~at =
   | _ -> t
 ;;
 
-let apply_configuration ?theme_override t (settings : Ches_config_runtime.Settings.t) =
-  match Ches_config_runtime.Settings.validate settings with
+let apply_configuration ?theme_override t (settings : Cobalt_config_runtime.Settings.t) =
+  match Cobalt_config_runtime.Settings.validate settings with
   | Error error -> Error (Error.to_string_hum error)
   | Ok _ ->
-    match Ches_theme.Theme.find settings.theme with
+    match Cobalt_theme.Theme.find settings.theme with
     | None -> Error ("Unknown configuration theme: " ^ settings.theme)
     | Some configured_theme ->
-      match Ches_completion.User_snippets.apply t.legacy_snippets settings.snippets with
+      match Cobalt_completion.User_snippets.apply t.legacy_snippets settings.snippets with
       | Error error -> Error (Error.to_string_hum error)
       | Ok user_snippets ->
       let configuration_theme_override = Option.first_some theme_override t.configuration_theme_override in
       let theme = Option.value configuration_theme_override ~default:configured_theme in
-      match Ches_theme.Theme.with_completion_colors theme settings.completion_colors with
+      match Cobalt_theme.Theme.with_completion_colors theme settings.completion_colors with
       | Error error -> Error (Error.to_string_hum error)
       | Ok _ ->
       let line_numbers = if settings.line_numbers then Line_numbers.Absolute else Off in
@@ -915,8 +915,8 @@ let receive_configuration t ~generation result =
   let t = dismiss_snippet_picker t in
   let result = Result.bind result ~f:(apply_configuration t) in
   let t, severity, text = match result with
-    | Ok t -> t, Ches_error.Error.Severity.Info, "Configuration reloaded"
-    | Error error -> t, Ches_error.Error.Severity.Error, "Could not reload configuration: " ^ error in
+    | Ok t -> t, Cobalt_error.Error.Severity.Info, "Configuration reloaded"
+    | Error error -> t, Cobalt_error.Error.Severity.Error, "Could not reload configuration: " ^ error in
   { t with config_loading = false
     ; controller = Controller.update_feedback t.controller
         (Notify { source = "configuration"; scope = None; severity; text; history = true }) }
@@ -936,14 +936,14 @@ let reload_snippets t =
 let receive_snippets t ~generation result =
   if generation <> t.snippet_generation || not t.snippet_loading then t else
   let result = Result.bind result ~f:(fun legacy_snippets ->
-    Ches_completion.User_snippets.apply legacy_snippets t.configuration_snippets
+    Cobalt_completion.User_snippets.apply legacy_snippets t.configuration_snippets
     |> Result.map ~f:(fun user_snippets -> legacy_snippets, user_snippets)
     |> Result.map_error ~f:Error.to_string_hum) in
   let t = dismiss_snippet_picker (dismiss_completion { t with snippet_loading = false }) in
   let t, severity, text = match result with
     | Ok (legacy_snippets, user_snippets) ->
-      { t with legacy_snippets; user_snippets }, Ches_error.Error.Severity.Info, "Snippets reloaded"
-    | Error error -> t, Ches_error.Error.Severity.Error, "Could not reload snippets: " ^ error in
+      { t with legacy_snippets; user_snippets }, Cobalt_error.Error.Severity.Info, "Snippets reloaded"
+    | Error error -> t, Cobalt_error.Error.Severity.Error, "Could not reload snippets: " ^ error in
   { t with controller = Controller.update_feedback t.controller
       (Notify { source = "snippets"; scope = None; severity; text; history = true }) }
 ;;
@@ -1124,7 +1124,7 @@ let start_completion ?(manual = false) t =
       ?words ~limit:100 () with
   | None -> t
   | Some (model, request) ->
-    let snippets = Ches_completion.User_snippets.candidates t.user_snippets
+    let snippets = Cobalt_completion.User_snippets.candidates t.user_snippets
         ~path:(Editor.path editor) ~text ~cursor:(Editor.cursor editor) ~limit:100 in
     let model = Completion.receive model
         { token; source = "\000user-snippets"; candidates = snippets; incomplete = false } in
@@ -1329,8 +1329,8 @@ let scroll t = t.scroll
 let message t =
   let feedback = Controller.feedback t.controller in
   let count = Problems.count feedback in
-  let presented = Ches_error.Error.presented_problem feedback in
-  let notification = Ches_error.Error.notification feedback in
+  let presented = Cobalt_error.Error.presented_problem feedback in
+  let notification = Cobalt_error.Error.notification feedback in
   if bare t then
     Option.map notification ~f:(fun notification ->
       let kind = match notification.severity with
@@ -1403,13 +1403,13 @@ let take_source_requests t =
         | None -> sent, requests
         | Some resource ->
           let same_lifetime = Option.exists previous ~f:(fun (old, _) -> old = generation) in
-          let opened = if not same_lifetime then [ Ches_error.Source_request.Document_opened { resource; generation } ] else [] in
+          let opened = if not same_lifetime then [ Cobalt_error.Source_request.Document_opened { resource; generation } ] else [] in
           let changed = if Option.equal Poly.equal previous (Some (generation, Editor.revision editor)) then [] else
-            [ Ches_error.Source_request.Document_changed { resource; text = Text_buffer.to_string (Editor.text editor); revision = Editor.revision editor } ] in
+            [ Cobalt_error.Source_request.Document_changed { resource; text = Text_buffer.to_string (Editor.text editor); revision = Editor.revision editor } ] in
           sent, List.rev_append (opened @ changed) requests) in
     let document = List.rev document in
-    let saves = List.map saved ~f:(fun { Controller.Saved.path; revision } -> Ches_error.Source_request.Document_saved { resource = path; revision }) in
-    let closes = List.map closed ~f:(fun resource -> Ches_error.Source_request.Document_closed { resource }) in
+    let saves = List.map saved ~f:(fun { Controller.Saved.path; revision } -> Cobalt_error.Source_request.Document_saved { resource = path; revision }) in
+    let closes = List.map closed ~f:(fun resource -> Cobalt_error.Source_request.Document_closed { resource }) in
     let controller = Option.value (Session.active_controller session) ~default:t.controller in
     ( { t with session; controller; sent_revisions; source_commands = []; saves_signalled = 0; changes_signalled = 0 }
     , closes @ document @ saves @ List.rev t.source_commands ))
@@ -1786,7 +1786,7 @@ let text_view t id = View_registry.text_view t.views id
 (* Where minor view [id]'s adapter wants the cursor in its [content] area. The palette
    puts a bar after its query; a view with open read-only text puts a block on its text
    cursor; others want none. *)
-let cursor_intent t id ~(content : Geometry.Rect.t) : Ches_tile.Cursor.t option =
+let cursor_intent t id ~(content : Geometry.Rect.t) : Cobalt_tile.Cursor.t option =
   if View_id.equal id Theme_picker_tile.id
   then Option.map t.theme_picker ~f:(Theme_picker_tile.cursor ~width:content.width)
   else if View_id.equal id Snippet_picker_tile.id
@@ -1813,9 +1813,9 @@ let cursor_intent t id ~(content : Geometry.Rect.t) : Ches_tile.Cursor.t option 
           (View_registry.text_area t.views id ~rows:content.height ~width:content.width)
           ~default:{ Geometry.Rect.x = 0; y = 0; width = content.width; height = content.height }
       in
-      let view = Ches_tile.Text_view.fit view ~width:area.width ~rows:area.height in
-      let row, column = Ches_tile.Text_view.cursor_cell view ~width:area.width in
-      { Ches_tile.Cursor.row = area.y + row - Ches_tile.Text_view.top view
+      let view = Cobalt_tile.Text_view.fit view ~width:area.width ~rows:area.height in
+      let row, column = Cobalt_tile.Text_view.cursor_cell view ~width:area.width in
+      { Cobalt_tile.Cursor.row = area.y + row - Cobalt_tile.Text_view.top view
       ; column = area.x + column
       ; shape = Block
       })
@@ -1885,8 +1885,8 @@ let flush_terminal_j t =
       && (match t.terminal_snapshot with
           | Some s -> Option.is_none s.exited
           | None -> Option.is_none t.terminal_failure) in
-    let key : Ches_terminal.Model.key =
-      { code = Char (Uchar.of_char 'j'); modifiers = Ches_terminal.Model.no_modifiers } in
+    let key : Cobalt_terminal.Model.key =
+      { code = Char (Uchar.of_char 'j'); modifiers = Cobalt_terminal.Model.no_modifiers } in
     { t with terminal_pending_j = None
       ; terminal_requests = if live then (t.terminal_number, Key key) :: t.terminal_requests else t.terminal_requests }
 ;;
@@ -2051,8 +2051,8 @@ let inspect_terminal t =
 
 (* Full-fidelity terminal keys reach this adapter in every mode. Only inspection
    converts them to the deliberately smaller generic read-only key vocabulary. *)
-let inspection_key (key : Ches_terminal.Model.key) =
-  let module M = Ches_terminal.Model in
+let inspection_key (key : Cobalt_terminal.Model.key) =
+  let module M = Cobalt_terminal.Model in
   if key.modifiers.alt then None else
   match key.code with
   | Char u when key.modifiers.ctrl ->
@@ -2065,8 +2065,8 @@ let inspection_key (key : Ches_terminal.Model.key) =
   | _ -> None
 ;;
 
-let terminal_key_raw t ~width ~height (key : Ches_terminal.Model.key) =
-  let module M = Ches_terminal.Model in
+let terminal_key_raw t ~width ~height (key : Cobalt_terminal.Model.key) =
+  let module M = Cobalt_terminal.Model in
   let normal = not key.modifiers.alt && match key.code with
     | Char u -> let c = Uchar.to_scalar u in
       c = 0 || (key.modifiers.ctrl && (c = 32 || c = 64))
@@ -2102,7 +2102,7 @@ let terminal_key_raw t ~width ~height (key : Ches_terminal.Model.key) =
     | None ->
       if terminal_running t then { t with terminal_requests = (t.terminal_number, M.Key key) :: t.terminal_requests } else t
     | Some inspection ->
-      let module T = Ches_tile.Text_view in
+      let module T = Cobalt_tile.Text_view in
       match inspection_key key with
       | None -> t
       | Some key ->
@@ -2139,7 +2139,7 @@ let terminal_key_raw t ~width ~height (key : Ches_terminal.Model.key) =
             | _ -> false) in
           let count = if List.is_empty digits then 1 else
             List.fold digits ~init:0 ~f:(fun n -> function
-              | Key.Char u -> Int.min Ches_core.Command.max_count (n * 10 + Uchar.to_scalar u - 48)
+              | Key.Char u -> Int.min Cobalt_core.Command.max_count (n * 10 + Uchar.to_scalar u - 48)
               | _ -> n) |> Int.max 1 in
           let sequence s = List.equal Key.equal suffix (List.map (String.to_list s) ~f:Key.char) in
           if sequence " /" then
@@ -2164,8 +2164,8 @@ let terminal_j_expired t at =
     Time_ns.Span.( >= ) (Time_ns.diff at started) (Time_ns.Span.of_ms 150.))
 ;;
 
-let terminal_key t ~width ~height ~at (key : Ches_terminal.Model.key) =
-  let module M = Ches_terminal.Model in
+let terminal_key t ~width ~height ~at (key : Cobalt_terminal.Model.key) =
+  let module M = Cobalt_terminal.Model in
   let plain c = M.equal_key key { code = Char (Uchar.of_char c); modifiers = M.no_modifiers } in
   let t = if terminal_j_expired t at then flush_terminal_j t else t in
   if terminal_capturing t && terminal_running t && Option.is_none t.terminal_paste
@@ -2402,10 +2402,10 @@ let synchronize t ~width ~height =
     List.fold2_exn before after ~init:t ~f:(fun t before after ->
       match before, after with
       | Some before, Some after
-        when not (String.equal (Ches_tile.Text_view.text before) (Ches_tile.Text_view.text after))
+        when not (String.equal (Cobalt_tile.Text_view.text before) (Cobalt_tile.Text_view.text after))
         ->
         let text =
-          if Option.is_some (Ches_tile.Text_view.visual before)
+          if Option.is_some (Cobalt_tile.Text_view.visual before)
           then "Details updated; selection cleared"
           else "Details updated"
         in
@@ -2644,7 +2644,7 @@ let cursor_position t ~width ~height =
 
 let minor_cursor ?floating t ~width ~height =
   if View_id.equal (focused_view ?floating t ~width ~height) directory_id then
-    Option.map (cursor_position t ~width ~height) ~f:(fun (x, y) -> x, y, Ches_tile.Cursor.Shape.Block)
+    Option.map (cursor_position t ~width ~height) ~f:(fun (x, y) -> x, y, Cobalt_tile.Cursor.Shape.Block)
   else supporting_cursor ?floating t ~width ~height
 ;;
 
@@ -2920,13 +2920,13 @@ let pane_notice t ~source text =
 
 (* What a view's read-only text asks for: copies go to the register and clipboard
    through the controller; rejections are capture notices from the view. *)
-let text_effect t ~source (effect : Ches_tile.Text_view.Effect.t option) =
+let text_effect t ~source (effect : Cobalt_tile.Text_view.Effect.t option) =
   match effect with
   | None -> t
   | Some (Copy register) ->
     { t with
       controller = Controller.yank t.controller register
-    ; host = Host.with_notice t.host (Ches_tile.Text_view.Effect.describe_copy register)
+    ; host = Host.with_notice t.host (Cobalt_tile.Text_view.Effect.describe_copy register)
     }
   | Some (Notice text) ->
     pane_notice t ~source (sprintf "%s: %s" (Host.spec t.host source).title text)
@@ -2972,7 +2972,7 @@ let open_ask t ~width ~height ~source (question : View_registry.Ask.Question.t) 
    [footer] (a key's outcome; a signalled one leaves the focused view's footer
    alone). *)
 let view_error t ~source ~footer text =
-  let text = Ches_file_picker.Model.Candidate.display_text text in
+  let text = Cobalt_file_picker.Model.Candidate.display_text text in
   { t with
     host = (if footer then Host.with_notice t.host text else t.host)
   ; controller =
@@ -3027,7 +3027,7 @@ let open_location t ~width ~height ~source
   =
   let failed text =
     pane_notice t ~source
-      (Ches_file_picker.Model.Candidate.display_text
+      (Cobalt_file_picker.Model.Candidate.display_text
          (sprintf "%s: %s" (Host.spec t.host source).title text))
   in
   let session =
@@ -3190,11 +3190,11 @@ let rec apply_signal_outcome t ~width ~height ~source
 (* Jobs go out unless their id is in flight, or [saved] is false (the outcome's save
    failed): those are answered with their never-started report instead. *)
 and submit_jobs t ~width ~height ~source ~saved jobs =
-  List.fold jobs ~init:t ~f:(fun t (job : Ches_vcs.Job.t) ->
+  List.fold jobs ~init:t ~f:(fun t (job : Cobalt_vcs.Job.t) ->
     if (not saved) || Map.mem t.job_owners job.id
     then
       signal_view t ~width ~height source
-        (View_registry.Signal.Job (Finished (Ches_vcs.Job.never_started job)))
+        (View_registry.Signal.Job (Finished (Cobalt_vcs.Job.never_started job)))
     else
       { t with
         jobs = job :: t.jobs
@@ -3250,8 +3250,8 @@ let apply_outcome t ~width ~height ~source
 (* A runner's event for a job in flight goes to the view that submitted it; [Finished]
    ends the job's ownership first, so the view may reuse nothing but can submit
    anew. Events of unknown jobs are dropped. *)
-let receive_job t ~width ~height (event : Ches_vcs.Event.t) =
-  let id = Ches_vcs.Event.job event in
+let receive_job t ~width ~height (event : Cobalt_vcs.Event.t) =
+  let id = Cobalt_vcs.Event.job event in
   match Map.find t.job_owners id with
   | None -> t
   | Some owner ->
@@ -3394,14 +3394,14 @@ let local_entries t origin =
   | Some view ->
     let title = (Host.spec t.host view).title in
     View_registry.commands t.views view
-    |> List.filter ~f:(fun (command : Ches_tile.Local_command.t) ->
-      Ches_tile.Local_command.valid_name command.name
-      && Ches_tile.Local_command.valid_name (View_id.to_string view)
+    |> List.filter ~f:(fun (command : Cobalt_tile.Local_command.t) ->
+      Cobalt_tile.Local_command.valid_name command.name
+      && Cobalt_tile.Local_command.valid_name (View_id.to_string view)
       && not (String.is_empty (String.strip command.description)))
-    |> List.stable_dedup ~compare:(fun (a : Ches_tile.Local_command.t) b ->
+    |> List.stable_dedup ~compare:(fun (a : Cobalt_tile.Local_command.t) b ->
       String.compare a.name b.name)
-    |> List.map ~f:(fun (command : Ches_tile.Local_command.t) ->
-      ( Ches_palette.Catalog.Entry.create
+    |> List.map ~f:(fun (command : Cobalt_tile.Local_command.t) ->
+      ( Cobalt_palette.Catalog.Entry.create
           ~id:(sprintf "local.%s.%s" (View_id.to_string view) command.name)
           ~title:(sprintf "%s: %s" title command.description)
           ~keywords:[ "local"; String.lowercase title; command.name ]
@@ -3563,7 +3563,7 @@ let source_serves t source resource =
      until the manager supplies an authoritative attachment snapshot. *)
   | None -> true
   | Some servers -> List.exists servers ~f:(fun server ->
-      String.equal server.Ches_error.Source_event.Server.source source
+      String.equal server.Cobalt_error.Source_event.Server.source source
       && List.mem server.resources resource ~equal:String.equal)
 ;;
 
@@ -3709,7 +3709,7 @@ let open_snippet_picker t ~width ~height =
       ; revision = Editor.revision editor; cursor = Editor.cursor editor
       ; mode = Editor.mode editor } in
     let picker = Snippet_picker_tile.create
-        (Ches_completion.User_snippets.available t.user_snippets ~path:(Editor.path editor)) in
+        (Cobalt_completion.User_snippets.available t.user_snippets ~path:(Editor.path editor)) in
     let t = List.fold (leave_ids t) ~init:t ~f:leave in
     let t = { t with snippet_picker = Some picker; snippet_picker_snapshot = Some snapshot
       ; controller = Controller.cancel_pending t.controller
@@ -3718,14 +3718,14 @@ let open_snippet_picker t ~width ~height =
         ~rows:(minor_rows t ~width ~height Snippet_picker_tile.id)) }
 ;;
 
-let accept_snippet_picker t (item : Ches_completion.User_snippets.item) =
+let accept_snippet_picker t (item : Cobalt_completion.User_snippets.item) =
   if not (snippet_picker_current t) then dismiss_snippet_picker t else
   let t = dismiss_snippet_picker t in
   let controller, _, _ = Controller.dispatch (Controller.cancel_pending t.controller)
       [ Editor (Enter_insert Before_cursor) ] in
   let editor = Controller.editor controller in
   let text = Editor.text editor and cursor = Editor.cursor editor in
-  match Ches_completion.User_snippets.instantiate t.user_snippets ~id:item.declaration.id
+  match Cobalt_completion.User_snippets.instantiate t.user_snippets ~id:item.declaration.id
       ~path:(Editor.path editor) ~text ~cursor with
   | Error error -> pane_notice t ~source:Snippet_picker_tile.id (Error.to_string_hum error)
   | Ok candidate ->
@@ -3761,16 +3761,16 @@ let open_palette t ~width ~height =
     in
     let local = local_entries t origin in
     let globals =
-      Ches_palette.Catalog.entries Ches_palette.Catalog.default
+      Cobalt_palette.Catalog.entries Cobalt_palette.Catalog.default
       |> List.filter ~f:(fun entry ->
         not (List.exists [ View_command.Insert_demo_snippet; Insert_snippet ] ~f:(fun command ->
-          Keymap.Action.equal (Ches_palette.Catalog.Entry.action entry) (View command)))
+          Keymap.Action.equal (Cobalt_palette.Catalog.Entry.action entry) (View command)))
         || (snippet_insertion_available t && View_id.equal current document_id))
-      |> Ches_palette.Catalog.create |> Or_error.ok_exn
+      |> Cobalt_palette.Catalog.create |> Or_error.ok_exn
     in
     let catalog =
-      Ches_palette.Catalog.create
-        (List.map local ~f:fst @ Ches_palette.Catalog.entries globals)
+      Cobalt_palette.Catalog.create
+        (List.map local ~f:fst @ Cobalt_palette.Catalog.entries globals)
       |> Result.ok |> Option.value ~default:globals
     in
     let palette =
@@ -3780,7 +3780,7 @@ let open_palette t ~width ~height =
         ~token:document_id
         ~bindings:(Bindings.to_list (Keymap.bindings (Controller.keymap t.controller)))
         ~shortcuts:
-          (List.map local ~f:(fun (entry, keys) -> Ches_palette.Catalog.Entry.id entry, keys))
+          (List.map local ~f:(fun (entry, keys) -> Cobalt_palette.Catalog.Entry.id entry, keys))
     in
     let t =
       { (if View_registry.installed t.views current
@@ -4273,11 +4273,11 @@ let finish_step t ~width ~height ~controller ~views ~keymap_notice =
   in
   let notification =
     match keymap_notice, List.last views with
-    | Some text, _ -> Some (Ches_error.Error.Severity.Warning, "keymap", text, true)
+    | Some text, _ -> Some (Cobalt_error.Error.Severity.Warning, "keymap", text, true)
     | None, Some view ->
       (* Layout feedback is transient chatter; history keeps keymap notices only. *)
       Option.map (view_feedback t ~before ~width ~height view) ~f:(fun text ->
-        Ches_error.Error.Severity.Info, "workspace", text, false)
+        Cobalt_error.Error.Severity.Info, "workspace", text, false)
     | None, None -> None
   in
   match notification with
@@ -4564,21 +4564,21 @@ let paste_capture t ~width ~height id text =
    refusal closes it too and says why; nothing runs on another target. *)
 let accept_palette t ~width ~height palette =
   let editor = Controller.editor t.controller in
-  let context : Ches_palette.Catalog.Context.t option =
+  let context : Cobalt_palette.Catalog.Context.t option =
     Option.some_if
-      (View_id.equal (Ches_palette.Palette.token palette) document_id)
-      { Ches_palette.Catalog.Context.mode = Editor.mode editor }
+      (View_id.equal (Cobalt_palette.Palette.token palette) document_id)
+      { Cobalt_palette.Catalog.Context.mode = Editor.mode editor }
   in
   let refuse text = pane_notice (return_to_document t) ~source:Palette_tile.id text in
-  match Ches_palette.Palette.accept palette ~context with
+  match Cobalt_palette.Palette.accept palette ~context with
   | No_selection -> { t with host = Host.with_notice t.host "No matching command" }, Controller.Status.Running
   | Target_gone _ -> refuse "The palette's document is gone; nothing ran", Running
   | Unavailable { id; _ } ->
     let title =
       Option.value_map
-        (Ches_palette.Catalog.find Ches_palette.Catalog.default id)
-        ~default:(Ches_palette.Catalog.Id.to_string id)
-        ~f:Ches_palette.Catalog.Entry.title
+        (Cobalt_palette.Catalog.find Cobalt_palette.Catalog.default id)
+        ~default:(Cobalt_palette.Catalog.Id.to_string id)
+        ~f:Cobalt_palette.Catalog.Entry.title
     in
     refuse (sprintf "%s is unavailable here; nothing ran" title), Running
   | Execute { action = View (Run_view_command { view; _ } as command); _ } ->
@@ -4667,7 +4667,7 @@ let route t ~width ~height key =
   | Some id when View_id.equal id Waveform_tile.id ->
     (match key, t.waveform with
      | Escape, _ -> { t with waveform = None; host = Host.return t.host }, Controller.Status.Running
-     | key, _ when Ches_input.Key.equal key (Ches_input.Key.char 'q') ->
+     | key, _ when Cobalt_input.Key.equal key (Cobalt_input.Key.char 'q') ->
        { t with waveform = None; host = Host.return t.host }, Running
      | key, Some wave ->
        { t with waveform = Some (Waveform_tile.key wave key
@@ -4966,7 +4966,7 @@ let refit t ~width ~height =
    since fitting the problems view sorts every standing finding. *)
 let apply_source t update ~text =
   let t =
-    match (update : Ches_error.Error.update) with
+    match (update : Cobalt_error.Error.update) with
     | Diagnostics_received { source; resource; _ } ->
        { t with views = View_registry.map t.views Problems_tile.key ~f:(fun problems ->
            Problems_tile.applied problems ~source ~resource ~text) }
@@ -4975,7 +4975,7 @@ let apply_source t update ~text =
   { t with controller = Controller.update_feedback t.controller update }
 ;;
 
-let rec receive t (event : Ches_error.Source_event.t) =
+let rec receive t (event : Cobalt_error.Source_event.t) =
   (* Arrival can race the frontend tick, including queued source batches. *)
   let t = expire_completion_acceptance t ~at:(Time_ns.now ()) in
   match event with
@@ -5021,7 +5021,7 @@ let rec receive t (event : Ches_error.Source_event.t) =
        let revision = Editor.revision (Controller.editor t.controller) in
        let metadata = List.fold (List.take items 1000) ~init:c.metadata ~f:(fun metadata info ->
          let candidate = List.find (Completion.candidates c.model) ~f:(fun candidate ->
-           String.equal candidate.id info.Ches_error.Completion_info.candidate_id
+           String.equal candidate.id info.Cobalt_error.Completion_info.candidate_id
            && match candidate.source with Lsp provider -> String.equal provider source | Buffer | Snippet -> false) in
          let selected = Option.exists (Completion.selected c.model) ~f:(fun candidate ->
            String.equal candidate.id info.candidate_id) in
@@ -5047,8 +5047,8 @@ let rec receive t (event : Ches_error.Source_event.t) =
   | Servers servers ->
     let t = List.fold (Option.value t.servers ~default:[]) ~init:t ~f:(fun t previous ->
       let unchanged = List.exists servers ~f:(fun server ->
-        String.equal server.Ches_error.Source_event.Server.source previous.source
-        && Ches_error.Source_event.Server.equal_status server.status previous.status) in
+        String.equal server.Cobalt_error.Source_event.Server.source previous.source
+        && Cobalt_error.Source_event.Server.equal_status server.status previous.status) in
       if unchanged then t else
         invalidate_source { t with context_revisions = Map.remove t.context_revisions previous.source }
           previous.source) in
@@ -5065,7 +5065,7 @@ let rec receive t (event : Ches_error.Source_event.t) =
     | _ -> None in
   let editor = Option.map owner ~f:(fun (_, c) -> Controller.editor c) in
   let update =
-    Ches_error.Source_event.to_update event ~current_revision:(Option.value_map editor ~default:(-1) ~f:Editor.revision)
+    Cobalt_error.Source_event.to_update event ~current_revision:(Option.value_map editor ~default:(-1) ~f:Editor.revision)
   in
   let text = Option.value_map editor ~default:Text_buffer.empty ~f:Editor.text in
   match event with
@@ -5255,13 +5255,13 @@ and apply_running t ~width ~height (input : Input.t) : t * Controller.Status.t =
     if valid && terminal_running t then
       { t with terminal_requests = (t.terminal_number, Paste (String.concat (List.rev chunks))) :: t.terminal_requests }, Running
     else
-      let notice = if Option.is_some t.terminal_inspection then Ches_tile.Text_view.read_only
+      let notice = if Option.is_some t.terminal_inspection then Cobalt_tile.Text_view.read_only
          else "Tile Term paste dropped (closed, exited, or exceeded 1 MiB)" in
       { t with host = Host.with_notice t.host notice }, Running
   | Key_at { key; at } ->
     (* Compatibility for headless callers; the frontend uses Terminal_key so no
        modifiers, navigation keys or Unicode information are lost. *)
-    let module M = Ches_terminal.Model in
+    let module M = Cobalt_terminal.Model in
     let code, modifiers = match key with
       | Char u -> M.Char u, M.no_modifiers
       | Ctrl c -> M.Char (Uchar.of_char c), { M.no_modifiers with ctrl = true }
@@ -5283,12 +5283,12 @@ and apply_running t ~width ~height (input : Input.t) : t * Controller.Status.t =
       let text = Editor.text editor in
       let index = request.line - 1 in
       let invalid () = Or_error.error_string "Content result changed or invalid; reopen search (on disk)" in
-      if request.line <= 0 || index >= Ches_core.Text_buffer.line_count text
+      if request.line <= 0 || index >= Cobalt_core.Text_buffer.line_count text
       then invalid () else
-      let line = Ches_core.Text_buffer.line_text text index in
+      let line = Cobalt_core.Text_buffer.line_text text index in
       (* rg includes the final LF in raw lines; the editor's line API excludes it.
          Unsupported CR/CRLF is rejected by file IO, never normalized. *)
-      let raw = line ^ (if Ches_core.Text_buffer.line_end text index < Ches_core.Text_buffer.length text
+      let raw = line ^ (if Cobalt_core.Text_buffer.line_end text index < Cobalt_core.Text_buffer.length text
         then "\n" else "") in
       if not (String.equal raw request.expected_text)
          || String.is_empty request.literal || request.byte_column < 0
@@ -5297,7 +5297,7 @@ and apply_running t ~width ~height (input : Input.t) : t * Controller.Status.t =
          || not (String.equal (String.sub line ~pos:request.byte_column
               ~len:(request.end_byte - request.byte_column)) request.literal)
       then invalid () else
-      let offset = Ches_core.Text_buffer.line_start text index in
+      let offset = Cobalt_core.Text_buffer.line_start text index in
       Or_error.bind (Editor.display_position_of_offset editor (offset + request.end_byte)) ~f:(fun _ ->
         Or_error.map (Editor.display_position_of_offset editor (offset + request.byte_column))
           ~f:(fun p -> position := Some p)) in
@@ -5308,7 +5308,7 @@ and apply_running t ~width ~height (input : Input.t) : t * Controller.Status.t =
           ~line ~column |> Or_error.ok_exn in
         adopt_session_state (return_to_document (file_tab t)) (Session.replace_active session controller) ~width ~height
       | Error error ->
-        let text = Ches_file_picker.Model.Candidate.display_text (Error.to_string_hum error) in
+        let text = Cobalt_file_picker.Model.Candidate.display_text (Error.to_string_hum error) in
         { t with host = Host.with_notice t.host text;
           controller = Controller.update_feedback t.controller
             (Notify { source = "content picker"; scope = path t; severity = Error; text; history = true }) } in
@@ -5317,7 +5317,7 @@ and apply_running t ~width ~height (input : Input.t) : t * Controller.Status.t =
     let t = match Session.open_or_activate ~must_exist:true (session t) request.path with
       | Ok (session, _) -> adopt_session_state (return_to_document (file_tab t)) session ~width ~height
       | Error error ->
-        let text = Ches_file_picker.Model.Candidate.display_text (Error.to_string_hum error) in
+        let text = Cobalt_file_picker.Model.Candidate.display_text (Error.to_string_hum error) in
         { t with host = Host.with_notice t.host text;
           controller = Controller.update_feedback t.controller
             (Notify { source = "file picker"; scope = path t; severity = Error;
@@ -5332,7 +5332,7 @@ and apply_running t ~width ~height (input : Input.t) : t * Controller.Status.t =
     Option.iter t.line_picker ~f:(fun picker ->
       if generation = t.line_generation && Line_picker_tile.validate picker t.controller then (
         Line_picker_tile.work picker ~budget:128;
-        if not (Ches_line_picker.Lines.busy (Line_picker_tile.session picker))
+        if not (Cobalt_line_picker.Lines.busy (Line_picker_tile.session picker))
         then Line_picker_tile.fit picker ~rows:(minor_rows t ~width ~height Line_picker_tile.id)));
     t, Running
   | File_picker_snapshot snapshot ->
@@ -5347,11 +5347,11 @@ and apply_running t ~width ~height (input : Input.t) : t * Controller.Status.t =
     t, Running
   | File_picker_work request ->
     Option.iter t.file_picker ~f:(fun picker ->
-       let current = Ches_file_picker.Model.discovery_request
-        (Ches_file_picker.Interaction.model (File_picker_tile.session picker)) in
-      if Ches_file_picker.Model.Discovery.equal_request current request then (
+       let current = Cobalt_file_picker.Model.discovery_request
+        (Cobalt_file_picker.Interaction.model (File_picker_tile.session picker)) in
+      if Cobalt_file_picker.Model.Discovery.equal_request current request then (
         File_picker_tile.work picker ~budget:128;
-        if not (Ches_file_picker.Interaction.busy (File_picker_tile.session picker))
+        if not (Cobalt_file_picker.Interaction.busy (File_picker_tile.session picker))
         then File_picker_tile.fit picker ~rows:(minor_rows t ~width ~height File_picker_tile.id)));
     t, Running
   | _ -> apply_regular t ~width ~height input
@@ -5570,7 +5570,7 @@ let take_content_picker_activation t =
 ;;
 
 let with_notice ?(source = "file picker") t text =
-  let text = Ches_file_picker.Model.Candidate.display_text text in
+  let text = Cobalt_file_picker.Model.Candidate.display_text text in
   { t with host = Host.with_notice t.host text;
     controller = Controller.update_feedback t.controller
       (Notify { source; scope = path t; severity = Error;
@@ -5585,7 +5585,7 @@ let receive_harness t ~width ~height ~request result =
   let t = { t with harness_busy = false } in
   match result with
   | Error error -> with_notice ~source:"Quick-Harness" t error
-  | Ok (Ches_harness.Protocol.Created { root; entry }, _) ->
+  | Ok (Cobalt_harness.Protocol.Created { root; entry }, _) ->
     (match open_file t ~width ~height entry with
      | Error error -> with_notice ~source:"Quick-Harness" t (Error.to_string_hum error)
      | Ok (t, _) -> { t with harness_root = Some root

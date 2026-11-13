@@ -7,11 +7,11 @@ open! Core
 module Pane_id : sig
   (** Stable content identities, independent of split order, position, or visibility.
       Minor views (problems, reports) share the bottom band; what they can do is
-      their {!Ches_tile.Spec}, not their placement. *)
+      their {!Cobalt_tile.Spec}, not their placement. *)
   type t =
     | Document
     | Status
-    | Minor of Ches_tile.View_id.t
+    | Minor of Cobalt_tile.View_id.t
   [@@deriving sexp_of, equal]
 end
 
@@ -140,15 +140,15 @@ val preferred_band_height : int
     {!min_document_width} plus the gap plus {!min_split_width}, or lower than
     {!min_band_height}. *)
 val allocate
-  :  ?minors:Ches_tile.View_id.t list
-  -> ?side:(Ches_tile.View_id.t * int)
-  -> ?split:(Ches_tile.View_id.t * Major_split.t)
+  :  ?minors:Cobalt_tile.View_id.t list
+  -> ?side:(Cobalt_tile.View_id.t * int)
+  -> ?split:(Cobalt_tile.View_id.t * Major_split.t)
   -> Prefs.t
   -> allocation:Geometry.Rect.t
   -> t
 
 (** The allocated pane of a minor view, if it fits. *)
-val minor : t -> Ches_tile.View_id.t -> Pane.t option
+val minor : t -> Cobalt_tile.View_id.t -> Pane.t option
 
 (** Pane-local document geometry, applying independent document placement prefs
     and this allocation's compact-feedback policy. No editor state is changed. *)

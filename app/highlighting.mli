@@ -1,6 +1,6 @@
 open! Core
-open Ches_core
-open Ches_highlight
+open Cobalt_core
+open Cobalt_highlight
 
 (** Controller-owned runtime and immutable highlight cache. Runtime handles are
     shared by successive controller states, never editor history; operations must
@@ -22,7 +22,7 @@ end
 val create : Editor.t -> t
 val update : t -> Editor.t -> reset:bool -> t
 val snapshot : t -> Snapshot.Key.t * Snapshot.t
-val status : t -> Ches_highlight_tree_sitter.Provider.Status.t option
+val status : t -> Cobalt_highlight_tree_sitter.Provider.Status.t option
 val parse_count : t -> int
 val close : t -> unit
 

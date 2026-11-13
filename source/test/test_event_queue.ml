@@ -1,6 +1,6 @@
 open! Core
-open Ches_source
-module Source_event = Ches_error.Source_event
+open Cobalt_source
+module Source_event = Cobalt_error.Source_event
 
 let diagnostics ?(source = "a") ?(resource = "f.ml") revision : Source_event.t =
   Diagnostics { source; resource; revision = Some revision; findings = [] }
@@ -28,7 +28,7 @@ let show queue =
 let push_all events = List.fold events ~init:Event_queue.empty ~f:Event_queue.push
 
 let%expect_test "inventory feedback conversion is a true no-op" =
-  let module Feedback = Ches_error.Error in
+  let module Feedback = Cobalt_error.Error in
   let before = Feedback.apply Feedback.empty (Notify
     { source = "save"; scope = None; severity = Info; text = "saved"; history = true }) in
   let after = Feedback.apply before (Source_event.to_update (Servers []) ~current_revision:0) in

@@ -1,9 +1,9 @@
 open! Core
-open Ches_core
-open Ches_app
-open Ches_screen
-module U = Ches_completion.User_snippets
-module Settings = Ches_config_runtime.Settings
+open Cobalt_core
+open Cobalt_app
+open Cobalt_screen
+module U = Cobalt_completion.User_snippets
+module Settings = Cobalt_config_runtime.Settings
 
 let width = 100
 let height = 25
@@ -60,7 +60,7 @@ let%test_unit "explicit insertion ignores prefix, retains suffix, activates fiel
   List.iter [ "unique_prefix"; "linked assignment"; "café" ] ~f:(fun query ->
     let opened = open_picker initial in
     assert (Option.is_some (Ui_state.snippet_picker opened));
-    assert (Ches_tile.View_id.equal (Ui_state.focused_view opened ~width ~height) Snippet_picker_tile.id);
+    assert (Cobalt_tile.View_id.equal (Ui_state.focused_view opened ~width ~height) Snippet_picker_tile.id);
     assert (Option.is_some (Ui_state.cursor_owner opened ~width ~height));
     let filtered = run opened (Helpers.paste query) in
     assert (String.equal (selected filtered).declaration.id "test.discovery");
@@ -162,7 +162,7 @@ let%test_unit "picker close, focus change, interrupted paste and document switch
   let resized = Helpers.run ~width:10 ~height:2 pasting [ Resize ] in
   let finished = run resized (Helpers.keys "ifoo" @ [ Paste_end ]) in
   assert (String.equal (text finished) "keep");
-  let root = Helpers.scratch_dir "ches-snippet-discovery-" in
+  let root = Helpers.scratch_dir "cobalt-snippet-discovery-" in
   Exn.protect ~finally:(fun () -> Core_unix.rmdir root) ~f:(fun () ->
     let switched, _ = Ui_state.open_file opened ~width ~height (Filename.concat root "other.ml")
       |> Or_error.ok_exn in
@@ -195,7 +195,7 @@ let%test_unit "configuration and snippet replies close captured catalog; stale g
 let open_configuration t = press t " ccOpen configuration<CR>"
 
 let%test_unit "reopening active unsaved configuration from a split returns input to its document" =
-  let root = Helpers.scratch_dir "ches-config-split-" in
+  let root = Helpers.scratch_dir "cobalt-config-split-" in
   Exn.protect ~finally:(fun () -> Core_unix.rmdir root) ~f:(fun () ->
     let config = Filename.concat root "config.ml" in
     let initial = Ui_state.with_configuration_path (create "original") (Ok config) in
@@ -203,8 +203,8 @@ let%test_unit "reopening active unsaved configuration from a split returns input
     let owner = Session.context_id (Ui_state.session dirty) in
     List.iter [" vo ss"; " vo st"] ~f:(fun placement ->
       let focused = press dirty placement in
-      assert (not (Ches_tile.View_id.equal (Ui_state.focused_view focused ~width ~height)
-        (Ches_tile.View_id.of_string "document")));
+      assert (not (Cobalt_tile.View_id.equal (Ui_state.focused_view focused ~width ~height)
+        (Cobalt_tile.View_id.of_string "document")));
       let reopened = open_configuration focused in
       assert (Option.equal Buffer_id.equal owner (Session.context_id (Ui_state.session reopened)));
       assert (String.equal (text reopened) "unsaved");
@@ -215,7 +215,7 @@ let%test_unit "reopening active unsaved configuration from a split returns input
 ;;
 
 let%test_unit "configuration action opens absent path without creating parents, preserves and reuses unsaved buffers" =
-  let root = Helpers.scratch_dir "ches-open-configuration-" in
+  let root = Helpers.scratch_dir "cobalt-open-configuration-" in
   Exn.protect ~finally:(fun () -> Core_unix.rmdir root) ~f:(fun () ->
     let config = Filename.concat root "missing-parent/config.ml" in
     let initial = press (create "original") "A dirty<Esc>" in

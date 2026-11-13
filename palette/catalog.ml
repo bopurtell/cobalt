@@ -1,5 +1,5 @@
 open! Core
-open Ches_input
+open Cobalt_input
 
 module Id = struct
   type t = string [@@deriving sexp_of, equal, compare]
@@ -15,7 +15,7 @@ module Id = struct
 end
 
 module Context = struct
-  type t = { mode : Ches_core.Mode.t } [@@deriving sexp_of]
+  type t = { mode : Cobalt_core.Mode.t } [@@deriving sexp_of]
 end
 
 module Entry = struct
@@ -30,7 +30,7 @@ module Entry = struct
   [@@deriving sexp_of, fields ~getters]
 
   let normal_mode_only (context : Context.t) =
-    Ches_core.Mode.equal context.mode Normal
+    Cobalt_core.Mode.equal context.mode Normal
   ;;
 
   let create ~id ~title ?description ?(keywords = []) ?(available = normal_mode_only) action
@@ -68,7 +68,7 @@ let create entries =
 ;;
 
 let default =
-  let editor ~id ~title ?keywords (command : Ches_core.Command.t) =
+  let editor ~id ~title ?keywords (command : Cobalt_core.Command.t) =
     Entry.create ~id ~title ?keywords (Editor command)
   in
   let view ~id ~title ?description ?keywords (command : View_command.t) =

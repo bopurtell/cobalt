@@ -1,5 +1,5 @@
 open! Core
-open Ches_core
+open Cobalt_core
 
 type t =
   { id : Buffer_id.t

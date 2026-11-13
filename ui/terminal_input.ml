@@ -1,6 +1,6 @@
 open! Core
 open Bonsai_term
-open Ches_input
+open Cobalt_input
 
 let is_control u =
   let c = Uchar.to_scalar u in
@@ -34,8 +34,8 @@ let key (key : Event.Key.t) (mods : Event.Modifier.t list) : Key.t option =
 ;;
 
 let terminal_key (key : Event.Key.t) (mods : Event.Modifier.t list)
-  : Ches_terminal.Model.key =
-  let open Ches_terminal.Model in
+  : Cobalt_terminal.Model.key =
+  let open Cobalt_terminal.Model in
   let code : key_code = match key with
     | ASCII c -> Char (Uchar.of_char c)
     | Uchar u -> Char u
@@ -56,7 +56,7 @@ let terminal_key (key : Event.Key.t) (mods : Event.Modifier.t list)
   | _ -> { code; modifiers = { shift = has Shift; alt = has Meta; ctrl = has Ctrl } }
 ;;
 
-let inputs ?(terminal = false) (event : Event.t) : Ches_screen.Ui_state.Input.t list =
+let inputs ?(terminal = false) (event : Event.t) : Cobalt_screen.Ui_state.Input.t list =
   match event with
   | Paste `Start -> [ Paste_start ]
   | Paste `End -> [ Paste_end ]
@@ -71,5 +71,5 @@ let inputs ?(terminal = false) (event : Event.t) : Ches_screen.Ui_state.Input.t 
     in
     let rest = Option.to_list (key k mods) in
     let keys = if List.is_empty meta then rest else Key.Escape :: rest in
-    List.map keys ~f:(fun key -> Ches_screen.Ui_state.Input.Key key)
+    List.map keys ~f:(fun key -> Cobalt_screen.Ui_state.Input.Key key)
 ;;

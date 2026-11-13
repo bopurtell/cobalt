@@ -1,7 +1,7 @@
 (* Compact printers and report builders shared by the git backend tests. *)
 
 open! Core
-open Ches_vcs
+open Cobalt_vcs
 
 (* A command result as a runner would report it. *)
 let result ?(status = Exec.Status.Exited 0) ?(stderr = "") ?(cut = false) stdout
@@ -45,7 +45,16 @@ let path = function
 (* One line per file and per hunk line; hunk lines as kind, old and new numbers, prefix
    and text. *)
 let diff ?(header = false) (diff : Diff.t) =
-  List.iter diff.preamble ~f:(fun line -> printf "preamble |%s\n" line);
+  List.iter diff.preamble ~f:(fun line ->
+    (* Git versions differ in their ISO-8601 spelling of UTC. *)
+    let line =
+      if (String.is_prefix line ~prefix:"AuthorDate: "
+          || String.is_prefix line ~prefix:"CommitDate: ")
+         && String.is_suffix line ~suffix:"Z"
+      then String.drop_suffix line 1 ^ "+00:00"
+      else line
+    in
+    printf "preamble |%s\n" line);
   List.iter diff.files ~f:(fun (file : Diff.File.t) ->
     let flags =
       List.filter_opt

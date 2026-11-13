@@ -17,8 +17,8 @@ type run
     Empty query never launches rg. Whitespace is a literal, not a blank query. *)
 val create : ?prog:string -> ?limits:Limits.t -> unit -> t
 val start : t -> root:string -> query:string -> run Or_error.t
-val request : run -> Ches_content_picker.Model.request
+val request : run -> Cobalt_content_picker.Model.request
 val finished : run -> unit Deferred.t
 val cancel : t -> unit
-val poll : t -> max_batches:int -> Ches_content_picker.Model.snapshot option
-val snapshot : t -> Ches_content_picker.Model.snapshot option
+val poll : t -> max_batches:int -> Cobalt_content_picker.Model.snapshot option
+val snapshot : t -> Cobalt_content_picker.Model.snapshot option

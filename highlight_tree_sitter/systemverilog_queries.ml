@@ -1,4 +1,4 @@
-(* Ches-owned structural captures for the pinned SystemVerilog grammar. No
+(* Cobalt-owned structural captures for the pinned SystemVerilog grammar. No
    predicates or upstream editor queries are required. Identifiers get a base
    category, refined by their grammatical roles using Snapshot's priorities. *)
 let source =

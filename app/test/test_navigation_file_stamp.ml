@@ -1,8 +1,8 @@
 open! Core
-module Stamp = Ches_app.Navigation_file_stamp
+module Stamp = Cobalt_app.Navigation_file_stamp
 
 let%test_unit "navigation stamps follow regular symlinks without opening special files" =
-  let root = Core_unix.mkdtemp (Filename.concat Filename.temp_dir_name "ches-navigation-stamp-") in
+  let root = Core_unix.mkdtemp (Filename.concat Filename.temp_dir_name "cobalt-navigation-stamp-") in
   let path = root ^ "/file" and link = root ^ "/link" and fifo = root ^ "/fifo" in
   Exn.protect ~f:(fun () ->
     Out_channel.write_all path ~data:"source";

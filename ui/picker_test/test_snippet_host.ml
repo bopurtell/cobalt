@@ -3,8 +3,8 @@ open! Async
 open Bonsai_test
 open Bonsai_term
 module Expect_test_config = Async.Expect_test_config
-module Host = Ches_ui.Snippet_host
-module Catalog = Ches_completion.User_snippets
+module Host = Cobalt_ui.Snippet_host
+module Catalog = Cobalt_completion.User_snippets
 
 let error_exn = function Error error -> error | Ok _ -> failwith "expected load failure"
 
@@ -22,10 +22,10 @@ let%expect_test "config path precedence" =
   assert (Result.is_error (path None None));
   assert (Result.is_ok (path (Some "/xdg") None));
   [%expect {|
-    /xdg/ches/snippets.json
-    /home/test/.config/ches/snippets.json
-    /home/test/.config/ches/snippets.json
-    /home/test/.config/ches/snippets.json
+    /xdg/cobalt/snippets.json
+    /home/test/.config/cobalt/snippets.json
+    /home/test/.config/cobalt/snippets.json
+    /home/test/.config/cobalt/snippets.json
     |}];
   return ()
 ;;
@@ -33,7 +33,7 @@ let%expect_test "config path precedence" =
 let valid = {|{"version":1,"snippets":[{"id":"test","prefix":"zhost","body":"HOST_BODY"}]}|}
 
 let%expect_test "bounded disk loader: missing, parsing, exact cap, overflow, special files and permissions" =
-  let root = Filename_unix.temp_dir "ches-snippets" "" in
+  let root = Filename_unix.temp_dir "cobalt-snippets" "" in
   let path = root ^ "/snippets.json" in
   let load () = within (Host.For_testing.load ~path) in
   let%bind () = Monitor.protect (fun () ->
@@ -121,10 +121,10 @@ let%expect_test "runtime startup and palette reload stay asynchronous while edit
   let snippets = Host.For_testing.create ~load:(fun () ->
     incr calls;
     let gate = Ivar.create () in Queue.enqueue gates gate; Ivar.read gate) in
-  let controller = Ches_app.Controller.create (Ches_core.Editor.create
-    ~cell_width:Ches_screen.Cell_map.width Ches_core.Text_buffer.empty) in
+  let controller = Cobalt_app.Controller.create (Cobalt_core.Editor.create
+    ~cell_width:Cobalt_screen.Cell_map.width Cobalt_core.Text_buffer.empty) in
   let handle = Bonsai_term_test.create_handle ~initial_dimensions:{ width = 160; height = 30 }
-    (Ches_ui.Editor_view.app ~snippets controller ~exit:(fun () -> Effect.Ignore)) in
+    (Cobalt_ui.Editor_view.app ~snippets controller ~exit:(fun () -> Effect.Ignore)) in
   let key key = Bonsai_term_test.send_event handle (Key_press { key; mods = [] }) in
   let type_text text = String.iter text ~f:(fun c -> key (ASCII c)) in
   let view () =
@@ -168,7 +168,7 @@ let%expect_test "runtime startup and palette reload stay asynchronous while edit
   type_text " Q";
   ignore (view () : string);
   Host.stop snippets;
-  Ches_app.Controller.close controller;
+  Cobalt_app.Controller.close controller;
   ignore ([%expect.output] : string);
   print_endline "startup, palette reload, failure and concurrent editing passed";
   [%expect {| startup, palette reload, failure and concurrent editing passed |}];

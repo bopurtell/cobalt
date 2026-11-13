@@ -12,23 +12,23 @@ module Cache_limits : sig
   val default : t
 end
 val create
-  : ?prog:string -> ?limits:Ches_file_discovery.Provider.Limits.t
+  : ?prog:string -> ?limits:Cobalt_file_discovery.Provider.Limits.t
   -> ?cache_limits:Cache_limits.t -> ?now:(unit -> Time_ns.t) -> unit -> t
 val cache_bytes : t -> int
 val cache_entries : t -> int
 val cache_hits : t -> int
 val cache_evictions : t -> int
 val invalidate_cache : t -> unit
-val open_picker_with_policy : t -> Ches_screen.Ui_state.t -> root:string -> policy:string
-  -> width:int -> height:int -> Ches_screen.Ui_state.t Or_error.t
+val open_picker_with_policy : t -> Cobalt_screen.Ui_state.t -> root:string -> policy:string
+  -> width:int -> height:int -> Cobalt_screen.Ui_state.t Or_error.t
 val open_picker
-  : t -> Ches_screen.Ui_state.t -> root:string -> width:int -> height:int
-  -> Ches_screen.Ui_state.t Or_error.t
+  : t -> Cobalt_screen.Ui_state.t -> root:string -> width:int -> height:int
+  -> Cobalt_screen.Ui_state.t Or_error.t
 (** Await, inject returned inputs, install resulting UI state, then repeat while
     nonempty. Async yields between 128-record work turns, polls one provider batch,
     and idles briefly during discovery. Stale queued turns are rejected by Ui_state.
     After a query edit, call again even if a previous chain reached quiescence. *)
-val next : t -> Ches_screen.Ui_state.t -> Ches_screen.Ui_state.Input.t list Deferred.t
+val next : t -> Cobalt_screen.Ui_state.t -> Cobalt_screen.Ui_state.Input.t list Deferred.t
 val cancel : t -> unit
 val finished : t -> unit Deferred.t
   (** Latest child has closed/reaped, not a snapshot-consumption notification. *)
@@ -38,6 +38,6 @@ val finished : t -> unit Deferred.t
     Ends on close or completed filtering/discovery; restart after query input.
     Do not run concurrent pumps on one runtime. No background worker mutates UI. *)
 val pump
-  : t -> current:(unit -> Ches_screen.Ui_state.t)
-  -> inject:(Ches_screen.Ui_state.Input.t list -> unit Deferred.t)
+  : t -> current:(unit -> Cobalt_screen.Ui_state.t)
+  -> inject:(Cobalt_screen.Ui_state.Input.t list -> unit Deferred.t)
   -> unit Deferred.t

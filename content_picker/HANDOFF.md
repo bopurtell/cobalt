@@ -24,7 +24,7 @@ Changed/added files:
   unchanged rg scope policy, no lifecycle rewrite).
 - `screen/content_picker_tile.ml`, `.mli`, `screen/test/test_content_picker_tile.ml`,
   `screen/dune`, `screen/test/dune` (added library dependency, preserved phase 7).
-- `dune-project`, generated `ches.opam` (Yojson/Base64 direct dependencies).
+- `dune-project`, generated `cobalt.opam` (Yojson/Base64 direct dependencies).
 - `docs/plans/file_picker.md` (phase 8 PARTIAL, precise independent done/blocked pending).
 
 Checks/outcomes: `RESULTS.md`. Existing work preserved; no Git mutations, GitHub

@@ -1,4 +1,4 @@
-(* The VCS view's merges, rebases and conflict resolution (phase 7) end to end: the
+(* The VCS view's merges, rebases and conflict resolution end to end: the
    default bindings ([m] and [r] anywhere, [x] on a conflicted file, the editor's
    [Space x u] on its markers), git's own plans, and git run synchronously by
    [Vcs_driver] in fixture repositories. A merge from [m m] stopping on three
@@ -9,12 +9,12 @@
    reproducible. *)
 
 open! Core
-open Ches_screen
-module Controller = Ches_app.Controller
-module Editor = Ches_core.Editor
-module View_id = Ches_tile.View_id
-module Local_command = Ches_tile.Local_command
-module Fixture = Ches_vcs_fixture.Fixture_repo
+open Cobalt_screen
+module Controller = Cobalt_app.Controller
+module Editor = Cobalt_core.Editor
+module View_id = Cobalt_tile.View_id
+module Local_command = Cobalt_tile.Local_command
+module Fixture = Cobalt_vcs_fixture.Fixture_repo
 
 let width = 120
 let height = 30
@@ -133,7 +133,7 @@ let commands ?(after = 0) repo t =
     let command =
       String.chop_prefix_if_exists
         entry.command
-        ~prefix:(String.concat ~sep:" " ("git" :: Ches_vcs_git.Cli.prefix) ^ " ")
+        ~prefix:(String.concat ~sep:" " ("git" :: Cobalt_vcs_git.Cli.prefix) ^ " ")
     in
     if not
          (List.exists
@@ -185,7 +185,7 @@ let editor t =
     (Option.value_map (Editor.path editor) ~default:"none" ~f:Filename.basename)
     (Editor.cursor_line editor + 1)
     (if Editor.is_dirty editor then " (dirty)" else "")
-    (Ches_core.Text_buffer.to_string (Editor.text editor))
+    (Cobalt_core.Text_buffer.to_string (Editor.text editor))
 ;;
 
 let names t =
@@ -205,7 +205,7 @@ let selected t =
   print_s
     [%sexp
       ((Vcs_view.cursor v (Vcs_view.list_focus v)).selected
-       : Ches_vcs.Panel.Position.t option)]
+       : Cobalt_vcs.Panel.Position.t option)]
 ;;
 
 let%expect_test "a merge from m m stops on conflicts; x takes theirs, restores markers; \
@@ -237,8 +237,8 @@ let%expect_test "a merge from m m stops on conflicts; x takes theirs, restores m
       jobs: - g1.3, refresh g1.4, diff g1.5
       focused vcs
       message: Merge other failed: Stopped on conflicts: resolve each file (x, or Space x in the editor), mark it resolved with s, then continue
-      | Head: main b986162
-      | Merging 93dff37 (press m)
+      | Head: main a2203cd
+      | Merging 9777158 (press m)
       log: [exit 1] git merge --no-edit --end-of-options other
       status: UU f, UU g, UU h
       refresh toggle-log leave focus-files focus-branches focus-commits focus-diff toggle-diff toggle-fold stage unstage discard stage-all unstage-all log commit fetch pull push merge copy next previous first last half-page-down half-page-up
@@ -273,11 +273,11 @@ let%expect_test "a merge from m m stops on conflicts; x takes theirs, restores m
       ╭─ Resolve f ──────────────────────────────────────────────────────────────╮
       │ Actions                                                                  │
       │   o  Take ours (HEAD)                 m  Restore the conflict markers    │
-      │   t  Take theirs (93dff37)                                               │
+      │   t  Take theirs (9777158)                                               │
       ╰──────────────────────────────────────────────────────────────────────────╯
       focused confirm; confirm Resolve f
       ╭─ Resolve f ──────────────────────────────────────────────────╮
-      │ Take theirs (93dff37) for f? The other side's changes and    │
+      │ Take theirs (9777158) for f? The other side's changes and    │
       │ any edits to the file are lost; it is marked resolved.       │
       │ y yes   n no (default)                                       │
       ╰──────────────────────────────────────────────────────────────╯
@@ -408,10 +408,10 @@ let%expect_test "a merge from m m stops on conflicts; x takes theirs, restores m
       editor: h line 1 "ours\n"
       jobs: - g1.25, refresh g1.26
       focused vcs
-      | Head: main e155531
+      | Head: main b0afaab
       HEAD: Merge branch 'other' < Ours < Theirs < Base; branch main
       status: clean
-      parents: b986162 93dff37
+      parents: a2203cd 9777158
       message:
       | Merge branch 'other'
       refresh toggle-log leave focus-files focus-branches focus-commits focus-diff toggle-diff stage unstage discard stage-all unstage-all log commit fetch pull push merge copy next previous first last half-page-down half-page-up
@@ -454,8 +454,8 @@ let%expect_test "a rebase pull stops; r r with an unsaved buffer is refused; r r
       jobs: - g1.3, refresh g1.4, diff g1.5
       focused vcs
       message: Pull from origin/main (rebase) failed: Stopped on conflicts: resolve each file (x, or Space x in the editor), mark it resolved with s, then continue
-      | Head: detached at 143c3f4
-      | Rebasing main onto 143c3f4 (press r)
+      | Head: detached at 6b0cb12
+      | Rebasing main onto 6b0cb12 (press r)
       refresh toggle-log leave focus-files focus-branches focus-commits focus-diff toggle-diff toggle-fold stage unstage discard stage-all unstage-all log commit fetch pull push rebase merge copy next previous first last half-page-down half-page-up
       rebase: Continue, skip or abort the rebase (the rebase popup)
       focused popup; popup Rebasing
@@ -511,8 +511,8 @@ let%expect_test "a rebase pull stops; r r with an unsaved buffer is refused; r r
       jobs: - g1.9, refresh g1.10, diff g1.11
       focused vcs
       message: Continue rebase failed: Stopped on conflicts: resolve each file (x, or Space x in the editor), mark it resolved with s, then continue
-      | Head: detached at 143c3f4
-      | Rebasing main onto 143c3f4 (press r)
+      | Head: detached at 6b0cb12
+      | Rebasing main onto 6b0cb12 (press r)
       status: UU a.txt
       |}];
     let t = run repo t "rs" in
@@ -533,7 +533,7 @@ let%expect_test "a rebase pull stops; r r with an unsaved buffer is refused; r r
       jobs: - g1.12, refresh g1.13
       focused vcs
       message: Reloaded from disk: a.txt
-      | Head: main 143c3f4
+      | Head: main 6b0cb12
       | Upstream: origin/main, up to date
       HEAD: Theirs < One; branch main
       status: clean

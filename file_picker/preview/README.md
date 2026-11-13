@@ -1,10 +1,10 @@
-# Bounded file preview (phases 11–13)
+# Bounded file preview
 
-`ches_file_preview` is a read-only data/lifecycle library. It does not
+`cobalt_file_preview` is a read-only data/lifecycle library. It does not
 render, modify screen state, open/activate documents, initialize highlighting or
 language servers, or change file-picker acceptance. Production frontend wiring
 and responsive presentation are now installed by `ui/editor_view.ml` and
-`screen/file_picker_tile.ml`. `ches_file_preview_model` in `pure/` exposes the
+`screen/file_picker_tile.ml`. `cobalt_file_preview_model` in `pure/` exposes the
 same Model through the service's compatibility alias without adding Async to
 the screen library.
 
@@ -34,17 +34,17 @@ installed the production pane; phase 13 reviewed it and added real-terminal chec
 - `Model.of_buffer` uses line offsets and a boundary-safe bounded `Text_buffer.slice`,
   not whole-text conversion or copying an entire long line.
 
-## Phase-12 integration guide
+## Integration guide
 
-1. Add `ches_file_preview` to the appropriate Async host/frontend library, not
-   `ches_app` or the pure screen library. Reuse **one Provider per frontend**, not
+1. Add `cobalt_file_preview` to the appropriate Async host/frontend library, not
+   `cobalt_app` or the pure screen library. Reuse **one Provider per frontend**, not
    one per opening/render. Construct it with a late current-session lookup:
 
    ```ocaml
-   let preview = Ches_file_preview.Provider.create
+   let preview = Cobalt_file_preview.Provider.create
      ~buffer:(fun ~path ->
-       Ches_file_preview.Buffer_snapshot.lookup
-         (Ches_screen.Ui_state.session !current_ui) ~path) ()
+       Cobalt_file_preview.Buffer_snapshot.lookup
+         (Cobalt_screen.Ui_state.session !current_ui) ~path) ()
    ```
 
    The adapter uses retained file controllers (including dirty/missing buffers),
@@ -71,7 +71,7 @@ installed the production pane; phase 13 reviewed it and added real-terminal chec
    during a yielding injection is not lost. A clear/absent snapshot ends the pump;
    restart on activation/selection. Teardown must explicitly clear the provider.
 
-4. Add a preview delivery input/state to the phase-12 screen model. At installation,
+4. Add a preview delivery input/state to the screen model. At installation,
    use `Model.accept ~expected delivery`: it compares discovery session/root,
    selected identity AND generation. A path-only guard is insufficient for A-B-A
    or close/reopen. On close/deactivation clear the screen payload and expected

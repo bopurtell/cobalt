@@ -1,5 +1,5 @@
 open! Core
-open Ches_core
+open Cobalt_core
 
 module Config : sig
   type t = Hidden | Exposed [@@deriving sexp_of, equal]
@@ -29,7 +29,7 @@ type t =
   ; parsed_cache : Parsed_cache.t
   }
 val is_directory : string -> bool
-val load : ?previous:t -> ?config:Config.t -> id:Buffer_id.t -> path:string -> cell_width:Cell_layout.Width.t -> keymap_config:Ches_input.Keymap.Config.t -> unit -> t Or_error.t
+val load : ?previous:t -> ?config:Config.t -> id:Buffer_id.t -> path:string -> cell_width:Cell_layout.Width.t -> keymap_config:Cobalt_input.Keymap.Config.t -> unit -> t Or_error.t
 val select : t -> string -> t
 (** Current validated row resolved to its baseline backing entry, never the
     proposed destination. Invalid snapshots/fresh/blank rows resolve to None. *)

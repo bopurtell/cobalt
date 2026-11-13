@@ -1,5 +1,5 @@
 open! Core
-open Ches_screen
+open Cobalt_screen
 
 let width = 180
 let height = 48
@@ -7,12 +7,12 @@ let run t keys = Helpers.run ~width ~height t (Helpers.keys keys)
 let footer (content : Tile_shell.Content.t) = (Option.value_exn content.footer).text
 let text row = String.concat (List.map row ~f:(fun (s : Span.t) -> s.text))
 
-let file_snapshot : Ches_file_picker.Model.Discovery.t =
-  { request = { run_id = Ches_file_picker.Model.Run_id.of_int 1; root = "/project" }
+let file_snapshot : Cobalt_file_picker.Model.Discovery.t =
+  { request = { run_id = Cobalt_file_picker.Model.Run_id.of_int 1; root = "/project" }
   ; candidates = []; status = Cancelled }
 
-let content_snapshot : Ches_content_picker.Model.snapshot =
-  { request = { run_id = Ches_content_picker.Model.Run_id.of_int 1
+let content_snapshot : Cobalt_content_picker.Model.snapshot =
+  { request = { run_id = Cobalt_content_picker.Model.Run_id.of_int 1
               ; root = "/project"; query = "needle" }
   ; hits = []; status = Cancelled }
 

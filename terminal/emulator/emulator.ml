@@ -1,14 +1,14 @@
 open! Core
-open Ches_terminal
+open Cobalt_terminal
 
 type t
-external create_raw : int -> int -> t = "ches_vterm_create"
-external resize_raw : t -> int -> int -> unit = "ches_vterm_resize"
-external feed : t -> string -> string = "ches_vterm_feed"
-external key_raw : t -> bool -> int -> int -> string = "ches_vterm_key"
-external paste : t -> string -> string = "ches_vterm_paste"
-external snapshot_raw : t -> Model.snapshot = "ches_vterm_snapshot"
-external close : t -> unit = "ches_vterm_close"
+external create_raw : int -> int -> t = "cobalt_vterm_create"
+external resize_raw : t -> int -> int -> unit = "cobalt_vterm_resize"
+external feed : t -> string -> string = "cobalt_vterm_feed"
+external key_raw : t -> bool -> int -> int -> string = "cobalt_vterm_key"
+external paste : t -> string -> string = "cobalt_vterm_paste"
+external snapshot_raw : t -> Model.snapshot = "cobalt_vterm_snapshot"
+external close : t -> unit = "cobalt_vterm_close"
 
 let dimensions ~(rows : int) ~(cols : int) : unit =
   if rows < 1 || cols < 1 || rows > 500 || cols > 1000 || rows * cols > 250_000

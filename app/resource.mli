@@ -1,1 +1,1 @@
-include module type of Ches_core.Resource
+include module type of Cobalt_core.Resource

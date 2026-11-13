@@ -1,6 +1,6 @@
 open! Core
 open! Async
-module Fixture = Ches_vcs_fixture.Fixture_repo
+module Fixture = Cobalt_vcs_fixture.Fixture_repo
 
 (* Scaffolding for agent H: an Async expect test, a fixture repository with a local
    bare remote, and its environment as a runner's [inherited]. Calls no stub. *)
@@ -18,7 +18,7 @@ let%expect_test "async fixture with a bare remote" =
           [%sexp
             (Option.is_some t.remote : bool)
           , (List.Assoc.find env "GIT_SSH_COMMAND" ~equal:String.equal : string option)
-          , (Ches_vcs_host.Auth.batch_ssh_command : string)])
+          , (Cobalt_vcs_host.Auth.batch_ssh_command : string)])
   in
   [%expect {| (true () "ssh -o BatchMode=yes") |}]
 ;;

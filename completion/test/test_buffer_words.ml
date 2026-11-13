@@ -1,8 +1,8 @@
 open! Core
 
 let%test_unit "yielded builder splits identifiers and UTF-8 safely; branched updates agree" =
-  let module B = Ches_core.Text_buffer in
-  let module W = Ches_completion.Model.Buffer_words in
+  let module B = Cobalt_core.Text_buffer in
+  let module W = Cobalt_completion.Model.Buffer_words in
   let text s = B.of_string s |> Result.ok |> Option.value_exn in
   let build ?before text =
     let builder = W.Builder.create ?before text in
@@ -21,11 +21,11 @@ let%test_unit "yielded builder splits identifiers and UTF-8 safely; branched upd
       let after = text changed in
       let actual = build ~before after and expected = W.create after in
       let candidates words = W.candidates words ~text:after ~cursor:0 ~limit:100 in
-      assert (List.equal Ches_completion.Model.Candidate.equal
+      assert (List.equal Cobalt_completion.Model.Candidate.equal
         (candidates actual) (candidates expected))))
 ;;
-open Ches_core
-open Ches_completion.Model
+open Cobalt_core
+open Cobalt_completion.Model
 module B = Text_buffer
 module W = Buffer_words
 

@@ -1,4 +1,4 @@
-(* The VCS view's remotes and branches (phase 6) end to end: the default bindings
+(* The VCS view's remotes and branches end to end: the default bindings
    ([f p P r m] anywhere, [Enter n -] in Branches), git's own plans, and git run
    synchronously by [Vcs_driver] in a fixture repository whose [origin] is a local bare
    repository (a second clone pushes as another user). Fetch, pull and push with their
@@ -9,14 +9,14 @@
    print as $DIR; commit hashes are reproducible. *)
 
 open! Core
-open Ches_screen
-module Controller = Ches_app.Controller
-module Editor = Ches_core.Editor
-module View_id = Ches_tile.View_id
-module Local_command = Ches_tile.Local_command
-module Fixture = Ches_vcs_fixture.Fixture_repo
-module Job = Ches_vcs.Job
-module Event = Ches_vcs.Event
+open Cobalt_screen
+module Controller = Cobalt_app.Controller
+module Editor = Cobalt_core.Editor
+module View_id = Cobalt_tile.View_id
+module Local_command = Cobalt_tile.Local_command
+module Fixture = Cobalt_vcs_fixture.Fixture_repo
+module Job = Cobalt_vcs.Job
+module Event = Cobalt_vcs.Event
 
 let width = 120
 let height = 30
@@ -165,7 +165,7 @@ let commands ?(after = 0) repo t =
     let command =
       String.chop_prefix_if_exists
         entry.command
-        ~prefix:(String.concat ~sep:" " ("git" :: Ches_vcs_git.Cli.prefix) ^ " ")
+        ~prefix:(String.concat ~sep:" " ("git" :: Cobalt_vcs_git.Cli.prefix) ^ " ")
     in
     if not
          (List.exists
@@ -230,12 +230,12 @@ let%expect_test "f fetches: Fetch: done, and the summary shows the branch behind
     [%expect
       {|
       jobs: detect g1.1, refresh g1.2
-      | Head: main 1d0f5bf
+      | Head: main 1810738
       | Upstream: origin/main, up to date
       jobs: - g1.3, refresh g1.4
       focused vcs
       message: Fetch: done
-      | Head: main 1d0f5bf
+      | Head: main 1810738
       | Upstream: origin/main, behind 1
       log: [exit 0] git fetch --progress --prune
       jobs: - g1.5, refresh g1.6
@@ -271,7 +271,7 @@ let%expect_test "p opens the pull popup; p fast-forwards; a diverged pull fails 
       jobs: - g1.3, refresh g1.4
       focused vcs
       message: Pull from origin/main: done
-      | Head: main c56a7c6
+      | Head: main 7b63c41
       | Upstream: origin/main, up to date
       HEAD: Other one < One; branch main; status: clean
       |}];
@@ -288,7 +288,7 @@ let%expect_test "p opens the pull popup; p fast-forwards; a diverged pull fails 
       jobs: refresh g1.5
       jobs: - g1.6, refresh g1.7
       focused vcs
-      message: Pull from origin/main failed: The branch and its upstream have diverged: pull with rebase (p -r p) or merge outside Ches
+      message: Pull from origin/main failed: The branch and its upstream have diverged: pull with rebase (p -r p) or merge outside Cobalt
       HEAD: Local < Other one < One; branch main; status: clean
       log: [exit 0] git pull --progress --ff-only --no-rebase
       log: [exit 128] git pull --progress --ff-only --no-rebase
@@ -346,7 +346,7 @@ let%expect_test "P opens the push popup; P u pushes a new branch and sets its up
       jobs: - g1.4, refresh g1.5
       focused vcs
       message: Push topic to origin/topic: done
-      | Head: topic 1d0f5bf
+      | Head: topic 1810738
       | Upstream: origin/topic, up to date
       branch.topic.merge refs/heads/topic; remote topic: One
       |}])
@@ -408,7 +408,7 @@ let%expect_test "Enter checks out a branch; - goes back; a dirty buffer refuses 
       message: Check out the previous branch failed: fatal: invalid reference: @{-1} (exit 128)
       jobs: - g1.5, refresh g1.6
       focused vcs
-      | Head: other 1d0f5bf
+      | Head: other 1810738
       HEAD: One; branch other; status: clean
       jobs: - g1.7, refresh g1.8
       focused vcs
@@ -470,7 +470,7 @@ let%expect_test "n prompts for a name: refused inline while invalid; Enter creat
       focused prompt; prompt New branch "main" (error "A branch named main already exists")
       jobs: - g1.3, refresh g1.4
       focused vcs
-      | Head: feature/x 1d0f5bf
+      | Head: feature/x 1810738
       HEAD: One; branch feature/x; status: clean
       focused vcs
       |}])
@@ -521,14 +521,14 @@ let%expect_test "a rebase pull stops on a conflict: the summary says press r; r 
       jobs: - g1.3, refresh g1.4, diff g1.5
       focused vcs
       message: Pull from origin/main (rebase) failed: Stopped on conflicts: resolve each file (x, or Space x in the editor), mark it resolved with s, then continue
-      | Head: detached at 143c3f4
-      | Rebasing main onto 143c3f4 (press r)
+      | Head: detached at 6b0cb12
+      | Rebasing main onto 6b0cb12 (press r)
       log: [exit 1] git pull --progress --rebase
             "hint: Resolve all conflicts manually, mark them as resolved with"
             "hint: \"git add/rm <conflicted_files>\", then run \"git rebase --continue\"."
             "hint: You can instead skip this commit: run \"git rebase --skip\"."
             "hint: To abort and get back to the state before \"git rebase\", run \"git rebase --abort\"."
-            "Could not apply fb912c6... Ours"
+            "Could not apply 71ae0ce... Ours"
       refresh toggle-log leave focus-files focus-branches focus-commits focus-diff toggle-diff toggle-fold stage unstage discard stage-all unstage-all log commit fetch pull push rebase merge copy next previous first last half-page-down half-page-up
       |}];
     let t = run repo t "r" in
@@ -561,7 +561,7 @@ let%expect_test "a rebase pull stops on a conflict: the summary says press r; r 
       jobs: - g1.6, refresh g1.7
       focused vcs
       message: Reloaded from disk: a.txt
-      | Head: main fb912c6
+      | Head: main 71ae0ce
       | Upstream: origin/main, ahead 1, behind 1
       HEAD: Ours < One; branch main; status: clean
       focused vcs
@@ -594,16 +594,16 @@ let%expect_test "a merge stopped on a conflict: m a asks; y aborts it" =
       {|
       merge stopped
       jobs: detect g1.1, refresh g1.2, diff g1.3
-      | Head: main fb912c6
+      | Head: main 71ae0ce
       | Upstream: origin/main, ahead 1
-      | Merging 143c3f4 (press m)
+      | Merging 6b0cb12 (press m)
       focused vcs
       notice: No rebase in progress; nothing ran
       focused confirm; confirm Abort merge
       jobs: - g1.4, refresh g1.5
       focused vcs
       message: Reloaded from disk: a.txt
-      | Head: main fb912c6
+      | Head: main 71ae0ce
       | Upstream: origin/main, ahead 1
       HEAD: Ours < One; branch main; status: clean
       |}])
@@ -619,13 +619,13 @@ let%expect_test "streamed lines and progress reach the log; the progress row; bu
     let t = keys t "f" in
     let t, jobs = Ui_state.take_vcs_jobs t in
     let job = List.hd_exn jobs in
-    print_s [%sexp (Job.kind job : Ches_vcs.Exec.Kind.t)];
+    print_s [%sexp (Job.kind job : Cobalt_vcs.Exec.Kind.t)];
     let started, finished =
       List.partition_tf (Vcs_driver.events repo job) ~f:(function
         | Event.Started _ -> true
         | Output _ | Finished _ -> false)
     in
-    let line ?(transient = false) ?(stream = Ches_vcs.Exec.Stream.Stderr) text =
+    let line ?(transient = false) ?(stream = Cobalt_vcs.Exec.Stream.Stderr) text =
       Event.Output { job = job.id; step = 0; stream; line = { text; transient } }
     in
     let t = feed t started in
@@ -659,16 +659,16 @@ let%expect_test "streamed lines and progress reach the log; the progress row; bu
       {|
       jobs: detect g1.1, refresh g1.2
       Network
-      | Head: main 1d0f5bf
+      | Head: main 1810738
       | Upstream: origin/main, up to date
       | Fetch...
-      | Head: main 1d0f5bf
+      | Head: main 1810738
       | Upstream: origin/main, up to date
       | Fetch... Receiving objects:  45% (9/20)
       log: [running] git fetch --progress --prune
             "remote: Enumerating objects: 4, done.\027[K"
             progress "Receiving objects:  45% (9/20)"
-      | Head: main 1d0f5bf
+      | Head: main 1810738
       | Upstream: origin/main, up to date
       | Fetch... Receiving objects:  90% (18/20)^[[K
       log: [running] git fetch --progress --prune
@@ -696,7 +696,7 @@ let%expect_test "streamed lines and progress reach the log; the progress row; bu
       focused vcs
       notice: Busy: Fetch; nothing ran
       message: Fetch: done
-      | Head: main 1d0f5bf
+      | Head: main 1810738
       | Upstream: origin/main, behind 1
       log: [exit 0] git fetch --progress --prune
             "Receiving objects: 100% (20/20), done."

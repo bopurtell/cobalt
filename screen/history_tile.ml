@@ -1,12 +1,12 @@
 open! Core
-module Feedback = Ches_error.Error
+module Feedback = Cobalt_error.Error
 module History = Feedback.History
-module Navigation = Ches_tile.Navigation
+module Navigation = Cobalt_tile.Navigation
 module Selection = Navigation.Selection
-module Text_view = Ches_tile.Text_view
+module Text_view = Cobalt_tile.Text_view
 
-let id = Ches_tile.View_id.of_string "history"
-let spec = Ches_tile.Spec.read_only_text id ~title:"History"
+let id = Cobalt_tile.View_id.of_string "history"
+let spec = Cobalt_tile.Spec.read_only_text id ~title:"History"
 
 type t =
   { selection : int Selection.t
@@ -117,21 +117,21 @@ type action =
   | Text of Text_view.Action.t
 [@@deriving sexp_of]
 
-let interpret t (keys : Ches_input.Key.t list) : action Ches_tile.Content_key.t =
-  let is c key = Ches_input.Key.equal key (Ches_input.Key.char c) in
+let interpret t (keys : Cobalt_input.Key.t list) : action Cobalt_tile.Content_key.t =
+  let is c key = Cobalt_input.Key.equal key (Cobalt_input.Key.char c) in
   match keys, t.details with
   | [ Enter ], _ -> Action Toggle_details
   | [ key ], _ when is 'e' key -> Action Toggle_details
   | [ key ], _ when is 'X' key -> Action Clear
   | keys, Some view ->
-    Ches_tile.Content_key.map (Text_view.interpret view keys) ~f:(fun a -> Text a)
+    Cobalt_tile.Content_key.map (Text_view.interpret view keys) ~f:(fun a -> Text a)
   | keys, None ->
     (match Navigation.interpret keys with
      | Unbound ->
-       Ches_tile.Content_key.map (Text_view.interpret_item keys) ~f:(function
+       Cobalt_tile.Content_key.map (Text_view.interpret_item keys) ~f:(function
          | `Copy -> Copy_item
          | `Edit -> Edit)
-     | motion -> Ches_tile.Content_key.map motion ~f:(fun m -> Move m))
+     | motion -> Cobalt_tile.Content_key.map motion ~f:(fun m -> Move m))
 ;;
 
 let escape t =
@@ -256,8 +256,8 @@ let render ?(hotkey_hints = false) ?(focused = false) ?notice ?pending
 ;;
 
 let commands t =
-  let c name keys description = Ches_tile.Local_command.create name ~keys description in
-  let k = Ches_input.Key.char in
+  let c name keys description = Cobalt_tile.Local_command.create name ~keys description in
+  let k = Cobalt_input.Key.char in
   let clear = c "clear" [ k 'X' ] "Clear the history (active problems stay)" in
   match t.details with
   | None ->
@@ -268,7 +268,7 @@ let commands t =
 ;;
 
 let key = Type_equal.Id.create ~name:"history" sexp_of_t
-let history controller = Feedback.history (Ches_app.Controller.feedback controller)
+let history controller = Feedback.history (Cobalt_app.Controller.feedback controller)
 
 let adapter : (t, action) View_registry.Adapter.t =
   { spec
@@ -290,7 +290,7 @@ let adapter : (t, action) View_registry.Adapter.t =
           , View_registry.Outcome.create
               ?effect
               ~notice:(`Show "History cleared; active problems unchanged")
-              (Ches_app.Controller.update_feedback controller Clear_history) )
+              (Cobalt_app.Controller.update_feedback controller Clear_history) )
         else tile, View_registry.Outcome.create ?effect controller)
   ; commands
   ; signal = (fun _ _ -> None)

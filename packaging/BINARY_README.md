@@ -1,7 +1,7 @@
-# Ches Linux snapshot
+# Cobalt Linux snapshot
 
-Extract the whole archive and run `./bin/ches --list-themes`, then
-`./bin/ches --no-lsp path/to/file.ml`. Keep the package directory together.
+Extract the whole archive and run `./bin/cobalt --list-themes`, then
+`./bin/cobalt --no-lsp path/to/file.ml`. Keep the package directory together.
 The executable contains its themes, Tree-sitter grammars/queries and terminal
 emulator; it does not need the source checkout or an opam environment to edit.
 

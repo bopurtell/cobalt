@@ -1,9 +1,9 @@
-(* The commit graph (phase 8): fixed commit lists, newest first in topological order,
+(* The commit graph: fixed commit lists, newest first in topological order,
    printed one row per commit followed by the commit's id, so each expectation reads as
    the picture the Commits panel shows. *)
 
 open! Core
-open Ches_vcs
+open Cobalt_vcs
 
 let show ?max_width commits =
   let rows = Graph.rows ?max_width commits in

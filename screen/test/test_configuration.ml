@@ -1,9 +1,9 @@
 open! Core
-open Ches_core
-open Ches_app
-open Ches_screen
-module Settings = Ches_config_runtime.Settings
-module Theme = Ches_theme.Theme
+open Cobalt_core
+open Cobalt_app
+open Cobalt_screen
+module Settings = Cobalt_config_runtime.Settings
+module Theme = Cobalt_theme.Theme
 
 let press t s = Helpers.run ~width:100 ~height:25 t (Helpers.keys s)
 let editor t = Controller.editor (Ui_state.controller t)
@@ -52,7 +52,7 @@ let%test_unit "invalid theme and invalid prefix are atomic even with a CLI overr
             ; { configured with completion_min_prefix_chars = 0 } ] ~f:(fun settings ->
     assert (Result.is_error (Ui_state.apply_configuration ~theme_override:Theme.default t settings));
     assert (Ui_state.completion_enabled t && not (Ui_state.completion_ghost_enabled t));
-    assert (List.equal Ches_completion.Model.Candidate.equal candidates (Ui_state.completion_candidates t));
+    assert (List.equal Cobalt_completion.Model.Candidate.equal candidates (Ui_state.completion_candidates t));
     assert (String.equal (text t) "f\nfoobar"));
   let applied = apply t configured in
   assert (List.is_empty (Ui_state.completion_candidates applied));
@@ -79,7 +79,7 @@ let%test_unit "invalid reload preserves live completion and unsaved buffer" =
   assert (not (List.is_empty candidates));
   let failed = Ui_state.receive_configuration t ~generation:1
       (Ok { configured with theme = "does-not-exist" }) in
-  assert (List.equal Ches_completion.Model.Candidate.equal candidates
+  assert (List.equal Cobalt_completion.Model.Candidate.equal candidates
     (Ui_state.completion_candidates failed));
   assert (Ui_state.completion_enabled failed && not (Ui_state.completion_ghost_enabled failed));
   assert (Editor.revision (editor failed) = Editor.revision (editor t));
@@ -87,7 +87,7 @@ let%test_unit "invalid reload preserves live completion and unsaved buffer" =
 ;;
 
 let%test_unit "screen forwards configured local snippet priority to provider merges" =
-  let module M = Ches_completion.Model in
+  let module M = Cobalt_completion.Model in
   List.iter [true; false] ~f:(fun prefer ->
     let t = Ui_state.create ~source_attached:true
         (Ui_state.controller (Helpers.ui ~path:"module.sv" "")) in
@@ -95,7 +95,7 @@ let%test_unit "screen forwards configured local snippet priority to provider mer
       |> fun t -> press t "iaff" in
     let t, requests = Ui_state.take_source_requests t in
     let request = List.find_map_exn requests ~f:(function
-      | Ches_error.Source_request.Complete request -> Some request | _ -> None) in
+      | Cobalt_error.Source_request.Complete request -> Some request | _ -> None) in
     let candidate : M.Candidate.t =
       { id = "lsp-word"; source = Lsp "test"; label = "aff-server"; detail = None
       ; filter_text = "aff-server"; sort_text = "000"
@@ -182,7 +182,7 @@ let%test_unit "invalid completion colors preserve live menu, effective theme and
     let failed = Ui_state.receive_configuration t ~generation:1 (Ok invalid) in
     assert (Theme.equal (Ui_state.theme failed) (Ui_state.theme t));
     assert (Ui_state.completion_enabled failed);
-    assert (List.equal Ches_completion.Model.Candidate.equal candidates
+    assert (List.equal Cobalt_completion.Model.Candidate.equal candidates
       (Ui_state.completion_candidates failed));
     assert (String.equal (text failed) (text t)))
 ;;
@@ -228,5 +228,5 @@ let%test_unit "minimum prefix counts Unicode characters; manual and punctuation 
   let t = apply t { settings with completion_min_prefix_chars = 5000 } |> fun t -> press t "i." in
   let _, requests = Ui_state.take_source_requests t in
   assert (List.exists requests ~f:(function
-    | Ches_error.Source_request.Complete { trigger = Character "."; _ } -> true | _ -> false))
+    | Cobalt_error.Source_request.Complete { trigger = Character "."; _ } -> true | _ -> false))
 ;;

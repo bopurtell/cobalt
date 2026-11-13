@@ -1,8 +1,8 @@
 open! Core
-open Ches_screen
-open Ches_input
-module Controller = Ches_app.Controller
-module View_id = Ches_tile.View_id
+open Cobalt_screen
+open Cobalt_input
+module Controller = Cobalt_app.Controller
+module View_id = Cobalt_tile.View_id
 module Ask = View_registry.Ask
 
 let width = 80
@@ -37,7 +37,7 @@ module Shelf = struct
     else None
   ;;
 
-  let interpret _ (keys : Key.t list) : action Ches_tile.Content_key.t =
+  let interpret _ (keys : Key.t list) : action Cobalt_tile.Content_key.t =
     match keys with
     | [ Char c ] ->
       (match Uchar.to_char c with
@@ -83,7 +83,7 @@ module Shelf = struct
   ;;
 
   let adapter : (t, action) View_registry.Adapter.t =
-    { spec = Ches_tile.Spec.read_only id ~title:"Shelf"
+    { spec = Cobalt_tile.Spec.read_only id ~title:"Shelf"
     ; key
     ; fit = (fun t _ ~rows:_ ~width:_ -> t)
     ; leave = Fn.id
@@ -93,7 +93,7 @@ module Shelf = struct
     ; hint = "Shelf: d deletes, D clears, a adds, r reviews"
     ; perform
     ; commands =
-        (fun _ -> [ Ches_tile.Local_command.create "delete" ~keys:[ Key.char 'd' ] "Delete the last" ])
+        (fun _ -> [ Cobalt_tile.Local_command.create "delete" ~keys:[ Key.char 'd' ] "Delete the last" ])
     ; signal = (fun _ _ -> None)
     ; text_area = (fun _ ~rows:_ ~width:_ -> None)
     ; label = (fun _ -> None)

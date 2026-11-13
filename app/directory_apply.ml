@@ -1,7 +1,7 @@
 open! Core
-open Ches_core
+open Cobalt_core
 
-external rename_noreplace : string -> string -> unit = "ches_rename_noreplace"
+external rename_noreplace : string -> string -> unit = "cobalt_rename_noreplace"
 let stage_serial = ref 0
 
 type result =
@@ -162,7 +162,7 @@ let apply ?(reserved_paths = []) ?(before_mutation = fun _ -> ())
       | Copy r as operation -> mutate (fun () ->
         check_entry r.source; absent r.destination;
         affected := Filename.dirname (child r.destination) :: !affected;
-        let temp = Core_unix.mkdtemp (Filename.concat (Filename.dirname (child r.destination)) ".ches-copy-") in
+        let temp = Core_unix.mkdtemp (Filename.concat (Filename.dirname (child r.destination)) ".cobalt-copy-") in
         let owned = Core_unix.lstat temp in
         Exn.protect ~finally:(fun () ->
           (* A replaced parent must not turn cleanup into deletion of an unrelated
@@ -194,7 +194,7 @@ let apply ?(reserved_paths = []) ?(before_mutation = fun _ -> ())
       | Rename r ->
         let rec choose () =
           incr stage_serial;
-          let name = sprintf ".ches-stage-%d-%d" (Pid.to_int (Core_unix.getpid ())) !stage_serial in
+          let name = sprintf ".cobalt-stage-%d-%d" (Pid.to_int (Core_unix.getpid ())) !stage_serial in
           if List.exists !rows ~f:(fun row -> String.equal row.Directory_identity.Row.name name)
             || List.exists reserved_paths ~f:(fun path -> String.equal path (child name)
               || String.is_prefix path ~prefix:(child name ^ "/"))
@@ -257,7 +257,7 @@ let apply ?(reserved_paths = []) ?(before_mutation = fun _ -> ())
     let text = if Option.is_none error then saved else
       let desired = List.map !rows ~f:(fun row ->
         let prefix = match row.Directory_identity.Row.identity with
-          | Existing id -> sprintf "@ches[%d]\t" id | Copy id -> sprintf "@copy[%d]\t" id | Fresh -> "" in
+          | Existing id -> sprintf "@cobalt[%d]\t" id | Copy id -> sprintf "@copy[%d]\t" id | Fresh -> "" in
         (if Option.is_some scope then "" else prefix) ^ (String.split row.name ~on:'/' |> List.map ~f:Directory_identity.encode_name |> String.concat ~sep:"/") ^
           (if Directory_identity.Kind.equal row.kind Directory then "/" else "")) in
       let text = Text_buffer.of_string (String.concat ~sep:"\n" desired) |> Result.ok |> Option.value_exn in
@@ -265,7 +265,7 @@ let apply ?(reserved_paths = []) ?(before_mutation = fun _ -> ())
         Text_buffer.with_identities text ~scope
           (List.filter_mapi !rows ~f:(fun line row -> match row.Directory_identity.Row.identity with
             | Fresh -> None
-            | Existing id -> Some (Text_buffer.line_start text line, sprintf "@ches[%d]" id)
+            | Existing id -> Some (Text_buffer.line_start text line, sprintf "@cobalt[%d]" id)
             | Copy id -> Some (Text_buffer.line_start text line, sprintf "@copy[%d]" id))) in
     let selected = List.find !rows ~f:(fun row ->
       row.Directory_identity.Row.line = Editor.cursor_line (Controller.editor original.controller)) in

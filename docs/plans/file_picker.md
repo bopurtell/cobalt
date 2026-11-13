@@ -122,7 +122,7 @@ or comprehensive visual acceptance claim.
 Historical phase-11-only scope below: phase 12 subsequently installed production
 presentation, and phase 13 verified it. This is not a current no-presentation claim.
 
-- **Outcome / scope:** complete standalone `ches_file_preview` library with a
+- **Outcome / scope:** complete standalone `cobalt_file_preview` library with a
   bounded pure model, Async provider and retained-buffer adapter. No production
   preview activation, screen input/state, rendering, layout or acceptance changes;
   those remain phase 12. Existing phase-10/user working-tree changes are preserved.
@@ -204,8 +204,8 @@ presentation, and phase 13 verified it. This is not a current no-presentation cl
   tiny resize close, query/selection, capture/cursor and Enter acceptance remain.
   Palette, content and document-line layouts are unchanged.
 - **Pure/Async boundary:** phase-11 Model moved intact to
-  `file_picker/preview/pure/{dune,model.ml,model.mli}` (`ches_file_preview_model`);
-  the service retains the source-compatible `Ches_file_preview.Model` alias.
+  `file_picker/preview/pure/{dune,model.ml,model.mli}` (`cobalt_file_preview_model`);
+  the service retains the source-compatible `Cobalt_file_preview.Model` alias.
   Screen depends only on the pure library, never Async or the provider.
 - **Production lifecycle:** `ui/editor_view.ml` owns one reusable provider, with
   late CURRENT UI session retained-buffer lookup. Follow occurs synchronously
@@ -342,8 +342,8 @@ test failure or unrelated expectation correction was hidden by these reruns.
 
 Final picker fixtures and plain/ANSI captures:
 `/tmp/opencode/picker-terminal-o6okly_3/.captures/`.
-Full smoke captures: `/tmp/opencode/ches-smoke-screens.eGeekH/`;
-palette-only captures: `/tmp/opencode/ches-smoke-screens.2apsYG/`.
+Full smoke captures: `/tmp/opencode/cobalt-smoke-screens.eGeekH/`;
+palette-only captures: `/tmp/opencode/cobalt-smoke-screens.2apsYG/`.
 Directory fixtures/captures: `/tmp/opencode/directory-phase5-pty-vevy56e5/`,
 `directory-phase6-pty-jbh12u5q/`, `directory-phase7-pty-bul3e41a/`,
 `directory-phase8-pty-95zk9e07/` (each under `/tmp/opencode`). Initial tracked diff,
@@ -473,7 +473,7 @@ explicit.
 ### Phase 1 implementation and handoff (2026-10-07)
 
 - Added `file_picker/dune`, `file_picker/model.ml`, and `file_picker/model.mli`:
-  the independent `Ches_file_picker.Model` library depends only on Core. Candidate
+  the independent `Cobalt_file_picker.Model` library depends only on Core. Candidate
   construction validates absolute roots and normalized relative paths lexically,
   preserves original path bytes, and produces separate escaped single-line UTF-8
   display text. It performs no filesystem IO or canonicalization. Candidate identity
@@ -562,9 +562,9 @@ blocking the editor or depending on tabs or floating rendering.
 
 ### Phase 2 implementation and handoff (2026-10-07)
 
-- Added a separate Async library, `Ches_file_discovery`, under
+- Added a separate Async library, `Cobalt_file_discovery`, under
   `file_picker/discovery/`: `dune`, `project_root.ml` / `.mli`, and
-  `provider.ml` / `.mli`. The phase-1 `Ches_file_picker` library remains pure;
+  `provider.ml` / `.mli`. The phase-1 `Cobalt_file_picker` library remains pure;
   its `dune` comment now points to the separate IO library. No diagnostic, screen,
   controller, or buffer implementation was changed.
 - Root policy is the nearest ancestor with either `.git` (file or directory) or
@@ -652,7 +652,7 @@ blocking the editor or depending on tabs or floating rendering.
 **Possible without multiple buffers: YES.**
 **Floating dependency: none.**
 
-Reuse `Ches_palette.Fuzzy` with basename and project-relative path fields, giving
+Reuse `Cobalt_palette.Fuzzy` with basename and project-relative path fields, giving
 the basename greater weight. Preserve byte-offset match positions and map any
 basename-field highlights into the displayed relative path.
 
@@ -692,7 +692,7 @@ and recorded scale measurements without regressions in command matching.
   shifted into the raw relative path, token/field highlights are merged, then
   mapped to escaped display UTF-8 byte starts. Empty queries and equal scores
   preserve input order: pass the provider's deterministic sorted collection.
-  `file_picker/dune` now depends on `ches_palette` as well as Core; it remains
+  `file_picker/dune` now depends on `cobalt_palette` as well as Core; it remains
   pure and independent of Async, screen, controllers, floats, and buffers.
 - Changed `file_picker/model.ml` / `.mli`: `Candidate.display_positions` shares
   the existing escape encoder rather than duplicating its sanitization policy.
@@ -786,7 +786,7 @@ behavior remains verified.
   fallback. Added `screen/picker_text.ml` / `.mli`; changed
   `screen/palette_tile.ml` to reuse query-tail clipping/cursor and byte-position
   matched-text rendering. Existing command-specific catalogs, acceptance and
-  keybindings remain unchanged. Scrolling reuses `Ches_tile.Navigation.Selection`,
+  keybindings remain unchanged. Scrolling reuses `Cobalt_tile.Navigation.Selection`,
   not a new provider framework or registry.
 - Changed `file_picker/model.ml` / `.mli`: shared selection fallback, a metadata-only
   `with_discovery` installer (caller validates freshness), and `Candidate.display_text`
@@ -904,7 +904,7 @@ an isolated acceptance boundary and unchanged underlying document state.
   suppressed. Explicit document-allocation rendering excludes both float types.
   Host notices are included in the file footer; loading, partial, failure,
   no-match/empty and truncation remain visible through actual host frames.
-- Added separate Async `Ches_file_picker_host.Runtime`: reuses one discovery
+- Added separate Async `Cobalt_file_picker_host.Runtime`: reuses one discovery
   provider, explicit retained root, one batch per poll and 128-record work inputs.
   Ranking turns yield via `Scheduler.yield`; idle discovery waits 2ms. Run/root
   checks occur both before and after awaiting; stale queued snapshots/work cannot
@@ -954,7 +954,7 @@ an isolated acceptance boundary and unchanged underlying document state.
   `/tmp/opencode/file-picker-phase5-runtest.log`. `git diff --check` PASS.
   Shared-palette terminal smoke (`TMPDIR=/tmp/opencode bash scripts/smoke.sh
   --palette-only`) PASS; log `/tmp/opencode/file-picker-phase5-palette-smoke.log`,
-  colored captures `/tmp/opencode/ches-smoke-screens.aw9jb7`. File-picker-specific
+  colored captures `/tmp/opencode/cobalt-smoke-screens.aw9jb7`. File-picker-specific
   terminal smoke/human visual review NOT RUN; the actual Bonsai frontend was
   exercised headlessly with an explicit consumer, not as a shipped command.
   Initial compile/assertion issues and a child-spawn timing race in a new test
@@ -1218,7 +1218,7 @@ floating dependency is available; current-document navigation does not need phas
   viewport reveal, exact zen cancellation, no-match Enter, catalog shortcut/dispatch,
   14×5/undersized resize, interrupted paste, unchanged saved bytes and terminal
   restoration. Log `/tmp/opencode/file-picker-phase7-line-smoke.log`, colored captures
-  `/tmp/opencode/ches-smoke-screens.nhc8XH`. The first smoke asserted a display-cell
+  `/tmp/opencode/cobalt-smoke-screens.nhc8XH`. The first smoke asserted a display-cell
   column in the character-column status; corrected it to separately assert status
   `500:16` and terminal cursor `30 27 1`. Shared palette regression smoke PASS,
   log `/tmp/opencode/file-picker-phase7-palette-smoke.log`. **No human visual
@@ -1268,7 +1268,7 @@ selecting a match opens or activates the correct file and navigates correctly.
   no-config/ignore/hidden/metadata/no-follow policy with content search without
   changing diagnostic root discovery. Hosts reuse phase-2 `Project_root.find`
   and retain scope explicitly; no root re-selection is hidden in query refreshes.
-  `dune-project` declares direct Yojson/Base64 dependencies (generated `ches.opam`).
+  `dune-project` declares direct Yojson/Base64 dependencies (generated `cobalt.opam`).
 - JSON `text` and base64 `bytes` fields preserve raw paths and lines (including
   invalid UTF-8/controls/line endings). Only leading `./` is stripped. Each
   submatch is one hit, separately retaining path, positive one-based line,
@@ -1351,7 +1351,7 @@ selecting a match opens or activates the correct file and navigates correctly.
   resize behavior follow shared conventions. Workspace/document/cursor/scroll stay
   unchanged. Ctrl-c retains shared notice behavior; Escape/Tab close. Host notices
   appear in the footer. No parallel float or provider framework was introduced.
-- Added `Ches_content_picker_host.Runtime`: retained explicit root, reused provider,
+- Added `Cobalt_content_picker_host.Runtime`: retained explicit root, reused provider,
   at most one batch per 2ms yielded poll, prompt query replacement with provider-owned
   debounce/kill/reap before replacement spawn. Edits immediately disable stale
   acceptance; current-query `expect`, exact run/root/query installation and opening
@@ -1678,7 +1678,7 @@ snapshots were edited/promoted and no mutative Git/GitHub operations occurred.
 | `dune runtest ui/picker_test --force` after fix | PASS including file/content real-provider frontends and shipped line frontend; `/tmp/opencode/file-picker-phase9-deactivation-after.log` |
 | `dune build` | PASS; `/tmp/opencode/file-picker-phase9-final-build.log` |
 | One final `dune runtest --force` | FAIL only on the known seven expectation blocks across four `ui/test/test_editor_view.ml` tests; all other suites passed; `/tmp/opencode/file-picker-phase9-final-full.log` |
-| `TMPDIR=/tmp/opencode bash scripts/smoke.sh --line-picker-only` | PASS: live dirty Unicode match/jump/reveal, zen/exact cancellation, no-match Enter, catalog, minimum/tiny resize, late paste, saved bytes, quit and terminal restoration; `/tmp/opencode/file-picker-phase9-final-line-smoke.log`; captures `/tmp/opencode/ches-smoke-screens.f8tLfy` |
+| `TMPDIR=/tmp/opencode bash scripts/smoke.sh --line-picker-only` | PASS: live dirty Unicode match/jump/reveal, zen/exact cancellation, no-match Enter, catalog, minimum/tiny resize, late paste, saved bytes, quit and terminal restoration; `/tmp/opencode/file-picker-phase9-final-line-smoke.log`; captures `/tmp/opencode/cobalt-smoke-screens.f8tLfy` |
 | `bash -n scripts/smoke.sh`, read-only `git diff --check` | PASS |
 | Human visual validation | NOT PERFORMED; automated captures are not human acceptance |
 | Live file/content opening and content-specific terminal acceptance | BLOCKED / NOT RUN; injected-consumer headless frontend acceptance opens no files |

@@ -1,22 +1,22 @@
 open! Core
-open Ches_core
-open Ches_screen
+open Cobalt_core
+open Cobalt_screen
 open Helpers
-module Controller = Ches_app.Controller
-module Feedback = Ches_error.Error
+module Controller = Cobalt_app.Controller
+module Feedback = Cobalt_error.Error
 
 let%expect_test "demo startup is opt-in, bounded, valid for empty/Unicode files, and never edits" =
   List.iter [ ""; "one line"; "\t界🙂\nsecond\n\nlast" ] ~f:(fun text ->
     let original = Ui_state.controller (ui ~path:"demo.txt" text) in
     assert (List.is_empty (Feedback.problems (Controller.feedback original)));
-    let controller = Ches_app.Demo_problems.install original in
+    let controller = Cobalt_app.Demo_problems.install original in
     let problems = Feedback.problems (Controller.feedback controller) in
     assert (List.length problems = 8);
     assert (List.for_all problems ~f:(fun p -> not p.attention));
     assert (Text_buffer.equal (Editor.text (Controller.editor original))
       (Editor.text (Controller.editor controller)));
     assert (not (Editor.is_dirty (Controller.editor controller)));
-    let twice = Ches_app.Demo_problems.install controller in
+    let twice = Cobalt_app.Demo_problems.install controller in
     assert (List.equal Feedback.Problem.equal problems (Feedback.problems (Controller.feedback twice)));
     List.iter problems ~f:(fun p ->
       let location = Option.value_exn p.location in
@@ -31,7 +31,7 @@ let%expect_test "demo startup is opt-in, bounded, valid for empty/Unicode files,
     assert (Text_buffer.equal (Editor.text (Controller.editor original))
       (Editor.text (Controller.editor (Ui_state.controller t)))));
   let unnamed = Controller.create (Editor.create ~cell_width:Cell_map.width Text_buffer.empty)
-    |> Ches_app.Demo_problems.install in
+    |> Cobalt_app.Demo_problems.install in
   assert (List.is_empty (Feedback.problems (Controller.feedback unnamed)));
   print_endline "eight opt-in demo entries; all locations jump; empty and Unicode files stay unchanged";
   [%expect {| eight opt-in demo entries; all locations jump; empty and Unicode files stay unchanged |}]
@@ -41,7 +41,7 @@ let%expect_test "demo namespace cannot resolve or acknowledge real failures" =
   let identity : Feedback.Identity.t = { source = "file"; kind = Save; resource = "demo.txt" } in
   let controller = Ui_state.controller (ui ~path:"demo.txt" "hello")
     |> fun c -> Controller.update_feedback c (Failed (identity, Error, "real failure"))
-    |> Ches_app.Demo_problems.install in
+    |> Cobalt_app.Demo_problems.install in
   let f = Controller.feedback controller in
   assert (List.length (Feedback.problems f) = 9);
   assert (List.hd_exn (Feedback.problems f)).attention;

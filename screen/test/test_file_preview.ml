@@ -1,8 +1,8 @@
 open! Core
-open Ches_screen
-module Model = Ches_file_picker.Model
-module Preview = Ches_file_preview_model.Model
-module Interaction = Ches_file_picker.Interaction
+open Cobalt_screen
+module Model = Cobalt_file_picker.Model
+module Preview = Cobalt_file_preview_model.Model
+module Interaction = Cobalt_file_picker.Interaction
 
 let discovery n : Model.Discovery.t =
   { request = { run_id = Model.Run_id.of_int n; root = "/project" }

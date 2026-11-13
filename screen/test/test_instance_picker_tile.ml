@@ -1,7 +1,7 @@
 open! Core
-open Ches_screen
+open Cobalt_screen
 module P = Instance_picker_tile
-module L = Ches_error.Language_query
+module L = Cobalt_error.Language_query
 
 let instance hier_path : L.instance = { hier_path; target = None }
 let create items = P.create ~module_name:"leaf" ~active:(Some "top.wide") items
@@ -58,7 +58,7 @@ let%test_unit "tiny viewports and huge combining paths have bounded valid Unicod
         assert (List.sum (module Int) spans ~f:(fun span -> String.length span.Span.text)
                 <= 32 * (width + 1));
         List.iter spans ~f:(fun span ->
-          assert (Result.is_ok (Ches_core.Text_buffer.validate span.Span.text))));
+          assert (Result.is_ok (Cobalt_core.Text_buffer.validate span.Span.text))));
       let cursor = P.cursor t ~width in
       assert (cursor.column >= 0 && cursor.column <= Int.max 0 (width - 1))));
   (* A small viewport must not copy/decode the million-byte path each frame. *)

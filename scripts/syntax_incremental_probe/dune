@@ -1,3 +1,3 @@
 (executable
  (name probe)
- (libraries ches_app ches_core ches_highlight ches_highlight_tree_sitter ches_screen core unix))
+ (libraries cobalt_app cobalt_core cobalt_highlight cobalt_highlight_tree_sitter cobalt_screen core unix))

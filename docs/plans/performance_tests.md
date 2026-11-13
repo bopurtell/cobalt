@@ -9,10 +9,10 @@ Created: 2026-10-06.
 
 ## Goal
 
-Preserve Ches's responsiveness as features accumulate, using repeatable measurements
+Preserve Cobalt's responsiveness as features accumulate, using repeatable measurements
 and actionable regression reports. The owner's comparative requirement is:
 
-> Ches should beat clean terminal Emacs on median and p99 latency for agreed
+> Cobalt should beat clean terminal Emacs on median and p99 latency for agreed
 > everyday editing workloads. Neovim is the reference target; beating it is not
 > required.
 
@@ -37,7 +37,7 @@ noise is inconclusive, not a win.
 
 ### Three complementary layers
 
-1. **Internal Ches probes:** attribute time and allocations to editing, highlighting,
+1. **Internal Cobalt probes:** attribute time and allocations to editing, highlighting,
    diagnostics, and frame construction. Useful for diagnosis, not direct competitor
    comparisons.
 2. **Shared PTY harness:** launch each editor in a pseudo-terminal, inject input,
@@ -80,7 +80,7 @@ CPU work or use adjustable wall-clock timestamps for elapsed intervals.
 
 ### Fair comparison profiles
 
-Start from `nvim --clean` and `emacs -Q -nw`, plus a documented Ches configuration.
+Start from `nvim --clean` and `emacs -Q -nw`, plus a documented Cobalt configuration.
 These commands are starting points, not proof of feature equivalence.
 
 - **Plain editing:** matching text fixtures, syntax highlighting and language services
@@ -88,9 +88,9 @@ These commands are starting points, not proof of feature equivalence.
 - **Code editing:** explicit language/highlighting configuration per editor. Record
   implementation differences; stock Emacs may not provide the same language mode.
   If a comparable mode is unavailable, report that scenario as unavailable rather
-  than comparing highlighted Ches with unhighlighted Emacs as though equivalent.
+  than comparing highlighted Cobalt with unhighlighted Emacs as though equivalent.
 - **Background work:** controlled diagnostic/update workloads. Cross-editor results
-  require equivalent producers and features; otherwise label them Ches-only.
+  require equivalent producers and features; otherwise label them Cobalt-only.
 - **Owner configuration (optional):** the owner's actual Emacs/Neovim setup, reported
   separately from clean baselines.
 
@@ -170,7 +170,7 @@ without guessing what is timed or what constitutes completion. No timing gate ye
 failure, and measurement overhead/resolution is documented. Timing-sensitive harness
 checks use generous bounds and are separate from ordinary deterministic unit tests.
 
-## Phase 3 — Integrate Ches, Neovim, and Emacs
+## Phase 3 — Integrate Cobalt, Neovim, and Emacs
 
 - [ ] Implement isolated launch/setup/teardown adapters for all three editors.
 - [ ] Implement plain-text insert, backspace, cursor movement, and scrolling first.
@@ -203,7 +203,7 @@ Do not claim an editor ranking from a handful of development samples.
 - [ ] Define attribution when redraws coalesce multiple keys. Count coalesced or
   unobservable intermediate states rather than fabricating individual completion
   times; report time to visible progress and final catch-up where appropriate.
-- [ ] Add actual overlapping diagnostic bursts for Ches, including panes hidden/shown.
+- [ ] Add actual overlapping diagnostic bursts for Cobalt, including panes hidden/shown.
   Do not describe separately timed key/batch turns as measured burst latency.
 - [ ] Keep startup/file-open and optional memory observations in distinct reports.
 
@@ -221,7 +221,7 @@ correctness checks and explicit measurement boundaries for every scenario.
   State the quantile method. Preserve outliers unless a documented run-level fault
   invalidates the run; do not quietly trim stalls or pool away variability.
 - [ ] Produce a same-machine comparison against clean Emacs and Neovim, plus a
-  same-machine Ches baseline-versus-candidate comparison.
+  same-machine Cobalt baseline-versus-candidate comparison.
 - [ ] Define a meaningful noise margin using repeated runs. Mark near-ties inconclusive.
 - [ ] Agree with the owner which scenarios define the Emacs requirement, and adopt
   scenario-specific absolute budgets and relative regression tolerances.
@@ -232,12 +232,12 @@ editor-caused stalls above 50 ms deserve investigation. These are proposed engin
 budgets, not universal standards, competitor measurements, or automatic gates.
 
 A candidate fails the comparative goal if it only improves median while materially
-worsening p99 on an agreed workload. If initial Ches results miss the goal, record
+worsening p99 on an agreed workload. If initial Cobalt results miss the goal, record
 the gap and prioritize follow-up work; do not redefine the benchmark to pass it.
 
 **Acceptance:** checked-in baseline summary, reproducible commands, environment
 manifest, raw-result location, and owner-agreed policy. No cross-machine pass/fail
-claim and no universal assertion that Ches is faster than Emacs.
+claim and no universal assertion that Cobalt is faster than Emacs.
 
 ## Phase 6 — Connect internal diagnostics and make the suite maintainable
 
@@ -280,7 +280,7 @@ This phase can be periodic rather than an automated prerequisite for every chang
 Run checks appropriate to each phase. Harness changes need correctness verification;
 changes to editor code require relevant existing regression tests. Use the established
 OxCaml switch for Dune commands, and avoid simultaneous Dune invocations. Do not
-require competitor binaries for the normal Ches build or correctness tests.
+require competitor binaries for the normal Cobalt build or correctness tests.
 
 Do not call a phase complete merely because its code exists: record commands run,
 results, known limitations, and unmet acceptance criteria. A report should state
@@ -466,7 +466,7 @@ Next concrete task:
   `opam exec --switch=5.2.0+ox -- dune runtest -j 10` passed. Picker PTY smoke passed
   (`/tmp/opencode/picker-terminal-5kxg6ln1`). Broader full smoke ran once and failed
   one blockwise delete/yank/paste saved-byte comparison (`blockop.txt`); other checks
-  passed. Screens: `/tmp/opencode/ches-smoke-screens.IDj6iG`. This historical failure
+  passed. Screens: `/tmp/opencode/cobalt-smoke-screens.IDj6iG`. This historical failure
   was subsequently diagnosed and resolved below; preserve it as failed-run evidence.
 - Final architecture, measurements, commands and limits:
   `docs/picker_performance_recommendation.md#slice-6f-final-handoff--2026-10-14`.
@@ -486,19 +486,19 @@ Next concrete task:
   `scripts/smoke.sh` now waits for path-specific successful write completion and
   checks the unchanged expected bytes before and after exit.
 - [x] `opam exec --switch=5.2.0+ox -- dune runtest -j 10 test screen/test` and
-  `opam exec --switch=5.2.0+ox -- dune build -j 10 bin/ches.exe source/test/fake_lsp/fake_lsp.exe`
+  `opam exec --switch=5.2.0+ox -- dune build -j 10 bin/cobalt.exe source/test/fake_lsp/fake_lsp.exe`
   passed sequentially; shell syntax check passed. Script has no nested Dune calls.
 - Full smoke ran once: block scenario and both saved-byte assertions passed;
   one immediate negative LSP assertion after queued Undo failed. Capture already
   showed Undo completed and stop notice cleared. Screens:
-  `/tmp/opencode/ches-smoke-screens.V8IULe`; output:
+  `/tmp/opencode/cobalt-smoke-screens.V8IULe`; output:
   `/home/wayne/.local/share/opencode/tool-output/tool_138334f7d001SPXOee40TlNXC5`.
 - [x] LSP assertion now waits for Undo's restored cursor row, then preserves its
   negative notice assertion. New `--lsp-only` mode avoids repeating full smoke.
   Initial focused verification rejected an extra bottom-row status barrier because
   problems occupies that row; that extra barrier was removed. Final
   `TMPDIR=/tmp/opencode bash scripts/smoke.sh --lsp-only` passed all checks;
-  screens `/tmp/opencode/ches-smoke-screens.J4qWgl`.
+  screens `/tmp/opencode/cobalt-smoke-screens.J4qWgl`.
 - Both observed blockers are closed. No single all-green full run is claimed for
   this slice; detailed historical failures, diagnosis and verification are retained
    in `docs/picker_performance_recommendation.md#integration-smoke-blocker-closure--2026-10-14`.
@@ -673,7 +673,7 @@ Exact commands, all sequential, all **PASS / exit 0**:
 4. `TMPDIR=/tmp/opencode bash scripts/smoke.sh` — one full run, **all checks passed**;
    block save/post-exit bytes, LSP Undo/restart/cleanup, editing/undo/Unicode/window
    scrolling, workspace/float/paste/resize and terminal restoration passed.
-   Screens `/tmp/opencode/ches-smoke-screens.yaj6JY`; output
+   Screens `/tmp/opencode/cobalt-smoke-screens.yaj6JY`; output
    `/home/wayne/.local/share/opencode/tool-output/tool_13849d53a001CTzZiDprhYNL3m`.
 5. `python3 scripts/directory_editing_smoke.py` — pending edits/undo, refresh refusal,
    backing-path opening, dirty quit guard and apply boundary;

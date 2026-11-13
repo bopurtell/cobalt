@@ -1,5 +1,5 @@
 open! Core
-open Ches_vcs
+open Cobalt_vcs
 
 let of_result spec (result : Exec.Result.t) =
   let command = Exec.Spec.to_string_hum spec in

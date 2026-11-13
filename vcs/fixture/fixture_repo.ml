@@ -1,6 +1,6 @@
 open! Core
-module Exec = Ches_vcs.Exec
-module Job = Ches_vcs.Job
+module Exec = Cobalt_vcs.Exec
+module Job = Cobalt_vcs.Job
 
 type t =
   { dir : string
@@ -15,10 +15,10 @@ let date = "1767225600 +0000"
 let isolation t =
   [ "GIT_CONFIG_GLOBAL", "/dev/null"
   ; "GIT_CONFIG_NOSYSTEM", "1"
-  ; "GIT_AUTHOR_NAME", "Ches Test"
-  ; "GIT_AUTHOR_EMAIL", "ches-test@example.invalid"
-  ; "GIT_COMMITTER_NAME", "Ches Test"
-  ; "GIT_COMMITTER_EMAIL", "ches-test@example.invalid"
+  ; "GIT_AUTHOR_NAME", "Cobalt Test"
+  ; "GIT_AUTHOR_EMAIL", "cobalt-test@example.invalid"
+  ; "GIT_COMMITTER_NAME", "Cobalt Test"
+  ; "GIT_COMMITTER_EMAIL", "cobalt-test@example.invalid"
   ; "GIT_AUTHOR_DATE", date
   ; "GIT_COMMITTER_DATE", date
   ; "GIT_TERMINAL_PROMPT", "0"
@@ -45,7 +45,7 @@ let environment t =
 ;;
 
 let with_temp f =
-  let path = Filename_unix.temp_file "ches-vcs-fixture" "" in
+  let path = Filename_unix.temp_file "cobalt-vcs-fixture" "" in
   Exn.protect
     ~f:(fun () -> f path)
     ~finally:(fun () -> try Core_unix.unlink path with
@@ -185,7 +185,7 @@ let remove t =
 ;;
 
 let create ?(remote = false) () =
-  let dir = Filename_unix.realpath (Filename_unix.temp_dir "ches-vcs-fixture" "") in
+  let dir = Filename_unix.realpath (Filename_unix.temp_dir "cobalt-vcs-fixture" "") in
   let t =
     { dir
     ; work = Filename.concat dir "work"

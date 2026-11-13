@@ -3,7 +3,7 @@
 
 open! Core
 
-module Syntax = Ches_highlight.Category
+module Syntax = Cobalt_highlight.Category
 
 module Overlay : sig
   type t =
@@ -43,7 +43,7 @@ module Document : sig
 end
 
 type t =
-  | Terminal of Ches_terminal.Model.style
+  | Terminal of Cobalt_terminal.Model.style
   | Backdrop (** The screen outside the tile and status line. *)
   | Document of Document.t
   (** Independent foreground, current-line background, special-display treatment,
@@ -58,7 +58,7 @@ type t =
   | Status (** The status line's background and plain fields. *)
   | Status_special (** Escape forms in the filename and messages. *)
   | Hint (** Secondary text set into a frame, such as key hints. *)
-  | Mode of Ches_core.Mode.t (** The mode badge. *)
+  | Mode of Cobalt_core.Mode.t (** The mode badge. *)
   | Dirty
   | Pending
   | Info

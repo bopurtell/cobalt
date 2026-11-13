@@ -1,6 +1,6 @@
 open! Core
-open Ches_core
-open Ches_input
+open Cobalt_core
+open Cobalt_input
 
 let keys = Key_notation.keys
 
@@ -1978,7 +1978,7 @@ let%expect_test "Space g places and focuses the VCS view; g c, g a and g l are i
     (View(Request_view(view vcs)(request commit-abort)))
     NORMAL 0:0
     |}];
-  (* A file's history (phase 8): a request too. *)
+  (* A file's history: a request too. *)
   let t = run t (keys " gl") in
   show_position t;
   [%expect {|

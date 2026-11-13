@@ -7,7 +7,7 @@
     prompts, and other targets that need further keys never do. *)
 
 open! Core
-open Ches_input
+open Cobalt_input
 
 (** [sequences bindings action] are the key sequences in [bindings] that run exactly
     [action], in the order of [bindings]. *)

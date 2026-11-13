@@ -4,7 +4,7 @@ Deferred by the owner on 2026-10-06 to close out the workspace-tiles feature set
 phase 10. Moved verbatim from [`workspace_tiles_design.md`](../workspace_tiles_design.md).
 
 **What is done:** phases 7A–7C (human-accepted) built the shared foundation:
-- the `ches_tile` host (view ids, focus/capture/routing);
+- the `cobalt_tile` host (view ids, focus/capture/routing);
 - the rounded `Tile_shell` with padding;
 - the comfortable allocation;
 - the read-only text cursor, selection, and copying.
@@ -21,10 +21,10 @@ major tile until the VCS view (phase 2, below).
   minor rendering all go through it by view id. Problems, history and the demo report
   are migrated; `Ui_state.create ~views` installs further views with no per-name code.
 - `View_command` has `Toggle_view`, `Focus_view` and `Run_view_command` parameterized
-  by `View_id` (now defined in `ches_input` and re-exported by `ches_tile`) instead of
+  by `View_id` (now defined in `cobalt_input` and re-exported by `cobalt_tile`) instead of
   `Toggle_problems`, `Focus_problems`, `Toggle_demo_report`, `Focus_demo_report`,
   `Toggle_history` and `Focus_history`. Bindings and palette ids/titles are unchanged.
-- View-local commands (`Ches_tile.Local_command`): adapters declare them per state;
+- View-local commands (`Cobalt_tile.Local_command`): adapters declare them per state;
   `?` opens a read-only help float listing them, and the command palette lists the
   focused view's commands first and runs them in that view.
 - Still per-name, by design: the problems-specific commands (`Toggle_problems_filter`,
@@ -124,8 +124,8 @@ under "Shared tile direction — Major/minor roles and consumer-independent plum
 
 **Done in VCS workspace phase 8 (2026-10-31):** log and history browsing.
 - `l` asks `Ask.Popup` with `Git.Log.popup`; its answer sets the view's log scope
-  (`Ches_vcs.Log_scope`, part of every `Backend.Refresh.t`), drawn with the pure
-  `Ches_vcs.Graph`. The commit diff's file list, `}` / `{` and `Enter` on a listed
+  (`Cobalt_vcs.Log_scope`, part of every `Backend.Refresh.t`), drawn with the pure
+  `Cobalt_vcs.Graph`. The commit diff's file list, `}` / `{` and `Enter` on a listed
   file are `Vcs_diff_text` (`Kind.Listed`, `file_starts`, `listed_file_at`) and
   view keys. `Space g l` is `Request_view { view = vcs; request = "file-log" }`.
 - Generic seams it introduced, usable by any later view:
@@ -139,8 +139,8 @@ under "Shared tile direction — Major/minor roles and consumer-independent plum
     signal moves focus; keys, answers and other signals ignore it.
 
 **What is not done:**
-- Moving `Tile_shell` out of `ches_screen` into a library that dune keeps away from
-  `ches_error`.
+- Moving `Tile_shell` out of `cobalt_screen` into a library that dune keeps away from
+  `cobalt_error`.
 - Any other specialized major tile, such as a Hardcaml report or workbench.
 - Unanswered comfort questions from 7B.
 
@@ -159,8 +159,8 @@ not blockers for phase 7C; revisit them when the owner next reviews tile comfort
 - **Band height.** Are ten rows (`Workspace.preferred_band_height`, eight content
   rows) right on each display?
 - **Shell boundary.** `Tile_shell` stays error-free only by convention inside
-  `ches_screen`. Moving it into a library that dune keeps away from `ches_error`
-  (as `ches_tile` is) is still open. (The per-name wiring noted here originally was
+  `cobalt_screen`. Moving it into a library that dune keeps away from `cobalt_error`
+  (as `cobalt_tile` is) is still open. (The per-name wiring noted here originally was
   replaced by the view registry in VCS workspace phase 0A.)
 
 ## Later major-tile specialization

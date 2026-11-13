@@ -1,5 +1,5 @@
 open! Core
-open Ches_core
+open Cobalt_core
 
 type kind = File | Directory
 let classify path =

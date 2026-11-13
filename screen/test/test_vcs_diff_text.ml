@@ -1,10 +1,10 @@
 (* Pure tests of Vcs_diff_text over diffs parsed by Diff_output (literal git 2.43
-   output): span (phase 4), the diff lines a Visual selection's byte range touches; a
-   commit's file list, file_starts and listed_file_at (phase 8). *)
+   output): span, the diff lines a Visual selection's byte range touches; a
+   commit's file list, file_starts and listed_file_at. *)
 
 open! Core
-open Ches_screen
-module Diff = Ches_vcs.Diff
+open Cobalt_screen
+module Diff = Cobalt_vcs.Diff
 
 let output =
   {|diff --git a/a.txt b/a.txt
@@ -32,7 +32,7 @@ index 3333333..4444444 100644
 ;;
 
 let diff =
-  Ches_vcs_git.Diff_output.parse Diff.Limits.default ~cut:false output
+  Cobalt_vcs_git.Diff_output.parse Diff.Limits.default ~cut:false output
   |> Or_error.ok_exn
 ;;
 
@@ -171,17 +171,17 @@ let%expect_test "lines outside any file are ignored" =
     |}]
 ;;
 
-(* Phase 8: a commit's file list. *)
+(* A commit's file list. *)
 
 let parse ?(limits = Diff.Limits.default) output =
-  Ches_vcs_git.Diff_output.parse limits ~cut:false output |> Or_error.ok_exn
+  Cobalt_vcs_git.Diff_output.parse limits ~cut:false output |> Or_error.ok_exn
 ;;
 
 let header =
   {|commit 43d2480ac115bf1972d7720a59c166d6d474175c
-Author:     Ches Test <ches-test@example.invalid>
+Author:     Cobalt Test <cobalt-test@example.invalid>
 AuthorDate: 2026-01-01T00:00:00+00:00
-Commit:     Ches Test <ches-test@example.invalid>
+Commit:     Cobalt Test <cobalt-test@example.invalid>
 CommitDate: 2026-01-01T00:00:00+00:00
 
 |}
@@ -247,9 +247,9 @@ let%expect_test "a two-file commit, one renamed: the list between message and fi
   print_layout text;
   [%expect {|
      0    Preamble     |commit 43d2480ac115bf1972d7720a59c166d6d474175c
-     1    Preamble     |Author:     Ches Test <ches-test@example.invalid>
+     1    Preamble     |Author:     Cobalt Test <cobalt-test@example.invalid>
      2    Preamble     |AuthorDate: 2026-01-01T00:00:00+00:00
-     3    Preamble     |Commit:     Ches Test <ches-test@example.invalid>
+     3    Preamble     |Commit:     Cobalt Test <cobalt-test@example.invalid>
      4    Preamble     |CommitDate: 2026-01-01T00:00:00+00:00
      5    Message      |
      6    Message      |    Rename and edit
@@ -319,9 +319,9 @@ new mode 100755
   print_layout (Vcs_diff_text.of_diff diff);
   [%expect {|
      0    Preamble     |commit 43d2480ac115bf1972d7720a59c166d6d474175c
-     1    Preamble     |Author:     Ches Test <ches-test@example.invalid>
+     1    Preamble     |Author:     Cobalt Test <cobalt-test@example.invalid>
      2    Preamble     |AuthorDate: 2026-01-01T00:00:00+00:00
-     3    Preamble     |Commit:     Ches Test <ches-test@example.invalid>
+     3    Preamble     |Commit:     Cobalt Test <cobalt-test@example.invalid>
      4    Preamble     |CommitDate: 2026-01-01T00:00:00+00:00
      5    Message      |
      6    Message      |    Binary and gone
@@ -352,9 +352,9 @@ let%expect_test "a merge commit's combined diff counts its Added and Removed lin
     parse
       {|commit b679207734298a2f5b68b81f6e8dce3e4700a1b3
 Merge: d855c43 9e2ff15
-Author:     Ches Test <ches-test@example.invalid>
+Author:     Cobalt Test <cobalt-test@example.invalid>
 AuthorDate: 2026-01-01T00:00:00+00:00
-Commit:     Ches Test <ches-test@example.invalid>
+Commit:     Cobalt Test <cobalt-test@example.invalid>
 CommitDate: 2026-01-01T00:00:00+00:00
 
     Merge side
@@ -375,9 +375,9 @@ index af70335,f794161..bd9d3b5
   [%expect {|
      0    Preamble     |commit b679207734298a2f5b68b81f6e8dce3e4700a1b3
      1    Preamble     |Merge: d855c43 9e2ff15
-     2    Preamble     |Author:     Ches Test <ches-test@example.invalid>
+     2    Preamble     |Author:     Cobalt Test <cobalt-test@example.invalid>
      3    Preamble     |AuthorDate: 2026-01-01T00:00:00+00:00
-     4    Preamble     |Commit:     Ches Test <ches-test@example.invalid>
+     4    Preamble     |Commit:     Cobalt Test <cobalt-test@example.invalid>
      5    Preamble     |CommitDate: 2026-01-01T00:00:00+00:00
      6    Message      |
      7    Message      |    Merge side
@@ -406,9 +406,9 @@ let%expect_test "a truncated file: counts over its shown hunks, then (truncated)
   print_layout (Vcs_diff_text.of_diff diff);
   [%expect {|
      0    Preamble     |commit 43d2480ac115bf1972d7720a59c166d6d474175c
-     1    Preamble     |Author:     Ches Test <ches-test@example.invalid>
+     1    Preamble     |Author:     Cobalt Test <cobalt-test@example.invalid>
      2    Preamble     |AuthorDate: 2026-01-01T00:00:00+00:00
-     3    Preamble     |Commit:     Ches Test <ches-test@example.invalid>
+     3    Preamble     |Commit:     Cobalt Test <cobalt-test@example.invalid>
      4    Preamble     |CommitDate: 2026-01-01T00:00:00+00:00
      5    Message      |
      6    Message      |    Two files
@@ -469,9 +469,9 @@ let%expect_test "an uncommitted diff (no preamble), a commit without files: no l
        });
   [%expect {|
     0    Preamble     |commit 43d2480ac115bf1972d7720a59c166d6d474175c
-    1    Preamble     |Author:     Ches Test <ches-test@example.invalid>
+    1    Preamble     |Author:     Cobalt Test <cobalt-test@example.invalid>
     2    Preamble     |AuthorDate: 2026-01-01T00:00:00+00:00
-    3    Preamble     |Commit:     Ches Test <ches-test@example.invalid>
+    3    Preamble     |Commit:     Cobalt Test <cobalt-test@example.invalid>
     4    Preamble     |CommitDate: 2026-01-01T00:00:00+00:00
     5    Message      |
     6    Message      |    Empty
@@ -495,8 +495,8 @@ let%expect_test "offsets past the list shift; positions, spans and targets stay"
       ; listed_hunks = (Vcs_diff_text.hunk_starts listed : int list)
       }];
   [%expect {|
-    ((shift 279) (plain_files (0 109)) (listed_files (279 388))
-     (plain_hunks (81 257)) (listed_hunks (360 536)))
+    ((shift 287) (plain_files (0 109)) (listed_files (287 396))
+     (plain_hunks (81 257)) (listed_hunks (368 544)))
     |}];
   let shifted f = List.map (f plain) ~f:(fun offset -> offset + shift) in
   let same_starts f = List.equal Int.equal (shifted f) (f listed) in

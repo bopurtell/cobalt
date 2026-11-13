@@ -1,7 +1,7 @@
 open! Core
-open Ches_core
-open Ches_app
-open Ches_input
+open Cobalt_core
+open Cobalt_app
+open Cobalt_input
 
 module Span = Span
 
@@ -21,10 +21,10 @@ end
 
 module Floating_layer = struct
   type t =
-    { id : Ches_tile.View_id.t
+    { id : Cobalt_tile.View_id.t
     ; layout : Tile_shell.Layout.t
     ; content : Tile_shell.Content.t
-    ; cursor : Ches_tile.Cursor.t option
+    ; cursor : Cobalt_tile.Cursor.t option
     }
 end
 
@@ -237,8 +237,8 @@ let prepare_document ?highlights ?allocation ?reserve_status_row ?floating ui ~w
     Option.value highlights ~default:(Controller.highlights (Ui_state.controller ui))
   in
   let highlights =
-    if Ches_highlight.Snapshot.matches snapshot key
-       && Ches_highlight.Snapshot.Key.revision key = Editor.revision editor
+    if Cobalt_highlight.Snapshot.matches snapshot key
+       && Cobalt_highlight.Snapshot.Key.revision key = Editor.revision editor
     then Some snapshot else None
   in
   let line_count = Text_buffer.line_count text in
@@ -265,8 +265,8 @@ let prepare_document ?highlights ?allocation ?reserve_status_row ?floating ui ~w
   let directory = Session.input_directory (Ui_state.session ui) in
   let header = Option.map (Ui_state.directory_rect ~buffers_in_status ui ~allocation) ~f:(fun rect ->
     let d = Option.value_exn directory in
-    let pending = if not (Ches_app.Directory_buffer.is_dirty d) then "" else
-      match Ches_app.Directory_buffer.plan d with
+    let pending = if not (Cobalt_app.Directory_buffer.is_dirty d) then "" else
+      match Cobalt_app.Directory_buffer.plan d with
       | Ok operations -> sprintf "* %d pending | " (List.length operations)
       | Error _ -> "* invalid plan | " in
     let label = if explicit_allocation then sprintf "%s%d marked | %s" pending (Set.length d.marks) (Directory_identity.encode_name d.path)
@@ -287,7 +287,7 @@ let prepare_document ?highlights ?allocation ?reserve_status_row ?floating ui ~w
   let hotkey_hints = Ui_state.hotkey_hints ui in
   let view_tile id (layout : Tile_shell.Layout.t) =
     let width = layout.content.width and rows = layout.content.height in
-    let focused = Ches_tile.View_id.equal focused_view id in
+    let focused = Cobalt_tile.View_id.equal focused_view id in
     let notice, pending =
       if focused then Ui_state.capture_notice ui, Ui_state.capture_pending ui else None, None in
     let content : Tile_shell.Content.t =
@@ -296,7 +296,7 @@ let prepare_document ?highlights ?allocation ?reserve_status_row ?floating ui ~w
           ~hotkey_hints ~focused ~notice ~pending ~width ~rows
       with
       | Some content -> content
-      | None -> { title = Ches_tile.View_id.to_string id; footer = None; body = [] }
+      | None -> { title = Cobalt_tile.View_id.to_string id; footer = None; body = [] }
     in
     layout.outer, Array.of_list (Tile_shell.render layout ~focused content) in
   (* The active view tab covers the document's tile; the split view is a minor pane. *)
@@ -306,7 +306,7 @@ let prepare_document ?highlights ?allocation ?reserve_status_row ?floating ui ~w
   let minor_tiles = Option.to_list tab_view @ List.filter_map minor_panes ~f:(fun (pane : Workspace.Pane.t) ->
     match pane.id with
     | Document | Status -> None
-    | Minor id when Ches_tile.View_id.equal id Ui_state.directory_id -> None
+    | Minor id when Cobalt_tile.View_id.equal id Ui_state.directory_id -> None
     | Minor id -> Some (view_tile id (Option.value_exn (Ui_state.minor_layout ui ~width ~height id)))) in
   let search =
     match Keymap.search_preview (Controller.keymap (Ui_state.controller ui)) with
@@ -455,8 +455,8 @@ let prepare_document ?highlights ?allocation ?reserve_status_row ?floating ui ~w
                (if on_cursor_line then Gutter_cursor_line else Gutter)
                (match directory with
                 | Some d ->
-                   let label = Option.value_map (Ches_app.Directory_buffer.row_at d line) ~default:"" ~f:(fun e ->
-                      (if Option.exists (Ches_app.Directory_buffer.backing_entry d e) ~f:(fun entry -> Set.mem d.marks entry.id) then "*" else " ") ^
+                   let label = Option.value_map (Cobalt_app.Directory_buffer.row_at d line) ~default:"" ~f:(fun e ->
+                      (if Option.exists (Cobalt_app.Directory_buffer.backing_entry d e) ~f:(fun entry -> Set.mem d.marks entry.id) then "*" else " ") ^
                      (match e.kind with File -> "f" | Directory -> "d" | Symlink -> "@" | Unsupported -> "!")) in
                   String.prefix (String.make (Int.max 0 (gutter.width - String.length label - 1)) ' ' ^ label ^ " ") gutter.width
                 | None -> Line_numbers.label
@@ -469,7 +469,7 @@ let prepare_document ?highlights ?allocation ?reserve_status_row ?floating ui ~w
           ]
       in
       let text_spans =
-         if Option.exists directory ~f:(fun d -> List.is_empty d.entries && not (Ches_app.Directory_buffer.is_dirty d)) && line = 0
+         if Option.exists directory ~f:(fun d -> List.is_empty d.entries && not (Cobalt_app.Directory_buffer.is_dirty d)) && line = 0
             && Mode.equal (Editor.mode editor) Normal then
           let hint = String.prefix "(empty directory)" viewport.width in
           [ Span.create Hint (hint ^ String.make (viewport.width - String.length hint) ' ') ~width:viewport.width ]
@@ -486,7 +486,7 @@ let prepare_document ?highlights ?allocation ?reserve_status_row ?floating ui ~w
           let line_length = Cell_layout.Index.length layout in
           let syntax =
             Option.map highlights ~f:(fun snapshot ->
-              let lookup = Ches_highlight.Snapshot.lookup_from snapshot line_start in
+              let lookup = Cobalt_highlight.Snapshot.lookup_from snapshot line_start in
               fun (glyph : Cell_map.Glyph.t) ->
                 if glyph.pos >= line_length then Style.Syntax.Plain
                 else lookup (line_start + glyph.pos))
@@ -590,11 +590,11 @@ let prepare_document ?highlights ?allocation ?reserve_status_row ?floating ui ~w
     match floating with
     | None -> rows
     | Some layer ->
-      overlay_floating rows layer ~focused:(Ches_tile.View_id.equal focused_view layer.id)
+      overlay_floating rows layer ~focused:(Cobalt_tile.View_id.equal focused_view layer.id)
   in
   let document_cursor =
     Option.exists (Ui_state.cursor_owner ?floating:floating_view ui ~width ~height)
-      ~f:(Ches_tile.View_id.equal Ui_state.document_id) in
+      ~f:(Cobalt_tile.View_id.equal Ui_state.document_id) in
   let covered_by_float (x, y) =
     Option.exists floating ~f:(fun layer ->
       let rect = layer.layout.outer in
@@ -609,7 +609,7 @@ let prepare_document ?highlights ?allocation ?reserve_status_row ?floating ui ~w
         match floating with
         | Some layer when Option.exists
             (Ui_state.cursor_owner ?floating:floating_view ui ~width ~height)
-            ~f:(Ches_tile.View_id.equal layer.id) ->
+            ~f:(Cobalt_tile.View_id.equal layer.id) ->
           Option.bind layer.cursor ~f:(fun intent ->
             let content = layer.layout.content in
             let x = content.x + intent.column and y = content.y + intent.row in
@@ -624,7 +624,7 @@ let prepare_document ?highlights ?allocation ?reserve_status_row ?floating ui ~w
         { Cursor.x
         ; y
         ; shape =
-            (match (shape : Ches_tile.Cursor.Shape.t) with
+            (match (shape : Cobalt_tile.Cursor.Shape.t) with
              | Block -> Block
              | Bar -> Bar)
         })
@@ -673,7 +673,7 @@ let prepare_document ?highlights ?allocation ?reserve_status_row ?floating ui ~w
         |> Option.value_map ~default:[] ~f:(fun text ->
           List.take (String.split (bounded text) ~on:'\n') 3) in
       let index = Option.value (List.findi candidates ~f:(fun _ c ->
-        Option.exists selected ~f:(fun s -> Ches_completion.Model.Candidate.equal s c))
+        Option.exists selected ~f:(fun s -> Cobalt_completion.Model.Candidate.equal s c))
         |> Option.map ~f:fst) ~default:0 in
       let below = viewport.y + viewport.height - anchor.y - 1 in
       let above = anchor.y - viewport.y in
@@ -705,7 +705,7 @@ let prepare_document ?highlights ?allocation ?reserve_status_row ?floating ui ~w
       let first = Int.max 0 (index - count + 1) in
       let visible = List.take (List.drop candidates first) count in
        let labels = List.map visible ~f:(fun c ->
-         let chosen = Option.exists selected ~f:(Ches_completion.Model.Candidate.equal c) in
+         let chosen = Option.exists selected ~f:(Cobalt_completion.Model.Candidate.equal c) in
          let label = bounded c.label in
          let glyphs = Cell_map.glyphs label in
          let matches = not (String.is_empty prefix) && String.is_prefix label ~prefix
@@ -726,7 +726,7 @@ let prepare_document ?highlights ?allocation ?reserve_status_row ?floating ui ~w
       let label_width = List.fold labels ~init:0 ~f:(fun n label ->
         Int.max n (Span.total_width label)) in
       let menu = List.map2_exn visible labels ~f:(fun c label ->
-        let chosen = Option.exists selected ~f:(Ches_completion.Model.Candidate.equal c) in
+        let chosen = Option.exists selected ~f:(Cobalt_completion.Model.Candidate.equal c) in
          let style part = Style.completion ~selected:chosen part in
         let provider = match c.source with
           | Buffer -> "buffer"
@@ -805,7 +805,7 @@ let prepare ?highlights ?allocation ?reserve_status_row ?floating ui ~width ~hei
         ~allocation:{ Geometry.Rect.x = 0; y = 0; width = layout.content.width; height = layout.content.height }
         ~reserve_status_row:false ~width:layout.content.width ~height:layout.content.height
         (Animation.create ~enabled:false) in
-      let focused = Ches_tile.View_id.equal (Ui_state.focused_view ui ~width ~height) Ui_state.directory_id in
+      let focused = Cobalt_tile.View_id.equal (Ui_state.focused_view ui ~width ~height) Ui_state.directory_id in
       let side = Tile_shell.render layout ~focused { title = "Directory"; footer = None; body = dir.rows } in
       (* The side pane is disjoint from the base document/status/band. Its omitted
          area is backdrop, so cutting that leading run must not introduce the
@@ -822,7 +822,7 @@ let prepare ?highlights ?allocation ?reserve_status_row ?floating ui ~width ~hei
       (* Floats cover the entire workspace, including the directory side pane. *)
       let rows = Option.fold floating ~init:rows ~f:(fun rows layer ->
         let focused_view = Ui_state.focused_view ~floating:(layer.id, Some layer.layout) ui ~width ~height in
-        overlay_floating rows layer ~focused:(Ches_tile.View_id.equal focused_view layer.id)) in
+        overlay_floating rows layer ~focused:(Cobalt_tile.View_id.equal focused_view layer.id)) in
       let side_cursor = Option.map (Ui_state.cursor_position ui ~width ~height) ~f:(fun (x, y) -> { Cursor.x; y; shape = Block }) in
       fun animation ->
         let file = file_overlay animation in
@@ -833,7 +833,7 @@ let prepare ?highlights ?allocation ?reserve_status_row ?floating ui ~width ~hei
     let width = Int.max 0 width and height = Int.max 0 height in
     let messages =
       [ "No file open - Space q to quit"
-      ; "Directory fallback: " ^ Ches_core.Directory_identity.encode_name (Session.startup_directory (Ui_state.session ui)) ] in
+      ; "Directory fallback: " ^ Cobalt_core.Directory_identity.encode_name (Session.startup_directory (Ui_state.session ui)) ] in
     let rows = List.init height ~f:(fun y ->
       let text = Option.value_map (List.nth messages y) ~default:"" ~f:(fun message -> String.prefix message width) in
       [ { Span.text = text ^ String.make (width - String.length text) ' '; width; style = Hint } ]) in
@@ -854,7 +854,7 @@ module Cache = struct
     ; overlay : Animation.t -> frame
     ; base : 'a
     ; file_stamp : (int * int * int) option
-    ; theme : Ches_theme.Theme.t
+    ; theme : Cobalt_theme.Theme.t
     }
 
   type 'a t = { mutable entry : 'a entry option }
@@ -866,10 +866,10 @@ module Cache = struct
     let eligible = not (List.is_empty inputs)
       && List.for_all inputs ~f:(function Ui_state.Input.File_picker_work _ | Animation_tick _ -> true | _ -> false)
        && Option.exists t.entry ~f:(fun entry -> entry.width = width && entry.height = height
-         && Ches_theme.Theme.equal entry.theme (Ui_state.theme ui)) in
+         && Cobalt_theme.Theme.equal entry.theme (Ui_state.theme ui)) in
     let before = Ui_state.file_picker_visible_stamp ui in
     let next, status = Ui_state.apply_all ?after_step ui ~width ~height inputs in
-    if not eligible || not (Ches_theme.Theme.equal (Ui_state.theme ui) (Ui_state.theme next))
+    if not eligible || not (Cobalt_theme.Theme.equal (Ui_state.theme ui) (Ui_state.theme next))
        || not (Option.equal [%equal: int * int * int] before (Ui_state.file_picker_visible_stamp next)) then
       invalidate t;
     next, status
@@ -878,7 +878,7 @@ module Cache = struct
   let get t ui ~width ~height ~draw_base =
     let entry = match t.entry with
        | Some entry when entry.width = width && entry.height = height
-           && Ches_theme.Theme.equal entry.theme (Ui_state.theme ui)
+           && Cobalt_theme.Theme.equal entry.theme (Ui_state.theme ui)
           && Option.equal [%equal: int * int * int] entry.file_stamp (Ui_state.file_picker_visible_stamp ui) -> entry
       | _ ->
         let overlay = prepare ui ~width ~height in

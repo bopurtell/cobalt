@@ -1,7 +1,7 @@
 open! Core
 open Bonsai_term
-open Ches_screen
-open Ches_ui
+open Cobalt_screen
+open Cobalt_ui
 
 let%test_unit "explicit themes color both base spans and smear without losing custom fonts" =
   let frame : Frame.t =
@@ -9,7 +9,7 @@ let%test_unit "explicit themes color both base spans and smear without losing cu
     ; rows = [ [ { text = "text"; width = 4; style = Style.document () } ] ]
     ; cursor = None; smear = [ 1, 0 ] } in
   let image = View.Private.notty_image in
-  let find id = Option.value_exn (Ches_theme.Theme.find id) in
+  let find id = Option.value_exn (Cobalt_theme.Theme.find id) in
   let crimson = find "crimson" and glacier = find "glacier" in
   let fonts_seen = ref [] in
   let font style = fonts_seen := style :: !fonts_seen; [ Theme.Font.Bold ] in
@@ -27,11 +27,11 @@ let%test_unit "explicit themes color both base spans and smear without losing cu
 ;;
 
 let%expect_test "production app animation ticks retain base image work" =
-  let text = Ches_core.Text_buffer.of_string "abcdef\nsecond"
-    |> Result.map_error ~f:Ches_core.Text_buffer.Invalid_text.to_string_hum
+  let text = Cobalt_core.Text_buffer.of_string "abcdef\nsecond"
+    |> Result.map_error ~f:Cobalt_core.Text_buffer.Invalid_text.to_string_hum
     |> Result.ok_or_failwith in
-  let controller = Ches_app.Controller.create
-      (Ches_core.Editor.create ~cell_width:Cell_map.width text) in
+  let controller = Cobalt_app.Controller.create
+      (Cobalt_core.Editor.create ~cell_width:Cell_map.width text) in
   let work = ref 0 and smear = ref 0 in
   let font style =
     (match style with Style.Smear -> incr smear | _ -> incr work);
@@ -62,14 +62,14 @@ let%expect_test "production app animation ticks retain base image work" =
 ;;
 
 let%test_unit "cached animation draws identical Notty images without rebuilding base attributes" =
-  let text = Ches_core.Text_buffer.of_string "abc界́def\nsecond\nthird"
-    |> Result.map_error ~f:Ches_core.Text_buffer.Invalid_text.to_string_hum
+  let text = Cobalt_core.Text_buffer.of_string "abc界́def\nsecond\nthird"
+    |> Result.map_error ~f:Cobalt_core.Text_buffer.Invalid_text.to_string_hum
     |> Result.ok_or_failwith in
-  let controller = Ches_app.Controller.create
-      (Ches_core.Editor.create ~cell_width:Cell_map.width text) in
+  let controller = Cobalt_app.Controller.create
+      (Cobalt_core.Editor.create ~cell_width:Cell_map.width text) in
   let ui = ref (Ui_state.create ~smear_enabled:true controller) in
   let keys = List.map (String.to_list "llj") ~f:(fun c ->
-    Ui_state.Input.Key (Ches_input.Key.char c)) in
+    Ui_state.Input.Key (Cobalt_input.Key.char c)) in
   ui := fst (Ui_state.apply_all !ui ~width:80 ~height:24 keys);
   let static_attrs = ref 0 and overlay_attrs = ref 0 in
   let font style =
@@ -96,11 +96,11 @@ let%test_unit "cached animation draws identical Notty images without rebuilding 
 ;;
 
 let%expect_test "idle frontend clock does not rebuild the base with smear disabled" =
-  let text = Ches_core.Text_buffer.of_string "idle document"
-    |> Result.map_error ~f:Ches_core.Text_buffer.Invalid_text.to_string_hum
+  let text = Cobalt_core.Text_buffer.of_string "idle document"
+    |> Result.map_error ~f:Cobalt_core.Text_buffer.Invalid_text.to_string_hum
     |> Result.ok_or_failwith in
-  let controller = Ches_app.Controller.create
-      (Ches_core.Editor.create ~cell_width:Cell_map.width text) in
+  let controller = Cobalt_app.Controller.create
+      (Cobalt_core.Editor.create ~cell_width:Cell_map.width text) in
   let work = ref 0 in
   let font style = incr work; Theme.Font.default style in
   let handle = Bonsai_term_test.create_handle

@@ -1,4 +1,4 @@
-(* The VCS view's commit flow (phase 5) end to end: the default bindings ([c] in the
+(* The VCS view's commit flow end to end: the default bindings ([c] in the
    view, [Space g c] and [Space g a] in the message buffer), git's own commit plans,
    and git run synchronously by [Vcs_driver] in a fixture repository. The commit
    popup, the message buffer as a file tab, finishing, aborting, refusals, hooks,
@@ -6,12 +6,12 @@
    print as $DIR; commit hashes are reproducible. *)
 
 open! Core
-open Ches_screen
-module Controller = Ches_app.Controller
-module Editor = Ches_core.Editor
-module View_id = Ches_tile.View_id
-module Fixture = Ches_vcs_fixture.Fixture_repo
-module B = Ches_vcs_git.Backend
+open Cobalt_screen
+module Controller = Cobalt_app.Controller
+module Editor = Cobalt_core.Editor
+module View_id = Cobalt_tile.View_id
+module Fixture = Cobalt_vcs_fixture.Fixture_repo
+module B = Cobalt_vcs_git.Backend
 
 let width = 100
 let height = 24
@@ -53,7 +53,7 @@ let scrub (repo : Fixture.t) text =
 ;;
 
 let vcs t = Option.value_exn (View_registry.find (Ui_state.views t) Vcs_view.key)
-let message_file (repo : Fixture.t) = repo.work ^/ ".git/CHES_COMMIT_EDITMSG"
+let message_file (repo : Fixture.t) = repo.work ^/ ".git/COBALT_COMMIT_EDITMSG"
 
 (* Focus, the tab strip (the active entry starred), the editor's buffer, the popup,
    the footer notice and the feedback line. *)
@@ -89,7 +89,7 @@ let buffer repo t =
   printf
     "--- %s\n%s"
     (Option.value_map (Editor.path editor) ~default:"none" ~f:(scrub repo))
-    (Ches_core.Text_buffer.to_string (Editor.text editor))
+    (Cobalt_core.Text_buffer.to_string (Editor.text editor))
 ;;
 
 (* HEAD's message, git's short status, and whether the message file is there. *)
@@ -112,7 +112,7 @@ let commands ?(after = 0) repo t =
     let command =
       String.chop_prefix_if_exists
         entry.command
-        ~prefix:(String.concat ~sep:" " ("git" :: Ches_vcs_git.Cli.prefix) ^ " ")
+        ~prefix:(String.concat ~sep:" " ("git" :: Cobalt_vcs_git.Cli.prefix) ^ " ")
     in
     if List.exists [ "-c"; "commit"; "rev-parse --git-path"; "log -1" ] ~f:(fun prefix ->
          String.is_prefix command ~prefix)
@@ -191,7 +191,7 @@ let%test_unit "the message editor replaces the preview while the VCS lists stay 
     let t = run t "<Tab>" in
     assert (View_id.equal (Ui_state.focused_view t ~width ~height) (View_id.of_string "document"));
     assert (String.is_prefix
-      (Ches_core.Text_buffer.to_string (Editor.text (Controller.editor (Ui_state.controller t))))
+      (Cobalt_core.Text_buffer.to_string (Editor.text (Controller.editor (Ui_state.controller t))))
       ~prefix:"Inline subject");
     (* A narrow terminal gets the full editor; widening restores the companion. *)
     let narrow = Helpers.run ~width:60 ~height t [ Ui_state.Input.Resize ] in
@@ -269,7 +269,7 @@ let%test_unit "switching away from a draft removes its companion; returning rest
     let t = run t " bn bn" in
     assert (Option.is_some (Workspace.minor (Ui_state.workspace t ~width ~height) Vcs_view.id));
     assert (String.is_prefix
-      (Ches_core.Text_buffer.to_string (Editor.text (Controller.editor (Ui_state.controller t))))
+      (Cobalt_core.Text_buffer.to_string (Editor.text (Controller.editor (Ui_state.controller t))))
       ~prefix:"Keep this draft"))
 ;;
 
@@ -317,7 +317,7 @@ let%expect_test "c opens the commit popup over the view; - s toggles a switch; q
       popup Commit []
       focused vcs; tabs [a.txt *VCS: main]; file a.txt line 1
       HEAD: "first\n\n"
-      log: 42c8e24 first
+      log: eda2f47 first
       status: M  a.txt
       message file: false
       |}];
@@ -363,8 +363,8 @@ let%expect_test "c c opens the message buffer; Space g c commits it, closes it, 
     [%expect {|
       jobs: detect g1.1, refresh g1.2, diff g1.3
       jobs: commit g1.4
-      focused document; tabs [a.txt VCS: main *CHES_COMMIT_EDITMSG]; file CHES_COMMIT_EDITMSG line 1
-      --- $DIR/work/.git/CHES_COMMIT_EDITMSG
+      focused document; tabs [a.txt VCS: main *COBALT_COMMIT_EDITMSG]; file COBALT_COMMIT_EDITMSG line 1
+      --- $DIR/work/.git/COBALT_COMMIT_EDITMSG
 
       # Write the commit message above. Lines starting with '#' are removed.
       # Space g c commits; Space g a aborts.
@@ -374,7 +374,7 @@ let%expect_test "c c opens the message buffer; Space g c commits it, closes it, 
       #
       # Changes to be committed:
       #	modified:   a.txt
-      log: [exit 0] git rev-parse --git-path CHES_COMMIT_EDITMSG
+      log: [exit 0] git rev-parse --git-path COBALT_COMMIT_EDITMSG
       |}];
     let t = run repo t "iAdd TWO<Esc>" in
     let t = run repo t " gc" in
@@ -385,16 +385,16 @@ let%expect_test "c c opens the message buffer; Space g c commits it, closes it, 
     [%expect {|
       jobs: - g1.5, refresh g1.6
       focused vcs; tabs [a.txt *VCS: main]; file a.txt line 1
-      message: [main a0515a6] Add TWO
-      HEAD: "Add TWO\n\nSigned-off-by: Ches Test <ches-test@example.invalid>\n\n"
-      log: a0515a6 Add TWO | 42c8e24 first
+      message: [main 0d72353] Add TWO
+      HEAD: "Add TWO\n\nSigned-off-by: Cobalt Test <cobalt-test@example.invalid>\n\n"
+      log: 0d72353 Add TWO | eda2f47 first
       status:
       message file: false
-      log: [exit 0] git rev-parse --git-path CHES_COMMIT_EDITMSG
-      log: [exit 0] git -c 'core.commentChar=#' commit --cleanup=strip --signoff -F $DIR/work/.git/CHES_COMMIT_EDITMSG
+      log: [exit 0] git rev-parse --git-path COBALT_COMMIT_EDITMSG
+      log: [exit 0] git -c 'core.commentChar=#' commit --cleanup=strip --signoff -F $DIR/work/.git/COBALT_COMMIT_EDITMSG
        1:a.txt [2:VCS: main]                                                                              |
       ╭─ VCS: work (main) ───────────────────────────────────────────────────────────────────────────────╮|
-      │ Head: main a0515a6                    │ 0 Diff                                                   │|
+      │ Head: main 0d72353                    │ 0 Diff                                                   │|
       │                                       │                                                          │|
       │ 1 Files (0)                           │                                                          │|
       │   (none)                              │                                                          │|
@@ -411,11 +411,11 @@ let%expect_test "c c opens the message buffer; Space g c commits it, closes it, 
       │                                       │                                                          │|
       │ 3 Commits (2)                         │                                                          │|
       │ > - Recent commits (2)                │                                                          │|
-      │   ● a0515a6 (HEAD -> main) Add TWO    │                                                          │|
-      │   ● 42c8e24 first                     │                                                          │|
+      │   ● 0d72353 (HEAD -> main) Add TWO    │                                                          │|
+      │   ● eda2f47 first                     │                                                          │|
       │                                       │                                                          │|
       ╰─ Files 0/0 ──────────────────────────────────────────────────────────────────────────────────────╯|
-       NORMAL  VCS: main [main a0515a6] Add TWO                                                           |
+       NORMAL  VCS: main [main 0d72353] Add TWO                                                           |
       cursor: none
       |}])
 ;;
@@ -443,22 +443,22 @@ let%expect_test "from a split view: the message opens in the other pane; committ
       notice: VCS in split
       message: VCS in split
       jobs: commit g1.4
-      focused document; tabs [a.txt *CHES_COMMIT_EDITMSG]; file CHES_COMMIT_EDITMSG line 1
+      focused document; tabs [a.txt *COBALT_COMMIT_EDITMSG]; file COBALT_COMMIT_EDITMSG line 1
       message: VCS in split
       jobs: - g1.5, refresh g1.6, diff g1.7
       focused vcs; tabs [*a.txt]; file a.txt line 1
-      message: [main c1d98eb] Split commit
+      message: [main 92467c3] Split commit
       HEAD: "Split commit\n\n"
-      log: c1d98eb Split commit | 42c8e24 first
+      log: 92467c3 Split commit | eda2f47 first
       status:  M b.txt
       message file: false
       jobs: - g1.8, refresh g1.9, diff g1.10
       jobs: commit g1.11
       jobs: - g1.12, refresh g1.13
       focused document; tabs [*a.txt]; file a.txt line 1
-      message: [main b349f40] Hidden
+      message: [main 9d8e3a7] Hidden
       HEAD: "Hidden\n\n"
-      log: b349f40 Hidden | c1d98eb Split commit | 42c8e24 first
+      log: 9d8e3a7 Hidden | 92467c3 Split commit | eda2f47 first
       status:
       message file: false
       |}])
@@ -484,8 +484,8 @@ let%expect_test "nothing staged refuses commit and extend; -e allows an empty co
       focused vcs; tabs [a.txt *VCS: main]; file a.txt line 1
       notice: Nothing staged; stage changes first (s), or allow an empty commit (-e); nothing ran
       jobs: commit g1.4
-      focused document; tabs [a.txt VCS: main *CHES_COMMIT_EDITMSG]; file CHES_COMMIT_EDITMSG line 1
-      --- $DIR/work/.git/CHES_COMMIT_EDITMSG
+      focused document; tabs [a.txt VCS: main *COBALT_COMMIT_EDITMSG]; file COBALT_COMMIT_EDITMSG line 1
+      --- $DIR/work/.git/COBALT_COMMIT_EDITMSG
 
       # Write the commit message above. Lines starting with '#' are removed.
       # Space g c commits; Space g a aborts.
@@ -497,13 +497,13 @@ let%expect_test "nothing staged refuses commit and extend; -e allows an empty co
       #	(nothing staged)
       jobs: - g1.5, refresh g1.6, diff g1.7
       focused vcs; tabs [a.txt *VCS: main]; file a.txt line 1
-      message: [main f6ee1d5] Empty
+      message: [main d8c8beb] Empty
       HEAD: "Empty\n\n"
-      log: f6ee1d5 Empty | 42c8e24 first
+      log: d8c8beb Empty | eda2f47 first
       status:  M a.txt
       message file: false
-      log: [exit 0] git rev-parse --git-path CHES_COMMIT_EDITMSG
-      log: [exit 0] git -c 'core.commentChar=#' commit --cleanup=strip --allow-empty -F $DIR/work/.git/CHES_COMMIT_EDITMSG
+      log: [exit 0] git rev-parse --git-path COBALT_COMMIT_EDITMSG
+      log: [exit 0] git -c 'core.commentChar=#' commit --cleanup=strip --allow-empty -F $DIR/work/.git/COBALT_COMMIT_EDITMSG
       |}])
 ;;
 
@@ -518,14 +518,14 @@ let%expect_test "an empty message fails: the buffer stays open with git's reason
     [%expect {|
       jobs: commit g1.4
       jobs: - g1.5, refresh g1.6, diff g1.7
-      focused document; tabs [a.txt VCS: main *CHES_COMMIT_EDITMSG]; file CHES_COMMIT_EDITMSG line 1
+      focused document; tabs [a.txt VCS: main *COBALT_COMMIT_EDITMSG]; file COBALT_COMMIT_EDITMSG line 1
       message: Commit failed: Aborting commit due to empty commit message. (exit 1)
       HEAD: "first\n\n"
-      log: 42c8e24 first
+      log: eda2f47 first
       status: M  a.txt
       message file: true
-      log: [exit 0] git rev-parse --git-path CHES_COMMIT_EDITMSG
-      log: [exit 1] git -c 'core.commentChar=#' commit --cleanup=strip -F $DIR/work/.git/CHES_COMMIT_EDITMSG
+      log: [exit 0] git rev-parse --git-path COBALT_COMMIT_EDITMSG
+      log: [exit 1] git -c 'core.commentChar=#' commit --cleanup=strip -F $DIR/work/.git/COBALT_COMMIT_EDITMSG
             Aborting commit due to empty commit message.
       |}])
 ;;
@@ -544,8 +544,8 @@ let%expect_test "c a amends with HEAD's message pre-filled; with nothing staged 
     commands repo t;
     [%expect {|
       jobs: commit g1.4
-      focused document; tabs [a.txt VCS: main *CHES_COMMIT_EDITMSG]; file CHES_COMMIT_EDITMSG line 1
-      --- $DIR/work/.git/CHES_COMMIT_EDITMSG
+      focused document; tabs [a.txt VCS: main *COBALT_COMMIT_EDITMSG]; file COBALT_COMMIT_EDITMSG line 1
+      --- $DIR/work/.git/COBALT_COMMIT_EDITMSG
       Subject line
 
       Body text.
@@ -558,7 +558,7 @@ let%expect_test "c a amends with HEAD's message pre-filled; with nothing staged 
       #
       # Staged changes added to HEAD:
       #	(nothing staged)
-      log: [exit 0] git rev-parse --git-path CHES_COMMIT_EDITMSG
+      log: [exit 0] git rev-parse --git-path COBALT_COMMIT_EDITMSG
       log: [exit 0] git log -1 --no-show-signature --format=%B HEAD --
       |}];
     let t = run repo t "A!<Esc> gc" in
@@ -567,9 +567,9 @@ let%expect_test "c a amends with HEAD's message pre-filled; with nothing staged 
     [%expect {|
       jobs: - g1.5, refresh g1.6, diff g1.7
       focused vcs; tabs [a.txt *VCS: main]; file a.txt line 1
-      message: [main d32402d] Subject line!
+      message: [main 2d88b29] Subject line!
       HEAD: "Subject line!\n\nBody text.\n\n"
-      log: d32402d Subject line!
+      log: 2d88b29 Subject line!
       status:  M a.txt
       message file: false
       |}];
@@ -583,7 +583,7 @@ let%expect_test "c a amends with HEAD's message pre-filled; with nothing staged 
       focused vcs; tabs [a.txt *VCS: main]; file a.txt line 1
       message: Amend aborted
       HEAD: "Subject line!\n\nBody text.\n\n"
-      log: d32402d Subject line!
+      log: 2d88b29 Subject line!
       status:  M a.txt
       message file: false
       |}])
@@ -601,7 +601,7 @@ let%expect_test "c e extends HEAD at once, with a dirty buffer in the repository
       focused vcs; tabs [a.txt *VCS: main]; file a.txt line 1 dirty
       message: Not reloaded, unsaved changes: a.txt
       HEAD: "first\n\n"
-      log: c8fccce first
+      log: 3cea6fc first
       status:
       message file: false
       log: [exit 0] git commit --amend --no-edit
@@ -625,14 +625,14 @@ let%expect_test "a failing pre-commit hook keeps the buffer; c c reopens it; Spa
     [%expect {|
       jobs: commit g1.4
       jobs: - g1.5, refresh g1.6, diff g1.7
-      focused document; tabs [a.txt VCS: main *CHES_COMMIT_EDITMSG]; file CHES_COMMIT_EDITMSG line 1
+      focused document; tabs [a.txt VCS: main *COBALT_COMMIT_EDITMSG]; file COBALT_COMMIT_EDITMSG line 1
       message: Commit failed: hook says no (exit 1)
       HEAD: "first\n\n"
-      log: 42c8e24 first
+      log: eda2f47 first
       status: M  a.txt
       message file: true
-      log: [exit 0] git rev-parse --git-path CHES_COMMIT_EDITMSG
-      log: [exit 1] git -c 'core.commentChar=#' commit --cleanup=strip -F $DIR/work/.git/CHES_COMMIT_EDITMSG
+      log: [exit 0] git rev-parse --git-path COBALT_COMMIT_EDITMSG
+      log: [exit 1] git -c 'core.commentChar=#' commit --cleanup=strip -F $DIR/work/.git/COBALT_COMMIT_EDITMSG
             hook says no
       |}];
     (* Back in the view, c c reopens the pending message as it was. *)
@@ -642,10 +642,10 @@ let%expect_test "a failing pre-commit hook keeps the buffer; c c reopens it; Spa
     where repo t;
     buffer repo t;
     [%expect {|
-      focused vcs; tabs [a.txt VCS: main *CHES_COMMIT_EDITMSG]; file CHES_COMMIT_EDITMSG line 1
-      focused document; tabs [a.txt VCS: main *CHES_COMMIT_EDITMSG]; file CHES_COMMIT_EDITMSG line 1
+      focused vcs; tabs [a.txt VCS: main *COBALT_COMMIT_EDITMSG]; file COBALT_COMMIT_EDITMSG line 1
+      focused document; tabs [a.txt VCS: main *COBALT_COMMIT_EDITMSG]; file COBALT_COMMIT_EDITMSG line 1
       message: A commit message is already open: Space g c commits it, Space g a aborts
-      --- $DIR/work/.git/CHES_COMMIT_EDITMSG
+      --- $DIR/work/.git/COBALT_COMMIT_EDITMSG
       Hooked
       # Write the commit message above. Lines starting with '#' are removed.
       # Space g c commits; Space g a aborts.
@@ -662,7 +662,7 @@ let%expect_test "a failing pre-commit hook keeps the buffer; c c reopens it; Spa
       focused vcs; tabs [a.txt *VCS: main]; file a.txt line 1
       message: Commit aborted
       HEAD: "first\n\n"
-      log: 42c8e24 first
+      log: eda2f47 first
       status: M  a.txt
       message file: false
       |}];
@@ -676,7 +676,7 @@ let%expect_test "a failing pre-commit hook keeps the buffer; c c reopens it; Spa
     commands ~after repo t;
     [%expect {|
       jobs: commit g1.8
-      --- $DIR/work/.git/CHES_COMMIT_EDITMSG
+      --- $DIR/work/.git/COBALT_COMMIT_EDITMSG
 
       # Write the commit message above. Lines starting with '#' are removed.
       # Space g c commits; Space g a aborts.
@@ -688,12 +688,12 @@ let%expect_test "a failing pre-commit hook keeps the buffer; c c reopens it; Spa
       #	modified:   a.txt
       jobs: - g1.9, refresh g1.10
       focused vcs; tabs [a.txt *VCS: main]; file a.txt line 1
-      message: [main 19f6b99] No hooks
+      message: [main c002f0b] No hooks
       HEAD: "No hooks\n\n"
-      log: 19f6b99 No hooks | 42c8e24 first
+      log: c002f0b No hooks | eda2f47 first
       status:
       message file: false
-      log: [exit 0] git -c 'core.commentChar=#' commit --cleanup=strip --no-verify -F $DIR/work/.git/CHES_COMMIT_EDITMSG
+      log: [exit 0] git -c 'core.commentChar=#' commit --cleanup=strip --no-verify -F $DIR/work/.git/COBALT_COMMIT_EDITMSG
       |}])
 ;;
 
@@ -713,9 +713,9 @@ let%expect_test "a hook that rewrites a file: open buffers are reconciled after 
       jobs: commit g1.4
       jobs: - g1.5, refresh g1.6, diff g1.7
       focused vcs; tabs [a.txt *VCS: main]; file a.txt line 1
-      message: [main 71ee622] Hooked
+      message: [main 1c99493] Hooked
       focused document; tabs [*a.txt VCS: main]; file a.txt line 1
-      message: [main 71ee622] Hooked
+      message: [main 1c99493] Hooked
       --- $DIR/work/a.txt
       one
       TWO
@@ -750,14 +750,14 @@ let%expect_test "Space g c and Space g a refuse outside the pending message buff
       message: No pending commit message here; nothing ran
       focused document; tabs [*a.txt]; file a.txt line 1
       message: No pending commit message here; nothing ran
-      focused vcs; tabs [a.txt VCS: main *CHES_COMMIT_EDITMSG]; file CHES_COMMIT_EDITMSG line 1
+      focused vcs; tabs [a.txt VCS: main *COBALT_COMMIT_EDITMSG]; file COBALT_COMMIT_EDITMSG line 1
       message: No pending commit message here; nothing ran
-      focused document; tabs [*a.txt VCS: main CHES_COMMIT_EDITMSG]; file a.txt line 1
+      focused document; tabs [*a.txt VCS: main COBALT_COMMIT_EDITMSG]; file a.txt line 1
       message: No pending commit message here; nothing ran
-      focused document; tabs [*a.txt VCS: main CHES_COMMIT_EDITMSG]; file a.txt line 1
+      focused document; tabs [*a.txt VCS: main COBALT_COMMIT_EDITMSG]; file a.txt line 1
       message: No pending commit message here; nothing ran
       HEAD: "first\n\n"
-      log: 42c8e24 first
+      log: eda2f47 first
       status: M  a.txt
       message file: true
       |}])
@@ -781,8 +781,8 @@ let%expect_test "a message buffer closed by hand is forgotten: the next c c star
       focused document; tabs [*a.txt VCS: main]; file a.txt line 1
       message: No pending commit message here; nothing ran
       jobs: commit g1.5
-      focused document; tabs [a.txt VCS: main *CHES_COMMIT_EDITMSG]; file CHES_COMMIT_EDITMSG line 1
-      --- $DIR/work/.git/CHES_COMMIT_EDITMSG
+      focused document; tabs [a.txt VCS: main *COBALT_COMMIT_EDITMSG]; file COBALT_COMMIT_EDITMSG line 1
+      --- $DIR/work/.git/COBALT_COMMIT_EDITMSG
 
       # Write the commit message above. Lines starting with '#' are removed.
       # Space g c commits; Space g a aborts.
@@ -824,15 +824,15 @@ let%expect_test "busy: c c and c e while a mutation runs; Space g c and g a whil
       notice: Busy: Stage unstaged changes (1 file); nothing ran
       jobs: - g1.4, refresh g1.5, diff g1.6
       jobs: commit g1.7
-      focused document; tabs [a.txt VCS: main *CHES_COMMIT_EDITMSG]; file CHES_COMMIT_EDITMSG line 1
+      focused document; tabs [a.txt VCS: main *COBALT_COMMIT_EDITMSG]; file COBALT_COMMIT_EDITMSG line 1
       message: Busy: Commit; nothing ran
-      focused document; tabs [a.txt VCS: main *CHES_COMMIT_EDITMSG]; file CHES_COMMIT_EDITMSG line 1
+      focused document; tabs [a.txt VCS: main *COBALT_COMMIT_EDITMSG]; file COBALT_COMMIT_EDITMSG line 1
       message: Busy: Commit; nothing ran
       jobs: - g1.8, refresh g1.9
       focused vcs; tabs [a.txt *VCS: main]; file a.txt line 1
-      message: [main 9635431] Busy
+      message: [main bc966a9] Busy
       HEAD: "Busy\n\n"
-      log: 9635431 Busy | 42c8e24 first
+      log: bc966a9 Busy | eda2f47 first
       status:
       message file: false
       |}])
@@ -852,13 +852,13 @@ let%expect_test "a failed save runs nothing and keeps the pending commit" =
     head repo;
     [%expect {|
       jobs: commit g1.4
-      focused document; tabs [a.txt VCS: main *CHES_COMMIT_EDITMSG]; file CHES_COMMIT_EDITMSG line 1 dirty
+      focused document; tabs [a.txt VCS: main *COBALT_COMMIT_EDITMSG]; file COBALT_COMMIT_EDITMSG line 1 dirty
       message: VCS: Missing backing file: text retained; recreate it or save as; nothing ran
       mutation none
-      focused document; tabs [a.txt VCS: main *CHES_COMMIT_EDITMSG]; file CHES_COMMIT_EDITMSG line 1 dirty
+      focused document; tabs [a.txt VCS: main *COBALT_COMMIT_EDITMSG]; file COBALT_COMMIT_EDITMSG line 1 dirty
       message: VCS: Missing backing file: text retained; recreate it or save as; nothing ran
       HEAD: "first\n\n"
-      log: 42c8e24 first
+      log: eda2f47 first
       status: M  a.txt
       message file: false
       |}])
@@ -879,11 +879,11 @@ let%expect_test "the planner refuses at Space g c (nothing staged any more): the
     head repo;
     [%expect {|
       jobs: commit g1.4
-      focused document; tabs [a.txt VCS: main *CHES_COMMIT_EDITMSG]; file CHES_COMMIT_EDITMSG line 1 dirty
-      focused document; tabs [a.txt VCS: main *CHES_COMMIT_EDITMSG]; file CHES_COMMIT_EDITMSG line 1 dirty
+      focused document; tabs [a.txt VCS: main *COBALT_COMMIT_EDITMSG]; file COBALT_COMMIT_EDITMSG line 1 dirty
+      focused document; tabs [a.txt VCS: main *COBALT_COMMIT_EDITMSG]; file COBALT_COMMIT_EDITMSG line 1 dirty
       message: Nothing staged; stage changes first (s), or allow an empty commit (-e); nothing ran
       HEAD: "first\n\n"
-      log: 42c8e24 first
+      log: eda2f47 first
       status:  M a.txt
       message file: true
       |}])
@@ -901,8 +901,8 @@ let%expect_test "saving the message file does not refresh; saving a.txt does" =
     where repo t;
     [%expect {|
       jobs: commit g1.4
-      focused document; tabs [a.txt VCS: main *CHES_COMMIT_EDITMSG]; file CHES_COMMIT_EDITMSG line 1
-      message: Wrote $DIR/work/.git/CHES_COMMIT_EDITMSG (184 bytes)
+      focused document; tabs [a.txt VCS: main *COBALT_COMMIT_EDITMSG]; file COBALT_COMMIT_EDITMSG line 1
+      message: Wrote $DIR/work/.git/COBALT_COMMIT_EDITMSG (184 bytes)
       jobs: refresh g1.5, diff g1.6
       focused document; tabs [*a.txt VCS: main]; file a.txt line 1
       message: Wrote $DIR/work/a.txt (9 bytes)
@@ -921,7 +921,7 @@ let%expect_test "the tab label: the branch, or the revision when detached" =
     [%expect {|
       focused document; tabs [*a.txt]; file a.txt line 1
       focused vcs; tabs [a.txt *VCS: main]; file a.txt line 1
-      focused vcs; tabs [a.txt *VCS: 42c8e24]; file a.txt line 1
+      focused vcs; tabs [a.txt *VCS: eda2f47]; file a.txt line 1
       |}])
 ;;
 
@@ -932,13 +932,13 @@ let%expect_test "the planner gets the pending message; its refusal and a confirm
   =
   with_repo (fun repo ->
     let planned = ref [] in
-    let answer = ref (Ches_vcs.Backend.Plan.Decision.Refused "fake: not now; nothing ran") in
+    let answer = ref (Cobalt_vcs.Backend.Plan.Decision.Refused "fake: not now; nothing ran") in
     let plan repository snapshot (action : B.action) =
       match action with
       | Finish_commit { kind; flags; message_file } ->
         planned
         := sprintf
-             !"Finish_commit %{sexp:Ches_vcs_git.Commit.Kind.t} [%s] %s"
+             !"Finish_commit %{sexp:Cobalt_vcs_git.Commit.Kind.t} [%s] %s"
              kind
              (String.concat ~sep:" " flags)
              (scrub repo message_file)
@@ -962,14 +962,14 @@ let%expect_test "the planner gets the pending message; its refusal and a confirm
     head repo;
     [%expect {|
       jobs: commit g1.4
-      focused document; tabs [a.txt VCS: main *CHES_COMMIT_EDITMSG]; file CHES_COMMIT_EDITMSG line 1
+      focused document; tabs [a.txt VCS: main *COBALT_COMMIT_EDITMSG]; file COBALT_COMMIT_EDITMSG line 1
       message: fake: not now; nothing ran
-      focused document; tabs [a.txt VCS: main *CHES_COMMIT_EDITMSG]; file CHES_COMMIT_EDITMSG line 1
+      focused document; tabs [a.txt VCS: main *COBALT_COMMIT_EDITMSG]; file COBALT_COMMIT_EDITMSG line 1
       message: Really needs a confirmation; nothing ran
-      Finish_commit Commit [--no-verify --signoff] $DIR/work/.git/CHES_COMMIT_EDITMSG
-      Finish_commit Commit [--no-verify --signoff] $DIR/work/.git/CHES_COMMIT_EDITMSG
+      Finish_commit Commit [--no-verify --signoff] $DIR/work/.git/COBALT_COMMIT_EDITMSG
+      Finish_commit Commit [--no-verify --signoff] $DIR/work/.git/COBALT_COMMIT_EDITMSG
       HEAD: "first\n\n"
-      log: 42c8e24 first
+      log: eda2f47 first
       status: M  a.txt
       message file: true
       |}])

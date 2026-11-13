@@ -1,9 +1,9 @@
 open! Core
-open Ches_core
-open Ches_app
-open Ches_screen
+open Cobalt_core
+open Cobalt_app
+open Cobalt_screen
 open Helpers
-module M = Ches_completion.Model
+module M = Cobalt_completion.Model
 
 let text t = Text_buffer.to_string (Editor.text (Controller.editor (Ui_state.controller t)))
 let editor t = Controller.editor (Ui_state.controller t)
@@ -27,7 +27,7 @@ let%expect_test "automatic buffer menu, original-slot cycling, wrap, Enter and o
   describe t;
   let t = press t "<Tab>" in
   describe t;
-  let t = run t [ Key Ches_input.Key.Shift_tab ] in
+  let t = run t [ Key Cobalt_input.Key.Shift_tab ] in
   describe t;
   let t = press t "<CR>" in
   describe t;
@@ -58,7 +58,7 @@ let%expect_test "automatic buffer menu, original-slot cycling, wrap, Enter and o
 
 let%expect_test "first Shift-Tab installs; Escape accepts and ordinary typing starts fresh" =
   let t = press (ui "\nalpha alpine") "ial" in
-  let t = run t [ Key Ches_input.Key.Shift_tab ] in
+  let t = run t [ Key Cobalt_input.Key.Shift_tab ] in
   assert (String.equal (text t) "alpha\nalpha alpine");
   let escaped = press t "<Esc>" in
   assert (String.equal (text escaped) (text t));
@@ -118,7 +118,7 @@ let attached ?(path = "/completion-test.ml") initial =
 let request t =
   let t, requests = Ui_state.take_source_requests t in
   t, List.find_map_exn requests ~f:(function
-    | Ches_error.Source_request.Complete request -> Some request | _ -> None)
+    | Cobalt_error.Source_request.Complete request -> Some request | _ -> None)
 ;;
 
 let candidate (request : M.Request.t) ?(additional = []) label : M.Candidate.t =
@@ -303,7 +303,7 @@ let%expect_test "menu stays bounded on tiny panes and above a bottom-line cursor
 
 let%expect_test "source dispatch flushes the snapshot first, cancels superseded work, and triggers punctuation" =
   let completion_requests requests = List.filter requests ~f:(function
-    | Ches_error.Source_request.Query _ | Cancel_query _ -> false
+    | Cobalt_error.Source_request.Query _ | Cancel_query _ -> false
     | _ -> true) in
   let t = press (attached "") "ia" in
   let t, requests = Ui_state.take_source_requests t in
@@ -331,7 +331,7 @@ let%expect_test "buffer switch and reopen invalidate old tokens even at matching
   let t, req = request (press (attached "") "ial") in
   let original = Session.active_id (Ui_state.session t) |> Option.value_exn in
   let t = reply t req [ candidate req "alpha" ] |> fun t -> press t "<Tab>" in
-  let t, _ = Ui_state.open_file t ~width:40 ~height:8 "/__ches_other_completion__.ml"
+  let t, _ = Ui_state.open_file t ~width:40 ~height:8 "/__cobalt_other_completion__.ml"
     |> Or_error.ok_exn in
   let t = reply t req [ candidate req "alien" ] in
   assert (String.equal (text t) "" && not (has_menu t));
@@ -367,7 +367,7 @@ let%expect_test "finalization precedes Enter, Escape, movement, paste, toggle an
   assert (String.equal (text t) "alpha!\nimport\n");
   let t = make () in
   let id = Session.active_id (Ui_state.session t) |> Option.value_exn in
-  let t, _ = Ui_state.open_file t ~width:40 ~height:8 "/__ches_completion_finalize__.ml"
+  let t, _ = Ui_state.open_file t ~width:40 ~height:8 "/__cobalt_completion_finalize__.ml"
     |> Or_error.ok_exn in
   let t = Ui_state.activate_buffer t ~width:40 ~height:8 id |> Or_error.ok_exn in
   assert (String.equal (text t) "alpha\nimport\n");
@@ -379,7 +379,7 @@ let%expect_test "finalization precedes Enter, Escape, movement, paste, toggle an
 
 let%expect_test "Unicode prefixes use characters, completion cycles and undo preserve UTF-8" =
   let initial = "\néclair école" in
-  let t = run (press (ui initial) "i") [ Key (Ches_input.Key.Char (Uchar.of_scalar_exn 0xe9)) ] in
+  let t = run (press (ui initial) "i") [ Key (Cobalt_input.Key.Char (Uchar.of_scalar_exn 0xe9)) ] in
   assert (has_menu t);
   let t = press t "c" in
   assert (has_menu t);
@@ -505,7 +505,7 @@ let%expect_test "manual Ctrl-n at an empty slot offers buffer words without LSP 
 ;;
 
 let%expect_test "manual completion leaves terminal Ctrl-n and block insert ownership intact" =
-  let module Terminal = Ches_terminal.Model in
+  let module Terminal = Cobalt_terminal.Model in
   let t = run ~width:80 ~height:24 (ui "alpha alpine") (keys " /") in
   let t, _ = Ui_state.take_terminal_requests t in
   let key = { Terminal.code = Char (Uchar.of_char 'n')
@@ -568,7 +568,7 @@ let%expect_test "whole-buffer index updates and survives buffer switches without
   let t = pump_words t in
   let original = Session.active_id (Ui_state.session t) |> Option.value_exn in
   let t = press t "<CR>!<Esc>" in
-  let t, _ = Ui_state.open_file t ~width:40 ~height:8 "/__ches_completion_cache_other__.ml"
+  let t, _ = Ui_state.open_file t ~width:40 ~height:8 "/__cobalt_completion_cache_other__.ml"
     |> Or_error.ok_exn in
   let t = press t "ize" in
   assert (not (has_menu t));
@@ -590,7 +590,7 @@ let metadata t (req : M.Request.t) items =
   run t [ Source (Completion_metadata { token = req.token; source = "test"; items }) ]
 ;;
 
-let info ?revision ?additional ?(resolvable = true) candidate_id : Ches_error.Completion_info.t =
+let info ?revision ?additional ?(resolvable = true) candidate_id : Cobalt_error.Completion_info.t =
   { candidate_id; kind = Some 3; documentation = Some "Function documentation\nsecond line"
   ; detail = Some "(value: int) -> string"; resolvable; additional; revision }
 ;;
@@ -598,7 +598,7 @@ let info ?revision ?additional ?(resolvable = true) candidate_id : Ches_error.Co
 let resolve_request t candidate_id =
   let t, requests = Ui_state.take_source_requests t in
   let revision = List.find_map_exn requests ~f:(function
-    | Ches_error.Source_request.Resolve_completion request when String.equal request.candidate_id candidate_id ->
+    | Cobalt_error.Source_request.Resolve_completion request when String.equal request.candidate_id candidate_id ->
       Some request.revision
     | _ -> None) in
   t, revision
@@ -781,7 +781,7 @@ let%expect_test "nonblocking acceptance applies a resolve only to its exact unch
     assert (String.equal (text t) before));
   let t, req, revision = accept () in
   let original = Session.active_id (Ui_state.session t) |> Option.value_exn in
-  let t, _ = Ui_state.open_file t ~width:40 ~height:8 "/__ches_late_resolve__.ml" |> Or_error.ok_exn in
+  let t, _ = Ui_state.open_file t ~width:40 ~height:8 "/__cobalt_late_resolve__.ml" |> Or_error.ok_exn in
   let t = metadata t req [ info ~revision ~additional:extras "alpha" ] in
   assert (String.equal (text t) "");
   let t = Ui_state.activate_buffer t ~width:40 ~height:8 original |> Or_error.ok_exn in
@@ -790,7 +790,7 @@ let%expect_test "nonblocking acceptance applies a resolve only to its exact unch
   [%expect {| |}]
 ;;
 
-module Snippet = Ches_completion.Snippet
+module Snippet = Cobalt_completion.Snippet
 
 let snippet_candidate ?(additional = []) req syntax =
   let snippet = Snippet.parse syntax |> Or_error.ok_exn in
@@ -819,7 +819,7 @@ let%expect_test "demo palette command inserts at the Normal cursor and uses live
   assert (String.equal (text t) "préassign bus = value;\n// mirror: bus\nTAIL");
   let t = press t "<Tab>" in
   assert (Editor.cursor (editor t) = String.length "préassign bus = value");
-  let t = run t [ Key Ches_input.Key.Shift_tab ] in
+  let t = run t [ Key Cobalt_input.Key.Shift_tab ] in
   assert (Editor.cursor (editor t) = String.length "préassign bus");
   let t = press t "<Tab>42<Tab>" in
   assert (not (active t));
@@ -838,7 +838,7 @@ let%expect_test "demo command also works on an empty file and does not request a
     assert (active t && Editor.cursor (editor t) = 13);
     let _, requests = Ui_state.take_source_requests t in
     assert (not (List.exists requests ~f:(function
-      | Ches_error.Source_request.Complete _ | Resolve_completion _ -> true | _ -> false)));
+      | Cobalt_error.Source_request.Complete _ | Resolve_completion _ -> true | _ -> false)));
     assert (String.equal (text (press t "<Esc>u")) ""));
   [%expect {| |}]
 ;;
@@ -854,7 +854,7 @@ let%expect_test "demo is absent over directory and read-only views; block Insert
     let before = text t, Editor.revision (editor t) in
     let t = press t " ccInsert demo snippet" in
     let palette = Ui_state.palette t |> Option.value_exn |> Palette_tile.palette in
-    assert (List.is_empty (Ches_palette.Palette.results palette));
+    assert (List.is_empty (Cobalt_palette.Palette.results palette));
     let t = press t "<CR><Esc>" in
     assert ([%equal: string * int] before (text t, Editor.revision (editor t)));
     assert (not (active t)));
@@ -927,10 +927,10 @@ let%expect_test "snippet Enter handoff selects defaults; cycling and ordinary ac
 let%expect_test "snippet Unicode replacement and subsequent edits mirror atomically in one insert undo" =
   let t, _ = snippet_menu "(${1:default}:$1:${2:next})$0" in
   let t = press t "<CR>" in
-  let t = run t [ Key (Ches_input.Key.Char (Uchar.of_scalar_exn 0x754c)) ] in
+  let t = run t [ Key (Cobalt_input.Key.Char (Uchar.of_scalar_exn 0x754c)) ] in
   assert (String.equal (text t) "(界:界:next)");
   assert (Editor.cursor (editor t) = 4 && active t && not (has_menu t));
-  let t = run t [ Key (Ches_input.Key.Char (Uchar.of_scalar_exn 0xe9)) ] in
+  let t = run t [ Key (Cobalt_input.Key.Char (Uchar.of_scalar_exn 0xe9)) ] in
   assert (String.equal (text t) "(界é:界é:next)");
   let t = press t "<BS>" in
   assert (String.equal (text t) "(界:界:next)" && active t);
@@ -1015,12 +1015,12 @@ let%test_unit "navigation replays held terminal shortcuts before moving and clea
   let at ms = Time_ns.add Time_ns.epoch (Time_ns.Span.of_ms ms) in
   let timed t keys = run t (List.mapi keys ~f:(fun i key ->
     Ui_state.Input.Key_at { key; at = at (Float.of_int (i * 10)) })) in
-  let t = timed (make ()) [Ches_input.Key.char '7'; Ches_input.Key.char ' '; Left] in
+  let t = timed (make ()) [Cobalt_input.Key.char '7'; Cobalt_input.Key.char ' '; Left] in
   assert (String.equal (text t) "(7 )/7 /next" && active t);
   assert (Editor.cursor (editor t) = 2 && not (Ui_state.toggle_key_pending t));
   let t = press t "X" in
   assert (String.equal (text t) "(7X )/7X /next" && active t);
-  let t = timed (make ()) [Ches_input.Key.char ' '; Tab] in
+  let t = timed (make ()) [Cobalt_input.Key.char ' '; Tab] in
   assert (String.equal (text t) "( )/ /next" && active t);
   assert (not (Ui_state.toggle_key_pending t));
   let t = press t "X" in
@@ -1034,7 +1034,7 @@ let%expect_test "snippet numbered navigation reselects defaults, Shift-Tab, and 
   let t, _ = snippet_menu "${2:two}/${1:one}/$1$0!" in
   let t = press t "<CR>X<Tab>Y" in
   assert (String.equal (text t) "Y/X/X!");
-  let t = run t [ Key Ches_input.Key.Shift_tab ] in
+  let t = run t [ Key Cobalt_input.Key.Shift_tab ] in
   let t = press t "Z" in
   assert (String.equal (text t) "Y/Z/Z!");
   let t = press t "<Tab><Tab>" in
@@ -1065,8 +1065,8 @@ let%expect_test "snippet terminal prefix timeout replays every held key through 
   let t, _ = snippet_menu "${1:default}/$1" in
   let t = press t "<CR>" in
   let at ms = Time_ns.add Time_ns.epoch (Time_ns.Span.of_ms ms) in
-  let t = run t [ Key_at { key = Ches_input.Key.char '7'; at = at 0. }
-                ; Key_at { key = Ches_input.Key.char ' '; at = at 100. }
+  let t = run t [ Key_at { key = Cobalt_input.Key.char '7'; at = at 0. }
+                ; Key_at { key = Cobalt_input.Key.char ' '; at = at 100. }
                 ; Toggle_tick (at 300.) ] in
   assert (String.equal (text t) "7 /7 " && active t);
   let t = press t "x" in
@@ -1089,7 +1089,7 @@ let%expect_test "snippet safe cancellation for paste, newline, buffer change, co
   assert (String.equal (text t) "default/default");
   let t = make () in
   let original = Session.active_id (Ui_state.session t) |> Option.value_exn in
-  let t, _ = Ui_state.open_file t ~width:40 ~height:8 "/__ches_snippet_other__.ml" |> Or_error.ok_exn in
+  let t, _ = Ui_state.open_file t ~width:40 ~height:8 "/__cobalt_snippet_other__.ml" |> Or_error.ok_exn in
   assert (not (active t));
   let t = Ui_state.activate_buffer t ~width:40 ~height:8 original |> Or_error.ok_exn in
   assert (String.equal (text t) "default/default" && not (active t));
@@ -1173,14 +1173,14 @@ let%test_unit "choice hint bounds alternatives before span rendering" =
 let%test_unit "choice interactions preserve timed escape, prefix replay and paste routes" =
   let make () = fst (snippet_menu "${1|界,é|}/$1") |> fun t -> press t "<CR>" in
   let at ms = Time_ns.add Time_ns.epoch (Time_ns.Span.of_ms ms) in
-  let t = run (make ()) [ Key_at { key = Ches_input.Key.char 'j'; at = at 0. }
+  let t = run (make ()) [ Key_at { key = Cobalt_input.Key.char 'j'; at = at 0. }
                        ; Key_at { key = Ctrl 'e'; at = at 10. }
-                       ; Key_at { key = Ches_input.Key.char 'k'; at = at 20. } ] in
+                       ; Key_at { key = Cobalt_input.Key.char 'k'; at = at 20. } ] in
   assert (String.equal (text t) "k/k" && active t && Mode.equal (Editor.mode (editor t)) Insert);
-  let t = run (make ()) [ Key_at { key = Ches_input.Key.char 'j'; at = at 0. }
-                       ; Key_at { key = Ches_input.Key.char 'k'; at = at 10. } ] in
+  let t = run (make ()) [ Key_at { key = Cobalt_input.Key.char 'j'; at = at 0. }
+                       ; Key_at { key = Cobalt_input.Key.char 'k'; at = at 10. } ] in
   assert (String.equal (text t) "/" && not (active t));
-  let t = run (make ()) [ Key_at { key = Ches_input.Key.char ' '; at = at 0. }
+  let t = run (make ()) [ Key_at { key = Cobalt_input.Key.char ' '; at = at 0. }
                        ; Key_at { key = Ctrl 'e'; at = at 10. }
                        ; Toggle_tick (at 300.) ] in
   assert (String.equal (text t) "界/界" && active t);

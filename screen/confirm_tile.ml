@@ -1,11 +1,11 @@
 open! Core
-open Ches_input
+open Cobalt_input
 
-let id = Ches_tile.View_id.of_string "confirm"
-let spec = Ches_tile.Spec.read_only id ~title:"Confirm"
+let id = Cobalt_tile.View_id.of_string "confirm"
+let spec = Cobalt_tile.Spec.read_only id ~title:"Confirm"
 
 type t =
-  { origin : Ches_tile.View_id.t
+  { origin : Cobalt_tile.View_id.t
   ; title : string
   ; message : string
   }
@@ -55,7 +55,7 @@ type action =
   | No
 [@@deriving sexp_of, equal]
 
-let interpret (keys : Key.t list) : action Ches_tile.Content_key.t =
+let interpret (keys : Key.t list) : action Cobalt_tile.Content_key.t =
   match keys with
   | [ key ] when Key.equal key (Key.char 'y') -> Action Yes
   | [ key ] when Key.equal key (Key.char 'n') -> Action No

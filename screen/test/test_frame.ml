@@ -1,5 +1,5 @@
 open! Core
-open Ches_screen
+open Cobalt_screen
 open Helpers
 
 let lines n = String.concat (List.init n ~f:(fun i -> sprintf "line %d\n" (i + 1)))
@@ -108,7 +108,7 @@ let%test_unit "overlapping search highlights survive horizontal scrolling" =
 ;;
 
 let%test_unit "multiline highlights overlap both viewport edges and retain overlap precedence" =
-  let open Ches_core in
+  let open Cobalt_core in
   let source = "éaaa\néaaa\néaaa\néaaa\néaaa\néaaa\néaaa" in
   let text = Text_buffer.of_string source
              |> Result.map_error ~f:Text_buffer.Invalid_text.to_string_hum
@@ -117,7 +117,7 @@ let%test_unit "multiline highlights overlap both viewport edges and retain overl
     let editor = Editor.create ~cell_width:Cell_map.width text in
     let editor, _ = Editor.dispatch editor
         (Search { query = Some query; forward = true; count = 1; whole_word = false }) in
-    let t = Ui_state.create ~tiles_visible:false (Ches_app.Controller.create editor)
+    let t = Ui_state.create ~tiles_visible:false (Cobalt_app.Controller.create editor)
             |> fun t -> run ~width:40 ~height:6 t (keys "3jzt") in
     let geometry = Ui_state.geometry t ~width:40 ~height:6 in
     let scroll = Ui_state.fitted_scroll t ~width:40 ~height:6 in
@@ -140,7 +140,7 @@ let%test_unit "multiline highlights overlap both viewport edges and retain overl
              | Some _ -> Some Style.Overlay.Search_match
              | None -> None in
            let expected = Style.document ?overlay
-               ~current_line:(line = Editor.cursor_line (Ches_app.Controller.editor (Ui_state.controller t))) () in
+               ~current_line:(line = Editor.cursor_line (Cobalt_app.Controller.editor (Ui_state.controller t))) () in
           assert (Style.equal (List.nth_exn cells (geometry.text.x + glyph.col)) expected)))))
 ;;
 
@@ -344,16 +344,16 @@ let%expect_test "status line fields drop by priority as it narrows" =
   let t =
     run
       ~width:80
-      (ui ~path:"/home/user/projects/ches/src/some_long_name.ml" "abc")
+      (ui ~path:"/home/user/projects/cobalt/src/some_long_name.ml" "abc")
       (keys "ix<Esc> ")
   in
   List.iter [ 80; 60; 40; 30; 20; 16; 12; 8; 4 ] ~f:(fun width ->
     show ~width ~height:1 t);
   [%expect
     {|
-     NORMAL  /home/user/projects/ches/src/some_long_name.ml [+]           Space 1:1 |
+     NORMAL  /home/user/projects/cobalt/src/some_long_name.ml [+]         Space 1:1 |
     cursor: none
-     NORMAL  <projects/ches/src/some_long_name.ml [+] Space 1:1 |
+     NORMAL  <ojects/cobalt/src/some_long_name.ml [+] Space 1:1 |
     cursor: none
      NORMAL  <me_long_name.ml [+] Space 1:1 |
     cursor: none
@@ -385,13 +385,13 @@ let%expect_test "status line fields drop by priority as it narrows" =
 ;;
 
 let%expect_test "the filename in the top border is cut from the left, then omitted" =
-  let t = ui ~path:"/home/user/projects/ches/src/some_long_name.ml" "abc" in
+  let t = ui ~path:"/home/user/projects/cobalt/src/some_long_name.ml" "abc" in
   List.iter [ 60; 40; 26; 24; 23 ] ~f:(fun width ->
     let frame = Frame.render t ~width ~height:6 in
     print_endline (List.hd_exn (String.split_lines (Frame.to_string frame))));
   [%expect {|
-    ╭─ /home/user/projects/ches/src/some_long_name.ml ─────────╮|
-    ╭─ <ojects/ches/src/some_long_name.ml ─╮|
+    ╭─ /home/user/projects/cobalt/src/some_long_name.ml ───────╮|
+    ╭─ <ects/cobalt/src/some_long_name.ml ─╮|
     ╭─ <c/some_long_name.ml ─╮|
     ╭─ <some_long_name.ml ─╮|
     ╭─ <ome_long_name.ml ─╮|
@@ -408,7 +408,7 @@ let%expect_test "the filename in the top border is cut from the left, then omitt
     |}];
   (* With no path, the border is unbroken. *)
   let no_path =
-    Ui_state.create ~tiles_visible:false (Ches_app.Controller.create (Ches_core.Editor.create ~cell_width:Cell_map.width Ches_core.Text_buffer.empty))
+    Ui_state.create ~tiles_visible:false (Cobalt_app.Controller.create (Cobalt_core.Editor.create ~cell_width:Cell_map.width Cobalt_core.Text_buffer.empty))
   in
   show ~width:30 ~height:6 no_path;
   [%expect {|
@@ -843,7 +843,7 @@ let%expect_test "software cursors inside a TAB or wide character, and past a sho
 let%expect_test "software cursors off screen are not drawn but keep their places" =
   let t = run ~height:5 (ui (String.concat ~sep:"\n" (List.init 8 ~f:(fun i -> sprintf "abc%d" i)))) (keys "l<C-v>7jI") in
   show ~height:5 t;
-  print_s [%sexp (Ches_core.Editor.block_insert_points (Ches_app.Controller.editor (Ui_state.controller t)) : (int * int) list)];
+  print_s [%sexp (Cobalt_core.Editor.block_insert_points (Cobalt_app.Controller.editor (Ui_state.controller t)) : (int * int) list)];
   [%expect {|
       abc0                                  |
       abc1                                  |

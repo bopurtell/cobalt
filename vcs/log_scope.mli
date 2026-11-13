@@ -1,4 +1,4 @@
-(** Which history the Commits panel lists (phase 8): part of every refresh
+(** Which history the Commits panel lists: part of every refresh
     ({!Backend.Refresh.t.log}), so the log a mutation changes is re-read with the rest.
     Backend-agnostic: a branch is a name the backend understands, a path is relative to
     the repository root. The view keeps one and changes it from its log popup ([l]),

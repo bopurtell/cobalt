@@ -1,6 +1,6 @@
 open! Core
-open Ches_core
-open Ches_completion
+open Cobalt_core
+open Cobalt_completion
 module U = User_snippets
 module M = Model
 module B = Text_buffer

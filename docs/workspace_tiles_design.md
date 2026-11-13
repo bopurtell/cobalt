@@ -1,4 +1,4 @@
-# Ches tile system, workspace, and supporting views
+# Cobalt tile system, workspace, and supporting views
 
 Status: phases 1–5 (geometry, allocation, vertical status rendering, runtime
 workspace integration/controls, and shared feedback lifecycle) implemented and
@@ -6,7 +6,7 @@ software-verified and human-accepted (2026-10-04). Phase 5 and the carried-over
 status presentation/workspace interaction checks from phases 3–4 are accepted.
 Phase 6's read-only problems view and phase 7's interactive problems pane are
 software-complete and human-accepted (2026-10-06), as revised by phases 7A–7C.
-Phase 7A's shared tile host (`tile/`, `ches_tile`) with problems migrated onto it
+Phase 7A's shared tile host (`tile/`, `cobalt_tile`) with problems migrated onto it
 and an error-free demo report fixture is software-complete and human-accepted
 (2026-10-05). Phase 7B's shared rounded shell, padding, gaps, and revised band
 height are software-complete and human-accepted (2026-10-06), with frames drawn on
@@ -29,7 +29,7 @@ phase 7B, and read-only text selection/copying by phase 7C (below).
 ## Goal and scope
 
 Extend the current single-document layout into a small composable workspace while
-preserving Ches's comfortable text placement and zen editing experience.
+preserving Cobalt's comfortable text placement and zen editing experience.
 
 The wider scope is a **service-agnostic tile foundation** for primary work surfaces
 and supporting tools. Shared presentation and interaction should not depend on the
@@ -59,10 +59,10 @@ in another process or on another machine.
   separated by a one-cell backdrop gap (phase 7B). `Ui_state` derives effective
   geometry from requests/zen state; `Frame` composes the document, status, and each
   minor view's adapter rendering.
-- `tile/` (`ches_tile`, phase 7A) is the service-agnostic foundation: `View_id`,
+- `tile/` (`cobalt_tile`, phase 7A) is the service-agnostic foundation: `View_id`,
   `Spec` (role and capabilities), `Navigation` (shared list motions, key-based
   selection, scroll offsets), and `Host` (focus, capture precedence, pending
-  prefix, notice, and paste owner). It depends only on `core` and `ches_input`.
+  prefix, notice, and paste owner). It depends only on `core` and `cobalt_input`.
 - `screen/ui_state.ml` owns one controller, layout preferences, scroll state,
   animation, one `Host.t`, and the minor views' adapter states. It is the assembly
   point that dispatches host decisions to `Problems_tile` or `Report_tile`.
@@ -82,7 +82,7 @@ in another process or on another machine.
   into the borders, padding, focus accent, and size degradation, for minor views
   and dedicated status. Minor views have no text cursor/Visual selection/yank yet. Detail scrolling is available only when detail
   rows exceed the viewport; `Details 1-4/4` means there is nothing further to scroll.
-- `Ches_error.Error.History` (phase 8) is the bounded, chronological notification and
+- `Cobalt_error.Error.History` (phase 8) is the bounded, chronological notification and
   problem-lifecycle history, kept beside the active problems; `screen/history_tile.ml`
   is its minor-tile adapter on the shared host, shell, and read-only text.
 - `app/demo_problems.ml` supplies opt-in, session-local navigation fixtures. It is
@@ -357,7 +357,7 @@ and cursor behavior will be exercised in phase 4.
   assertions do not wait for cursor restoration. Other checks, including edit/save,
   resize, layout placement/restoration, and terminal restoration, passed. This
   smoke-test synchronization gap is not claimed as verified or fixed by phase 1.
-  Screens were saved to `/tmp/ches-smoke-screens.WbL5hA`.
+  Screens were saved to `/tmp/cobalt-smoke-screens.WbL5hA`.
 - Phase 1's internal software acceptance criteria are satisfied; no human acceptance
   gate is required. Offset panes are tested headlessly, not exposed interactively.
   Phase 4 must exercise their visible placement/cursor behavior. Allocation choices
@@ -633,7 +633,7 @@ acceptance.
   `git diff --cached --check` passed. The complete isolated smoke run passed using
   `TMPDIR=/tmp/opencode opam exec --switch=5.2.0+ox -- scripts/smoke.sh`.
   Log: `/tmp/opencode/tiles-phase4-smoke-isolated.log`; colored captures:
-  `/tmp/opencode/ches-smoke-screens.dD29qo`. An earlier run failed three assertions
+  `/tmp/opencode/cobalt-smoke-screens.dD29qo`. An earlier run failed three assertions
   that expected text beyond the status truncation point (corrected), and a retry
   timed out after shared-server interference (resolved with per-run isolation).
 - **Implemented and tested from the software side; human use and feedback on the
@@ -773,7 +773,7 @@ resulting acceptance blockers have been addressed.
 
 #### Implementation and verification (2026-10-04)
 
-- Replaced the starter `error/` placeholders with `Ches_error.Error`, a pure typed
+- Replaced the starter `error/` placeholders with `Cobalt_error.Error`, a pure typed
   reducer with structured notification source/scope/severity, problem identities,
   independent active state and attention, matching resolution, and retained inspection.
   It depends only on Core. The controller holds the shared state outside views and
@@ -803,7 +803,7 @@ resulting acceptance blockers have been addressed.
   `scripts/smoke.sh` all pass. The terminal test covers editing and keymap notices after
   failure, tile/zen transitions, acknowledgement, retained details, failed retry,
   successful save, and controlled reload failure/recovery. Review captures:
-  `/tmp/ches-smoke-screens.Q8peib`; test log: `/tmp/ches-phase5-verified-smoke.log`.
+  `/tmp/cobalt-smoke-screens.Q8peib`; test log: `/tmp/cobalt-phase5-verified-smoke.log`.
 - **Human acceptance remains pending.** The terminal script does not establish palette
   comfort, flicker, distraction, or whether the lifetime and bindings feel predictable.
   Run the human sequence above and the phases 3–4 editing/layout comfort check;
@@ -872,7 +872,7 @@ readability, density, and whether a persistent bottom problems view is comfortab
 
 #### Implementation and verification (2026-10-04)
 
-- Added the pure `Ches_screen.Problems` renderer, consuming the same controller
+- Added the pure `Cobalt_screen.Problems` renderer, consuming the same controller
   feedback as status. Filtering and hiding do not acknowledge, resolve, or remove
   problems. Repeated updates keep first-occurrence order. Optional display locations
   are carried by typed `Report` updates; existing file failures remain location-free.
@@ -891,7 +891,7 @@ readability, density, and whether a persistent bottom problems view is comfortab
   failures in the tile, filtering, hide/reopen, zen, constrained resize/restore,
   matching save recovery, and reload failure/recovery. Log:
   `/tmp/opencode/tiles-phase6-smoke.log`; review captures:
-  `/tmp/ches-smoke-screens.78cKcp`.
+  `/tmp/cobalt-smoke-screens.78cKcp`.
 - **Software-complete / human-feedback-pending.** Trigger a controlled save failure,
   show the tile with `Space v b`, acknowledge with idle Escape, toggle the filter,
   hide/reopen, resize and enter/leave zen, then retry and recover. Repeat for reload.
@@ -944,7 +944,7 @@ Multi-document editing is not implicitly required by this phase.
 
 #### Implementation and verification (2026-10-04)
 
-- Added pure identity-based `Ches_screen.Problem_navigation` selection/viewport state
+- Added pure identity-based `Cobalt_screen.Problem_navigation` selection/viewport state
   and problems-pane input capture in `Ui_state`. Configured workspace view bindings
   remain available; editor actions cannot execute during capture. Escape/prefix/detail
   precedence, direct return, hidden/zen/compact focus restoration, and start-owner
@@ -973,7 +973,7 @@ Multi-document editing is not implicitly required by this phase.
   editor-command/paste rejection, resize focus return, preserved undo, matching recovery,
   and empty-list focus. The existing scroll suite also passes after a regression fix.
   Log: `/tmp/opencode/tiles-phase7-smoke.log`; review captures:
-  `/tmp/ches-smoke-screens.LEKp6d`. Location jumps and cross-resource behavior are
+  `/tmp/cobalt-smoke-screens.LEKp6d`. Location jumps and cross-resource behavior are
   synthetic tests only: current runtime file failures do not carry locations.
 - **Software-complete / human-feedback-pending.** Trigger save/reload failures, focus
   with `Space v o`, select/inspect/acknowledge, try Enter on a location-free failure,
@@ -986,7 +986,7 @@ Multi-document editing is not implicitly required by this phase.
 
 - Owner feedback confirms `Space v o` focus works, but ordinary launches may have
   no problems to select, and save/reload failures cannot test location jumps.
-- Added `ches --demo-problems PATH` (or `dune exec ches -- --demo-problems PATH`).
+- Added `cobalt --demo-problems PATH` (or `dune exec cobalt -- --demo-problems PATH`).
   It seeds eight labelled, initially acknowledged DEMO findings with column-1
   locations spread over the opened document. Each uses an isolated `demo/NN`
   namespace so normal file recovery cannot resolve a demo or vice versa. No text,
@@ -1003,7 +1003,7 @@ Multi-document editing is not implicitly required by this phase.
   demo selection/details, actual first/last-line cursor jumps, unchanged saved bytes,
   and an ordinary relaunch with no demo entries. Log:
   `/tmp/opencode/tiles-demo-problems-smoke.log`; captures:
-  `/tmp/ches-smoke-screens.fdsSUo`.
+  `/tmp/cobalt-smoke-screens.fdsSUo`.
 
 #### Human acceptance (2026-10-06)
 
@@ -1051,7 +1051,7 @@ capture implementation should be needed.
 The owner chose the retention policy, inclusion, coalescing, and bindings below
 (each the recommended option) before implementation.
 
-- **Storage.** `Ches_error.Error.History`, a pure submodule beside the active problems
+- **Storage.** `Cobalt_error.Error.History`, a pure submodule beside the active problems
   in `Error.t`, keeps history in memory only. `Error.apply` is the only writer, so every producer path records without
   extra wiring. Rendering, resizing, focus, and animation never call it, so they cannot
   add entries. `Error.history` reads it.
@@ -1157,9 +1157,9 @@ The owner chose the retention policy, inclusion, coalescing, and bindings below
   - Recovery adding `resolved` and `info [editor] … Wrote`.
   - `p` of the copied entry in the editor, undo, and unchanged saved bytes.
 
-  Review captures (`tiles-history-*.ansi`): `/tmp/ches-smoke-screens.dvn38p`.
+  Review captures (`tiles-history-*.ansi`): `/tmp/cobalt-smoke-screens.dvn38p`.
 - **Software-complete / human-feedback-pending.** Manual check:
-  1. `dune exec ches -- PATH` on a scratch file. Edit, then make saving fail. For
+  1. `dune exec cobalt -- PATH` on a scratch file. Edit, then make saving fail. For
      example, `mv` the file away and `mkdir` a directory at its path from another
      shell, then `Space w` twice. Escape to acknowledge. Search for something
      missing (`/zzz` Enter), and toggle centering a few times (`Space v c`).
@@ -1336,11 +1336,11 @@ Details:
 
 **Async placement (owner).**
 
-- Asynchronous checker code lives in a **new library** (for example `ches_source`) that
+- Asynchronous checker code lives in a **new library** (for example `cobalt_source`) that
   depends on Async and owns processes, transport, and later the language-server session.
-  `ches_ui` wires it into the `Ui_state` state machine.
-- `ches_core`, `ches_input`, `ches_app`, and `ches_error` stay free of Async, per their
-  `dune` contracts. Making `ches_app` asynchronous was rejected: it would break
+  `cobalt_ui` wires it into the `Ui_state` state machine.
+- `cobalt_core`, `cobalt_input`, `cobalt_app`, and `cobalt_error` stay free of Async, per their
+  `dune` contracts. Making `cobalt_app` asynchronous was rejected: it would break
   `Controller.handle_input`'s guarantee that effects finish before it returns, and tests
   would need a scheduler.
 - **Reason:**
@@ -1363,12 +1363,12 @@ Details:
 
 - The owner's direction: the checker is given the workspace (for OCaml, the dune
   project root) and reports errors and warnings across files, Trouble-style.
-- Ches → library:
+- Cobalt → library:
   - *start* a source for a workspace root.
   - *document changed*: the open document's text and revision. Only unsaved text
     is sent; a language server reads other files from disk.
   - *stop* on quit.
-- Library → Ches:
+- Library → Cobalt:
   - *diagnostics*: source, resource, optional revision, and findings, each with
     severity, message, and optional location. `Error.Severity` already has
     `Info | Warning | Error`.
@@ -1376,7 +1376,7 @@ Details:
   - *source stopped/crashed* with a reason.
 - The phase 9 synthetic producer uses these same messages, with scripted delays,
   bursts, out-of-order revisions, and crashes, so phase 10 can swap in a real server
-  without changing the Ches side.
+  without changing the Cobalt side.
 
 **Presentation.**
 
@@ -1389,7 +1389,7 @@ Details:
 
 **Implementation plan (proposed; implement and verify step by step).**
 
-1. **Pure diagnostic store in `ches_error`.** No Async and no visible change.
+1. **Pure diagnostic store in `cobalt_error`.** No Async and no visible change.
    - Collections per (source, resource) with a revision basis: reported revision, or
      unversioned with the editor revision at arrival.
    - New `update` cases for diagnostics received, source started, and source stopped
@@ -1410,7 +1410,7 @@ Details:
    - Include diagnostics in the status count without attention.
    - Needs human review.
 3. **Async source library and synthetic producer.**
-   - The new library, the `ches_ui` wiring, and newest-only coalescing.
+   - The new library, the `cobalt_ui` wiring, and newest-only coalescing.
    - The acceptance scenarios above, including hidden views.
    - The burst typing-latency measurement.
 4. **Docs.** Record results here and update the README keys/behaviour.
@@ -1426,7 +1426,7 @@ Details:
     `stopped ~source`, and `Collection.behind ~revision`.
 - New `Error.update` cases:
   - `Diagnostics_received { source; resource; revision; current_revision; findings }`.
-    The caller passes the editor revision, so `ches_error` reads no editor state
+    The caller passes the editor revision, so `cobalt_error` reads no editor state
     ("time is data").
   - `Source_started { source; root }` and `Source_stopped { source; root; reason }`.
 - New `Identity.kind`, `Checker`. A crash problem's identity is
@@ -1462,7 +1462,7 @@ Details:
 **Status:** step 2 implemented, software-verified, and **owner-accepted (2026-10-06)**.
 Steps 3–4 not started.
 
-- **Boundary type.** `Ches_error.Source_event` holds `Diagnostics`, `Started`, and
+- **Boundary type.** `Cobalt_error.Source_event` holds `Diagnostics`, `Started`, and
   `Stopped`, the boundary messages above. `to_update ~current_revision` turns one into
   an `Error.update`. `Ui_state.Input.Source` carries them in and stamps the editor's
   revision. Step 3's library will send this same input.
@@ -1525,7 +1525,7 @@ Steps 3–4 not started.
   an edit, and unchanged bytes after undo. Review captures:
   `tiles-diagnostics-80x24.ansi` and `tiles-diagnostics-dimmed-80x24.ansi`.
 - **Human review.**
-  1. `dune exec ches -- --demo-diagnostics PATH` on a file with a few lines, then
+  1. `dune exec cobalt -- --demo-diagnostics PATH` on a file with a few lines, then
      `Space v b`. Is the order (problems, then by file) easy to read? Is the
      `[demo-stopped stopped]` marker clear?
   2. Type a character. Do PATH's findings dim noticeably while `demo-other.ml`'s
@@ -1550,7 +1550,7 @@ Steps 3–4 not started.
 below for the owner's additional decisions and the results.*
 
 **Assignment:** step 3 of the implementation plan, the asynchronous source library,
-the synthetic producer, the `ches_ui` wiring, and the typing-latency measurement. Step 4
+the synthetic producer, the `cobalt_ui` wiring, and the typing-latency measurement. Step 4
 (docs) follows. A different implementer will take this on. Everything they need is in
 this document and the code. The owner decisions above bind them, especially *Async
 placement*, *Bursts*, *Boundary messages*, and *Source lifecycle*. Raise any
@@ -1558,7 +1558,7 @@ deviation with the owner rather than making it silently.
 
 **Already in place (steps 1–2):**
 
-- **Lib → Ches.** Messages are `Ches_error.Source_event.t` (`Diagnostics`, `Started`,
+- **Lib → Cobalt.** Messages are `Cobalt_error.Source_event.t` (`Diagnostics`, `Started`,
   `Stopped`). Inject each one as `Ui_state.Input.Source event`. `Ui_state` stamps the
   editor revision, holds lists during Insert, records the anchor text, and updates the
   problems view. The library must not compute any of this.
@@ -1578,14 +1578,14 @@ deviation with the owner rather than making it silently.
 
 **To build:**
 
-1. **New library** (e.g. `source/` → `ches_source`), depending on Async plus
-   `ches_error` (for `Source_event`/`Diagnostics.Finding`). No dependency on
-   `ches_screen`/`ches_ui`. `ches_core`, `ches_input`, `ches_app`, and `ches_error`
+1. **New library** (e.g. `source/` → `cobalt_source`), depending on Async plus
+   `cobalt_error` (for `Source_event`/`Diagnostics.Finding`). No dependency on
+   `cobalt_screen`/`cobalt_ui`. `cobalt_core`, `cobalt_input`, `cobalt_app`, and `cobalt_error`
    stay Async-free; keep their `dune` comments true.
    - Interface, following the agreed boundary:
-     - Ches → library: `start root`, `document_changed ~resource ~text ~revision`, and
+     - Cobalt → library: `start root`, `document_changed ~resource ~text ~revision`, and
        `stop`.
-     - Library → Ches: a stream/pipe of `Source_event.t`.
+     - Library → Cobalt: a stream/pipe of `Source_event.t`.
    - Coalescing: keep only the newest unprocessed `Diagnostics` per (source,
      resource); drop older ones before any work is done on them. Never drop
      `Started`/`Stopped`, and keep them in order relative to diagnostics.
@@ -1601,10 +1601,10 @@ deviation with the owner rather than making it silently.
    - crash and restart.
 
    Phase 10 must be able to replace it with a language server without changing the
-   Ches side. Decide with the owner how to start it from the CLI (e.g. a
+   Cobalt side. Decide with the owner how to start it from the CLI (e.g. a
    `--synthetic-checker` flag). It should look different from `--demo-diagnostics`,
    which is static.
-4. **`ches_ui` wiring.** Start the source with the workspace root, pipe its events
+4. **`cobalt_ui` wiring.** Start the source with the workspace root, pipe its events
    into `inject` (outside the keystroke transition), forward outgoing requests, and
    stop it on exit. A hidden problems view only skips drawing. It never pauses or
    unsubscribes the source.
@@ -1618,7 +1618,7 @@ deviation with the owner rather than making it silently.
    - disconnect/restart;
    - hidden views.
 
-   Keep `ches_screen` tests scheduler-free. Library tests may use Async.
+   Keep `cobalt_screen` tests scheduler-free. Library tests may use Async.
 6. **Latency measurement.** Measure typing responsiveness under a synthetic burst.
    One way is to time key → frame with and without a burst of many large snapshots.
    Report the method and numbers here; the owner judges the result.
@@ -1634,7 +1634,7 @@ diagnostic-snapshot history logging, and a separate language-server view.
 
 - *Owner:* the synthetic checker reacts to both edits and saves, as the owner's
   OCaml setup does (ocamllsp on edits, dune on save).
-- *Owner:* the Ches → library boundary gains **document saved** now, so phase 10 does
+- *Owner:* the Cobalt → library boundary gains **document saved** now, so phase 10 does
   not change it. LSP has the matching `didSave`.
 - *Owner:* restart is manual (`Space v R`); automatic restart stays in phase 10. A
   key binding crashes the synthetic checker (`Space v K`).
@@ -1644,7 +1644,7 @@ diagnostic-snapshot history logging, and a separate language-server view.
   **one source, like ocamllsp**, merging its edit and build checks into one list per
   file. The boundary is unchanged. (The first build had two sources, so one kill
   raised two `Checker` problems.) A real language server merges its own checks the
-  same way: one server is one Ches source.
+  same way: one server is one Cobalt source.
 - *Proposed, accepted:*
   - The source is named `synthetic`. The open file's list is versioned by its newest
     edit check, and build findings keep the `synthetic build error:` prefix. The other
@@ -1656,8 +1656,8 @@ diagnostic-snapshot history logging, and a separate language-server view.
 
 **What was built.**
 
-- **Boundary.** `Ches_error.Source_request` (`error/source_request.ml[i]`) is the
-  Ches → library direction. It carries:
+- **Boundary.** `Cobalt_error.Source_request` (`error/source_request.ml[i]`) is the
+  Cobalt → library direction. It carries:
   - `Document_changed { resource; text; revision }`, also sent once for the
     initial text;
   - `Document_saved { resource; revision }`;
@@ -1674,13 +1674,13 @@ diagnostic-snapshot history logging, and a separate language-server view.
     3. `Space v R`/`K` requests, in the order given.
   - It returns nothing unless `Ui_state.create ~source_attached:true`. Without a
     source, both keys say "No diagnostic source; launch with --synthetic-checker".
-- **`source/` → `ches_source`.** It depends on Async and `ches_error` only (see
+- **`source/` → `cobalt_source`.** It depends on Async and `cobalt_error` only (see
   its `dune`).
   - `Event_queue` is pure coalescing. It keeps the newest pending snapshot per
     (source, resource) and never drops `Started`/`Stopped`. A snapshot is never merged
     across its own source's `Started`/`Stopped`, so one sent after a crash cannot
     replace one sent before it.
-  - `Source.t` is what Ches holds: `send`, `stop`, `next_batch` (at most 64 events),
+  - `Source.t` is what Cobalt holds: `send`, `stop`, `next_batch` (at most 64 events),
     and `poll` for tests. Producers are written as a `Source.Driver`; phase 10's
     client is the next one.
   - `Workspace_root.find` locates the workspace root.
@@ -1699,7 +1699,7 @@ diagnostic-snapshot history logging, and a separate language-server view.
     checks.
   - `Synthetic.Script` plays exact event scripts (out-of-order revisions, crashes)
     and generates bursts, for tests and the measurement.
-- **`ches_ui` wiring** (`ui/editor_view.ml`).
+- **`cobalt_ui` wiring** (`ui/editor_view.ml`).
   - A lifecycle `on_activate` effect loops on `next_batch` and injects each batch as
     `Source` inputs, so the batch is its own transition and never part of a key's.
   - Requests are scheduled as effects after each `apply_all`, like OSC 52.
@@ -1729,7 +1729,7 @@ hidden unless noted:
 
 `source/test/test_event_queue.ml` covers coalescing and ordering, and
 `test_requests.ml` covers request order, saves at an unchanged revision, and the
-no-source case. `ches_screen` tests stay scheduler-free.
+no-source case. `cobalt_screen` tests stay scheduler-free.
 
 **Latency** (`dune exec source/bench/latency.exe`).
 
@@ -1765,7 +1765,7 @@ no-source case. `ches_screen` tests stay scheduler-free.
 - `scripts/smoke.sh` passes 736 checks. That includes the new section "synthetic
   checker: edits, saves, crash and restart" at 80×24.
 
-**Human review checklist** (`ches --synthetic-checker FILE.ml`, `Space v b`):
+**Human review checklist** (`cobalt --synthetic-checker FILE.ml`, `Space v b`):
 
 1. Type `ERROR` or `TODO` on a line. Is the ~0.4 s before the finding appears, with
    the old findings dimmed meanwhile, readable rather than distracting?
@@ -1813,7 +1813,7 @@ Phase 9's owner decisions (2026-10-06) apply here as well:
   as the owner's Neovim setup does. `~/.config/nvim/init.lua` enables `ocamllsp` for
   OCaml file types, with root markers `dune-project`, `dune-workspace`, `*.opam`, …,
   `.git`. Nothing there starts dune, and ocamllsp never launches dune's RPC; it
-  attaches to a `dune build --watch` the user runs. So Ches would start ocamllsp
+  attaches to a `dune build --watch` the user runs. So Cobalt would start ocamllsp
   itself and never run dune, and save-based, workspace-wide diagnostics would appear
   only when the owner runs a watch.
 - *Confirmed at phase 10's design checkpoint (2026-10-06):* the direction above.
@@ -1825,7 +1825,7 @@ Phase 9's owner decisions (2026-10-06) apply here as well:
 - *Missing/unsupported server (owner, 2026-10-06: "do whatever neovim does").*
   Neovim 0.12.2 was checked: a non-matching file type is silent, a missing command
   is written only to `lsp.log`, and a nonzero exit gives a one-off WARN notification
-  with no restart. Ches does the same. A non-OCaml file is silent. A missing
+  with no restart. Cobalt does the same. A non-OCaml file is silent. A missing
   `ocamllsp` gives only a notification-history entry (Claude's stand-in for
   `lsp.log`). A server that fails at startup or crashes later gives a one-off status
   warning that is also recorded in history. **This replaces phase 9's
@@ -1836,7 +1836,7 @@ Phase 9's owner decisions (2026-10-06) apply here as well:
   restart for any source. Restarting is manual (`Space v R`, the equivalent of
   Neovim's `:lsp restart`). LSP Hint becomes a fourth `Hint` severity in the shared
   model, sorted last with its own muted style, rather than being folded into Info.
-- Phase 9 step 3 built the seam: a client is another `Ches_source.Source.Driver`.
+- Phase 9 step 3 built the seam: a client is another `Cobalt_source.Source.Driver`.
   It receives `Document_changed` (`didOpen`/`didChange`), `Document_saved`
   (`didSave`), and `Restart`, ignores `Kill`, and emits `Source_event`s.
 
@@ -1855,7 +1855,7 @@ with problems hidden and in zen. Record server/version and any protocol limitati
 
 1. Shared-model changes, with no server yet: Hint severity, crash as a one-off
    warning, and a history-only unavailable event.
-2. The ocamllsp client in `ches_source`: a `Driver` that runs the process and
+2. The ocamllsp client in `cobalt_source`: a `Driver` that runs the process and
    JSON-RPC session and converts `publishDiagnostics`. It is tested against a scripted
    fake server.
 3. Wiring: start by file extension, find the root by root markers, auto-start with
@@ -1902,21 +1902,21 @@ warning wording.
   Verified: `dune runtest` passes; `scripts/smoke.sh` all 735 checks pass.
 - For human review: the Hint color, and whether a one-off stop warning is noticeable
   enough. The warning's key hint names the provisional `Space v R` and is written into
-  `ches_error`; it moves with the palette work.
+  `cobalt_error`; it moves with the palette work.
 
 #### Phase 10 step 2 implementation (2026-10-06)
 
 The owner confirmed the implementation checkpoint. All of Claude's proposed additions
 were accepted without discussion; they are listed in the plan above and below.
 
-- `Ches_source.Lsp_client` (`source/lsp_client.mli`) is a `Source.Driver`, like the
+- `Cobalt_source.Lsp_client` (`source/lsp_client.mli`) is a `Source.Driver`, like the
   synthetic checker. It runs the installed `ocamllsp` as a child process and speaks
   the protocol over its stdin/stdout. The `lsp`/`jsonrpc` libraries from the
-  ocaml-lsp repository supply only the message types and framing. `ches_source` now
-  also depends on `ches_core`, for `Cell_layout`.
+  ocaml-lsp repository supply only the message types and framing. `cobalt_source` now
+  also depends on `cobalt_core`, for `Cell_layout`.
 - Sessions: it sends `initialize` with utf-8 and utf-16 offered as position
   encodings, diagnostic `versionSupport`, `didSave`, the root URI and folder, and
-  Ches's pid. On success it sends `initialized` and reports `Started`.
+  Cobalt's pid. On success it sends `initialized` and reports `Started`.
   - `Document_changed` sends `didOpen` once the session is initialized, then
     full-text `didChange` with version = revision. `Document_saved` sends `didSave`.
   - `Restart` ends the session silently (no stop is reported) and starts a new one,
@@ -1939,7 +1939,7 @@ were accepted without discussion; they are listed in the plan above and below.
     the line's text. For the open document that is the text of the version the list
     reports, kept for the last 32 revisions, else the newest text. For other files,
     the line is read from disk, only when needed; column 1 if the file is unreadable.
-- Paths: the open document is matched by resolved path and keeps Ches's own resource
+- Paths: the open document is matched by resolved path and keeps Cobalt's own resource
   name. Other files are named relative to the working directory, or absolute outside
   it.
 - The server's own requests get answers: `window/workDoneProgress/create`,
@@ -1967,19 +1967,19 @@ were accepted without discussion; they are listed in the plan above and below.
   expect test, because its output depends on the installed server.
 - Probe results against ocamllsp 1.19.0+ox2 (it prints `NO_VERSION_UTIL` for
   `--version`):
-  - **It publishes diagnostics without a version.** Ches therefore treats ocamllsp
+  - **It publishes diagnostics without a version.** Cobalt therefore treats ocamllsp
     as an unversioned source: findings for the open file dim from the first edit
     after a list arrives until the next list (phase 9's rule), rather than by
     revision comparison.
   - Without a build, merlin has no project configuration, and the only diagnostic is
     `No config found for file a.ml. Try calling 'dune build'.` at 1:1. This follows
-    from the owner's choice that Ches never runs dune.
+    from the owner's choice that Cobalt never runs dune.
   - After `dune build`, a type error arrives at the right display column, 1:37, on a
     line with `é` and a two-cell emoji. Fixing it clears the list, restart works, and
     no ocamllsp process is left after stop.
 - Nothing launches the client yet: CLI start, `.ml`/`.mli`/`.mll`/`.mly`, root markers,
   `--no-lsp`, and passing the frontend's `Cell_map.width` are step 3. Also left to
-  step 3: Ches exits right after `Source.stop`, so the shutdown may be cut short. The
+  step 3: Cobalt exits right after `Source.stop`, so the shutdown may be cut short. The
   server still exits on stdin EOF or its parent-pid check, but step 3 should confirm
   it.
 
@@ -1994,7 +1994,7 @@ ancestor containing any marker" wording. Claude's proposed additions were accept
 without discussion: `--synthetic-checker` replaces ocamllsp (there is one source
 slot), and smoke puts the fake server on PATH as `ocamllsp`.
 
-- `bin/ches.ml`:
+- `bin/cobalt.ml`:
   - A PATH that `Lsp_client.Config.ocamllsp.applies_to` (`.ml`/`.mli`/`.mll`/`.mly`)
     starts the client with `Cell_map.width` and `Config.root`.
   - `--no-lsp` turns it off, and `--synthetic-checker` takes precedence. The help text
@@ -2002,9 +2002,9 @@ slot), and smoke puts the fake server on PATH as `ocamllsp`.
 - `Workspace_root.find_first ~markers` implements Neovim's rule; `find` is its
   `dune-project` case, used by the synthetic checker. `Config` gained `applies_to`,
   `root_markers`, and `root`.
-- Clean quit: when Ches stops the client, `end_session` registers the shutdown wait
+- Clean quit: when Cobalt stops the client, `end_session` registers the shutdown wait
   (at most `shutdown_grace`, then a kill) with `Shutdown.don't_finish_before`, so
-  Async's exit waits for the server. Smoke confirms no server outlives Ches.
+  Async's exit waits for the server. Smoke confirms no server outlives Cobalt.
 - Found by smoke and fixed by Claude (a step 1 detail): the stop and unavailable
   notifications no longer carry the workspace root as their scope. In history rows
   the absolute root pushed the message out of the tile. The message already names
@@ -2031,7 +2031,7 @@ ocamllsp". **Phase 10 is complete and owner-accepted.** The server was ocamllsp
 1.19.0+ox2 in switch `5.2.0+ox`. Recorded protocol limitations:
 
 - Diagnostics are unversioned, so open-file dimming uses phase 9's unversioned rule.
-- Merlin needs a dune build's configuration, and Ches never runs dune.
+- Merlin needs a dune build's configuration, and Cobalt never runs dune.
 - `window/showMessage` is dropped.
 
 ## Other later milestones — Externally computed views
@@ -2117,7 +2117,7 @@ The problems adapter translates active feedback into rows/details and translates
 semantic actions back into selected acknowledgement or validated navigation. The
 feedback reducer still owns attention/resolution; the editor/controller still
 owns dirty documents and navigation validation. The shared layers must not import
-`Ches_error.Error` or require a `Problem.t` to represent content. Application assembly
+`Cobalt_error.Error` or require a `Problem.t` to represent content. Application assembly
 may depend on both layers to wire them together. An error-free static report/list
 fixture must be able to use the same tiles without inventing save/reload identities
 or posting notifications to become visible.
@@ -2206,8 +2206,8 @@ existing controls still feel predictable; record any deliberate binding changes.
 
 **Status (2026-10-05): software-complete and human-accepted (see feedback below).**
 
-- **Shared library.** A new `tile/` library, `ches_tile`, depends only on `core` and
-  `ches_input`; dune therefore rejects any use of `ches_error`, `ches_app`, or the
+- **Shared library.** A new `tile/` library, `cobalt_tile`, depends only on `core` and
+  `cobalt_input`; dune therefore rejects any use of `cobalt_error`, `cobalt_app`, or the
   controller from shared code. It holds:
   - `View_id`: opaque, string-backed stable view identity. Applications name views;
     the library enumerates none.
@@ -2236,11 +2236,11 @@ existing controls still feel predictable; record any deliberate binding changes.
   fit are left out (compact) in reverse order, and their requests are kept.
   `Workspace.t.problems` becomes `minors : Pane.t list` with a `minor` lookup.
   `Pane.focusable` is removed: focusability belongs to the host's `Spec`.
-- **Adapters (in `ches_screen`).** `Problems_tile` holds the problems view state
+- **Adapters (in `cobalt_screen`).** `Problems_tile` holds the problems view state
   (filter, identity selection, details, detail scroll). It interprets content keys
   into problems actions (`e` inspect/details, `a` acknowledge, Enter jump) and
   performs them through the controller. Only the problems adapter knows
-  `Ches_error`. `Report_tile` is the static, error-free fixture: labelled items with
+  `Cobalt_error`. `Report_tile` is the static, error-free fixture: labelled items with
   list selection and wrapped details (`e`/Enter toggles, `j/k` scrolls details).
   It uses the same host and shared navigation, never posts feedback, and has no
   file, save, or reload identity.
@@ -2250,14 +2250,14 @@ existing controls still feel predictable; record any deliberate binding changes.
   each input and resize. Existing problems queries stay as accessors.
 - **Bindings and manual path.** All existing problems bindings are unchanged.
   New: `Space v d` shows/hides the demo report and `Space v D` shows/focuses it or
-  returns to the document. Both only work when Ches is launched with
+  returns to the document. Both only work when Cobalt is launched with
   `--demo-report`; otherwise they give a notice. Generic capture notices drop the
   word "problems": `Cancelled prefix`, `Unbound workspace key`, and
   `<Title>: read-only; paste ignored`.
 
 #### Phase 7A implementation and verification (2026-10-05)
 
-- Added `ches_tile` as recorded above. `Problem_navigation` is gone; problems
+- Added `cobalt_tile` as recorded above. `Problem_navigation` is gone; problems
   selection is `Identity.t Navigation.Selection.t`, with the same neighbor policy.
   `Ui_state.problem_notice`/`problem_pending` became `capture_notice`/
   `capture_pending` (the host's, shown only in the focused view's footer). Existing
@@ -2267,12 +2267,12 @@ existing controls still feel predictable; record any deliberate binding changes.
   jumps post feedback, acknowledgement only shows its notice. Leaving a view closes
   its details, as returning did before. Moving directly between minor views
   (`Space v o` / `Space v D`) closes the details of the view being left.
-- `Report_tile` and `ches --demo-report` provide the error-free consumer. The demo
+- `Report_tile` and `cobalt --demo-report` provide the error-free consumer. The demo
   items are static, labelled, and session-local; the last has long details.
-- Tests: four pure `ches_tile` expect tests (capture precedence and configured
+- Tests: four pure `cobalt_tile` expect tests (capture precedence and configured
   workspace bindings, focus availability/reconciliation/cursor ownership,
   start-owner paste, key-based selection and offsets), with a test library that
-  also cannot see `ches_error`. Four integration tests in
+  also cannot see `cobalt_error`. Four integration tests in
   `screen/test/test_tile_host.ml`: document/status/problems/report coexistence and
   layout, independence of each view's state and of active problems under
   show/hide/focus/feedback updates, paste/cursor/zen/compact ownership, and
@@ -2287,7 +2287,7 @@ existing controls still feel predictable; record any deliberate binding changes.
   frame, so adjacent headers can read as one line, and 40-column headers clip.
   The bottom band still uses the phase 6 three-to-six-row prototype height.
 - **Software-complete / human-feedback-pending.** Manual check:
-  1. `dune exec ches -- --demo-problems --demo-report PATH` on a multiline file.
+  1. `dune exec cobalt -- --demo-problems --demo-report PATH` on a multiline file.
   2. `Space v o`, `j`, `e`, Escape, `Enter` (jump), then `Space v D`: confirm the
      problems controls feel unchanged.
   3. In the report: `G`, `e`, `j/k` and `Ctrl-d/u` through the long details,
@@ -2346,8 +2346,8 @@ remaining issues rather than declaring palette/comfort verified by screenshots.
   longer draw headers, footers, frames, or padding. `Ui_state.minor_layout` is the
   single source of a minor view's layout: `Frame` renders through it, and the
   adapters' selection rows, detail scroll range, and detail wrap width are its
-  content height/width. The shell lives in `ches_screen` (it needs `Span`/`Style`)
-  and, like `Tile_text`, has no `Ches_error` use; that is by convention, not a dune
+  content height/width. The shell lives in `cobalt_screen` (it needs `Span`/`Style`)
+  and, like `Tile_text`, has no `Cobalt_error` use; that is by convention, not a dune
   boundary.
 - **Frame and labels.** A one-cell rounded frame in the editor's `Border` style
   (on the backdrop since the 2026-10-06 feedback below).
@@ -2417,7 +2417,7 @@ remaining issues rather than declaring palette/comfort verified by screenshots.
   look for the framed report labels, a notice in the bottom border, framed status and
   problems, and save 120x40 and 200x60 review captures (`tiles-shell-*.ansi`).
 - **Software-complete / human-feedback-pending.** Manual check:
-  1. `dune exec ches -- --demo-problems --demo-report PATH` on a multiline file, on
+  1. `dune exec cobalt -- --demo-problems --demo-report PATH` on a multiline file, on
      the laptop and on a monitor.
   2. `Space v b`, `Space v d`, `Space v t`: judge the rounded frames, padding, the gap
      between the band views, and the ten-row band against the document.
@@ -2496,13 +2496,13 @@ primary-editor undo/dirty state remain unchanged by these interactions.
 
 **Status (2026-10-06): software-complete and human-accepted (see feedback below).**
 
-- **Shared model.** `tile/text_view.ml` (`Ches_tile.Text_view`) is the read-only text
+- **Shared model.** `tile/text_view.ml` (`Cobalt_tile.Text_view`) is the read-only text
   surface: a snapshot of canonical text, a cursor, Visual state, a preferred column,
-  and a first visible row. It lives in `ches_tile`, which now also depends on
-  `ches_core` (for `Cell_layout` and `Register`, neither of which knows errors), so
-  dune keeps it away from `ches_error`. It lays text out with `Cell_layout.glyphs` and
+  and a first visible row. It lives in `cobalt_tile`, which now also depends on
+  `cobalt_core` (for `Cell_layout` and `Register`, neither of which knows errors), so
+  dune keeps it away from `cobalt_error`. It lays text out with `Cell_layout.glyphs` and
   the screen's `Cell_map.width`, so wrapping, the cursor cell, highlighting, and the
-  copied bytes agree. Rendering is in `ches_screen`: `Tile_text.text_view` (rows with
+  copied bytes agree. Rendering is in `cobalt_screen`: `Tile_text.text_view` (rows with
   the selection highlighted) and `Tile_text.text_footer`. `Tile_text.wrap` is gone.
 - **Where it applies.** Open details are the text surface; lists keep their
   separate key-based item selection. Problems details are the problem's
@@ -2567,7 +2567,7 @@ primary-editor undo/dirty state remain unchanged by these interactions.
 
 #### Phase 7C implementation and verification (2026-10-06)
 
-- Added `Ches_tile.Text_view`, `Spec.read_only_text`, `Tile_text.text_view`/
+- Added `Cobalt_tile.Text_view`, `Spec.read_only_text`, `Tile_text.text_view`/
   `text_footer`, `Ui_state.text_cursor`, `Controller.yank`, and
   `Editor.set_unnamed_register`. The problems and report adapters hold a
   `Text_view.t option` instead of a details flag and offset; their `fit` takes the
@@ -2593,7 +2593,7 @@ primary-editor undo/dirty state remain unchanged by these interactions.
   the editor with `p`, undoes, and saves unchanged bytes. The smoke cannot observe
   the system clipboard (tmux is not asked to forward OSC 52).
 - **Software-complete / human-feedback-pending.** Manual check:
-  1. `dune exec ches -- --demo-problems --demo-report PATH` on a multiline file.
+  1. `dune exec cobalt -- --demo-problems --demo-report PATH` on a multiline file.
   2. `Space v d`, `Space v D`, `G`, `e`: the cursor appears in the long last item's
      details. Move with `j/k`, `w/b`, `0/$`, `Ctrl-d/u`, `gg/G`.
   3. Select with `v` and `V` across a wrapped row, press `y`, and check the footer.
@@ -2613,7 +2613,7 @@ primary-editor undo/dirty state remain unchanged by these interactions.
 - Copying from the report and pasting with `p` in the editor works. The selection
   colour is readable. It is not configurable: tiles reuse the editor's selection
   style, whose colour is fixed in `ui/theme.ml` (`Selection` → `Background` on
-  `Warning`, #e0af68), and Ches has no theme configuration yet.
+  `Warning`, #e0af68), and Cobalt has no theme configuration yet.
 - Copying into another program (nvim in a temp file) did not work at first. tmux's
   `set-clipboard` was `external`, which ignores OSC 52 from applications. With
   `set -g set-clipboard on` in the owner's tmux config, copies from tiles reach the

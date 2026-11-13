@@ -1,13 +1,13 @@
 open! Core
-open Ches_core
-module Controller = Ches_app.Controller
-module Lines = Ches_line_picker.Lines
+open Cobalt_core
+module Controller = Cobalt_app.Controller
+module Lines = Cobalt_line_picker.Lines
 let width u = match Uchar.to_scalar u with 0x754c -> 2 | 0x301 -> 0 | _ -> 1
 let controller text =
   Controller.create (Editor.create ~path:"/nonexistent/unsaved.txt" ~cell_width:width
     (Text_buffer.of_string text |> Result.ok |> Option.value_exn))
 let command t command =
-  let t, _, _ = Controller.dispatch t [ Ches_input.Keymap.Action.Editor command ] in t
+  let t, _, _ = Controller.dispatch t [ Cobalt_input.Keymap.Action.Editor command ] in t
 let drain t = while Lines.busy t do Lines.work t ~budget:2 done
 let search t query = Lines.update t (Paste query); drain t
 let%expect_test "in-memory dirty contents, duplicates, trailing empty line, once-only release then jump" =
@@ -106,9 +106,9 @@ let%expect_test "shared matching equivalence, Unicode query editing and mode ref
   List.iter [ ""; "ab"; "alpha beta"; "界模型"; "abc"; "missing" ] ~f:(fun query ->
     while not (String.is_empty (Lines.query t)) do Lines.update t Delete_word done;
     search t query;
-    let expected = Ches_palette.Fuzzy.rank ~policy:Loose_subsequence ~query
+    let expected = Cobalt_palette.Fuzzy.rank ~policy:Loose_subsequence ~query
       (List.mapi texts ~f:(fun i text -> i + 1,
-        [ { Ches_palette.Fuzzy.Field.tag = (); text; weight = 100 } ])) in
+        [ { Cobalt_palette.Fuzzy.Field.tag = (); text; weight = 100 } ])) in
     assert (List.equal Int.equal (List.map (Lines.results t) ~f:(fun r -> r.line))
       (List.map expected ~f:(fun r -> r.item)));
     List.iter2_exn (Lines.results t) expected ~f:(fun actual expected ->

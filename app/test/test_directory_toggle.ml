@@ -1,12 +1,12 @@
 open! Core
-open Ches_input
-open Ches_app
+open Cobalt_input
+open Cobalt_app
 
 let toggle t = let t, _, _ = Session.dispatch t [ Keymap.Action.View Toggle_directory ] in t
 let presentation t = Session.directory_presentation t |> Option.value_exn
 
 let fixture f =
-  let root = Core_unix.mkdtemp (Filename.concat Filename.temp_dir_name "ches-toggle-") in
+  let root = Core_unix.mkdtemp (Filename.concat Filename.temp_dir_name "cobalt-toggle-") in
   let path = Filename.concat root "file.txt" in
   Out_channel.write_all path ~data:"file\n";
   let cell_width _ = 1 in

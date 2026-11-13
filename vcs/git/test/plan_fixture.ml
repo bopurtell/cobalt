@@ -1,4 +1,4 @@
-(* Helpers shared by the phase 6 and 7 tests (test_remote.ml, test_branches.ml,
+(* Helpers shared by remote, branch and merge tests (test_remote.ml, test_branches.ml,
    test_merges.ml, test_resolution.ml): snapshots of real fixture repositories, plans
    printed without Cli.prefix (paths under the fixture's temp directory as $DIR), and
    plans run the way the runner runs a mutation or network job (stopping at the first
@@ -6,10 +6,10 @@
    timing). *)
 
 open! Core
-open Ches_vcs
-module Fixture = Ches_vcs_fixture.Fixture_repo
-module Git = Ches_vcs_git
-module B = Ches_vcs_git.Backend
+open Cobalt_vcs
+module Fixture = Cobalt_vcs_fixture.Fixture_repo
+module Git = Cobalt_vcs_git
+module B = Cobalt_vcs_git.Backend
 
 let relative (t : Fixture.t) text =
   String.substr_replace_all text ~pattern:t.dir ~with_:"$DIR"
@@ -26,7 +26,7 @@ let repository (t : Fixture.t) =
 ;;
 
 let snapshot t =
-  let refresh = Ches_vcs.Backend.Refresh.default in
+  let refresh = Cobalt_vcs.Backend.Refresh.default in
   let repository = repository t in
   ok_exn
     (B.snapshot repository refresh (Fixture.run_steps t (B.refresh repository refresh)))
@@ -38,7 +38,7 @@ let command spec =
     ~prefix:(Exec.Spec.to_string_hum (Git.Cli.mutate ~cwd:"/" []) ^ " ")
 ;;
 
-let print_plan t (plan : Ches_vcs.Backend.Plan.t) =
+let print_plan t (plan : Cobalt_vcs.Backend.Plan.t) =
   printf
     "  plan %S%s\n"
     plan.title
@@ -95,7 +95,7 @@ let execute
   ?(stdout = false)
   ?(hint = Git.Remote.hint)
   t
-  (plan : Ches_vcs.Backend.Plan.t)
+  (plan : Cobalt_vcs.Backend.Plan.t)
   =
   let with_env : Job.Step.t -> Job.Step.t = function
     | Run spec -> Run { spec with env = spec.env @ env }

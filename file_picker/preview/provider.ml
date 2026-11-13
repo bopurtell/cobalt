@@ -1,6 +1,6 @@
 open! Core
 open! Async
-module Candidate = Ches_file_picker.Model.Candidate
+module Candidate = Cobalt_file_picker.Model.Candidate
 type pending = { request : Model.request; path : string; mutable ready : bool }
 type active =
   { cancelled : bool Atomic.t; finished : unit Ivar.t
@@ -62,7 +62,7 @@ let rec launch t =
 let select ?(refresh = false) t ~session candidate =
   let selected = Candidate.id candidate in
   match t.snapshot with
-  | Some s when not refresh && Ches_file_picker.Model.Discovery.equal_request s.request.session session
+  | Some s when not refresh && Cobalt_file_picker.Model.Discovery.equal_request s.request.session session
                 && Candidate.Id.equal s.request.selected selected -> s.request
   | _ ->
     clear t;
@@ -78,8 +78,8 @@ let select ?(refresh = false) t ~session candidate =
 ;;
 let follow ?refresh t model =
   match Option.bind model ~f:(fun model ->
-    Option.map (Ches_file_picker.Model.selected_candidate model) ~f:(fun candidate ->
-      Ches_file_picker.Model.discovery_request model, candidate)) with
+    Option.map (Cobalt_file_picker.Model.selected_candidate model) ~f:(fun candidate ->
+      Cobalt_file_picker.Model.discovery_request model, candidate)) with
   | None -> if Option.is_some t.snapshot then clear t; None
   | Some (session, candidate) -> Some (select ?refresh t ~session candidate)
 ;;

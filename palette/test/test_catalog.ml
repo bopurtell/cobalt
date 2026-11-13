@@ -1,6 +1,6 @@
 open! Core
-open Ches_input
-open Ches_palette
+open Cobalt_input
+open Cobalt_palette
 
 let normal : Catalog.Context.t = { mode = Normal }
 
@@ -10,7 +10,7 @@ let normal : Catalog.Context.t = { mode = Normal }
 let bindings =
   let leader = Key.char ' ' in
   let keys s = String.to_list s |> List.map ~f:Key.char in
-  let editor s (command : Ches_core.Command.t) = keys s, Bindings.Target.Editor command in
+  let editor s (command : Cobalt_core.Command.t) = keys s, Bindings.Target.Editor command in
   let view c (command : View_command.t) =
     [ leader; Key.char 'v'; Key.char c ], Bindings.Target.View command
   in

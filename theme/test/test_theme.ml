@@ -1,5 +1,5 @@
 open! Core
-open Ches_theme
+open Cobalt_theme
 
 let channels (r, g, b) = [ r; g; b ]
 

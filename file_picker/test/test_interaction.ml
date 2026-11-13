@@ -1,6 +1,6 @@
 open! Core
-open Ches_file_picker
-module Event = Ches_palette.Palette.Event
+open Cobalt_file_picker
+module Event = Cobalt_palette.Palette.Event
 
 let candidate path = Model.Candidate.create ~root:"/project" ~relative_path:path |> Or_error.ok_exn
 let snapshot ?(run = 1) ?(root = "/project") status paths : Model.Discovery.t =

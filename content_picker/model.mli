@@ -1,7 +1,7 @@
 open! Core
-module Candidate = Ches_file_picker.Model.Candidate
-module Run_id = Ches_file_picker.Model.Run_id
-module Status = Ches_file_picker.Model.Discovery
+module Candidate = Cobalt_file_picker.Model.Candidate
+module Run_id = Cobalt_file_picker.Model.Run_id
+module Status = Cobalt_file_picker.Model.Discovery
 type request = { run_id : Run_id.t; root : string; query : string }
 type hit = { candidate : Candidate.t; line : int; start_byte : int; end_byte : int; text : string }
 type snapshot = { request : request; hits : hit list; status : Status.status }
@@ -33,6 +33,6 @@ val query_truncated : _ t -> bool
     acceptance of old results, even before a replacement request is started. *)
 val expect : _ t -> request -> unit
 val install : _ t -> snapshot -> bool
-val update : _ t -> Ches_palette.Palette.Event.t -> unit
+val update : _ t -> Cobalt_palette.Palette.Event.t -> unit
 val cancel : _ t -> release:(unit -> unit) -> unit
 val accept : 'token t -> release:(unit -> unit) -> consume:('token intent -> unit) -> unit

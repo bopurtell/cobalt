@@ -1,6 +1,6 @@
 # Snippet discovery integration API
 
-`Ches_completion.User_snippets` now publishes:
+`Cobalt_completion.User_snippets` now publishes:
 
 ```ocaml
 type origin = Bundled | Legacy_json | Ocaml [@@deriving sexp, equal]
@@ -8,7 +8,7 @@ type item = { declaration : declaration; origin : origin }
 [@@deriving sexp, equal]
 val available : t -> path:string option -> item list
 val instantiate : t -> id:string -> path:string option
-  -> text:Ches_core.Text_buffer.t -> cursor:int
+  -> text:Cobalt_core.Text_buffer.t -> cursor:int
   -> Model.Candidate.t Or_error.t
 ```
 
@@ -25,19 +25,19 @@ never consumed. The returned candidate carries the resolved snippet and normal
 relative final cursor, suitable for the existing snippet activation path.
 The existing `candidates` API still replaces the identifier prefix.
 
-`Ches_screen.Snippet_picker_tile` publishes:
+`Cobalt_screen.Snippet_picker_tile` publishes:
 
 ```ocaml
 type t [@@deriving sexp_of]
-val id : Ches_tile.View_id.t (* "snippet-picker" *)
-val spec : Ches_tile.Spec.t (* result_picker, title "Insert snippet" *)
-val create : Ches_completion.User_snippets.item list -> t
-val selected : t -> Ches_completion.User_snippets.item option
+val id : Cobalt_tile.View_id.t (* "snippet-picker" *)
+val spec : Cobalt_tile.Spec.t (* result_picker, title "Insert snippet" *)
+val create : Cobalt_completion.User_snippets.item list -> t
+val selected : t -> Cobalt_completion.User_snippets.item option
 val query : t -> string
 val fit : t -> rows:int -> t
-val interpret : Ches_input.Key.t list -> Palette_tile.action Ches_tile.Content_key.t
-val update : t -> rows:int -> Ches_palette.Palette.Event.t -> t
-val cursor : t -> width:int -> Ches_tile.Cursor.t
+val interpret : Cobalt_input.Key.t list -> Palette_tile.action Cobalt_tile.Content_key.t
+val update : t -> rows:int -> Cobalt_palette.Palette.Event.t -> t
+val cursor : t -> width:int -> Cobalt_tile.Cursor.t
 val render : ?hotkey_hints:bool -> ?notice:string -> t
   -> width:int -> rows:int -> Tile_shell.Content.t
 ```

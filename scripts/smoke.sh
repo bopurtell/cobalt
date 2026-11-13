@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Terminal smoke test: drives the built `ches` binary inside tmux and checks what
+# Terminal smoke test: drives the built `cobalt` binary inside tmux and checks what
 # reaches the screen, the cursor, the files written, and the terminal state left for
 # the shell. See README.md, "Terminal smoke test".
 #
-# Usage: scripts/smoke.sh [--bare-only|--palette-only|--line-picker-only|--lsp-only] [PATH-TO-CHES]
-#        (default: _build/default/bin/ches.exe)
+# Usage: scripts/smoke.sh [--bare-only|--palette-only|--line-picker-only|--lsp-only] [PATH-TO-COBALT]
+#        (default: _build/default/bin/cobalt.exe)
 #
 # Needs tmux (tested with 3.4) and a UTF-8 locale. Run `dune build` first. It uses a
 # private per-run tmux socket and a temporary directory, both removed on exit,
@@ -39,23 +39,23 @@ if [ "${1:-}" = --line-picker-only ]; then
   line_only=true
   shift
 fi
-ches=${1:-$root/_build/default/bin/ches.exe}
-ches=$(cd "$(dirname "$ches")" && pwd)/$(basename "$ches")
+cobalt=${1:-$root/_build/default/bin/cobalt.exe}
+cobalt=$(cd "$(dirname "$cobalt")" && pwd)/$(basename "$cobalt")
 
 if ! command -v tmux >/dev/null; then
   echo "smoke: tmux is required" >&2
   exit 2
 fi
-if [ ! -x "$ches" ]; then
-  echo "smoke: $ches is not built; run dune build" >&2
+if [ ! -x "$cobalt" ]; then
+  echo "smoke: $cobalt is not built; run dune build" >&2
   exit 2
 fi
 export LC_ALL=C.UTF-8
 
 # The fixture lives under /tmp whatever TMPDIR is: checks match its paths on an
 # 80-column status line, and the tmux socket inside it must stay short (108 bytes).
-work=$(mktemp -d /tmp/ches-smoke.XXXXXX)
-screens=$(mktemp -d "${TMPDIR:-/tmp}/ches-smoke-screens.XXXXXX")
+work=$(mktemp -d /tmp/cobalt-smoke.XXXXXX)
+screens=$(mktemp -d "${TMPDIR:-/tmp}/cobalt-smoke-screens.XXXXXX")
 # A per-run socket prevents another checkout's smoke run from sharing this session.
 tmux_cmd=(tmux -S "$work/tmux.sock" -f /dev/null)
 session=smoke
@@ -170,16 +170,16 @@ hybrid_numbers() {
   poll screen_has "Line numbers: hybrid" || fail "hybrid line numbers did not turn on"
 }
 
-# Starts ches with hybrid line numbers, which the checks here are written against.
+# Starts cobalt with hybrid line numbers, which the checks here are written against.
 # $launch_env, when set, prefixes the command (env PATH=... for the language server).
 launch_env=""
 keep_startup_tiles=false
 launch() {
   shell "clear; stty -g > $work/stty.before"
-  t send-keys -t "$session" -l "${launch_env:+$launch_env }$ches --workspace --theme crimson $*"
+  t send-keys -t "$session" -l "${launch_env:+$launch_env }$cobalt --workspace --theme crimson $*"
   t send-keys -t "$session" Enter
   if poll alternate_is 1 && poll screen_has "NORMAL"; then
-    ok "launched ches $*"
+    ok "launched cobalt $*"
     # Most editing checks use a document-only fixture. Test the startup workspace
     # separately, then explicitly hide companions for those existing scenarios.
     if [ "$keep_startup_tiles" = false ]; then
@@ -190,18 +190,18 @@ launch() {
     fi
     hybrid_numbers
   else
-    fail "ches $* did not start"
+    fail "cobalt $* did not start"
   fi
 }
 
 keys() { t send-keys -t "$session" "$@"; }
 type_text() { t send-keys -t "$session" -l "$1"; }
 
-# After ches exits: the expected exit status, and the terminal as the shell left it.
+# After cobalt exits: the expected exit status, and the terminal as the shell left it.
 expect_exit() {
   local expected_status=$1
   if ! poll alternate_is 0; then
-    fail "ches did not leave the alternate screen"
+    fail "cobalt did not leave the alternate screen"
     return
   fi
   shell "echo status=\$?:"
@@ -249,9 +249,9 @@ printf 'alpha\nbeta\ngamma\ndelta\n' > "$work/bare.original"
 cp "$work/bare.original" "$work/bare.txt"
 # Unlike launch(), do not hide tiles or configure numbers: verify --bare itself.
 shell "clear; stty -g > $work/stty.before"
-type_text "$ches --workspace --bare --no-lsp bare.txt"
+type_text "$cobalt --workspace --bare --no-lsp bare.txt"
 keys Enter
-if poll alternate_is 1; then ok "launched ches --bare"; else fail "--bare did not start"; fi
+if poll alternate_is 1; then ok "launched cobalt --bare"; else fail "--bare did not start"; fi
 expect_cursor "0 0 1"
 
 row_is() { [ "$(row "$1")" = "$2" ]; }
@@ -489,9 +489,9 @@ expect_file "$work/bare.txt" "$work/bare.original"
 # ---------------------------------------------------------------------------
 section "CLI --superzen alias starts bare"
 shell "clear; stty -g > $work/stty.before"
-type_text "$ches --superzen --no-lsp bare.txt"
+type_text "$cobalt --superzen --no-lsp bare.txt"
 keys Enter
-if poll alternate_is 1; then ok "launched ches --superzen"; else fail "--superzen did not start"; fi
+if poll alternate_is 1; then ok "launched cobalt --superzen"; else fail "--superzen did not start"; fi
 expect_cursor "0 0 1"
 expect_row 0 alpha
 expect_row 1 beta
@@ -1594,7 +1594,7 @@ cp "$work/report.txt" "$work/report.expected"
 launch --demo-report report.txt
 keys Space v d
 expect_screen "Demo report (static): 10 items"
-# Phase 7B: the shared shell frames the view, with its labels set into the borders.
+# The shared shell frames the view, with its labels set into the borders.
 expect_screen "╭─ Demo report (static): 10 items ─"
 expect_no_screen "Space v D: focus"
 keys Space v '?'
@@ -1812,14 +1812,14 @@ expect_exit 0
 fi
 # A scripted server stands in for ocamllsp on PATH (see
 # source/test/fake_lsp/fake_lsp.ml): ERROR/WARN lines are findings, CRASH exits 3.
-# CHES_FAKE_LSP overrides its path (scripts/dune sets it when dune runs this copy).
+# COBALT_FAKE_LSP overrides its path (scripts/dune sets it when dune runs this copy).
 # Canonical, because fake_lsp_running compares it with /proc/PID/exe.
-fake_lsp=$(realpath -m "${CHES_FAKE_LSP:-$root/_build/default/source/test/fake_lsp/fake_lsp.exe}")
+fake_lsp=$(realpath -m "${COBALT_FAKE_LSP:-$root/_build/default/source/test/fake_lsp/fake_lsp.exe}")
 mkdir -p "$work/fakebin" "$work/emptybin"
 ln -s "$fake_lsp" "$work/fakebin/ocamllsp"
 ln -s "$fake_lsp" "$work/fakebin/slang-server"
 
-# Whether a fake server launched by ches is still running.
+# Whether a fake server launched by cobalt is still running.
 fake_lsp_running() {
   local pid
   for pid in $(pgrep -x ocamllsp); do
@@ -1866,7 +1866,7 @@ expect_exit 0
 if poll fake_lsp_gone; then
   ok "no language server left running"
 else
-  fail "a language server outlived ches"
+  fail "a language server outlived cobalt"
 fi
 
 if [ "$lsp_only" = false ]; then
@@ -1981,12 +1981,12 @@ printf '%s' "$paste" > "$work/paste.txt"
 t load-buffer -b smoke "$work/paste.txt"
 resize 160 48
 launch busy.txt
-# No waiting between these: they queue up while ches redraws.
+# No waiting between these: they queue up while cobalt redraws.
 keys i
 type_text "$burst1"
 t paste-buffer -p -b smoke -t "$session"
 type_text "$burst2"
-# Escape and x in one write arrive as Meta-x, which ches reads as Escape then x.
+# Escape and x in one write arrive as Meta-x, which cobalt reads as Escape then x.
 keys Escape x
 keys Space w
 expect_status "Wrote $work/busy.txt"
@@ -2018,14 +2018,14 @@ mkdir -p "$work/adir"
 # A directory is now a supported startup surface. Use unsupported file contents
 # to retain this startup-error restoration check rather than stranding a browser.
 printf '\000' > "$work/invalid.txt"
-t send-keys -t "$session" -l "$ches invalid.txt"
+t send-keys -t "$session" -l "$cobalt invalid.txt"
 t send-keys -t "$session" Enter
-expect_screen "ches: Cannot open $work/invalid.txt:"
+expect_screen "cobalt: Cannot open $work/invalid.txt:"
 expect_exit 1
 shell "clear; stty -g > $work/stty.before"
-t send-keys -t "$session" -l "$ches edit.txt < /dev/null"
+t send-keys -t "$session" -l "$cobalt edit.txt < /dev/null"
 t send-keys -t "$session" Enter
-expect_screen "ches: standard input is not a terminal"
+expect_screen "cobalt: standard input is not a terminal"
 expect_exit 1
 
 # ---------------------------------------------------------------------------

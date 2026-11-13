@@ -50,8 +50,8 @@ bounded last snapshot/candidate map for inspection until refresh or provider
 disposal; the host must separately close the interaction and drop old snapshots.
 
 Selection remains owned by the pure model: preserve candidate identity when
-installing incremental query results, not the old row number. Phase 3 supplies
-matching; the phase-4 headless tile shows loading, errors, partial counts and
+installing incremental query results, not the old row number. The file picker supplies
+matching; the headless tile shows loading, errors, partial counts and
 truncation.
 
 ## Resource policy

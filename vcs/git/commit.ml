@@ -1,5 +1,5 @@
 open! Core
-open Ches_vcs
+open Cobalt_vcs
 
 module Kind = struct
   type t =
@@ -93,7 +93,7 @@ let refusal (status : Status.t) (choice : Choice.t) =
     else None
 ;;
 
-let message_path = "CHES_COMMIT_EDITMSG"
+let message_path = "COBALT_COMMIT_EDITMSG"
 
 let prepare (repository : Repository.t) (kind : Kind.t) =
   let read args = Job.Step.Run (Cli.read ~cwd:repository.root args) in

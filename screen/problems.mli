@@ -3,7 +3,7 @@
     (standing state) sorted by file, severity, and position, as Trouble does. *)
 
 open! Core
-module Feedback = Ches_error.Error
+module Feedback = Cobalt_error.Error
 
 (** What the view knows about the open document: which resource it is, its revision
     (for dimming findings that are behind), and its lines (for matching findings). *)
@@ -16,8 +16,8 @@ module Document : sig
       refer to that text, so reading them from text edited since would change a
       finding's key while its list is unchanged. *)
   val of_editor
-    :  ?anchor_text:(string -> Ches_core.Text_buffer.t option)
-    -> Ches_core.Editor.t
+    :  ?anchor_text:(string -> Cobalt_core.Text_buffer.t option)
+    -> Cobalt_core.Editor.t
     -> t
 
   (** A document with no text, at revision 0. *)
@@ -94,8 +94,8 @@ val count : Feedback.t -> int
 val render
   :  ?hotkey_hints:bool
   -> ?focused:bool
-  -> ?navigation:Key.t Ches_tile.Navigation.Selection.t
-  -> ?details:Ches_tile.Text_view.t
+  -> ?navigation:Key.t Cobalt_tile.Navigation.Selection.t
+  -> ?details:Cobalt_tile.Text_view.t
   -> ?notice:string
   -> ?pending:string
   -> Feedback.t

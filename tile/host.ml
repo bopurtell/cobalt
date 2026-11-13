@@ -1,5 +1,5 @@
 open! Core
-open Ches_input
+open Cobalt_input
 
 type t =
   { leader : Key.t
@@ -15,7 +15,7 @@ type t =
 let spec t id =
   match List.find t.views ~f:(fun (spec : Spec.t) -> View_id.equal spec.id id) with
   | Some spec -> spec
-  | None -> raise_s [%message "Ches_tile.Host: unknown view" (id : View_id.t)]
+  | None -> raise_s [%message "Cobalt_tile.Host: unknown view" (id : View_id.t)]
 ;;
 
 let create ~leader ~primary views =

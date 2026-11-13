@@ -1,5 +1,5 @@
 open! Core
-module Fixture = Ches_vcs_fixture.Fixture_repo
+module Fixture = Cobalt_vcs_fixture.Fixture_repo
 
 (* Scaffolding for agent G: the fixture works from this test library, and the git on
    PATH is at least the version the CLI rules in Cli assume. Calls no stub. *)
@@ -15,6 +15,6 @@ let%expect_test "fixture repositories and the git version" =
     print_s
       [%sexp
         (List.compare Int.compare numbers [ 2; 43 ] >= 0 : bool)
-      , (Ches_vcs_git.Cli.prefix : string list)]);
+      , (Cobalt_vcs_git.Cli.prefix : string list)]);
   [%expect {| (true (--no-pager -c color.ui=false -c core.quotepath=false)) |}]
 ;;

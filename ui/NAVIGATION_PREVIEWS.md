@@ -30,7 +30,7 @@ lines, 4096 bytes per line, and 64 KiB output; the host uses chunked descriptor
 reads without whole-file or unbounded line reads.
 
 Freshness compares device, inode, size, mtime, and ctime, matching the fields of
-`Ches_app.Navigation_file_stamp`. The disk payload stamp serializes that tuple.
+`Cobalt_app.Navigation_file_stamp`. The disk payload stamp serializes that tuple.
 Pre-stat must match opened-descriptor metadata; descriptor and path metadata are
 rechecked after collection. Changes produce an explicit unreadable state instead
 of a stale window. This metadata policy detects ordinary edits/replacements, but

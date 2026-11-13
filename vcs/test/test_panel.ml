@@ -1,5 +1,5 @@
 open! Core
-open Ches_vcs
+open Cobalt_vcs
 module Cursor = Panel.Cursor
 module Position = Panel.Position
 

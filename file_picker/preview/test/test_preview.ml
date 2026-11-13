@@ -1,9 +1,9 @@
 open! Core
 open! Async
-open Ches_file_preview
-module Picker = Ches_file_picker.Model
-let session n : Picker.Discovery.request = { run_id = Picker.Run_id.of_int n; root = "/nonexistent/ches-preview" }
-let candidate name = Picker.Candidate.create ~root:"/nonexistent/ches-preview" ~relative_path:name |> Or_error.ok_exn
+open Cobalt_file_preview
+module Picker = Cobalt_file_picker.Model
+let session n : Picker.Discovery.request = { run_id = Picker.Run_id.of_int n; root = "/nonexistent/cobalt-preview" }
+let candidate name = Picker.Candidate.create ~root:"/nonexistent/cobalt-preview" ~relative_path:name |> Or_error.ok_exn
 let payload = function Model.Ready p | Truncated (p, _) -> p | _ -> failwith "Expected preview text"
 let collect text =
   let pos = ref 0 in
@@ -46,7 +46,7 @@ let%test_unit "UTF8 cap drops only incomplete legal final scalar; EOF invalid is
   assert (!reads = 1)
 ;;
 let%test_unit "bounded immutable buffer copy: giant line, line cap, UTF8 boundary" =
-  let text s = Ches_core.Text_buffer.of_string s |> Result.ok |> Option.value_exn in
+  let text s = Cobalt_core.Text_buffer.of_string s |> Result.ok |> Option.value_exn in
   let state = Model.of_buffer ~revision:42 (text (String.make 1_000_000 'a')) in
   assert (String.length (payload state).text = Model.max_bytes);
   assert (Model.equal_source (payload state).source (Buffer { revision = 42 }));
@@ -203,7 +203,7 @@ let%expect_test "teardown wakes idle waiter; lookup/read exceptions become expli
   timeout (Provider.finished p)
 ;;
 let with_root f =
-  let root = Filename_unix.realpath (Core_unix.mkdtemp (Filename.concat Filename.temp_dir_name "ches-preview-")) in
+  let root = Filename_unix.realpath (Core_unix.mkdtemp (Filename.concat Filename.temp_dir_name "cobalt-preview-")) in
   Monitor.protect (fun () -> f root) ~finally:(fun () ->
     Array.iter (Sys_unix.readdir root) ~f:(fun name -> Core_unix.unlink (Filename.concat root name));
     Core_unix.rmdir root; return ())
@@ -237,7 +237,7 @@ let%expect_test "real disk prefix, missing/binary/empty/FIFO/directory and symli
 ;;
 let%expect_test "retained dirty missing buffer wins disk without activation or parsing; late lookup" =
   with_root (fun root ->
-    let module App = Ches_app in
+    let module App = Cobalt_app in
     let path = root ^ "/dirty.ml" in
     Out_channel.write_all path ~data:"disk\n";
     let controller = App.Controller.open_file ~cell_width:(fun _ -> 1) path |> Or_error.ok_exn in
@@ -246,11 +246,11 @@ let%expect_test "retained dirty missing buffer wins disk without activation or p
     let p = Provider.create ~debounce:(Time_ns.Span.of_int_ms 10)
       ~buffer:(fun ~path -> Buffer_snapshot.lookup !current ~path) () in
     ignore (Provider.select p ~session:(session 1) (at root "dirty.ml") : Model.request);
-    let dirty = Ches_core.Text_buffer.of_string ("unsaved\n" ^ String.make 1_000_000 'a') |> Result.ok |> Option.value_exn in
+    let dirty = Cobalt_core.Text_buffer.of_string ("unsaved\n" ^ String.make 1_000_000 'a') |> Result.ok |> Option.value_exn in
     let controller = App.Controller.rebase_text controller
-      ~saved:(Ches_core.Editor.text (App.Controller.editor controller)) ~text:dirty in
+      ~saved:(Cobalt_core.Editor.text (App.Controller.editor controller)) ~text:dirty in
     current := App.Session.replace_active !current controller;
-    assert (Ches_core.Editor.is_dirty (App.Controller.editor controller));
+    assert (Cobalt_core.Editor.is_dirty (App.Controller.editor controller));
     let parses = App.Controller.highlight_parse_count controller in
     let active = App.Session.active_id !current in
     Core_unix.unlink path;

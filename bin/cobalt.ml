@@ -5,14 +5,14 @@ let command =
   Command.async
     ~summary:"Edit UTF-8, LF files and directory workspaces"
     ~readme:(fun () ->
-       "Directory PATH opens an editable directory buffer (including ches .): Enter opens, \
+       "Directory PATH opens an editable directory buffer (including cobalt .): Enter opens, \
          - goes to the parent, Space o toggles file/directory, Space r refreshes.\n\
          Files stay open in tabs: Space b n/p switches, b c closes, b C discards.\n\
          Space b t/s shows buffers in the top strip/status rows (also --buffers top/status).\n\
          Visual Enter opens selected files; Space m m/s/u/c/o toggles/marks/unmarks/clears/opens marks.\n\
          Space d m/s/h/f selects major/side/hide/focus; d +/- sizes the side browser.\n\
-         Edit only names after @ches[ID] and its TAB. Bare rows create files; final / creates directories.\n\
-         Explicit @copy[ID]<TAB>destination copies disk contents; duplicate @ches IDs are invalid.\n\
+         Edit only names after @cobalt[ID] and its TAB. Bare rows create files; final / creates directories.\n\
+         Explicit @copy[ID]<TAB>destination copies disk contents; duplicate @cobalt IDs are invalid.\n\
          Existing/copy rows accept relative or absolute destinations with existing parents.\n\
          Space w applies directory edits directly: omitted rows PERMANENTLY DELETE files/links\n\
          or EMPTY directories. No trash, recursive delete, filesystem undo, or confirmation dialog.\n\
@@ -50,11 +50,11 @@ let command =
          0.4s after an edit, lines containing ERROR/TODO are errors/warnings; about 0.8s\n\
          after a save, ERROR lines again plus a finding in another file, merged into the\n\
          same lists. Space v K crashes it; Space v R restarts it. It replaces the LSP.\n\
-         For a .ml, .mli, .mll, or .mly PATH, ches runs ocamllsp from PATH as Neovim\n\
+         For a .ml, .mli, .mll, or .mly PATH, cobalt runs ocamllsp from PATH as Neovim\n\
          does, rooted at the nearest dune-project (else dune-workspace, *.opam, opam,\n\
          esy.json, package.json, .git, else PATH's directory); its diagnostics go to the\n\
          problems view. It never runs dune: errors needing a build need your own\n\
-         `dune build --watch`. For .sv, .svh, .v, or .vh, ches runs slang-server\n\
+         `dune build --watch`. For .sv, .svh, .v, or .vh, cobalt runs slang-server\n\
           from SLANG_SERVER, PATH, or ~/slang-server/build/bin/slang-server, rooted\n\
           at .slang, then .git, else PATH's directory. Configure it in .slang/server.json.\n\
           Space l i shows attached language servers, commands, roots and status (palette: Language servers).\n\
@@ -65,7 +65,7 @@ let command =
       and theme = flag "--theme"
         (optional
            (Command.Arg_type.create (fun name ->
-              match Ches_theme.Theme.find name with
+              match Cobalt_theme.Theme.find name with
               | Some theme -> theme
               | None -> failwithf "Unknown theme %S; use --list-themes for available IDs" name ())))
         ~doc:"NAME Override configuration theme (default vim-classic; Space v T chooses at runtime)"
@@ -86,24 +86,24 @@ let command =
      and demo_report = flag "--demo-report" no_arg
        ~doc:" Install a static, error-free report view for manual tile testing"
      and buffer_presentation = flag "--buffers"
-       (optional_with_default Ches_input.View_command.Buffer_presentation.Top
+       (optional_with_default Cobalt_input.View_command.Buffer_presentation.Top
           (Command.Arg_type.create (function
-            | "top" -> Ches_input.View_command.Buffer_presentation.Top
+            | "top" -> Cobalt_input.View_command.Buffer_presentation.Top
             | "status" -> Status_rows
             | _ -> failwith "expected top or status")))
        ~doc:"top|status File buffers in the top strip (default) or status rows" in
       fun () ->
        let fail error =
-         eprintf "ches: %s\n" (Error.to_string_hum error);
+         eprintf "cobalt: %s\n" (Error.to_string_hum error);
          exit 1
        in
        (* Bonsai_term reads keys from stdin; without a terminal there it fails with a
           long message meant for its developers. *)
         if list_themes then (
-          List.iter Ches_theme.Theme.all ~f:(fun theme ->
-            printf "%s\t%s\t%s\n" (Ches_theme.Theme.id theme)
-              (Ches_theme.Theme.title theme)
-              (match Ches_theme.Theme.kind theme with Dark -> "dark" | Light -> "light"));
+          List.iter Cobalt_theme.Theme.all ~f:(fun theme ->
+            printf "%s\t%s\t%s\n" (Cobalt_theme.Theme.id theme)
+              (Cobalt_theme.Theme.title theme)
+              (match Cobalt_theme.Theme.kind theme with Dark -> "dark" | Light -> "light"));
           return ())
         else
         let%bind path = match path with
@@ -113,29 +113,29 @@ let command =
        then fail (Error.of_string "standard input is not a terminal")
        else (
          match
-            Ches_app.Startup.open_path ~cell_width:Ches_screen.Cell_map.width path
+            Cobalt_app.Startup.open_path ~cell_width:Cobalt_screen.Cell_map.width path
          with
          | Error error -> fail error
           | Ok controller ->
             let controller = if demo_problems
-              then Ches_app.Demo_problems.install controller else controller in
+              then Cobalt_app.Demo_problems.install controller else controller in
             let controller = if demo_diagnostics
-              then Ches_app.Demo_diagnostics.install controller else controller in
+              then Cobalt_app.Demo_diagnostics.install controller else controller in
            let report =
-             Option.some_if demo_report Ches_screen.Report_tile.demo in
+             Option.some_if demo_report Cobalt_screen.Report_tile.demo in
            (* One source: the synthetic checker, a test flag, replaces the server. *)
             let source =
               if no_lsp && not synthetic_checker
               then None
               else
                  Some (if synthetic_checker then
-                   Ches_source.Workspace.start ~create:(fun path ->
-                     Some (Ches_source.Synthetic.start ~root:(Ches_source.Workspace_root.find path) ())) ()
-                 else Ches_source.Lsp_client.start_workspace ~cell_width:Ches_screen.Cell_map.width ())
+                   Cobalt_source.Workspace.start ~create:(fun path ->
+                     Some (Cobalt_source.Synthetic.start ~root:(Cobalt_source.Workspace_root.find path) ())) ()
+                 else Cobalt_source.Lsp_client.start_workspace ~cell_width:Cobalt_screen.Cell_map.width ())
            in
            (* One runner for the VCS view's git commands (Space g g); it inherits this
               process's environment and never prompts on the terminal. *)
-            let vcs = Ches_ui.Vcs_host.create () in
+            let vcs = Cobalt_ui.Vcs_host.create () in
             (* Preserve CR (Enter) versus LF (Ctrl-J) before Notty reads stdin.
                Notty's own terminal setup retains these input flags. Restore the
                original settings after its shutdown handlers have run. *)
@@ -144,7 +144,7 @@ let command =
             Core_unix.Terminal_io.tcsetattr
               { tty with c_icrnl = false; c_inlcr = false; c_igncr = false }
               Core_unix.stdin ~mode:TCSANOW;
-             (match%bind Ches_ui.Editor_view.run ~smear_enabled ~zen:(not workspace) ~bare ?theme ~buffer_presentation ?report ?source ~vcs controller with
+             (match%bind Cobalt_ui.Editor_view.run ~smear_enabled ~zen:(not workspace) ~bare ?theme ~buffer_presentation ?report ?source ~vcs controller with
             | Ok () -> return ()
             | Error error -> fail error)))
 ;;

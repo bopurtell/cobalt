@@ -1,6 +1,6 @@
 open! Core
 open! Async
-open Ches_vcs
+open Cobalt_vcs
 open Helpers
 
 let only_finished events =
@@ -148,7 +148,7 @@ let%expect_test "a missing program or working directory is not started, not rais
         run_job
           ~dir
           runner
-          [ run (spec "ches-no-such-program")
+          [ run (spec "cobalt-no-such-program")
           ; run (spec (dir ^/ "no-such-program"))
           ; run (spec (dir ^/ "file"))
           ; run (spec ~cwd:(dir ^/ "missing") "/bin/sh")
@@ -157,13 +157,13 @@ let%expect_test "a missing program or working directory is not started, not rais
       in
       [%expect
         {|
-        (started g1.1 0 "ches-no-such-program --version")
+        (started g1.1 0 "cobalt-no-such-program --version")
         (started g1.1 1 "$DIR/no-such-program --version")
         (started g1.1 2 "$DIR/file --version")
         (started g1.1 3 "/bin/sh --version")
         (started g1.1 4 "/bin/sh --version")
         (finished g1.1 complete
-         (ran ("could not start: ches-no-such-program: No such file or directory"))
+         (ran ("could not start: cobalt-no-such-program: No such file or directory"))
          (ran ("could not start: $DIR/no-such-program: No such file or directory"))
          (ran ("could not start: $DIR/file: Permission denied"))
          (ran
@@ -176,16 +176,16 @@ let%expect_test "a missing program or working directory is not started, not rais
         runner
         (job
            2
-           [ run (Exec.Spec.create ~kind:Mutate ~cwd:dir "ches-no-such-program" [])
+           [ run (Exec.Spec.create ~kind:Mutate ~cwd:dir "cobalt-no-such-program" [])
            ; run (sh ~cwd:dir "echo no")
            ]);
       let%map () = collect runner log ~until:(fun events -> finished events 2) in
       print_events ~dir log.events;
       [%expect
         {|
-        (started g1.2 0 ches-no-such-program)
+        (started g1.2 0 cobalt-no-such-program)
         (finished g1.2 complete
-         (ran ("could not start: ches-no-such-program: No such file or directory"))
+         (ran ("could not start: cobalt-no-such-program: No such file or directory"))
          skipped)
         |}]))
 ;;

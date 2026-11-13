@@ -1,7 +1,7 @@
 # Configuration UI boundary
 
 `Ui_state.create` queues no configuration load. The frontend preloads a complete
-`Ches_config_runtime.Settings.t`, creates its initial state with existing assembly
+`Cobalt_config_runtime.Settings.t`, creates its initial state with existing assembly
 options, then calls `apply_configuration ?theme_override state settings`. On startup
 failure it applies `Settings.default` and reports the diagnostic with `with_notice`.
 An explicitly supplied `create ~theme` is retained as an override; the optional

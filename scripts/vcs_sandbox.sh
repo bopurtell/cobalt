@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # Build a throwaway git sandbox for hand-testing the VCS view (docs/testing/vcs_manual.md).
 #
-#   scripts/vcs_sandbox.sh [DIR]      (default /tmp/ches-vcs-sandbox; DIR is wiped)
+#   scripts/vcs_sandbox.sh [DIR]      (default /tmp/cobalt-vcs-sandbox; DIR is wiped)
 #
 # Leaves:
 #   DIR/remote.git   a bare "origin"
 #   DIR/other        a second clone, used to push a commit main does not have
-#   DIR/work         the repository to open in Ches, on main, with:
+#   DIR/work         the repository to open in Cobalt, on main, with:
 #     - history: v1 tag, a --no-ff merge of `feature`, a rename (old_name.txt ->
 #       new_name.txt, then edited), a binary file, 210 "Counter" commits (> 200)
 #     - branches: feature (merged), conflict-me (conflicts with main on a.txt and
@@ -16,7 +16,7 @@
 #       src/main.ml staged, notes.txt untracked
 set -euo pipefail
 
-S=${1:-/tmp/ches-vcs-sandbox}
+S=${1:-/tmp/cobalt-vcs-sandbox}
 case "$S" in
   / | "$HOME" | "$HOME"/) echo "refusing to wipe $S" >&2; exit 1 ;;
 esac
@@ -24,10 +24,10 @@ rm -rf "$S"
 mkdir -p "$S"
 cd "$S"
 
-# Deterministic for this script's own commands; Ches later uses your normal config.
+# Deterministic for this script's own commands; Cobalt later uses your normal config.
 export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
 id() {
-  git config user.name "Ches Sandbox"
+  git config user.name "Cobalt Sandbox"
   git config user.email "sandbox@example.invalid"
   git config commit.gpgSign false
 }

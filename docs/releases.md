@@ -34,7 +34,7 @@ Optional features use host programs:
 | Tile Terms | A working PTY environment and `$SHELL`, or `/bin/sh` |
 
 A missing `config.ml` uses defaults without invoking a compiler. If one exists
-but cannot compile, Ches reports the error and uses defaults. `--no-lsp` disables
+but cannot compile, Cobalt reports the error and uses defaults. `--no-lsp` disables
 language-server startup. Use a UTF-8 locale and a capable terminal; the user's
 terminal supplies fonts, so the archive does not need screenshot fonts.
 
@@ -65,10 +65,10 @@ use another version or output directory when regenerating a package.
 Output under `dist/`:
 
 ```text
-ches-VERSION-linux-x86_64.tar.gz
-ches-VERSION-source.tar.gz
-ches-VERSION-linux-x86_64.manifest.json
-ches-VERSION-linux-x86_64.sha256
+cobalt-VERSION-linux-x86_64.tar.gz
+cobalt-VERSION-source.tar.gz
+cobalt-VERSION-linux-x86_64.manifest.json
+cobalt-VERSION-linux-x86_64.sha256
 ```
 
 The binary tarball also embeds the same source archive under `sources/`, so it
@@ -101,21 +101,21 @@ commit timestamp, including for dirty snapshots.
 After obtaining the archive and its adjacent checksums/manifest/source archive:
 
 ```sh
-sha256sum -c ches-VERSION-linux-x86_64.sha256
-tar -xzf ches-VERSION-linux-x86_64.tar.gz
+sha256sum -c cobalt-VERSION-linux-x86_64.sha256
+tar -xzf cobalt-VERSION-linux-x86_64.tar.gz
 ```
 
-From inside the extracted `ches-VERSION-linux-x86_64` directory:
+From inside the extracted `cobalt-VERSION-linux-x86_64` directory:
 
 ```sh
 sha256sum -c SHA256SUMS
-./bin/ches --list-themes
-./bin/ches --no-lsp /path/to/file.ml
+./bin/cobalt --list-themes
+./bin/cobalt --no-lsp /path/to/file.ml
 ```
 
 Keep the package directory together with its notices and sources. Put its `bin/`
 directory on `PATH` if desired. The current package contains a native executable
-at `bin/ches`; optional future library-bundled packages use a relative launcher,
+at `bin/cobalt`; optional future library-bundled packages use a relative launcher,
 so moving only that launcher is not generally supported.
 
 ## Why a tarball before a `.deb`?
@@ -131,8 +131,8 @@ testing. The initial tooling produces tarballs, not `.deb` files.
 
 ```sh
 python3 -m unittest discover -s packaging/tests -v
-CHES_PACKAGE_INTEGRATION=1 python3 -m unittest discover -s packaging/tests -v
-python3 packaging/smoke.py dist/ches-VERSION-linux-x86_64.tar.gz
+COBALT_PACKAGE_INTEGRATION=1 python3 -m unittest discover -s packaging/tests -v
+python3 packaging/smoke.py dist/cobalt-VERSION-linux-x86_64.tar.gz
 ```
 
 Tests cover safe source/output selection, deterministic metadata and bytes,

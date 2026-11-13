@@ -1,5 +1,5 @@
 open! Core
-open Ches_highlight
+open Cobalt_highlight
 
 let key ?(document = Snapshot.Document_id.create ()) ?(revision = 0)
     ?(language = Language.Ocaml) ?(configuration = "synthetic-v1") () =

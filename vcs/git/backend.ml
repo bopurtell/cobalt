@@ -1,5 +1,5 @@
 open! Core
-open Ches_vcs
+open Cobalt_vcs
 
 module Section = struct
   type t =
@@ -42,7 +42,7 @@ let recent_section = Panel.Section_id.of_string "recent"
 
 type snapshot =
   { repository : Repository.t
-  ; refresh : Ches_vcs.Backend.Refresh.t
+  ; refresh : Cobalt_vcs.Backend.Refresh.t
   ; status : Status.t
   ; branches : Branch_list.Branch.t list
   ; commits : Log.Commit.t list
@@ -154,7 +154,7 @@ end
 let detect = Repository.detect
 let detected = Repository.detected
 
-let refresh (repository : Repository.t) (refresh : Ches_vcs.Backend.Refresh.t)
+let refresh (repository : Repository.t) (refresh : Cobalt_vcs.Backend.Refresh.t)
   : Job.Step.t list
   =
   let cwd = repository.root in
@@ -276,7 +276,7 @@ let snapshot repository refresh_request (reports : Job.Step_report.t list) =
        | _ -> Or_error.error_s [%message "git refresh: unexpected step outcomes"]))
 ;;
 
-let summary (snapshot : snapshot) : Ches_vcs.Backend.Summary.t =
+let summary (snapshot : snapshot) : Cobalt_vcs.Backend.Summary.t =
   let branch = snapshot.status.branch in
   let gone =
     List.exists snapshot.branches ~f:(fun (b : Branch_list.Branch.t) ->
@@ -287,7 +287,7 @@ let summary (snapshot : snapshot) : Ches_vcs.Backend.Summary.t =
       | Some _ | None -> false)
   in
   let upstream =
-    Option.map branch.upstream ~f:(fun name : Ches_vcs.Backend.Summary.Upstream.t ->
+    Option.map branch.upstream ~f:(fun name : Cobalt_vcs.Backend.Summary.Upstream.t ->
       let ahead, behind =
         if gone then 0, 0 else Option.value branch.ahead_behind ~default:(0, 0)
       in
@@ -446,9 +446,9 @@ let parse_diff target limits (reports : Job.Step_report.t list) =
       [%message "git diff: expected one step report" ~got:(List.length reports : int)]
 ;;
 
-(* Phase 3 plans: stage, unstage and discard. Every rule and text is in the contract
+(* Stage, unstage and discard plans. Every rule and text is in the contract
    comment of backend.mli; [plan] only looks at the snapshot. *)
-module Decision = Ches_vcs.Backend.Plan.Decision
+module Decision = Cobalt_vcs.Backend.Plan.Decision
 
 type verb =
   | Stage_verb
@@ -534,14 +534,14 @@ let apply repository flags patch =
 ;;
 
 let run ?(rewrites_worktree = false) title steps : Decision.t =
-  Run { Ches_vcs.Backend.Plan.title; steps; rewrites_worktree }
+  Run { Cobalt_vcs.Backend.Plan.title; steps; rewrites_worktree }
 ;;
 
 let confirm ~title ~message plan_title steps : Decision.t =
   Confirm
     { title
     ; message
-    ; plan = { Ches_vcs.Backend.Plan.title = plan_title; steps; rewrites_worktree = true }
+    ; plan = { Cobalt_vcs.Backend.Plan.title = plan_title; steps; rewrites_worktree = true }
     }
 ;;
 
@@ -586,7 +586,7 @@ let stage_untracked entry =
     leave
       entry
       ~label:"nested repository"
-      "%s is a nested repository: Ches does not stage it; nothing ran"
+      "%s is a nested repository: Cobalt does not stage it; nothing ran"
   else take_key entry
 ;;
 
@@ -612,7 +612,7 @@ let discard_untracked entry =
     leave
       entry
       ~label:"nested repository"
-      "%s is a nested repository: delete it outside Ches; nothing ran"
+      "%s is a nested repository: delete it outside Cobalt; nothing ran"
   else take_key entry
 ;;
 
@@ -962,7 +962,7 @@ let commit_flags given =
   List.filter Commit.flags ~f:(fun flag -> List.mem given flag ~equal:String.equal)
 ;;
 
-(* Phase 6: remotes and branches. One step per plan, no paths; the texts are in the
+(* Remotes and branches. One step per plan, no paths; the texts are in the
    contract comment of backend.mli. *)
 let network_step (repository : Repository.t) args =
   Job.Step.Run (Cli.network ~cwd:repository.root args)
@@ -1163,7 +1163,7 @@ let abort_plan repository (snapshot : snapshot) (operation : Operation.Kind.t)
     confirm ~title ~message title [ commit_step repository [ noun; "--abort" ] ])
 ;;
 
-(* Phase 7: merges, rebases and conflicts; the texts are in the contract comment of
+(* Merges, rebases and conflicts; the texts are in the contract comment of
    backend.mli. *)
 
 (* A step git may answer by starting an editor: [true] keeps the prepared message (the

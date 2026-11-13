@@ -5,19 +5,19 @@ open! Core
     the list independently of the keyboard selection. *)
 type t [@@deriving sexp_of]
 
-val id : Ches_tile.View_id.t
-val spec : Ches_tile.Spec.t
+val id : Cobalt_tile.View_id.t
+val spec : Cobalt_tile.Spec.t
 val create
   :  module_name:string
   -> active:string option
-  -> Ches_error.Language_query.instance list
+  -> Cobalt_error.Language_query.instance list
   -> t
-val selected : t -> Ches_error.Language_query.instance option
+val selected : t -> Cobalt_error.Language_query.instance option
 val query : t -> string
 val fit : t -> rows:int -> t
-val interpret : Ches_input.Key.t list -> Palette_tile.action Ches_tile.Content_key.t
-val update : t -> rows:int -> Ches_palette.Palette.Event.t -> t
-val cursor : t -> width:int -> Ches_tile.Cursor.t
+val interpret : Cobalt_input.Key.t list -> Palette_tile.action Cobalt_tile.Content_key.t
+val update : t -> rows:int -> Cobalt_palette.Palette.Event.t -> t
+val cursor : t -> width:int -> Cobalt_tile.Cursor.t
 val render
   :  ?hotkey_hints:bool
   -> ?notice:string

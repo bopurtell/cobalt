@@ -1,5 +1,5 @@
 open! Core
-open Ches_core
+open Cobalt_core
 
 module Config = struct
   type t = Hidden | Exposed [@@deriving sexp_of, equal]
@@ -168,5 +168,5 @@ let toggle_mark t = match selected t with
 
 (** Save/reload are session-owned: never dispatch listing text as file IO. *)
 let allows = function
-  | Ches_core.Command.Save | Reload | Quit | Force_quit -> false
+  | Cobalt_core.Command.Save | Reload | Quit | Force_quit -> false
   | _ -> true

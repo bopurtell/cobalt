@@ -3,7 +3,7 @@
 ## User contract
 
 ```ocaml
-open Ches_config
+open Cobalt_config
 
 let () =
   Snippets.add
@@ -54,7 +54,7 @@ preserves the original JSON as an inactive backup and retains all existing setti
 ## Status
 
 Implemented and validated. The Stdlib-only API records ordered operations, encoded
-in bounded `CHES_SETTINGS_2` output. The host validates every declaration using the
+in bounded `COBALT_SETTINGS_2` output. The host validates every declaration using the
 same provider/parser rules as local templates. `Settings.snippets` defaults to an
 empty operation list. Catalog application is immutable and settings/theme/catalog
 validation completes before any live mutation. Separate legacy-base and OCaml
@@ -71,7 +71,7 @@ production defects and added missing-config reset and atomic multi-setting rollb
 regressions. Follow-up completion/screen suites passed after updating `mod`.
 
 The personal configuration retained all settings and gained both header templates.
-`dune exec -j 6 config/test/check_config.exe -- /home/wayne/.config/ches/config.ml`
+`dune exec -j 6 config/test/check_config.exe -- /home/wayne/.config/cobalt/config.ml`
 reported `Configuration valid: 2 snippet operations`. The original JSON was moved
-unchanged to `~/.config/ches/snippets.json.migrated` after successful validation.
+unchanged to `~/.config/cobalt/snippets.json.migrated` after successful validation.
 No Git staging, commits, or pushes were performed.

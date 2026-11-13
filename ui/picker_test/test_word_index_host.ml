@@ -1,18 +1,18 @@
 open! Core
 open! Async
 module Expect_test_config = Async.Expect_test_config
-module Host = Ches_ui.Word_index_host
-module S = Ches_screen.Ui_state
-module M = Ches_completion.Model
+module Host = Cobalt_ui.Word_index_host
+module S = Cobalt_screen.Ui_state
+module M = Cobalt_completion.Model
 
 let request () =
-  let text = Ches_core.Text_buffer.of_string ("\n" ^ String.concat
+  let text = Cobalt_core.Text_buffer.of_string ("\n" ^ String.concat
       (List.init 100000 ~f:(fun _ -> "alpha alpine\n"))) |> Result.ok |> Option.value_exn in
-  let controller = Ches_app.Controller.create
-      (Ches_core.Editor.create ~path:"/index-test" ~cell_width:Ches_screen.Cell_map.width text) in
+  let controller = Cobalt_app.Controller.create
+      (Cobalt_core.Editor.create ~path:"/index-test" ~cell_width:Cobalt_screen.Cell_map.width text) in
   let ui = S.create ~tiles_visible:false controller in
   let ui, _ = S.apply_all ui ~width:80 ~height:24
-      (List.map (String.to_list "ial") ~f:(fun c -> S.Input.Key (Ches_input.Key.char c))) in
+      (List.map (String.to_list "ial") ~f:(fun c -> S.Input.Key (Cobalt_input.Key.char c))) in
   snd (S.take_word_index_request ui) |> Option.value_exn
 ;;
 
@@ -57,7 +57,7 @@ let%expect_test "host yields before completion, coalesces typing, and cancellati
    let rec type_more n =
      if Deferred.is_determined reply then return () else (
        assert (n < 10000);
-       let text = Ches_core.Text_buffer.replace r.text ~pos:(Ches_core.Text_buffer.length r.text)
+       let text = Cobalt_core.Text_buffer.replace r.text ~pos:(Cobalt_core.Text_buffer.length r.text)
            ~len:0 (sprintf "albatross%d" n) |> Result.ok |> Option.value_exn in
        latest_token := r.request.token.request + n;
       Host.follow host (Some { r with text; request = { r.request with

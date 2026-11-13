@@ -1,6 +1,6 @@
 """Stdlib PTY vertical slice. Optional second argument uses a real qh/toolchain.
 
-    python3 bin/test_harness_cli.py _build/default/bin/ches.exe /path/to/qh
+    python3 bin/test_harness_cli.py _build/default/bin/cobalt.exe /path/to/qh
 
 The default fixture exercises argv paths, failed runs and an x/z waveform without
 requiring HDL tools. The real mode creates/runs all three installed starters.
@@ -59,7 +59,7 @@ else:
 def main():
     binary = str(Path(sys.argv[1]).resolve())
     real_qh = str(Path(sys.argv[2]).resolve()) if len(sys.argv) > 2 else None
-    with tempfile.TemporaryDirectory(prefix="ches-harness-pty-") as temp:
+    with tempfile.TemporaryDirectory(prefix="cobalt-harness-pty-") as temp:
         root = Path(temp)
         scratch = root / "scratch root ;$"
         document = root / "original.txt"

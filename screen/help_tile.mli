@@ -7,23 +7,23 @@
 
 open! Core
 
-val id : Ches_tile.View_id.t
-val spec : Ches_tile.Spec.t
+val id : Cobalt_tile.View_id.t
+val spec : Cobalt_tile.Spec.t
 
 type t [@@deriving sexp_of]
 
 (** Help for [origin], whose title is [title]. *)
-val create : origin:Ches_tile.View_id.t -> title:string -> Ches_tile.Local_command.t list -> t
+val create : origin:Cobalt_tile.View_id.t -> title:string -> Cobalt_tile.Local_command.t list -> t
 
 (** Help listing [(keys, description)] rows as given, e.g. a popup's
-    ({!Ches_vcs.Popup.help}: [("-n", "Disable hooks (--no-verify)")]). *)
-val of_entries : origin:Ches_tile.View_id.t -> title:string -> (string * string) list -> t
+    ({!Cobalt_vcs.Popup.help}: [("-n", "Disable hooks (--no-verify)")]). *)
+val of_entries : origin:Cobalt_tile.View_id.t -> title:string -> (string * string) list -> t
 
 (** The view (or popup float) that focus returns to. *)
-val origin : t -> Ches_tile.View_id.t
+val origin : t -> Cobalt_tile.View_id.t
 
 (** The commands given to {!create}; empty for {!of_entries}. *)
-val commands : t -> Ches_tile.Local_command.t list
+val commands : t -> Cobalt_tile.Local_command.t list
 
 (** The first visible command. *)
 val top : t -> int
@@ -32,17 +32,17 @@ val top : t -> int
 val preferred_size : t -> Floating.Size.t
 
 type action =
-  | Scroll of Ches_tile.Navigation.Motion.t
+  | Scroll of Cobalt_tile.Navigation.Motion.t
   | Close
 [@@deriving sexp_of]
 
 (** The shared list motions scroll; [q] and [?] close. *)
-val interpret : Ches_input.Key.t list -> action Ches_tile.Content_key.t
+val interpret : Cobalt_input.Key.t list -> action Cobalt_tile.Content_key.t
 
 val hint : string
 
 (** Scroll within a content viewport [rows] tall. *)
-val scroll : t -> rows:int -> Ches_tile.Navigation.Motion.t -> t
+val scroll : t -> rows:int -> Cobalt_tile.Navigation.Motion.t -> t
 
 (** Shell content for a [width] by [rows] content viewport: one command per row, its
     keys in a column before its description. Key hints default to hidden; notices

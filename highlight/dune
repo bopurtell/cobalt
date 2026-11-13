@@ -1,4 +1,4 @@
 (library
- (name ches_highlight)
+ (name cobalt_highlight)
  (libraries core)
  (preprocess (pps ppx_jane)))

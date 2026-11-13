@@ -1,7 +1,7 @@
 (** A language-server client: the {!Source.Driver} that runs a server, such as ocamllsp,
     as a child process and speaks the language-server protocol with it (JSON-RPC over
     the server's stdin and stdout), as Neovim's [vim.lsp] does. The server itself is
-    the installed program; this is only Ches's half.
+    the installed program; this is only Cobalt's half.
 
     - A session launches the server in the workspace root, sends [initialize] then
       [initialized], and reports [Started]. A program missing from PATH reports
@@ -41,12 +41,12 @@
         bounded acknowledgement observers after cancellation/deadline, since a late
         successful mutation must still invalidate server-dependent results.
      - Each [publishDiagnostics] becomes a [Diagnostics] snapshot for {!Config.source}:
-      an open document under Ches's own resource name and mapped revision; any
+      an open document under Cobalt's own resource name and mapped revision; any
       other file unversioned, by its path relative to the working directory (absolute
       when outside it).
-    - Stopping (Ches quitting) sends [shutdown] and [exit], killing the server if it is
+    - Stopping (Cobalt quitting) sends [shutdown] and [exit], killing the server if it is
       still running after {!Config.shutdown_grace}. Async's shutdown waits for that, so
-      Ches exiting right after stopping does not cut it short.
+      Cobalt exiting right after stopping does not cut it short.
 
     Requests the server makes of the client (progress tokens, configuration, capability
     registration) get empty answers, and any other request "method not found"; the
@@ -58,7 +58,7 @@ open! Async
 
 module Config : sig
   type t =
-    { source : string (** The source name in Ches, like Neovim's client name. *)
+    { source : string (** The source name in Cobalt, like Neovim's client name. *)
     ; prog : string (** Searched for on PATH unless it contains a slash. *)
     ; args : string list
     ; applies_to : string -> bool (** Whether a document, by its path, is served. *)
@@ -97,7 +97,7 @@ end
     frontend draws with, so that columns land where the editor shows them. *)
 val start
   :  ?config:Config.t
-  -> cell_width:Ches_core.Cell_layout.Width.t
+  -> cell_width:Cobalt_core.Cell_layout.Width.t
   -> root:string
   -> unit
   -> Source.t
@@ -121,11 +121,11 @@ val start
      versioned histories and session/document generations remain isolated. *)
 val start_workspace
   :  ?config_for_path:(string -> Config.t option)
-  -> cell_width:Ches_core.Cell_layout.Width.t
+  -> cell_width:Cobalt_core.Cell_layout.Width.t
   -> unit
   -> Source.t
 
-(** The protocol's values in Ches's terms; exposed for tests. *)
+(** The protocol's values in Cobalt's terms; exposed for tests. *)
 module Convert : sig
   (** The unit of a position's [character]: UTF-16 unless the server chose another. *)
   type encoding =
@@ -135,7 +135,7 @@ module Convert : sig
   [@@deriving sexp_of]
 
   (** An absent severity is an error, as in Neovim. *)
-  val severity : Lsp.Types.DiagnosticSeverity.t option -> Ches_error.Error.Severity.t
+  val severity : Lsp.Types.DiagnosticSeverity.t option -> Cobalt_error.Error.Severity.t
 
   (** On one line: runs of whitespace, line breaks included, become one space. *)
   val message : string -> string
@@ -143,7 +143,7 @@ module Convert : sig
   (** The one-based display column of [character] in [line]. A position past the line's
       end is the column after it; one inside a code point is that code point's. *)
   val column
-    :  cell_width:Ches_core.Cell_layout.Width.t
+    :  cell_width:Cobalt_core.Cell_layout.Width.t
     -> encoding
     -> line:string
     -> character:int

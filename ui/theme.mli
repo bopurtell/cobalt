@@ -14,12 +14,12 @@ module Preset : sig
 end
 
 (** Legacy default preset (Crimson). Rendering defaults to
-    [Ches_theme.Theme.default] instead. *)
+    [Cobalt_theme.Theme.default] instead. *)
 val selected : Preset.t
 
 module Role : sig
-  include module type of Ches_theme.Theme.Role
-    with type t = Ches_theme.Theme.Role.t
+  include module type of Cobalt_theme.Theme.Role
+    with type t = Cobalt_theme.Theme.Role.t
 
   (** The role's color in [preset] (default {!selected}). *)
   val color : ?preset:Preset.t -> t -> Attr.Color.t
@@ -27,7 +27,7 @@ end
 
 (** Default syntax foreground role. Specials override it, and interaction overlays
     override both foreground and background. Padding remains Plain. *)
-val syntax_role : Ches_screen.Style.Syntax.t -> Role.t
+val syntax_role : Cobalt_screen.Style.Syntax.t -> Role.t
 
 module Font : sig
   (** A variant of the terminal's font. The terminal chooses the typeface; a style
@@ -42,16 +42,16 @@ module Font : sig
 
   (** Bold for the title, mode badge, dirty and pending markers, errors, and
       completion prefix matches; every other style is plain. *)
-  val default : Ches_screen.Style.t -> t list
+  val default : Cobalt_screen.Style.t -> t list
 end
 
-(** Colors from [theme] (default [Ches_theme.Theme.default]) and fonts from
+(** Colors from [theme] (default [Cobalt_theme.Theme.default]) and fonts from
     [font] (default {!Font.default}). Overlays replace foreground/background;
     frames sit on the backdrop. Completion parts retain independent foregrounds
     on a shared row background; documentation always uses the unselected ground.
     A custom [font] policy replaces completion fonts too. No global state is changed. *)
 val attrs
-  :  ?theme:Ches_theme.Theme.t
-  -> ?font:(Ches_screen.Style.t -> Font.t list)
-  -> Ches_screen.Style.t
+  :  ?theme:Cobalt_theme.Theme.t
+  -> ?font:(Cobalt_screen.Style.t -> Font.t list)
+  -> Cobalt_screen.Style.t
   -> Attr.t list

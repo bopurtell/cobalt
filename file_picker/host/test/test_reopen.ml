@@ -1,12 +1,12 @@
 open! Core
 open! Async
-open Ches_screen
-module R = Ches_file_picker_host.Runtime
-module I = Ches_file_picker.Interaction
-module M = Ches_file_picker.Model
+open Cobalt_screen
+module R = Cobalt_file_picker_host.Runtime
+module I = Cobalt_file_picker.Interaction
+module M = Cobalt_file_picker.Model
 let width = 100 and height = 30
-let ui () = Ui_state.create (Ches_app.Controller.create
-  (Ches_core.Editor.create ~cell_width:Cell_map.width Ches_core.Text_buffer.empty))
+let ui () = Ui_state.create (Cobalt_app.Controller.create
+  (Cobalt_core.Editor.create ~cell_width:Cell_map.width Cobalt_core.Text_buffer.empty))
 let apply ui inputs = fst (Ui_state.apply_all ui ~width ~height inputs)
 let session ui = File_picker_tile.session (Option.value_exn (Ui_state.file_picker ui))
 let timeout d = match%map Clock_ns.with_timeout (Time_ns.Span.of_int_sec 10) d with
@@ -14,10 +14,10 @@ let timeout d = match%map Clock_ns.with_timeout (Time_ns.Span.of_int_sec 10) d w
 let drain runtime state = timeout (R.pump runtime ~current:(fun () -> !state)
   ~inject:(fun inputs -> state := apply !state inputs; return ()))
 let close state = state := apply !state [ Key Escape ]
-let query state text = String.iter text ~f:(fun c -> state := apply !state [ Key (Ches_input.Key.char c) ])
+let query state text = String.iter text ~f:(fun c -> state := apply !state [ Key (Cobalt_input.Key.char c) ])
 let remove root = Array.iter (Sys_unix.readdir root) ~f:(fun path -> Core_unix.unlink (root ^ "/" ^ path)); Core_unix.rmdir root
 let with_root f =
-  let root = Filename_unix.realpath (Filename_unix.temp_dir "ches-reopen" "") in
+  let root = Filename_unix.realpath (Filename_unix.temp_dir "cobalt-reopen" "") in
   Out_channel.write_all (root ^ "/a.ml") ~data:"alpha\n";
   Out_channel.write_all (root ^ "/b.ml") ~data:"beta\n";
   Monitor.protect (fun () -> f root) ~finally:(fun () -> remove root; return ())
@@ -118,7 +118,7 @@ let%expect_test "failed and truncated cached refreshes are explicit, nonacceptin
     close state; let%map () = timeout (R.finished runtime) in R.cancel runtime)
   >>= fun () ->
   with_root (fun root ->
-    let runtime = R.create ~limits:{ Ches_file_discovery.Provider.Limits.default with max_candidates = 2 } () in
+    let runtime = R.create ~limits:{ Cobalt_file_discovery.Provider.Limits.default with max_candidates = 2 } () in
     let state = ref (ui ()) in
     open_picker runtime state root; let%bind () = drain runtime state in close state;
     let%bind () = timeout (R.finished runtime) in

@@ -2,11 +2,11 @@
    through the controller's shared route, cancelling, and layout changes. *)
 
 open! Core
-open Ches_core
-open Ches_screen
-module Feedback = Ches_error.Error
-module Controller = Ches_app.Controller
-module Palette = Ches_palette.Palette
+open Cobalt_core
+open Cobalt_screen
+module Feedback = Cobalt_error.Error
+module Controller = Cobalt_app.Controller
+module Palette = Cobalt_palette.Palette
 
 let width = 80
 let height = 16
@@ -18,7 +18,7 @@ let text t = Text_buffer.to_string (Editor.text (editor t))
 let palette t = Option.map (Ui_state.palette t) ~f:Palette_tile.palette
 
 let focused ?(width = width) ?(height = height) t =
-  Ches_tile.View_id.to_string (Ui_state.focused_view t ~width ~height)
+  Cobalt_tile.View_id.to_string (Ui_state.focused_view t ~width ~height)
 ;;
 
 let%test_unit "palette Tab/Shift-Tab clamp and reveal; query refinement and acceptance use selection" =
@@ -26,7 +26,7 @@ let%test_unit "palette Tab/Shift-Tab clamp and reveal; query refinement and acce
   let selected t = Palette.selected (Option.value_exn (palette t)) in
   let first = selected t in
   let t = run t "<S-Tab>" in
-  assert ([%equal: Ches_palette.Catalog.Id.t option] first (selected t));
+  assert ([%equal: Cobalt_palette.Catalog.Id.t option] first (selected t));
   let total = List.length (Palette.results (Option.value_exn (palette t))) in
   let t = run t (String.concat (List.init total ~f:(fun _ -> "<Tab>"))) in
   let tile = Option.value_exn (Ui_state.palette t) in
@@ -41,7 +41,7 @@ let%test_unit "palette Tab/Shift-Tab clamp and reveal; query refinement and acce
   let t = run t "<Tab><S-Tab><Tab>" in
   let keep = selected t in
   let t = run t " rel" in
-  assert ([%equal: Ches_palette.Catalog.Id.t option] keep (selected t));
+  assert ([%equal: Cobalt_palette.Catalog.Id.t option] keep (selected t));
   assert (String.equal (Palette.query (Option.value_exn (palette t))) "gutter rel");
   let prefs = Ui_state.prefs t in
   let t = run t "<CR>" in
@@ -92,7 +92,7 @@ let%test_unit "result selection scrolls within the stable float and survives fit
   let selected = Option.bind (palette t) ~f:Palette.selected in
   List.iter [ 120, 40; 80, 16; 14, 4; 50, 12; 120, 40 ] ~f:(fun (width, height) ->
     let resized = Helpers.run ~width ~height t [ Resize ] in
-    assert ([%equal: Ches_palette.Catalog.Id.t option]
+    assert ([%equal: Cobalt_palette.Catalog.Id.t option]
       selected (Option.bind (palette resized) ~f:Palette.selected));
     let tile = Option.value_exn (Ui_state.palette resized) in
     let layout = Option.value_exn (Ui_state.palette_layout resized ~width ~height) in
@@ -102,7 +102,7 @@ let%test_unit "result selection scrolls within the stable float and survives fit
     let frame = Frame.render resized ~width ~height in
     let cursor = Option.value_exn frame.cursor in
     let x, y, shape = Option.value_exn (Ui_state.minor_cursor resized ~width ~height) in
-    assert (cursor.x = x && cursor.y = y && Ches_tile.Cursor.Shape.equal shape Bar);
+    assert (cursor.x = x && cursor.y = y && Cobalt_tile.Cursor.Shape.equal shape Bar);
     assert (List.is_empty frame.smear))
 ;;
 
@@ -120,7 +120,7 @@ let%test_unit "unfitting resize closes without execution; interrupted paste rema
     assert (not (Ui_state.pasting t));
     assert (String.equal (text initial) (text t));
     assert (Geometry.Prefs.equal prefs (Ui_state.prefs t));
-    assert (Ches_tile.View_id.equal (Ui_state.focused_view t ~width:120 ~height:40) Ui_state.document_id);
+    assert (Cobalt_tile.View_id.equal (Ui_state.focused_view t ~width:120 ~height:40) Ui_state.document_id);
     assert (String.equal (Option.value_exn (Ui_state.message t)).text "Commands closed; paste dropped"))
 ;;
 
@@ -135,13 +135,13 @@ let%test_unit "explicit document allocation does not draw the open palette or it
 
 let%test_unit "opening from a docked capture still targets and returns to the document" =
   let initial = run (create ()) " vo" in
-  assert (Ches_tile.View_id.equal (Ui_state.focused_view initial ~width ~height) Problems_tile.id);
+  assert (Cobalt_tile.View_id.equal (Ui_state.focused_view initial ~width ~height) Problems_tile.id);
   let workspace = Ui_state.workspace initial ~width ~height in
   let opened = run initial " cc" in
-  assert (Ches_tile.View_id.equal (Ui_state.focused_view opened ~width ~height) Palette_tile.id);
+  assert (Cobalt_tile.View_id.equal (Ui_state.focused_view opened ~width ~height) Palette_tile.id);
   assert ([%equal: Workspace.t] workspace (Ui_state.workspace opened ~width ~height));
   let closed = run opened "<Esc>" in
-  assert (Ches_tile.View_id.equal (Ui_state.focused_view closed ~width ~height) Ui_state.document_id);
+  assert (Cobalt_tile.View_id.equal (Ui_state.focused_view closed ~width ~height) Ui_state.document_id);
   assert (String.equal (text initial) (text closed))
 ;;
 
@@ -152,13 +152,13 @@ let results ?(limit = 3) t =
   | Some palette ->
     printf "query: %S\n" (Palette.query palette);
     List.iter (List.take (Palette.results palette) limit) ~f:(fun result ->
-      let id = Ches_palette.Catalog.Entry.id result.item in
+      let id = Cobalt_palette.Catalog.Entry.id result.item in
       printf
         "%s %s\n"
-        (if [%equal: Ches_palette.Catalog.Id.t option] (Some id) (Palette.selected palette)
+        (if [%equal: Cobalt_palette.Catalog.Id.t option] (Some id) (Palette.selected palette)
          then ">"
          else " ")
-        (Ches_palette.Catalog.Id.to_string id))
+        (Cobalt_palette.Catalog.Id.to_string id))
 ;;
 
 let band ?(width = width) ?(height = height) t =
@@ -420,11 +420,11 @@ let%expect_test "resizing keeps the query and selected command" =
   print_s
     [%message
       (Option.map (palette t) ~f:Palette.query : string option)
-        ([%equal: Ches_palette.Catalog.Id.t option] before (selected t) : bool)];
+        ([%equal: Cobalt_palette.Catalog.Id.t option] before (selected t) : bool)];
   band ~width:50 ~height:12 t;
   [%expect {|
     (("Option.map (palette t) ~f:Palette.query" (tile))
-     ("([%equal : Ches_palette.Catalog.Id.t option]) before (selected t)" true))
+     ("([%equal : Cobalt_palette.Catalog.Id.t option]) before (selected t)" true))
     │╭─ Commands ───────────────────────────────────╮│|
     ││ > tile                                       ││|
     ││   Move document tile left by 2 columns       ││|

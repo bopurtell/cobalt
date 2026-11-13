@@ -2,25 +2,25 @@ open! Core
 open! Async
 open Bonsai_test
 open Bonsai_term
-module Q = Ches_error.Language_query
+module Q = Cobalt_error.Language_query
 module Expect_test_config = Async.Expect_test_config
 
 let%expect_test "automatic signature intents reach an asynchronous source without blocking further edits" =
   let requests = ref [] in
-  let emit = ref (fun (_ : Ches_error.Source_event.t) -> ()) in
-  let source = Ches_source.Source.create (fun ~emit:publish ->
+  let emit = ref (fun (_ : Cobalt_error.Source_event.t) -> ()) in
+  let source = Cobalt_source.Source.create (fun ~emit:publish ->
     emit := publish;
     { handle = (function
         | Query q -> requests := !requests @ [q]
         | _ -> ())
     ; stop = Fn.id }) in
-  let text = Ches_core.Text_buffer.of_string "" |> Result.map_error
-    ~f:Ches_core.Text_buffer.Invalid_text.to_string_hum |> Result.ok_or_failwith in
-  let controller = Ches_app.Controller.create
-    (Ches_core.Editor.create ~path:"/tmp/signature-frontend.ml"
-      ~cell_width:Ches_screen.Cell_map.width text) in
+  let text = Cobalt_core.Text_buffer.of_string "" |> Result.map_error
+    ~f:Cobalt_core.Text_buffer.Invalid_text.to_string_hum |> Result.ok_or_failwith in
+  let controller = Cobalt_app.Controller.create
+    (Cobalt_core.Editor.create ~path:"/tmp/signature-frontend.ml"
+      ~cell_width:Cobalt_screen.Cell_map.width text) in
   let handle = Bonsai_term_test.create_handle ~initial_dimensions:{width = 100; height = 25}
-    (Ches_ui.Editor_view.app ~source controller ~exit:(fun () -> Effect.Ignore)) in
+    (Cobalt_ui.Editor_view.app ~source controller ~exit:(fun () -> Effect.Ignore)) in
   let settle () =
     Handle.recompute_view handle;
     let%map () = Clock_ns.after (Time_ns.Span.of_int_ms 5) in
@@ -67,7 +67,7 @@ let%expect_test "automatic signature intents reach an asynchronous source withou
     (cursor (((position ((x 7) (y 1))) (kind Bar))))
     (cursor (((position ((x 7) (y 1))) (kind Bar))))
     |}];
-  Ches_source.Source.stop source;
+  Cobalt_source.Source.stop source;
   print_endline "automatic source counts, stale result, retrigger and nonblocking edits passed";
   [%expect {| automatic source counts, stale result, retrigger and nonblocking edits passed |}];
   return ()

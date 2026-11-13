@@ -1,8 +1,8 @@
 open! Core
-open Ches_core
-open Ches_screen
-module Lines = Ches_line_picker.Lines
-module Controller = Ches_app.Controller
+open Cobalt_core
+open Cobalt_screen
+module Lines = Cobalt_line_picker.Lines
+module Controller = Cobalt_app.Controller
 
 let width = 100
 let height = 30
@@ -92,7 +92,7 @@ let%test_unit "line host focus/paste/resize/reopen isolation and shared one-floa
   let initial = run (Helpers.ui "untouched") " vo" in
   let t = Ui_state.open_line_picker initial ~width ~height |> finish in
   let t = run t "<Esc>" in
-  assert (Ches_tile.View_id.equal (Ui_state.focused_view t ~width ~height) Problems_tile.id);
+  assert (Cobalt_tile.View_id.equal (Ui_state.focused_view t ~width ~height) Problems_tile.id);
   let t = Ui_state.open_line_picker t ~width ~height |> finish in
   let t = apply t (Helpers.paste "un<CR>touched") |> finish in
   assert (String.equal (Lines.query (session t)) "un touched");
@@ -115,8 +115,8 @@ let%test_unit "line host focus/paste/resize/reopen isolation and shared one-floa
   let t = Ui_state.open_line_picker t ~width ~height in
   assert (Option.is_none (Ui_state.palette t));
   let releases = ref 0 in
-  let discovery : Ches_file_picker.Model.Discovery.t =
-    { request = { run_id = Ches_file_picker.Model.Run_id.of_int 123; root = "/project" }
+  let discovery : Cobalt_file_picker.Model.Discovery.t =
+    { request = { run_id = Cobalt_file_picker.Model.Run_id.of_int 123; root = "/project" }
     ; candidates = []; status = Complete { truncated = false } } in
   let line_session = session t in
   let t = Ui_state.open_file_picker t ~width ~height ~discovery ~release:(fun () -> incr releases) in

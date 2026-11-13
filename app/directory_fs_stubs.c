@@ -8,7 +8,7 @@
 #include <string.h>
 
 /* No check-then-rename fallback: rename(2) overwrites unrelated occupants. */
-CAMLprim value ches_rename_noreplace(value source, value destination)
+CAMLprim value cobalt_rename_noreplace(value source, value destination)
 {
   CAMLparam2(source, destination);
   if (renameat2(AT_FDCWD, String_val(source), AT_FDCWD,

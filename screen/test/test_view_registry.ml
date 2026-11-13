@@ -1,9 +1,9 @@
 open! Core
-open Ches_screen
-open Ches_input
-module Controller = Ches_app.Controller
-module View_id = Ches_tile.View_id
-module Local_command = Ches_tile.Local_command
+open Cobalt_screen
+open Cobalt_input
+module Controller = Cobalt_app.Controller
+module View_id = Cobalt_tile.View_id
+module Local_command = Cobalt_tile.Local_command
 
 let width = 80
 let height = 16
@@ -29,7 +29,7 @@ module Counter = struct
         else [])
   ;;
 
-  let interpret t (keys : Key.t list) : action Ches_tile.Content_key.t =
+  let interpret t (keys : Key.t list) : action Cobalt_tile.Content_key.t =
     match keys with
     | [ key ] when Key.equal key (Key.char '+') -> Action Increment
     | [ key ] when Key.equal key (Key.char 'r') && t.count > 0 -> Action Reset
@@ -37,7 +37,7 @@ module Counter = struct
   ;;
 
   let adapter : (t, action) View_registry.Adapter.t =
-    { spec = Ches_tile.Spec.read_only id ~title:"Counter"
+    { spec = Cobalt_tile.Spec.read_only id ~title:"Counter"
     ; key
     ; fit = (fun t _ ~rows:_ ~width:_ -> t)
     ; leave = Fn.id
@@ -112,9 +112,9 @@ let help t =
 
 let palette_ids ?(limit = 3) t =
   let palette = Palette_tile.palette (Option.value_exn (Ui_state.palette t)) in
-  List.iter (List.take (Ches_palette.Palette.results palette) limit) ~f:(fun result ->
+  List.iter (List.take (Cobalt_palette.Palette.results palette) limit) ~f:(fun result ->
     print_endline
-      (Ches_palette.Catalog.Id.to_string (Ches_palette.Catalog.Entry.id result.item)))
+      (Cobalt_palette.Catalog.Id.to_string (Cobalt_palette.Catalog.Entry.id result.item)))
 ;;
 
 let%expect_test "an installed view is allocated, focused, routed, rendered and toggled generically" =
@@ -329,7 +329,7 @@ let%expect_test "? keeps its meaning in the editor and in text-input floats" =
   [%expect {| (sec) |}];
   let t = run t "<Esc> cc?" in
   print_endline (focused t);
-  print_endline (Ches_palette.Palette.query (Palette_tile.palette (Option.value_exn (Ui_state.palette t))));
+  print_endline (Cobalt_palette.Palette.query (Palette_tile.palette (Option.value_exn (Ui_state.palette t))));
   [%expect
     {|
     palette

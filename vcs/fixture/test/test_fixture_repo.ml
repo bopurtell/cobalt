@@ -1,6 +1,6 @@
 open! Core
-open Ches_vcs
-module Fixture = Ches_vcs_fixture.Fixture_repo
+open Cobalt_vcs
+module Fixture = Cobalt_vcs_fixture.Fixture_repo
 
 (* Paths vary per run; show them relative to the fixture. *)
 let relative (t : Fixture.t) text =
@@ -47,10 +47,10 @@ let%expect_test "an isolated repository with a local bare remote" =
      (inherited_git_variables 0))
     origin	$DIR/remote.git (fetch)
     origin	$DIR/remote.git (push)
-    9fd9bcbbb55e33ee1a14ef1420cf8df1457b6d5c
-    Ches Test <ches-test@example.invalid> 2026-01-01 00:00:00 +0000 First
-    9fd9bcbbb55e33ee1a14ef1420cf8df1457b6d5c
-    # branch.oid 9fd9bcbbb55e33ee1a14ef1420cf8df1457b6d5c
+    579638f8e7b5a2a50d75cfcbe09cc3b053860c76
+    Cobalt Test <cobalt-test@example.invalid> 2026-01-01 00:00:00 +0000 First
+    579638f8e7b5a2a50d75cfcbe09cc3b053860c76
+    # branch.oid 579638f8e7b5a2a50d75cfcbe09cc3b053860c76
     # branch.head main
     # branch.upstream origin/main
     # branch.ab +0 -0

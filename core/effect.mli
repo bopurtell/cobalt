@@ -1,6 +1,6 @@
 (** Requests the editor makes of its environment, and their reported outcomes.
 
-    [ches_core] never performs I/O. {!Editor.dispatch} returns effects; the application
+    [cobalt_core] never performs I/O. {!Editor.dispatch} returns effects; the application
     performs them and reports each [Write_file] with {!Editor.handle_outcome}. The
     application must complete writes in the order they were requested. *)
 

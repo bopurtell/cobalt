@@ -1,12 +1,12 @@
 open! Core
 open! Async
-module Feedback = Ches_error.Error
-module Source_event = Ches_error.Source_event
-module Source_request = Ches_error.Source_request
+module Feedback = Cobalt_error.Error
+module Source_event = Cobalt_error.Source_event
+module Source_request = Cobalt_error.Source_request
 module Finding = Feedback.Diagnostics.Finding
-module Cell_layout = Ches_core.Cell_layout
+module Cell_layout = Cobalt_core.Cell_layout
 module Types = Lsp.Types
-module Query = Ches_error.Language_query
+module Query = Cobalt_error.Language_query
 
 let find_program prog =
   let executable file =
@@ -204,7 +204,7 @@ module Io =
 
 module Document = struct
   type t =
-    { resource : string (** As Ches names it. *)
+    { resource : string (** As Cobalt names it. *)
     ; file : string (** Lexically normalized absolute path; symlink aliases stay distinct. *)
     ; uri : Lsp.Uri.t
     ; revision : int
@@ -217,9 +217,9 @@ module Document = struct
 end
 
 type retained_completion =
-  { token : Ches_completion.Model.Token.t
+  { token : Cobalt_completion.Model.Token.t
   ; document : Document.t
-  ; items : (Ches_completion.Model.Candidate.t * Yojson.Safe.t) list
+  ; items : (Cobalt_completion.Model.Candidate.t * Yojson.Safe.t) list
   ; expires : Clock_ns.Event.t_unit
   }
 
@@ -237,14 +237,14 @@ type session =
   ; mutable commands : string list
   ; mutable symbols : bool
   ; mutable context_revision : int
-  ; choices : (Ches_completion.Model.Token.t * int * Query.instance_list) String.Table.t
+  ; choices : (Cobalt_completion.Model.Token.t * int * Query.instance_list) String.Table.t
   ; queries : (Query.request * int * Clock_ns.Event.t_unit) String.Table.t
   ; mutable completion : bool
   ; mutable completion_resolve : bool
   ; mutable completion_triggers : string list
-  ; completions : (Ches_completion.Model.Token.t * int * Clock_ns.Event.t_unit) String.Table.t
+  ; completions : (Cobalt_completion.Model.Token.t * int * Clock_ns.Event.t_unit) String.Table.t
   ; retained : retained_completion String.Table.t
-  ; resolves : (Ches_completion.Model.Token.t * int * Clock_ns.Event.t_unit) String.Table.t
+  ; resolves : (Cobalt_completion.Model.Token.t * int * Clock_ns.Event.t_unit) String.Table.t
   ; mutable sync_kind : Types.TextDocumentSyncKind.t
   ; mutable save_text : bool
   ; changes : Clock_ns.Event.t_unit String.Table.t
@@ -278,7 +278,7 @@ let canonical file =
   let file =
     if Filename.is_relative file then Filename.concat (Core_unix.getcwd ()) file else file
   in
-  Ches_core.Resource.normalize ~cwd:(Core_unix.getcwd ()) file
+  Cobalt_core.Resource.normalize ~cwd:(Core_unix.getcwd ()) file
 ;;
 
 let display_path file =
@@ -371,7 +371,7 @@ let kill session =
   ignore (Process.send_signal_compat session.process Signal.kill : [ `Ok | `No_such_process ])
 ;;
 
-(* Report the session's end once, unless Ches ended it. *)
+(* Report the session's end once, unless Cobalt ended it. *)
 let report_stop t session ~reason =
   if current t session
   then (
@@ -410,7 +410,7 @@ let item t (document : Document.t) =
    additional boundary adjustment: LSP cannot address the middle of a CRLF. *)
 let content_change encoding ~old_text ~text =
   let full () = Types.TextDocumentContentChangeEvent.create ~text () in
-  match Ches_highlight.Edit.between ~old_source:old_text ~new_source:text with
+  match Cobalt_highlight.Edit.between ~old_source:old_text ~new_source:text with
   | exception Invalid_argument _ -> full ()
   | None ->
     let p = Types.Position.create ~line:0 ~character:0 in
@@ -702,7 +702,7 @@ let query t (q : Query.request) =
     | _ -> fail "Language query document snapshot is stale or unattached"
 ;;
 
-let complete t (completion : Ches_completion.Model.Request.t) =
+let complete t (completion : Cobalt_completion.Model.Request.t) =
   let token = completion.token in
   let file = canonical token.resource in
   Option.iter t.session ~f:(fun session ->
@@ -735,7 +735,7 @@ let complete t (completion : Ches_completion.Model.Request.t) =
               ~position ~context:(Types.CompletionContext.create ~triggerKind ?triggerCharacter ()) () in
             request session (TextDocumentCompletion params) ~on_response:(fun response ->
               match Hashtbl.find session.completions file with
-              | Some (active, active_id, _) when active_id = id && Ches_completion.Model.Token.equal token active ->
+              | Some (active, active_id, _) when active_id = id && Cobalt_completion.Model.Token.equal token active ->
                 Clock_ns.Event.abort_if_possible timer ();
                 Hashtbl.remove session.completions file;
                 if current t session && not t.stopped
@@ -765,11 +765,11 @@ let complete t (completion : Ches_completion.Model.Request.t) =
 ;;
 
 let resolve_completion t token candidate_id revision =
-  let file = canonical token.Ches_completion.Model.Token.resource in
+  let file = canonical token.Cobalt_completion.Model.Token.resource in
   Option.iter t.session ~f:(fun session ->
     match Hashtbl.find session.retained file, Hashtbl.find t.documents file with
     | Some entry, Some document when session.completion_resolve && not session.closed
-        && Ches_completion.Model.Token.equal token entry.token
+        && Cobalt_completion.Model.Token.equal token entry.token
         && document.revision = revision && String.equal document.resource token.resource
         && [%equal: int option] document.owner (Some token.generation)
         && phys_equal document.recent entry.document.recent ->
@@ -961,7 +961,7 @@ let answer t session (request : Jsonrpc.Request.t) =
             request.id
             (Jsonrpc.Response.Error.make
                ~code:MethodNotFound
-               ~message:(sprintf "ches does not handle %s" method_)
+               ~message:(sprintf "cobalt does not handle %s" method_)
                ())))
 ;;
 
@@ -1022,7 +1022,7 @@ let initialize t session =
                   (Types.TextDocumentSyncClientCapabilities.create ~didSave:true ())
                 ())
            ())
-      ~clientInfo:(Types.InitializeParams.create_clientInfo ~name:"ches" ())
+      ~clientInfo:(Types.InitializeParams.create_clientInfo ~name:"cobalt" ())
       ~processId:(Pid.to_int (Core_unix.getpid ()))
       ~rootUri:uri
       ~workspaceFolders:
@@ -1258,7 +1258,7 @@ let end_session t =
         session.closed <- true;
         kill session
     in
-    (* Ches quitting: hold Async's shutdown, and so the exit, until the server is gone. *)
+    (* Cobalt quitting: hold Async's shutdown, and so the exit, until the server is gone. *)
     if t.stopped then Shutdown.don't_finish_before ended else don't_wait_for ended)
 ;;
 
@@ -1269,17 +1269,17 @@ let rec handle_request t (request : Source_request.t) =
     Option.iter t.session ~f:(fun session ->
       let file = canonical token.resource in
       if Option.exists (Hashtbl.find session.queries file) ~f:(fun (q, _, _) ->
-        Ches_completion.Model.Token.equal q.token token) then cancel_query session file)
+        Cobalt_completion.Model.Token.equal q.token token) then cancel_query session file)
   | Complete completion -> complete t completion
   | Resolve_completion { token; candidate_id; revision } -> resolve_completion t token candidate_id revision
   | Cancel_completion token ->
     Option.iter t.session ~f:(fun session ->
       let file = canonical token.resource in
        if Option.exists (Hashtbl.find session.completions file) ~f:(fun (active, _, _) ->
-         Ches_completion.Model.Token.equal token active)
+         Cobalt_completion.Model.Token.equal token active)
        then cancel_completion session file;
        if Option.exists (Hashtbl.find session.retained file) ~f:(fun entry ->
-         Ches_completion.Model.Token.equal token entry.token)
+         Cobalt_completion.Model.Token.equal token entry.token)
        then forget_completion session file)
   | Inspect -> ()
   | Document_opened { resource; generation } ->

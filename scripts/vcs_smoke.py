@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""VCS view terminal smoke: drives the built ches in tmux over a sandbox repository.
+"""VCS view terminal smoke: drives the built cobalt in tmux over a sandbox repository.
 
-    python3 scripts/vcs_smoke.py [PATH-TO-CHES]     (default _build/default/bin/ches.exe)
+    python3 scripts/vcs_smoke.py [PATH-TO-COBALT]     (default _build/default/bin/cobalt.exe)
 
 Builds a sandbox with scripts/vcs_sandbox.sh in a fresh temporary directory (removed
-on exit), runs ches on its work/a.txt in a private tmux server, and walks one short
-pass per VCS phase (2-8): the view and its placements, hunk and line staging,
+on exit), runs cobalt on its work/a.txt in a private tmux server, and walks one short
+pass over the VCS workflows: the view and its placements, hunk and line staging,
 discarding, committing, fetch, a refused fast-forward pull, a rebase pull stopped on a
 conflict, resolved and continued, a push, a merge stopped and aborted, the log graph,
 log scopes and Space g l. Each step waits for the screen to show its result, then
@@ -44,7 +44,7 @@ class Smoke:
         self.screens = screens
         self.repo = work / "sandbox" / "work"
         # A socket path must stay short (108 bytes), whatever TMPDIR is.
-        self.socket_dir = Path(tempfile.mkdtemp(prefix="ches-vcs-tmux.", dir="/tmp"))
+        self.socket_dir = Path(tempfile.mkdtemp(prefix="cobalt-vcs-tmux.", dir="/tmp"))
         self.tmux = ["tmux", "-S", str(self.socket_dir / "sock"), "-f", "/dev/null"]
         self.section = ""
         self.passed = 0
@@ -224,12 +224,12 @@ def run(smoke):
     before, after, code = (s.work / name for name in ("stty.before", "stty.after", "exit-code"))
     s.type(f"stty -g > {before}; {shlex.quote(str(s.binary))} --no-lsp a.txt; "
            f"printf '%s' $? > {code}; stty -g > {after}\n")
-    s.wait("ches starts", lambda sc: s.display("#{alternate_on}") == "1" and "NORMAL" in sc)
+    s.wait("cobalt starts", lambda sc: s.display("#{alternate_on}") == "1" and "NORMAL" in sc)
     # Hide status, problems and history: the checks read the view's rows.
     s.keys("Space", "v", "t", "Space", "v", "b", "Space", "v", "m")
     s.shows("line 5 changed", absent=("Problems (", "History:", "─ Status"))
 
-    s.start("phase 2: the view")
+    s.start("the VCS view")
     s.keys("Space", "g", "g")
     s.shows("VCS: work (main)", "Head: main", "Upstream: origin/main, ahead 1",
             "1 Files (3)", "Untracked files (1)", "Unstaged changes (1)", "Staged changes (1)",
@@ -257,7 +257,7 @@ def run(smoke):
     s.keys("@")
     s.shows("1 Files (3)", absent=("@ Command log",))
 
-    s.start("phase 3/4: stage a hunk, selected lines, discard")
+    s.start("stage a hunk, selected lines, discard")
     s.keys("j", "j", "j")
     s.shows("0 Diff: Unstaged: a.txt", "+line 25 changed")
     s.keys("Tab")
@@ -294,12 +294,12 @@ def run(smoke):
     s.check("the open a.txt keeps its staged state", s.status() ==
             ["M  a.txt", "M  src/main.ml", "?? notes.txt"], s.status())
 
-    s.start("phase 5: commit")
+    s.start("commit")
     s.keys("c")
     s.shows("╭─ Commit", "-s  Add Signed-off-by line (--signoff)", "c  Commit")
     s.save("commit-popup")
     s.keys("c")
-    s.shows("CHES_COMMIT_EDITMSG", "# On branch main", "#       modified:   src/main.ml")
+    s.shows("COBALT_COMMIT_EDITMSG", "# On branch main", "#       modified:   src/main.ml")
     s.keys("i")
     s.type("Smoke commit")
     s.keys("Escape", "Space", "g", "c")
@@ -310,9 +310,9 @@ def run(smoke):
     s.check("it holds a.txt and src/main.ml; the work tree is clean but notes.txt",
             s.git("show", "--name-only", "--format=", "HEAD").split() == ["a.txt", "src/main.ml"]
             and s.status() == ["?? notes.txt"], s.status())
-    s.check("the message file is gone", not (repo / ".git/CHES_COMMIT_EDITMSG").exists())
+    s.check("the message file is gone", not (repo / ".git/COBALT_COMMIT_EDITMSG").exists())
 
-    s.start("phase 6: fetch and a refused pull")
+    s.start("fetch and a refused pull")
     s.shows("Upstream: origin/main, ahead 2", absent=("behind",))
     s.keys("f")
     s.shows("Fetch: done", "Upstream: origin/main, ahead 2, behind 1")
@@ -326,7 +326,7 @@ def run(smoke):
             "pull with rebase (p -r p)")
     s.check("the refused pull changed nothing", s.git("rev-parse", "HEAD") == head)
 
-    s.start("phase 7: rebase pull, resolve, continue, push")
+    s.start("rebase pull, resolve, continue, push")
     s.keys("p", "-", "r", "p")
     s.shows("Rebasing main onto", "(press r)", "Conflicted (1)", "both modified   a.txt",
             "Stopped on conflicts")
@@ -371,7 +371,7 @@ def run(smoke):
                  lambda: s.git("rev-parse", "main", cwd=remote) == s.git("rev-parse", "HEAD"),
                  lambda: s.git("log", "-2", "--oneline", "main", cwd=remote))
 
-    s.start("phase 7: a merge stopped on conflicts, aborted")
+    s.start("a merge stopped on conflicts, aborted")
     s.focus_list(2, "Branches")
     s.keys("g", "g", "j")
     s.selected("conflict-me")
@@ -391,7 +391,7 @@ def run(smoke):
                  lambda: not (repo / ".git/MERGE_HEAD").exists() and s.status() == ["?? notes.txt"],
                  lambda: str(s.status()))
 
-    s.start("phase 8: log and history")
+    s.start("log and history")
     s.focus_list(3, "Commits")
     s.shows("Recent commits (first 200) (200)", "● ", "(HEAD -> main, origin/main) Smoke")
     s.keys("+")
@@ -421,7 +421,7 @@ def run(smoke):
 
     s.start("quit while a fetch runs")
     s.keys("f", "q", "Space", "q")
-    s.wait("ches exits", lambda _s: s.display("#{alternate_on}") == "0" and after.exists()
+    s.wait("cobalt exits", lambda _s: s.display("#{alternate_on}") == "0" and after.exists()
            and after.stat().st_size > 0)
     s.check("exit status 0", code.read_text() == "0", code.read_text())
     s.check("terminal modes restored", before.read_bytes() == after.read_bytes())
@@ -432,14 +432,14 @@ def run(smoke):
 
 def main():
     binary = Path(sys.argv[1] if len(sys.argv) > 1
-                  else ROOT / "_build/default/bin/ches.exe").resolve()
+                  else ROOT / "_build/default/bin/cobalt.exe").resolve()
     if not shutil.which("tmux"):
         raise SystemExit("vcs_smoke: tmux is required")
     if not binary.is_file():
-        raise SystemExit(f"vcs_smoke: {binary} is not built; run dune build bin/ches.exe")
+        raise SystemExit(f"vcs_smoke: {binary} is not built; run dune build bin/cobalt.exe")
     base = os.environ.get("TMPDIR", "/tmp")
-    work = Path(tempfile.mkdtemp(prefix="ches-vcs-smoke.", dir=base))
-    screens = Path(tempfile.mkdtemp(prefix="ches-vcs-smoke-screens.", dir=base))
+    work = Path(tempfile.mkdtemp(prefix="cobalt-vcs-smoke.", dir=base))
+    screens = Path(tempfile.mkdtemp(prefix="cobalt-vcs-smoke-screens.", dir=base))
     smoke = Smoke(binary, work, screens)
     started = time.monotonic()
     aborted = None

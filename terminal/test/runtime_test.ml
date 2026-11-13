@@ -1,7 +1,7 @@
 open! Core
 open! Async
-open Ches_terminal
-module R = Ches_terminal_host.Runtime
+open Cobalt_terminal
+module R = Cobalt_terminal_host.Runtime
 
 let hosts : R.t list ref = ref []
 let create () : R.t =
@@ -65,9 +65,9 @@ let main () : unit Deferred.t =
   command t "stty -echo; test -t 0 && test -t 1 && test -r /dev/tty && printf 'TTY_%s\\n' OK; printf 'TERM_%s\\n' \"$TERM\"; pwd";
   let%bind initial = wait t ~label:"controlling PTY, environment and cwd" ~f:(fun s -> contains "TTY_OK" s && contains "TERM_xterm-256color" s && contains "/tmp" s) in
   check (Option.is_none initial.exited) "shell should be live";
-  command t "CHES_STATE=persistent; printf 'STATE_%s\\n' \"$CHES_STATE\"";
+  command t "COBALT_STATE=persistent; printf 'STATE_%s\\n' \"$COBALT_STATE\"";
   let%bind _ = wait t ~label:"set shell state" ~f:(contains "STATE_persistent") in
-  command t "printf 'AGAIN_%s\\n' \"$CHES_STATE\"";
+  command t "printf 'AGAIN_%s\\n' \"$COBALT_STATE\"";
   let%bind _ = wait t ~label:"persistent shell" ~f:(contains "AGAIN_persistent") in
   R.submit t [ Resize { rows = 20; cols = 90 } ];
   command t "printf 'SIZE_'; stty size";
@@ -88,11 +88,11 @@ let main () : unit Deferred.t =
   let%bind _ = wait t ~label:"partial nonblocking input writes" ~f:(contains "BULK_DONE") in
   (* Rejected batches must drop both earlier staged input and trailing Enter.
      The old implementation accepted this assignment and executed it anyway. *)
-  R.submit t [ Paste "CHES_REJECTED=bad"; Paste (String.make (1024 * 1024 + 1) 'x')
+  R.submit t [ Paste "COBALT_REJECTED=bad"; Paste (String.make (1024 * 1024 + 1) 'x')
              ; Key { code = Enter; modifiers = Model.no_modifiers } ];
   let%bind overflow = R.next_event t in
   check (match overflow with Failed _ -> true | Snapshot _ -> false) "oversized input is bounded";
-  command t "printf 'ATOMIC_%s\\n' \"${CHES_REJECTED:-ok}\"";
+  command t "printf 'ATOMIC_%s\\n' \"${COBALT_REJECTED:-ok}\"";
   let%bind _ = wait t ~label:"failed input batch leaves no prefix or suffix" ~f:(contains "ATOMIC_ok") in
   command t "printf 'LINE_%s\\n' A\r\nprintf 'LINE_%s\\n' B";
   let%bind _ = wait t ~label:"multiline CRLF paste" ~f:(fun s -> contains "LINE_A" s && contains "LINE_B" s) in
@@ -114,10 +114,10 @@ let main () : unit Deferred.t =
   R.submit idle [ Start { cwd = "/"; rows = 0; cols = 80 } ];
   let%bind invalid = R.next_event idle in
   check (match invalid with Failed _ -> true | Snapshot _ -> false) "invalid dimensions report failure";
-  R.submit idle [ Start { cwd = "/ches-terminal-nonexistent-directory"; rows = 8; cols = 80 } ];
+  R.submit idle [ Start { cwd = "/cobalt-terminal-nonexistent-directory"; rows = 8; cols = 80 } ];
   let%bind bad_cwd = wait idle ~label:"failed child setup" ~f:(fun s -> Option.is_some s.exited) in
   check (Option.equal String.equal bad_cwd.exited (Some "exited 126")) "child setup exit status";
-  Core_unix.putenv ~key:"SHELL" ~data:"/ches-terminal-nonexistent-shell";
+  Core_unix.putenv ~key:"SHELL" ~data:"/cobalt-terminal-nonexistent-shell";
   R.submit idle [ Start { cwd = "/tmp"; rows = 8; cols = 80 } ];
   command idle "printf 'FALLBACK_%s\\n' OK; exit";
   let%bind fallback = wait idle ~label:"fallback shell and PTY EOF" ~f:(fun s -> Option.is_some s.exited) in
@@ -144,12 +144,12 @@ let main () : unit Deferred.t =
   let survivor : R.t = create () in
   let victim : R.t = create () in
   R.submit survivor [ Start { cwd = "/tmp"; rows = 8; cols = 100 } ];
-  command survivor "stty -echo; CHES_OWNER=survivor; printf 'OWNER_%s\\n' READY";
+  command survivor "stty -echo; COBALT_OWNER=survivor; printf 'OWNER_%s\\n' READY";
   let%bind _ = wait survivor ~label:"independent session ready" ~f:(contains "OWNER_READY") in
   R.submit victim [ Start { cwd = "/tmp"; rows = 8; cols = 100 } ];
   command victim "stty -echo; printf 'VICTIM_%s\\n' READY";
   let%bind _ = wait victim ~label:"victim echo disabled" ~f:(contains "VICTIM_READY") in
-  command victim "(trap '' HUP; while :; do sleep 1; done) & CHES_BG=$!; printf 'BG_PID_%s\\n' \"$CHES_BG\"";
+  command victim "(trap '' HUP; while :; do sleep 1; done) & COBALT_BG=$!; printf 'BG_PID_%s\\n' \"$COBALT_BG\"";
   let%bind background = wait victim ~label:"background job ready" ~f:(contains "BG_PID_") in
   let output : string = screen background in
   let start : int = String.substr_index_exn output ~pattern:"BG_PID_" + 7 in
@@ -158,7 +158,7 @@ let main () : unit Deferred.t =
   check (process_running pid) "background fixture is live";
   let%bind () = R.shutdown victim in
   let%bind () = await_process_gone pid 50 in
-  command survivor "printf 'STILL_%s\\n' \"$CHES_OWNER\"";
+  command survivor "printf 'STILL_%s\\n' \"$COBALT_OWNER\"";
   let%bind _ = wait survivor ~label:"shutdown leaves unrelated PTY session alive" ~f:(contains "STILL_survivor") in
   let%bind () = R.shutdown survivor in
   print_endline "terminal PTY runtime tests passed";

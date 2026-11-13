@@ -1,13 +1,13 @@
 open! Core
-open Ches_core
-open Ches_app
-open Ches_screen
+open Cobalt_core
+open Cobalt_app
+open Cobalt_screen
 open Helpers
 
 let width = 60
 let height = 12
 let run ui notation = Helpers.run ~width ~height ui (keys notation)
-let base = "/__ches_session_ui_bookkeeping__/"
+let base = "/__cobalt_session_ui_bookkeeping__/"
 
 let%test_unit "source requests are coalesced, ordered and lifecycle-safe across unrelated UI turns" =
   let a = base ^ "a.txt" and b = base ^ "b.txt" in

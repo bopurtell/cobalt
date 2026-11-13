@@ -1,9 +1,9 @@
-(** The rules every git command Ches runs follows, as spec builders. Every other module
+(** The rules every git command Cobalt runs follows, as spec builders. Every other module
     of this library builds its specs here; none passes text through a shell.
 
     Every spec runs [git] (looked up on [PATH]) with {!prefix} before the subcommand,
     stdin [Null] unless stated, and the default timeouts and limits of
-    {!Ches_vcs.Exec.Spec.create} unless stated. Subcommand rules, applied by the
+    {!Cobalt_vcs.Exec.Spec.create} unless stated. Subcommand rules, applied by the
     modules that build each command:
     - NUL-separated output wherever git offers it ([-z], [%x00] in formats).
     - Diff-producing commands pass [--no-color] and [--no-ext-diff] explicitly (a
@@ -16,7 +16,7 @@
       validated by the caller first. *)
 
 open! Core
-open Ches_vcs
+open Cobalt_vcs
 
 (** [--no-pager -c color.ui=false -c core.quotepath=false]. *)
 val prefix : string list
@@ -36,5 +36,5 @@ val mutate : ?stdin:Exec.Stdin.t -> cwd:string -> string list -> Exec.Spec.t
 
 (** [git prefix args] as a [Network] in [cwd], streaming its output (progress).
     Authentication environment is added by the runner, not here
-    ([Ches_vcs_host.Auth]). *)
+    ([Cobalt_vcs_host.Auth]). *)
 val network : cwd:string -> string list -> Exec.Spec.t

@@ -1,6 +1,6 @@
 open! Core
-open Ches_core
-open Ches_app
+open Cobalt_core
+open Cobalt_app
 
 let%test_unit "controller adoption updates session source change and highlight revision" =
   let editor = Editor.create ~path:"/completion-test.ml" ~cell_width:(fun _ -> 1)
@@ -21,8 +21,8 @@ let%test_unit "controller adoption updates session source change and highlight r
     assert (List.length changes = 1);
     assert (Editor.revision (Controller.editor updated) = 1);
     let key, snapshot = Controller.highlights updated in
-    assert (Ches_highlight.Snapshot.Key.revision key = 1);
-    assert (Ches_highlight.Snapshot.matches snapshot key);
+    assert (Cobalt_highlight.Snapshot.Key.revision key = 1);
+    assert (Cobalt_highlight.Snapshot.matches snapshot key);
     assert (Result.is_error (Controller.apply_insert_edits updated ~expected_revision:0
                               ~edits ~cursor:13));
     let directory = Controller.create ~kind:Directory editor in

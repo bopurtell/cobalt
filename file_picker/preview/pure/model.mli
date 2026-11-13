@@ -25,8 +25,8 @@ type state =
   | Unsupported of unsupported
 [@@deriving sexp_of, equal]
 type request =
-  { session : Ches_file_picker.Model.Discovery.request
-  ; selected : Ches_file_picker.Model.Candidate.Id.t
+  { session : Cobalt_file_picker.Model.Discovery.request
+  ; selected : Cobalt_file_picker.Model.Candidate.Id.t
   ; generation : int
   }
 [@@deriving sexp_of, equal]
@@ -46,4 +46,4 @@ val collect
 
 (** Bounded copy from immutable current text; never [to_string]/[line_text] on a
     potentially huge document/line. Does not retain the supplied text buffer. *)
-val of_buffer : revision:int -> Ches_core.Text_buffer.t -> state
+val of_buffer : revision:int -> Cobalt_core.Text_buffer.t -> state

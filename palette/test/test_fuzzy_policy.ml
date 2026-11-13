@@ -1,5 +1,5 @@
 open! Core
-open Ches_palette
+open Cobalt_palette
 
 let strings max_length =
   let rec exact n =

@@ -1,18 +1,30 @@
 (* Runs the jobs [Ui_state] hands out ([take_vcs_jobs]) synchronously in an isolated
-   fixture repository, the way the frontend's runner ([Ches_ui.Vcs_host]) would, and
+   fixture repository, the way the frontend's runner ([Cobalt_ui.Vcs_host]) would, and
    feeds their events back as [Ui_state.Input.Vcs]: a [Started] per command step,
    then the [Finished] report. Every job runs to completion, in submission order: a
    real runner would cancel a job superseded in its lane, and the view drops it as
    stale either way. As in the runner, a mutation's steps stop at the first that
    does not succeed (a failed [apply --check] skips the apply); the rest are
-   [Skipped] and get no [Started]. Shared by the VCS view's tests (phase 2 agent V) and the
+   [Skipped] and get no [Started]. Shared by the VCS view's tests and the
    end-to-end tests (agent W); frozen for both. *)
 
 open! Core
-open Ches_screen
-module Job = Ches_vcs.Job
-module Event = Ches_vcs.Event
-module Fixture = Ches_vcs_fixture.Fixture_repo
+open Cobalt_screen
+module Job = Cobalt_vcs.Job
+module Event = Cobalt_vcs.Event
+module Fixture = Cobalt_vcs_fixture.Fixture_repo
+
+(* Git versions spell the fixture's UTC dates as Z or +00:00. Normalize only
+   printed date rows; consume frame padding so the right border stays put. *)
+let normalize_printed_date ?(padded = false) line =
+  if String.is_substring line ~substring:"AuthorDate:"
+     || String.is_substring line ~substring:"CommitDate:"
+  then
+    String.substr_replace_all line
+      ~pattern:("2026-01-01T00:00:00Z" ^ (if padded then "     " else ""))
+      ~with_:"2026-01-01T00:00:00+00:00"
+  else line
+;;
 
 (* What a runner would report for [job], run to completion now. *)
 let events repo (job : Job.t) : Event.t list =

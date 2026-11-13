@@ -1,1 +1,1 @@
-include module type of struct include Ches_file_preview_model.Model end
+include module type of struct include Cobalt_file_preview_model.Model end

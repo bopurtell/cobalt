@@ -1,6 +1,6 @@
 open! Core
-open Ches_core
-open Ches_screen
+open Cobalt_core
+open Cobalt_screen
 open Helpers
 
 let rect ({ x; y; width; height } : Geometry.Rect.t) =
@@ -99,19 +99,19 @@ let%expect_test "document and status compose in separate rectangles with one doc
 
 let%expect_test "workspace transitions preserve editor state and undo/redo behavior" =
   let t = run ~width:80 ~height:12 (ui "abc") (keys "iX<Esc>") in
-  let editor = Ches_app.Controller.editor (Ui_state.controller t) in
+  let editor = Cobalt_app.Controller.editor (Ui_state.controller t) in
   let t = List.fold [ " vt"; " vph"; " vp+"; " vpk"; " vp-"; " vpj"; " vpl"; " vz"; " vt"; " vz"; " vr" ]
       ~init:t ~f:(fun t command ->
         let t = run ~width:80 ~height:12 t (keys command) in
         (* Identity verifies all document, cursor, revision, and history state remains
            untouched, not just the visible text. *)
-        assert (phys_equal editor (Ches_app.Controller.editor (Ui_state.controller t)));
+        assert (phys_equal editor (Cobalt_app.Controller.editor (Ui_state.controller t)));
         t)
   in
   let undone = run ~width:80 ~height:12 t (keys "u") in
   let redone = run ~width:80 ~height:12 undone (keys "<C-r>") in
   List.iter [ t; undone; redone ] ~f:(fun t ->
-    let editor = Ches_app.Controller.editor (Ui_state.controller t) in
+    let editor = Cobalt_app.Controller.editor (Ui_state.controller t) in
     print_s [%sexp (Text_buffer.to_string (Editor.text editor) : string), (Editor.is_dirty editor : bool)]);
   [%expect {|
     (Xabc true)
@@ -122,8 +122,8 @@ let%expect_test "workspace transitions preserve editor state and undo/redo behav
 
 let%expect_test "errors and pending feedback survive workspace, compact, and zen transitions" =
   let base = ui "hello" in
-  let controller = Ches_app.Controller.update_feedback (Ui_state.controller base)
-      (Ches_error.Error.Failed ({ source = "file"; kind = Save; resource = "f.txt" }, Error, "Failed to write f.txt")) in
+  let controller = Cobalt_app.Controller.update_feedback (Ui_state.controller base)
+      (Cobalt_error.Error.Failed ({ source = "file"; kind = Save; resource = "f.txt" }, Error, "Failed to write f.txt")) in
   let t = Ui_state.create ~tiles_visible:false controller in
   let error = Ui_state.message t in
   let t = run ~width:160 ~height:12 t (keys " vt") in
@@ -172,7 +172,7 @@ let%expect_test "workspace scrolling and frame cursor share geometry through all
 let%expect_test "paste and Insert keys never become workspace actions; prefixes cancel cleanly" =
   let t = run (ui "") (keys "i" @ paste " vt vz vph" @ keys "<Esc>") in
   assert (not (Ui_state.workspace_prefs t).status_visible && not (Ui_state.zen t));
-  let text = Text_buffer.to_string (Editor.text (Ches_app.Controller.editor (Ui_state.controller t))) in
+  let text = Text_buffer.to_string (Editor.text (Cobalt_app.Controller.editor (Ui_state.controller t))) in
   print_s [%sexp (text : string)];
   let t = run t (keys " vp<Esc> vpx") in
   assert (not (Ui_state.workspace_prefs t).status_visible);
@@ -189,7 +189,7 @@ let%expect_test "paste and Insert keys never become workspace actions; prefixes 
   let inserted = run active (keys "i" @ paste " vt vz vph" @ keys "<Esc>") in
   assert (Workspace.Prefs.equal (Ui_state.workspace_prefs active) (Ui_state.workspace_prefs inserted));
   assert (not (Ui_state.zen inserted));
-  assert (String.equal text (Text_buffer.to_string (Editor.text (Ches_app.Controller.editor (Ui_state.controller inserted)))))
+  assert (String.equal text (Text_buffer.to_string (Editor.text (Cobalt_app.Controller.editor (Ui_state.controller inserted)))))
 ;;
 
 let%expect_test "size limits keep separate requests and layout changes cancel smear" =

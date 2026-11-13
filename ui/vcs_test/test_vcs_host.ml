@@ -5,11 +5,11 @@
 
 open! Core
 open! Async
-open Ches_vcs
-module Vcs_host = Ches_ui.Vcs_host
-module Input = Ches_screen.Ui_state.Input
-module Fixture = Ches_vcs_fixture.Fixture_repo
-module B = Ches_vcs_git.Backend
+open Cobalt_vcs
+module Vcs_host = Cobalt_ui.Vcs_host
+module Input = Cobalt_screen.Ui_state.Input
+module Fixture = Cobalt_vcs_fixture.Fixture_repo
+module B = Cobalt_vcs_git.Backend
 
 let ms = Time_ns.Span.of_int_ms
 let id sequence = { Job.Id.generation = 1; sequence }
@@ -145,7 +145,7 @@ let%expect_test "submit and pump: the git backend's detect and refresh, as Vcs i
       | detection ->
         raise_s
           [%message
-            "not found" (detection : Ches_vcs_git.Repository.t Backend.Detection.t)]
+            "not found" (detection : Cobalt_vcs_git.Repository.t Backend.Detection.t)]
     in
     print_s [%sexp (scrub repo (B.Repository.root repository) : string)];
     [%expect
@@ -180,7 +180,7 @@ let%expect_test "submit and pump: the git backend's detect and refresh, as Vcs i
     [%expect {|
       ((started 3) (steps 12) (succeeded true)
        (summary
-        ((branch (main)) (revision (20ef33d)) (upstream ()) (operations ())))
+        ((branch (main)) (revision (e9ddf51)) (upstream ()) (operations ())))
        (files (("Untracked files" (new.txt)) ("Unstaged changes" (a.txt))))
        (busy false))
       |}])
@@ -188,7 +188,7 @@ let%expect_test "submit and pump: the git backend's detect and refresh, as Vcs i
 
 let%expect_test "batching: pending events come in one batch, at most max_batch, in order" =
   let rev_parse ~cwd =
-    [ Job.Step.Run (Ches_vcs_git.Cli.read ~cwd [ "rev-parse"; "--show-toplevel" ]) ]
+    [ Job.Step.Run (Cobalt_vcs_git.Cli.read ~cwd [ "rev-parse"; "--show-toplevel" ]) ]
   in
   let submit_three (repo : Fixture.t) host =
     Vcs_host.submit
@@ -225,7 +225,7 @@ let%expect_test "batching: pending events come in one batch, at most max_batch, 
       [%expect {| ((batch 6) (finished (1 2 3)) (ordered true)) |}])
   in
   with_host
-    ~config:{ Ches_vcs_host.Runner.Config.default with max_batch = 2 }
+    ~config:{ Cobalt_vcs_host.Runner.Config.default with max_batch = 2 }
     (fun repo host ->
       submit_three repo host;
       let%bind () = within (idle host) in
@@ -257,7 +257,7 @@ let%expect_test "a job superseded in its lane is cancelled; a reused id never st
       [ job
           ~lane:"refresh"
           2
-          [ Run (Ches_vcs_git.Cli.read ~cwd:repo.work [ "rev-parse"; "HEAD" ]) ]
+          [ Run (Cobalt_vcs_git.Cli.read ~cwd:repo.work [ "rev-parse"; "HEAD" ]) ]
       ];
     let%bind more =
       pump host ~until:(fun events -> has_finished 1 events && has_finished 2 events)
@@ -330,7 +330,7 @@ let%expect_test "shutdown with work in flight: children terminated and reaped, t
 
 let%expect_test "shutdown's cap: a child that ignores SIGTERM outlasts it until SIGKILL" =
   with_host
-    ~config:{ Ches_vcs_host.Runner.Config.default with termination_grace = ms 500 }
+    ~config:{ Cobalt_vcs_host.Runner.Config.default with termination_grace = ms 500 }
     (fun repo host ->
       Vcs_host.submit
         host

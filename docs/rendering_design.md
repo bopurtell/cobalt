@@ -1,26 +1,25 @@
-# Ches layout and visual design
+# Cobalt layout and visual design
 
 ## Purpose and scope
 
-This is the rendering companion to [the architecture brief](ches_editor_prototype_brief.md)
-and the MVP0 phase plan (removed; see git history). The phase plan determines implementation
-order; this document records visual intent, concrete layout behavior, and future
-directions. The MVP0 requirements below belong to phase 6, not a restart of
-phases 1–4. No commits, pushes, or other Git state changes by implementation agents.
+This document records the original rendering design: visual intent, concrete
+layout behavior, and proposed extensions. Some implementation sketches and defaults
+are historical. See [architecture](architecture.md) for current module boundaries
+and the [editor reference](editor_reference.md) for current behavior and controls.
 
 ## Visual intent
 
 The owner likes btop's rich colors, fine borders, and well-arranged tiles.
-Ches should feel similarly deliberate while keeping document text prominent.
+Cobalt should feel similarly deliberate while keeping document text prominent.
 Comfortable placement matters: the owner sometimes has difficulty turning their
 neck and wants to position text comfortably on both a laptop and large monitors.
 
-MVP0 uses one document tile:
+The original design uses one document tile:
 
 - A cohesive dark palette with rich, selective accents.
 - Thin, single-cell borders; filename in the top border when space permits.
-- Muted line-number gutter and a subtle current-line background. Since MVP1
-  phase 4A the gutter has four styles (off by default, absolute, relative,
+- Muted line-number gutter and a subtle current-line background. The gutter has
+  four styles (off by default, absolute, relative,
   hybrid); see [`feature_expansion.md`](archive/feature_expansion.md).
 - Clear mode badge, dirty indicator, position, and predictable feedback area.
 - Block cursor in Normal and bar cursor in Insert where supported.
@@ -31,7 +30,7 @@ current-line, Normal accent, Insert accent, warning, error). Keep colors in one
 UI-side definition rather than scattering RGB literals through components.
 One theme is sufficient; a theme engine and user theme files are deferred.
 
-## MVP0 centered layout
+## Centered layout
 
 Center the editing **rectangle**, not each line or its non-whitespace content.
 Indentation is preserved. Placement must not change merely because the cursor
@@ -71,7 +70,7 @@ Vertical centering is not required: editing starts at the top of the tile.
 
 ### Normal-mode layout commands
 
-Use `Space v` as the view/layout prefix. Proposed MVP0 defaults:
+Use `Space v` as the view/layout prefix. Original proposed defaults:
 
 | Keys | Action |
 | --- | --- |
@@ -83,8 +82,8 @@ Use `Space v` as the view/layout prefix. Proposed MVP0 defaults:
 | `Space v -` | Reduce preferred text width by 10 cells, minimum 20 |
 | `Space v +` | Increase preferred text width by 10 cells |
 | `Space v =` | Same as `Space v +`, without needing Shift |
-| `Space v n` | Toggle absolute line numbers (MVP1 phase 4A) |
-| `Space v N` | Toggle relative line numbers (MVP1 phase 4A) |
+| `Space v n` | Toggle absolute line numbers |
+| `Space v N` | Toggle relative line numbers |
 | `Space v r` | Restore centered layout, width 100, offset 0, no line numbers |
 
 Nudge/width commands select centered mode, so their purpose is visible even when
@@ -95,7 +94,7 @@ including Space and these letters, keeps its existing meaning.
 
 These commands change UI preferences only: no edits, cursor movement, revision
 increments, dirty changes, or undo entries. Configuration persistence and CLI
-layout flags are optional later work, not additional MVP0 requirements.
+layout flags were outside the original layout scope; see the current configuration guide.
 
 ## Geometry, scrolling, and responsiveness
 
@@ -121,8 +120,8 @@ must not automatically summon additional panels.
 
 ## Integration with existing implementation
 
-The existing `input/keymap.mli` (at the time of this addition) returns
-`Ches_core.Command.t list`. Extend this boundary narrowly in phase 6 to support
+The original `input/keymap.mli` returned `Cobalt_core.Command.t list`.
+The layout integration extended this boundary narrowly to support
 tagged outputs such as `Editor_command of Command.t | View_command of ...`.
 The application routes editor commands to core dispatch and view commands to UI
 layout state. The view-command vocabulary can be terminal-independent and live
@@ -137,10 +136,10 @@ Completed text storage, cursor semantics, transactions, and file effects do not
 need redesign. Existing code takes precedence for naming/style; illustrative
 types here describe the intended boundary rather than demand exact names.
 
-## Settled phase 6 decisions
+## Rendering design decisions
 
-These were settled in review before phase 6 started. Where they are more
-specific than the rest of this document, follow them.
+These decisions record the original rendering review. Current implementation
+details and subsequent extensions are described in the architecture and editor reference.
 
 ### UI state and event handling
 
@@ -161,7 +160,7 @@ controller reports `Exit`. Saving runs synchronously inside the transition
 
 ### Keymap and controller boundary
 
-- `ches_input` gains a terminal-independent view-command type, along the lines
+- `cobalt_input` gains a terminal-independent view-command type, along the lines
   of:
 
   ```ocaml
@@ -172,7 +171,7 @@ controller reports `Exit`. Saving runs synchronously inside the transition
     | Reset
   ```
 
-- `Keymap.feed` returns a list of actions, `Editor of Ches_core.Command.t |
+- `Keymap.feed` returns a list of actions, `Editor of Cobalt_core.Command.t |
   View of View_command.t`. Their `sexp_of` prints editor commands untagged and
   view commands as `(View ...)`, so existing keymap expectations stay valid.
 - `Controller.handle_input` dispatches editor actions as before and also
@@ -180,7 +179,7 @@ controller reports `Exit`. Saving runs synchronously inside the transition
   `t -> Keymap.Input.t -> t * View_command.t list * Status.t` (or an
   equivalent record). Editor and view actions touch disjoint state, so their
   relative order within one input does not matter. This is a deliberate change
-  to the phase 5 controller contract.
+  to the original editor-only controller contract.
 - Ctrl-C produces no command in either mode. It cancels any pending sequence,
   ends a `j k` sequence, and sets the notice `To quit, use Space q in Normal
   mode`. Raw mode turns Ctrl-C into an ordinary key, and silently ignoring it
@@ -194,7 +193,7 @@ one-based, and the column is the code-point column (`Editor.cursor_column + 1`),
 not the display column. While a sequence is pending, its keys (e.g. `Space v`)
 appear in their own field, independent of the message slot.
 
-Phase 5 of `workspace_tiles_design.md` replaces the disposable message slot with
+The feedback design in `workspace_tiles_design.md` replaces the disposable message slot with
 shared controller feedback. Editor commands clear transient notifications before
 posting their new feedback. Keymap notices and layout actions post structured
 transient notifications; prefixes, ignored keys, resize, and animation do not clear
@@ -269,12 +268,11 @@ cursor line and span, the text viewport size, and the line count:
   also lower the first visible line if needed, so the viewport isn't partly
   empty while earlier lines are hidden. Otherwise a view scrolled past the end
   stays put while the cursor is visible, as in Vim, so `Ctrl-e` can scroll until
-  the last line is at the top (MVP1 phase 4B; MVP0 applied this rule after every
-  input).
+  the last line is at the top.
 - **Horizontal:** start at cell 0 whenever the span fits there. Otherwise move
   as little as possible to make the whole span visible. If the span is wider
   than the viewport, show its first cell.
-- No scroll margin (scrolloff). MVP1 phase 4B adds explicit scroll commands
+- No scroll margin (scrolloff). Explicit scroll commands are
   (`Ctrl-e/y/d/u`, `zz/zt/zb`); see [`feature_expansion.md`](archive/feature_expansion.md)
   and `Ui_state`.
 - With zero text rows or columns, keep the scroll unchanged and show no cursor
@@ -315,14 +313,14 @@ Local references in `~/devel/jane/bonsai_term_examples/`:
 
 Treat these as read-only references. Read applicable workspace instructions and
 verify APIs against installed packages: checkout and installed versions can
-differ. Borrow presentation patterns without replacing `ches_core` with the
+differ. Borrow presentation patterns without replacing `cobalt_core` with the
 example's editor component.
 
-Do a bounded visual pass in checkpoint 6B, after 6A has the real editor
+Do a bounded visual pass with the real editor
 working, with representative Normal, Insert, dirty, pending-prefix, and error
 states. Review at approximately 80×24 and 160×48 cells, plus pathological tiny
-dimensions for robustness. The phase 6 smoke script (`scripts/smoke.sh`; see
-[the README](../README.md#terminal-smoke-test)) saves these screens with
+dimensions for robustness. The terminal smoke script (`scripts/smoke.sh`; see
+[the development guide](development.md#terminal-smoke-tests)) saves these screens with
 colors for review.
 
 Test layout geometry, clamp/restore behavior on resize, nudge/reset/toggle,
@@ -332,7 +330,7 @@ check layout and content; actual terminal inspection is needed for palette,
 contrast, borders, cursor behavior, and flicker. Record any unavailable manual
 checks rather than declaring visual quality verified from text snapshots.
 
-## Later direction — not phase 6 requirements
+## Original extension proposals
 
 - Supporting tiles for actual search/help/diagnostic content, using the same
   border/palette language; no empty decorative dashboards.
@@ -342,4 +340,4 @@ checks rather than declaring visual quality verified from text snapshots.
 - Light themes, richer theme selection, wrapping, and additional focus modes.
 - Multiple document panes when workspace support exists.
 
-These directions must not expand the MVP0 visual pass into a panel framework.
+Several of these proposals are now implemented; see the current editor reference.

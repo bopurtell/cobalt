@@ -2,25 +2,36 @@
 
 [Documentation index](README.md) · [Editor reference](editor_reference.md)
 
-Ches starts with built-in defaults and executes your OCaml configuration to change
+Cobalt starts with built-in defaults and executes your OCaml configuration to change
 them. Palette commands and keybindings subsequently change live session settings
-only. Ches never rewrites your configuration or saves preference overrides.
+only. Cobalt never rewrites your configuration or saves preference overrides.
 
 ## Location and first configuration
 
-Create `~/.config/ches/config.ml`. If `XDG_CONFIG_HOME` is an absolute nonempty path,
-use `$XDG_CONFIG_HOME/ches/config.ml` instead. Ches does not create the file for you.
+Create `~/.config/cobalt/config.ml`. If `XDG_CONFIG_HOME` is an absolute nonempty path,
+use `$XDG_CONFIG_HOME/cobalt/config.ml` instead. Cobalt does not create the file for you.
 An absent configuration uses the defaults and needs no compiler.
 
+### Migrating from Ches
+
+Move your existing `~/.config/ches/config.ml` to `~/.config/cobalt/config.ml`
+(or the equivalent directories under `$XDG_CONFIG_HOME`). In that file, change
+`Ches_config` references to `Cobalt_config`. The old configuration location is
+not read automatically. Update shell aliases or launchers to invoke `cobalt`.
+Configuration caches are rebuilt under `$XDG_CACHE_HOME/cobalt/config` or
+`~/.cache/cobalt/config`; the old cache does not need to be copied.
+
+### Opening and editing configuration
+
 From the command palette (`Space c c`), choose **Open configuration** to open this
-exact path in Ches. Existing unsaved config buffers are reused. If the file does
+exact path in Cobalt. Existing unsaved config buffers are reused. If the file does
 not exist, it opens as an unsaved buffer; the command does not create files or
 directories or execute configuration. Save normally, then use **Reload
 configuration** to apply it. If the parent directory is absent, create it before
 saving.
 
 ```ocaml
-open Ches_config
+open Cobalt_config
 
 let () =
   Completion.set_enabled true;
@@ -39,11 +50,11 @@ The file is real executable OCaml: you can use local functions, conditionals, an
 the standard library. For example:
 
 ```ocaml
-open Ches_config
+open Cobalt_config
 
 let () =
   View.set_line_numbers true;
-  match Sys.getenv_opt "CHES_GHOST" with
+  match Sys.getenv_opt "COBALT_GHOST" with
   | Some "1" -> Completion.set_ghost_preview true
   | _ -> ()
 ```
@@ -64,7 +75,7 @@ let () =
 Manual Ctrl-n and punctuation triggers bypass the minimum-prefix setting. Turning
 off local-snippet preference changes ranking, not availability. Prefix scanning
 remains bounded at 4096 bytes, so very large thresholds can suppress automatic
-identifier suggestions. Use `ches --list-themes` to find theme IDs; this command
+identifier suggestions. Use `cobalt --list-themes` to find theme IDs; this command
 does not execute configuration. An explicit `--theme NAME` takes precedence over
 configuration at startup and on reload.
 
@@ -145,15 +156,15 @@ after opening the editor. Compiler errors reference the original filename and li
 
 ## Execution requirements
 
-`ocamlc` must be on `PATH` when `config.ml` exists. Ches embeds the small
-Stdlib-only `Ches_config` API and compiles it with your file into a temporary helper.
-No installed Ches development libraries, Dune invocation, or PPX dependencies are
-needed. Ches caches compiled helpers, but executes the program on **every startup
+`ocamlc` must be on `PATH` when `config.ml` exists. Cobalt embeds the small
+Stdlib-only `Cobalt_config` API and compiles it with your file into a temporary helper.
+No installed Cobalt development libraries, Dune invocation, or PPX dependencies are
+needed. Cobalt caches compiled helpers, but executes the program on **every startup
 and explicit reload**. Environment-dependent settings and file reads remain fresh;
 evaluated settings and session toggles are never persisted.
 
-The compiled cache lives at `$XDG_CACHE_HOME/ches/config` for an absolute nonempty
-XDG path, otherwise `$HOME/.cache/ches/config`. Changes to source text/path, the
+The compiled cache lives at `$XDG_CACHE_HOME/cobalt/config` for an absolute nonempty
+XDG path, otherwise `$HOME/.cache/cobalt/config`. Changes to source text/path, the
 embedded API/protocol, compiler/toolchain, or relevant compile environment invalidate
 the entry. Corrupt/missing entries are rebuilt before execution. Unavailable cache
 storage falls back to temporary compilation. Removing this cache merely forces
@@ -172,7 +183,7 @@ are cleaned up after success or failure.
 
 The helper runs in a private temporary working directory, so use absolute paths
 for any files your configuration reads. It executes ordinary OCaml code, rather
-than a sandboxed expression language. Ches itself does not write your config file.
+than a sandboxed expression language. Cobalt itself does not write your config file.
 
 ## Snippets
 

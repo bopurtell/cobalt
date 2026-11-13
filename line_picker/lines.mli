@@ -10,7 +10,7 @@ type result =
   }
 
 type t
-val create : Ches_app.Controller.t -> t
+val create : Cobalt_app.Controller.t -> t
 val query : t -> string
 val results : t -> result list
 val selected : t -> int option
@@ -23,8 +23,8 @@ val prepared_count : t -> int
 (** Freshness includes runtime identity, revision and immutable text identity.
     A mismatch permanently invalidates this session, drops all work/results/text;
     reopen explicitly to refresh. Call on controller changes and before rendering. *)
-val validate : t -> Ches_app.Controller.t -> bool
-val update : t -> Ches_palette.Palette.Event.t -> unit
+val validate : t -> Cobalt_app.Controller.t -> bool
+val update : t -> Cobalt_palette.Palette.Event.t -> unit
 (** At most [budget] line/output records per turn. Limits: first 50k lines,
     8 MiB raw line payload, 4 KiB per line. Stop at the first exceeded limit;
     never silently skip a long line. Per-record DP/GC is not time bounded. *)
@@ -36,6 +36,6 @@ val cancel : t -> release:(unit -> unit) -> unit
     installed by the host synchronously; no cross-document opening. *)
 val accept
   : t
-  -> current:(unit -> Ches_app.Controller.t)
+  -> current:(unit -> Cobalt_app.Controller.t)
   -> release:(unit -> unit)
-  -> Ches_app.Controller.t option Or_error.t
+  -> Cobalt_app.Controller.t option Or_error.t

@@ -1,7 +1,7 @@
 (** Finding the repository that contains a directory. *)
 
 open! Core
-open Ches_vcs
+open Cobalt_vcs
 
 type t =
   { root : string (** Absolute work-tree root ([--show-toplevel]): every command's cwd. *)
@@ -30,4 +30,4 @@ val detect : cwd:string -> Job.Step.t list
 val detected
   :  cwd:string
   -> Job.Step_report.t list
-  -> t Ches_vcs.Backend.Detection.t
+  -> t Cobalt_vcs.Backend.Detection.t

@@ -6,15 +6,15 @@
 
 open! Core
 
-val id : Ches_tile.View_id.t
-val spec : Ches_tile.Spec.t
+val id : Cobalt_tile.View_id.t
+val spec : Cobalt_tile.Spec.t
 
 type t [@@deriving sexp_of]
 
-val create : origin:Ches_tile.View_id.t -> title:string -> message:string -> t
+val create : origin:Cobalt_tile.View_id.t -> title:string -> message:string -> t
 
 (** The view that asked, and that focus returns to. *)
-val origin : t -> Ches_tile.View_id.t
+val origin : t -> Cobalt_tile.View_id.t
 
 val title : t -> string
 val message : t -> string
@@ -31,7 +31,7 @@ type action =
 [@@deriving sexp_of, equal]
 
 (** [y] is [Yes] and [n] is [No]; every other key is unbound. *)
-val interpret : Ches_input.Key.t list -> action Ches_tile.Content_key.t
+val interpret : Cobalt_input.Key.t list -> action Cobalt_tile.Content_key.t
 
 val hint : string
 

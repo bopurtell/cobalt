@@ -1,7 +1,7 @@
 open! Core
-open Ches_core
-open Ches_app
-open Ches_screen
+open Cobalt_core
+open Cobalt_app
+open Cobalt_screen
 
 let measure label n f =
   let alloc = Gc.allocated_bytes () in

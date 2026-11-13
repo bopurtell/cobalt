@@ -1,9 +1,9 @@
 open! Core
-open Ches_core
-open Ches_screen
-module Feedback = Ches_error.Error
-module Controller = Ches_app.Controller
-module View_id = Ches_tile.View_id
+open Cobalt_core
+open Cobalt_screen
+module Feedback = Cobalt_error.Error
+module Controller = Cobalt_app.Controller
+module View_id = Cobalt_tile.View_id
 
 let width = 80
 let height = 16

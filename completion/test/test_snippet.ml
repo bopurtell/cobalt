@@ -1,6 +1,6 @@
 open! Core
-open Ches_core
-module N = Ches_completion.Snippet
+open Cobalt_core
+module N = Cobalt_completion.Snippet
 module S = N.Session
 module B = Text_buffer
 

@@ -1,7 +1,7 @@
 open! Core
 open! Async
-module Feedback = Ches_error.Error
-module Source_event = Ches_error.Source_event
+module Feedback = Cobalt_error.Error
+module Source_event = Cobalt_error.Source_event
 module Finding = Feedback.Diagnostics.Finding
 
 module Config = struct
@@ -157,10 +157,10 @@ let begin_session state =
   schedule_build state
 ;;
 
-let handle state (request : Ches_error.Source_request.t) =
+let handle state (request : Cobalt_error.Source_request.t) =
   match request with
   | Query q -> state.emit (Query_result { token = q.token; cursor = q.cursor;
-      kind = q.kind; source; result = Ches_error.Language_query.unavailable q.kind "Synthetic source does not support language queries" })
+      kind = q.kind; source; result = Cobalt_error.Language_query.unavailable q.kind "Synthetic source does not support language queries" })
   | Cancel_query _ -> ()
   | Complete _ | Cancel_completion _ | Resolve_completion _ -> ()
   | Inspect -> state.emit (Servers [])
@@ -239,9 +239,9 @@ module Script = struct
       in
       run steps;
       { handle = (function
-          | Ches_error.Source_request.Query q ->
+          | Cobalt_error.Source_request.Query q ->
             emit (Query_result { token = q.token; cursor = q.cursor; kind = q.kind;
-              source = "script"; result = Ches_error.Language_query.unavailable q.kind "Scripted source does not support language queries" })
+              source = "script"; result = Cobalt_error.Language_query.unavailable q.kind "Scripted source does not support language queries" })
           | _ -> ())
       ; stop = (fun () -> stopped := true) })
   ;;

@@ -4,10 +4,10 @@
    without Cli.prefix; paths under the fixture's temp directory print as $DIR. *)
 
 open! Core
-open Ches_vcs
-module Fixture = Ches_vcs_fixture.Fixture_repo
-module Git = Ches_vcs_git
-module B = Ches_vcs_git.Backend
+open Cobalt_vcs
+module Fixture = Cobalt_vcs_fixture.Fixture_repo
+module Git = Cobalt_vcs_git
+module B = Cobalt_vcs_git.Backend
 
 let relative (t : Fixture.t) text =
   String.substr_replace_all text ~pattern:t.dir ~with_:"$DIR"
@@ -23,7 +23,7 @@ let repository (t : Fixture.t) =
 ;;
 
 let snapshot ?(ignored = false) t =
-  let refresh = { Ches_vcs.Backend.Refresh.default with ignored } in
+  let refresh = { Cobalt_vcs.Backend.Refresh.default with ignored } in
   let repository = repository t in
   ok_exn
     (B.snapshot repository refresh (Fixture.run_steps t (B.refresh repository refresh)))
@@ -59,7 +59,7 @@ let command spec =
     ~prefix:(Exec.Spec.to_string_hum (Git.Cli.mutate ~cwd:"/" []) ^ " ")
 ;;
 
-let print_plan (plan : Ches_vcs.Backend.Plan.t) =
+let print_plan (plan : Cobalt_vcs.Backend.Plan.t) =
   printf
     "  plan %S%s\n"
     plan.title
@@ -91,7 +91,7 @@ let decide (snapshot : B.snapshot) action =
 ;;
 
 (* As the runner runs one mutation job: steps in order, stopping at the first that fails. *)
-let execute t (plan : Ches_vcs.Backend.Plan.t) =
+let execute t (plan : Cobalt_vcs.Backend.Plan.t) =
   let rec go = function
     | [] -> ()
     | step :: rest ->
@@ -757,8 +757,8 @@ let%expect_test "untracked files and a nested repository" =
       status |?? "dir/\303\274 file.txt"
       status |?? loose.txt
       status |?? nested/
-    refused: nested/ is a nested repository: Ches does not stage it; nothing ran
-    refused: nested/ is a nested repository: delete it outside Ches; nothing ran
+    refused: nested/ is a nested repository: Cobalt does not stage it; nothing ran
+    refused: nested/ is a nested repository: delete it outside Cobalt; nothing ran
     confirm "Delete untracked file": Delete dir/ü file.txt? It is not in git and cannot be recovered.
       plan "Delete dir/\195\188 file.txt" (rewrites the work tree)
       $ --literal-pathspecs clean --force --quiet -- 'dir/ü file.txt'
@@ -778,9 +778,9 @@ let%expect_test "untracked files and a nested repository" =
       $ --literal-pathspecs add --all -- loose.txt
       status |A  loose.txt
       status |?? nested/
-    refused: nested/ is a nested repository: Ches does not stage it; nothing ran
-    refused: nested/ is a nested repository: delete it outside Ches; nothing ran
-    refused: nested/ is a nested repository: Ches does not stage it; nothing ran
+    refused: nested/ is a nested repository: Cobalt does not stage it; nothing ran
+    refused: nested/ is a nested repository: delete it outside Cobalt; nothing ran
+    refused: nested/ is a nested repository: Cobalt does not stage it; nothing ran
     |}]
 ;;
 
@@ -907,13 +907,13 @@ let%expect_test "section texts, left-out entries, and every refusal" =
       ; Stage (Section Conflicted)
       ; Discard (Section Conflicted)
       ]
-      ~f:(fun action -> ignore (decide s action : Ches_vcs.Backend.Plan.t option));
+      ~f:(fun action -> ignore (decide s action : Cobalt_vcs.Backend.Plan.t option));
     git t [ "add"; "a.txt"; "b.txt"; "c.txt"; "ita.txt"; "u.txt" ];
     git t [ "commit"; "-q"; "-m"; "all" ];
     let s = snapshot t in
-    ignore (decide s Stage_all : Ches_vcs.Backend.Plan.t option);
-    ignore (decide s Unstage_all : Ches_vcs.Backend.Plan.t option);
-    ignore (decide s (Stage (Section Unstaged)) : Ches_vcs.Backend.Plan.t option));
+    ignore (decide s Stage_all : Cobalt_vcs.Backend.Plan.t option);
+    ignore (decide s Unstage_all : Cobalt_vcs.Backend.Plan.t option);
+    ignore (decide s (Stage (Section Unstaged)) : Cobalt_vcs.Backend.Plan.t option));
   [%expect
     {|
       status | M a.txt
@@ -963,7 +963,7 @@ let%expect_test "section texts, left-out entries, and every refusal" =
     refused: gone.txt is no longer listed; refresh (g r); nothing ran
     refused: Nothing here; nothing ran
     refused: Resolve conflicted files one at a time (x on a file); nothing ran
-    refused: nested/ is a nested repository: Ches does not stage it; nothing ran
+    refused: nested/ is a nested repository: Cobalt does not stage it; nothing ran
     refused: Nothing staged; nothing ran
     refused: Nothing here; nothing ran
     |}]

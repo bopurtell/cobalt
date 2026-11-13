@@ -1,10 +1,9 @@
 ; Test-only: isolated git fixture repositories (and a local bare remote) for the VCS
-; tests of ches_vcs_git and ches_vcs_host. Product libraries must never depend on it.
-; Owned by phase 1 stage 1; G and H use it and add helpers in their own test
-; directories instead of editing it.
+; tests of cobalt_vcs_git and cobalt_vcs_host. Product libraries must never depend on it.
+; Backend and runner tests keep specialized helpers in their own test directories.
 
 (library
- (name ches_vcs_fixture)
- (libraries ches_vcs core core_unix core_unix.filename_unix core_unix.sys_unix)
+ (name cobalt_vcs_fixture)
+ (libraries cobalt_vcs core core_unix core_unix.filename_unix core_unix.sys_unix)
  (preprocess
   (pps ppx_jane)))

@@ -1,7 +1,7 @@
 open! Core
-open Ches_core
-open Ches_app
-open Ches_screen
+open Cobalt_core
+open Cobalt_app
+open Cobalt_screen
 open Helpers
 
 let width = 90
@@ -17,7 +17,7 @@ let rec remove_fixture path =
   else Core_unix.unlink path
 ;;
 let fixture ?directory_config f =
-  let root = scratch_dir "ches-edit-directory-" in
+  let root = scratch_dir "cobalt-edit-directory-" in
   let a = Filename.concat root "a.txt" in
   let b = Filename.concat root "b.txt" in
   Out_channel.write_all a ~data:"a contents";
@@ -72,8 +72,8 @@ let%test_unit "default IDs never appear on active Insert or Visual rows in eithe
     let check ui =
       let text = Editor.text (Controller.editor (directory ui).controller) |> Text_buffer.to_string in
       let frame = Frame.to_string (Frame.render ui ~width ~height) in
-      assert (not (String.is_substring text ~substring:"@ches["));
-      assert (not (String.is_substring frame ~substring:"@ches[")) in
+      assert (not (String.is_substring text ~substring:"@cobalt["));
+      assert (not (String.is_substring frame ~substring:"@cobalt[")) in
     check ui;
     let ui = run ui "iNEW" in check ui;
     let ui = run ui "<Esc>uVj" in check ui;
@@ -86,9 +86,9 @@ let%test_unit "default IDs never appear on active Insert or Visual rows in eithe
 let%test_unit "exposed backend setting is explicit and survives refresh and navigation" =
   fixture ~directory_config:Directory_buffer.Config.Exposed (fun _ _ _ ui ->
     let visible ui = Text_buffer.to_string (Editor.text (Controller.editor (directory ui).controller)) in
-    assert (String.is_prefix (visible ui) ~prefix:"@ches[");
+    assert (String.is_prefix (visible ui) ~prefix:"@cobalt[");
     let ui = run ui " rG<CR>-" in
-    assert (String.is_prefix (visible ui) ~prefix:"@ches[");
+    assert (String.is_prefix (visible ui) ~prefix:"@cobalt[");
     Session.dispose (Ui_state.session ui))
 ;;
 
@@ -164,7 +164,7 @@ let%test_unit "directory controllers cannot write listing text even when called 
   fixture (fun _ a _ ui ->
     let controller = Controller.with_path (directory ui).controller a in
     let controller, _, _ = Controller.dispatch controller
-      [ Ches_input.Keymap.Action.Editor (Enter_insert Before_cursor)
+      [ Cobalt_input.Keymap.Action.Editor (Enter_insert Before_cursor)
       ; Editor (Insert_text "edited listing")
       ; Editor Exit_insert; Editor Save; Editor Reload ] in
     assert (Editor.is_dirty (Controller.editor controller));
@@ -180,12 +180,12 @@ let%test_unit "rename restarts diagnostic lifetime even at unchanged text revisi
     let ui, _ = Ui_state.take_source_requests ui in
     let id = Session.active_id (Ui_state.session ui) |> Option.value_exn in
     let original_generation = Session.source_generation (Ui_state.session ui) id |> Option.value_exn in
-    let event resource generation message : Ches_error.Source_event.t =
+    let event resource generation message : Cobalt_error.Source_event.t =
       Owned { resource; generation; event = Diagnostics { source = "checker"; resource; revision = None
         ; findings = [ { severity = Error; message; location = Some { line = 1; column = 1 } } ] } } in
     let receive ui event = Helpers.run ~width ~height ui [ Ui_state.Input.Source event ] in
-    let collections ui = Ches_error.Error.Diagnostics.collections
-      (Ches_error.Error.diagnostics (Controller.feedback (Ui_state.controller ui))) in
+    let collections ui = Cobalt_error.Error.Diagnostics.collections
+      (Cobalt_error.Error.diagnostics (Controller.feedback (Ui_state.controller ui))) in
     let ui = receive ui (event a original_generation "old diagnostics") in
     assert (List.length (collections ui) = 1);
     let ui = run ui " oA.new<Esc> w" in

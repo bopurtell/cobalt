@@ -68,9 +68,9 @@ sends exact-token cancellation to release source-side work/cache.
 
 Shared variants (available in `error/`):
 
-- `Source_request.Complete of Ches_completion.Model.Request.t`
-- `Source_request.Cancel_completion of Ches_completion.Model.Token.t`
-- `Source_event.Completion of Ches_completion.Model.Reply.t`
+- `Source_request.Complete of Cobalt_completion.Model.Request.t`
+- `Source_request.Cancel_completion of Cobalt_completion.Model.Token.t`
+- `Source_event.Completion of Cobalt_completion.Model.Reply.t`
 
 Send `Document_opened` with the buffer generation and `Document_changed` with the
 current revision/text before `Complete`. The token must match that resource,
@@ -111,7 +111,7 @@ enrich docs/detail/additional edits but never changes the primary or ranking.
 ### Snippet insertion subset
 
 The client advertises `snippetSupport=true`. For effective `insertTextFormat=2`,
-normalization parses the primary insertion with `Ches_completion.Snippet.parse`
+normalization parses the primary insertion with `Cobalt_completion.Snippet.parse`
 and resolves filename variables against the request's raw lexical resource path.
 The candidate carries `snippet=Some parsed` and `primary.text=Snippet.text parsed`;
 plain-format candidates carry `snippet=None`. Format defaults and item overrides

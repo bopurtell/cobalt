@@ -1,12 +1,12 @@
 open! Core
-open Ches_input
-module Query = Ches_palette.Query
+open Cobalt_input
+module Query = Cobalt_palette.Query
 
-let id = Ches_tile.View_id.of_string "prompt"
-let spec = Ches_tile.Spec.text_input id ~title:"Prompt"
+let id = Cobalt_tile.View_id.of_string "prompt"
+let spec = Cobalt_tile.Spec.text_input id ~title:"Prompt"
 
 type t =
-  { origin : Ches_tile.View_id.t
+  { origin : Cobalt_tile.View_id.t
   ; title : string
   ; text : string
   ; validate : (string -> string option[@sexp.opaque])
@@ -39,7 +39,7 @@ type action =
   | Accept
 [@@deriving sexp_of]
 
-let interpret (keys : Key.t list) : action Ches_tile.Content_key.t =
+let interpret (keys : Key.t list) : action Cobalt_tile.Content_key.t =
   match keys with
   | [ Char c ] -> Action (Edit (Insert c))
   | [ Backspace ] -> Action (Edit Backspace)

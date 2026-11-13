@@ -1,5 +1,5 @@
 open! Core
-open Ches_core
+open Cobalt_core
 module B = Text_buffer
 
 let get = function Ok x -> x | Error e -> failwith (B.Invalid_text.to_string_hum e)

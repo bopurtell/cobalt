@@ -1,10 +1,10 @@
 open! Core
-open Ches_core
-open Ches_app
-open Ches_screen
+open Cobalt_core
+open Cobalt_app
+open Cobalt_screen
 open Helpers
-module M = Ches_completion.Model
-module Request = Ches_error.Source_request
+module M = Cobalt_completion.Model
+module Request = Cobalt_error.Source_request
 
 let press t s = run t (keys s)
 let editor t = Controller.editor (Ui_state.controller t)
@@ -30,7 +30,7 @@ let reply t (req : M.Request.t) candidates =
   run t [ Source (Completion { token = req.token; source = "test"; candidates; incomplete = false }) ]
 ;;
 
-let info ?revision ?additional ?(resolvable = true) candidate_id : Ches_error.Completion_info.t =
+let info ?revision ?additional ?(resolvable = true) candidate_id : Cobalt_error.Completion_info.t =
   { candidate_id; kind = Some 3; documentation = Some "docs"; detail = None
   ; resolvable; additional; revision }
 ;;
@@ -102,11 +102,11 @@ let accepted () =
 ;;
 
 let%test_unit "pool context invalidation drops old completion and deferred resolve only for its resources" =
-  let server source resources : Ches_error.Source_event.Server.t =
+  let server source resources : Cobalt_error.Source_event.Server.t =
     { source; resources; program = "fake"; args = []; root = "/"; status = Running } in
-  let inventory = Ches_error.Source_event.Servers
+  let inventory = Cobalt_error.Source_event.Servers
     [server "test" ["/completion-resolve-review.ml"]; server "other" ["/other.sv"]] in
-  let changed source = Ches_error.Source_event.Instance_context_changed
+  let changed source = Cobalt_error.Source_event.Instance_context_changed
     { source; revision = 1; module_name = None; hier_path = None } in
   let pending, req = query () in
   let pending = run pending [Source inventory; Source (changed "test")] in

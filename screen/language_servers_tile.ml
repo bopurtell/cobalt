@@ -1,9 +1,9 @@
 open! Core
-module Server = Ches_error.Source_event.Server
-module Text_view = Ches_tile.Text_view
+module Server = Cobalt_error.Source_event.Server
+module Text_view = Cobalt_tile.Text_view
 
-let id = Ches_tile.View_id.of_string "language-servers"
-let spec = Ches_tile.Spec.read_only_text id ~title:"Language servers"
+let id = Cobalt_tile.View_id.of_string "language-servers"
+let spec = Cobalt_tile.Spec.read_only_text id ~title:"Language servers"
 
 type t =
   { servers : Server.t list

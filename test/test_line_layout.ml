@@ -1,5 +1,5 @@
 open! Core
-open Ches_core
+open Cobalt_core
 module I = Cell_layout.Index
 
 let buffer s = Text_buffer.of_string s |> Result.map_error ~f:Text_buffer.Invalid_text.to_string_hum |> Result.ok_or_failwith

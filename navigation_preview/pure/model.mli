@@ -1,6 +1,6 @@
 open! Core
 
-type request = { generation : int; target : Ches_error.Language_query.target }
+type request = { generation : int; target : Cobalt_error.Language_query.target }
 [@@deriving sexp_of]
 type source = Buffer of { revision : int } | Disk of { stamp : string option }
 [@@deriving sexp_of]
@@ -22,7 +22,7 @@ val max_output_bytes : int
 val max_lines : int
 
 (** Indexed, bounded copying, without whole-buffer conversion or whole-line copies. *)
-val of_buffer : revision:int -> Ches_error.Language_query.target -> Ches_core.Text_buffer.t -> state
+val of_buffer : revision:int -> Cobalt_error.Language_query.target -> Cobalt_core.Text_buffer.t -> state
 
 (** Synchronous worker-side collector; no I/O dependency. [read bytes ~pos ~len]
     returns 0 at EOF, or a count in [1,len]. Exceptions propagate to the host,
@@ -33,7 +33,7 @@ val of_buffer : revision:int -> Ches_error.Language_query.target -> Ches_core.Te
     reached within the scan budget returns Limit. Disk stamps belong to host. *)
 val collect
   : source:source
-  -> target:Ches_error.Language_query.target
+  -> target:Cobalt_error.Language_query.target
   -> cancelled:(unit -> bool)
   -> read:(bytes -> pos:int -> len:int -> int)
   -> state

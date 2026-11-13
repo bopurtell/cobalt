@@ -1,5 +1,5 @@
 open! Core
-open Ches_screen
+open Cobalt_screen
 
 let render ?highlight ?(current_line = false) source ~left ~cols =
   Span.of_glyphs
@@ -105,7 +105,7 @@ let%test_unit "combining attachment and suppression preserve existing geometry a
   assert (Span.total_width spans = 3);
   assert (List.length spans = 1);
   (* Historically the zero-width code point uses the base text style even if its
-     preceding glyph has an interaction overlay; do not change that in phase 1. *)
+     preceding glyph has an interaction overlay; preserve that behavior. *)
   let spans = render ("e" ^ combining) ~left:0 ~cols:1 ~highlight:(fun _ -> Some `Match) in
   assert (List.length spans = 2);
   assert ((List.nth_exn spans 1).width = 0);

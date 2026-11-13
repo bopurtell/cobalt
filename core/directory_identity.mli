@@ -49,7 +49,7 @@ val encode_name : string -> string
 val decode_name : string -> string Or_error.t
 val decode_destination : string -> string Or_error.t
 
-(** Existing rows: [@ches[ID]<TAB>ENCODED_NAME], plus [/] only for directories.
+(** Existing rows: [@cobalt[ID]<TAB>ENCODED_NAME], plus [/] only for directories.
     Explicit copies use [@copy[ID]] with a distinct destination. Existing/copy
     destinations accept slash-separated encoded components, including [..].
     Header, kind icons and marks are not part of the editable text. *)

@@ -1,16 +1,16 @@
 (lang dune 3.17)
 
-(name ches)
+(name cobalt)
 
 (generate_opam_files true)
 
 (license MIT)
 
 (package
- (name ches)
+ (name cobalt)
  (synopsis "A small modal programmer's editor")
  (description
-  "Ches is a prototype modal text editor with a UI-independent editing core and a Bonsai_term frontend.")
+  "Cobalt is a modal terminal editor with a tile-based workspace, a UI-independent editing core, and a Bonsai_term frontend.")
  (depends
   (ocaml
    (>= 5.2))

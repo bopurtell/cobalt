@@ -1,6 +1,6 @@
 open! Core
-module L = Ches_error.Language_query
-module T = Ches_core.Text_buffer
+module L = Cobalt_error.Language_query
+module T = Cobalt_core.Text_buffer
 
 type request = { generation : int; target : L.target } [@@deriving sexp_of]
 type source = Buffer of { revision : int } | Disk of { stamp : string option } [@@deriving sexp_of]

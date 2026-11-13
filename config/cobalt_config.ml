@@ -1,5 +1,5 @@
 (* This exact Stdlib-only source is embedded in the editor and compiled alongside
-   each user configuration. It has no dependency on an installed Ches library. *)
+   each user configuration. It has no dependency on an installed Cobalt library. *)
 let enabled = ref true
 let signature_help_enabled = ref true
 module Signature_help = struct
@@ -96,7 +96,7 @@ let write_result path =
   let number n = line (string_of_int n) in
   let operations = List.rev !(Snippets.operations) in
   if List.length operations > 1000 then invalid_arg "snippets exceeds 1000 operations";
-  line "CHES_SETTINGS_4";
+  line "COBALT_SETTINGS_4";
   List.iter (fun value -> line (string_of_bool value)) [!enabled; !ghost_preview];
   number !min_prefix_chars;
   List.iter (fun value -> line (string_of_bool value)) [!prefer_local_snippets; !line_numbers];

@@ -1,9 +1,9 @@
 open! Core
-open Ches_core
-open Ches_screen
-module Model = Ches_file_picker.Model
-module Interaction = Ches_file_picker.Interaction
-module Controller = Ches_app.Controller
+open Cobalt_core
+open Cobalt_screen
+module Model = Cobalt_file_picker.Model
+module Interaction = Cobalt_file_picker.Interaction
+module Controller = Cobalt_app.Controller
 
 let width = 120
 let height = 40
@@ -43,7 +43,7 @@ let%test_unit "cache invalidation handles same-record mutable picker discovery a
   let after = get t in
   assert (not (String.equal (Frame.to_string_styled before) (Frame.to_string_styled after)));
   let model = Interaction.model (session t) in
-  let request : Ches_file_preview_model.Model.request =
+  let request : Cobalt_file_preview_model.Model.request =
     { session = (Model.discovery model).request; selected = Option.value_exn (Model.selected model)
     ; generation = 1 } in
   File_picker_tile.expect_preview (picker t) (Some request);
@@ -72,10 +72,10 @@ let%test_unit "file-only responsive floating geometry and screen resize delivery
     let placement = Option.value_exn (Ui_state.file_picker_layout t ~width:180 ~height) in
     assert (placement.outer.width = 175 && placement.outer.height = outer_height));
   let model = Interaction.model (session t) in
-  let request : Ches_file_preview_model.Model.request =
+  let request : Cobalt_file_preview_model.Model.request =
     { session = (Model.discovery model).request; selected = Option.value_exn (Model.selected model)
     ; generation = 1 } in
-  let delivery : Ches_file_preview_model.Model.snapshot = { request; state = Missing } in
+  let delivery : Cobalt_file_preview_model.Model.snapshot = { request; state = Missing } in
   File_picker_tile.expect_preview (picker t) (Some request);
   let t = apply t [ File_preview delivery ] in
   assert (Option.is_some (File_picker_tile.preview (picker t)));
@@ -148,7 +148,7 @@ let%test_unit "shared floating host: zen/workspace, query, scroll, cursor and ex
     let frame = Frame.render opened ~width ~height in
     let cursor = Option.value_exn frame.cursor in
     let x, y, shape = Option.value_exn (Ui_state.minor_cursor opened ~width ~height) in
-    assert (cursor.x = x && cursor.y = y && Ches_tile.Cursor.Shape.equal shape Bar);
+    assert (cursor.x = x && cursor.y = y && Cobalt_tile.Cursor.Shape.equal shape Bar);
     assert (List.is_empty frame.smear);
     let allocation : Geometry.Rect.t = { x = 5; y = 2; width = 60; height = 10 } in
     assert (String.equal
@@ -173,7 +173,7 @@ let%test_unit "accept releases discovery and capture before once-only raw-path c
   let t = run t "<C-w>" |> fun t -> finish t 2 in
   let t = run t "<CR>" in
   assert (!released && Option.is_none (Ui_state.file_picker t));
-  assert (Ches_tile.View_id.equal (Ui_state.focused_view t ~width ~height) Ui_state.document_id);
+  assert (Cobalt_tile.View_id.equal (Ui_state.focused_view t ~width ~height) Ui_state.document_id);
   let t, intents = Ui_state.take_file_requests t in
   assert (List.length intents = 1);
   List.iter intents ~f:(fun intent ->
@@ -208,7 +208,7 @@ let%test_unit "focus return, one transient, fitting and undersized resize, inter
   let initial = run (Helpers.ui "untouched") " vo" in
   let t = open_picker initial (snapshot 3 [ "a"; "b" ]) |> fun t -> finish t 3 in
   let t = run t "<Esc>" in
-  assert (Ches_tile.View_id.equal (Ui_state.focused_view t ~width ~height) Problems_tile.id);
+  assert (Cobalt_tile.View_id.equal (Ui_state.focused_view t ~width ~height) Problems_tile.id);
   let t = open_picker t (snapshot 4 [ "a"; "b" ]) |> fun t -> finish t 4 in
   let t = run t "a" |> fun t -> finish t 4 in
   let selected = Model.selected (Interaction.model (session t)) in
@@ -265,16 +265,16 @@ let%test_unit "loading/error/truncation through frame; stale snapshots/work cann
 ;;
 
 let%test_unit "closed shared palette instance cannot donate a paste to its reopened instance" =
-  let module Host = Ches_tile.Host in
-  let host = Host.create ~leader:(Ches_input.Key.char ' ') ~primary:Ui_state.document_id
-    [ Ches_tile.Spec.primary Ui_state.document_id ~title:"Document"; Palette_tile.spec ] in
+  let module Host = Cobalt_tile.Host in
+  let host = Host.create ~leader:(Cobalt_input.Key.char ' ') ~primary:Ui_state.document_id
+    [ Cobalt_tile.Spec.primary Ui_state.document_id ~title:"Document"; Palette_tile.spec ] in
   let host = Host.focus host Palette_tile.id |> fun h -> Host.paste_start h ~available:(fun _ -> true) in
-  let host = Host.paste_key host (Ches_input.Key.char 'x') in
+  let host = Host.paste_key host (Cobalt_input.Key.char 'x') in
   let host = Host.invalidate_paste host Palette_tile.id |> Host.return in
   let host = Host.focus host Palette_tile.id in
   match Host.paste_end host with
   | _, `Reject (owner, text) ->
-    assert (Ches_tile.View_id.equal owner Palette_tile.id);
+    assert (Cobalt_tile.View_id.equal owner Palette_tile.id);
     assert (String.equal text "Commands closed; paste dropped")
   | _ -> failwith "old paste was delivered to a reopened view"
 ;;

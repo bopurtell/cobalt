@@ -1,16 +1,16 @@
-(* Commits (phase 5): the popup, the refusals, the message template and summary as pure
+(* Commits: the popup, the refusals, the message template and summary as pure
    functions; then prepare/prepared and the Finish_commit and Extend plans against real
    fixture repositories, with the message file written the way the view writes it (the
    user's text, then Commit.template). Commands print without Cli.prefix; paths under the
    fixture's temp directory print as $DIR. *)
 
 open! Core
-open Ches_vcs
-module Fixture = Ches_vcs_fixture.Fixture_repo
-module Git = Ches_vcs_git
-module B = Ches_vcs_git.Backend
-module Commit = Ches_vcs_git.Commit
-module Status = Ches_vcs_git.Status
+open Cobalt_vcs
+module Fixture = Cobalt_vcs_fixture.Fixture_repo
+module Git = Cobalt_vcs_git
+module B = Cobalt_vcs_git.Backend
+module Commit = Cobalt_vcs_git.Commit
+module Status = Cobalt_vcs_git.Status
 
 let relative (t : Fixture.t) text =
   String.substr_replace_all text ~pattern:t.dir ~with_:"$DIR"
@@ -383,7 +383,7 @@ let%expect_test "prepare and prepared, from canned reports" =
   print_endline "Amend:";
   steps Amend;
   let path =
-    Git.Cli.read ~cwd:"/r" [ "rev-parse"; "--git-path"; "CHES_COMMIT_EDITMSG" ]
+    Git.Cli.read ~cwd:"/r" [ "rev-parse"; "--git-path"; "COBALT_COMMIT_EDITMSG" ]
   in
   let log = Git.Cli.read ~cwd:"/r" [ "log"; "-1" ] in
   let show kind reports =
@@ -391,11 +391,11 @@ let%expect_test "prepare and prepared, from canned reports" =
       (fun prepared -> print_s [%sexp (prepared : Commit.Prepared.t)])
       (Commit.prepared repository kind reports)
   in
-  show Commit [ Show.ran path (Show.result ".git/CHES_COMMIT_EDITMSG\n") ];
-  show Commit [ Show.ran path (Show.result "/elsewhere/wt/CHES_COMMIT_EDITMSG\n") ];
+  show Commit [ Show.ran path (Show.result ".git/COBALT_COMMIT_EDITMSG\n") ];
+  show Commit [ Show.ran path (Show.result "/elsewhere/wt/COBALT_COMMIT_EDITMSG\n") ];
   show
     Amend
-    [ Show.ran path (Show.result ".git/CHES_COMMIT_EDITMSG\n")
+    [ Show.ran path (Show.result ".git/COBALT_COMMIT_EDITMSG\n")
     ; Show.ran log (Show.result "Subject\n\nBody\n\n")
     ];
   print_endline "-- failures";
@@ -407,7 +407,7 @@ let%expect_test "prepare and prepared, from canned reports" =
     ];
   show
     Amend
-    [ Show.ran path (Show.result ".git/CHES_COMMIT_EDITMSG\n")
+    [ Show.ran path (Show.result ".git/COBALT_COMMIT_EDITMSG\n")
     ; Show.ran
         log
         (Show.result ~status:(Exited 128) ~stderr:"fatal: bad revision 'HEAD'\n" "")
@@ -415,17 +415,17 @@ let%expect_test "prepare and prepared, from canned reports" =
   show Commit [ Show.ran path (Show.result "\n") ];
   show Commit [ Show.ran path (Show.result "a\nb\n") ];
   show Commit [];
-  show Amend [ Show.ran path (Show.result ".git/CHES_COMMIT_EDITMSG\n") ];
+  show Amend [ Show.ran path (Show.result ".git/COBALT_COMMIT_EDITMSG\n") ];
   [%expect
     {|
     Commit:
-      $ rev-parse --git-path CHES_COMMIT_EDITMSG (Read in /r)
+      $ rev-parse --git-path COBALT_COMMIT_EDITMSG (Read in /r)
     Amend:
-      $ rev-parse --git-path CHES_COMMIT_EDITMSG (Read in /r)
+      $ rev-parse --git-path COBALT_COMMIT_EDITMSG (Read in /r)
       $ log -1 --no-show-signature --format=%B HEAD -- (Read in /r)
-    ((message_file /r/.git/CHES_COMMIT_EDITMSG) (head_message ()))
-    ((message_file /elsewhere/wt/CHES_COMMIT_EDITMSG) (head_message ()))
-    ((message_file /r/.git/CHES_COMMIT_EDITMSG)
+    ((message_file /r/.git/COBALT_COMMIT_EDITMSG) (head_message ()))
+    ((message_file /elsewhere/wt/COBALT_COMMIT_EDITMSG) (head_message ()))
+    ((message_file /r/.git/COBALT_COMMIT_EDITMSG)
      (head_message ( "Subject\
                     \n\
                     \nBody\
@@ -433,13 +433,13 @@ let%expect_test "prepare and prepared, from canned reports" =
                     \n")))
     -- failures
     (Error
-     "git --no-pager -c color.ui=false -c core.quotepath=false rev-parse --git-path CHES_COMMIT_EDITMSG: exit 128: fatal: not a git repository")
+     "git --no-pager -c color.ui=false -c core.quotepath=false rev-parse --git-path COBALT_COMMIT_EDITMSG: exit 128: fatal: not a git repository")
     (Error
      "git --no-pager -c color.ui=false -c core.quotepath=false log -1: exit 128: fatal: bad revision 'HEAD'")
     (Error
-     "git --no-pager -c color.ui=false -c core.quotepath=false rev-parse --git-path CHES_COMMIT_EDITMSG: expected one path, got \"\\n\"")
+     "git --no-pager -c color.ui=false -c core.quotepath=false rev-parse --git-path COBALT_COMMIT_EDITMSG: expected one path, got \"\\n\"")
     (Error
-     "git --no-pager -c color.ui=false -c core.quotepath=false rev-parse --git-path CHES_COMMIT_EDITMSG: expected one path, got \"a\\nb\\n\"")
+     "git --no-pager -c color.ui=false -c core.quotepath=false rev-parse --git-path COBALT_COMMIT_EDITMSG: expected one path, got \"a\\nb\\n\"")
     (Error "commit preparation: expected 1 step reports, got 0")
     (Error "commit preparation: expected 2 step reports, got 1")
     |}]
@@ -455,7 +455,7 @@ let repository ?(cwd = fun (t : Fixture.t) -> t.work) t =
 ;;
 
 let snapshot ?cwd t =
-  let refresh = Ches_vcs.Backend.Refresh.default in
+  let refresh = Cobalt_vcs.Backend.Refresh.default in
   let repository = repository ?cwd t in
   ok_exn
     (B.snapshot repository refresh (Fixture.run_steps t (B.refresh repository refresh)))
@@ -471,7 +471,7 @@ let prepare ?cwd t kind =
          (Fixture.run_steps t (Commit.prepare s.repository kind))) )
 ;;
 
-let print_plan t (plan : Ches_vcs.Backend.Plan.t) =
+let print_plan t (plan : Cobalt_vcs.Backend.Plan.t) =
   printf
     "  plan %S%s\n"
     plan.title
@@ -558,9 +558,9 @@ let%expect_test "prepare in a fixture: the message file in the git dir; HEAD's m
            : Commit.Prepared.t)]);
   [%expect
     {|
-    ((message_file $DIR/work/.git/CHES_COMMIT_EDITMSG) (head_message ()))
-    ((message_file $DIR/work/.git/CHES_COMMIT_EDITMSG) (head_message ()))
-    ((message_file $DIR/work/.git/CHES_COMMIT_EDITMSG)
+    ((message_file $DIR/work/.git/COBALT_COMMIT_EDITMSG) (head_message ()))
+    ((message_file $DIR/work/.git/COBALT_COMMIT_EDITMSG) (head_message ()))
+    ((message_file $DIR/work/.git/COBALT_COMMIT_EDITMSG)
      (head_message ( "Subject\
                     \n\
                     \nBody\
@@ -570,7 +570,7 @@ let%expect_test "prepare in a fixture: the message file in the git dir; HEAD's m
                     \n")))
     -- from a linked worktree: git prints an absolute path
     ($DIR/work/.git/worktrees/linked
-     ((message_file $DIR/work/.git/worktrees/linked/CHES_COMMIT_EDITMSG)
+     ((message_file $DIR/work/.git/worktrees/linked/COBALT_COMMIT_EDITMSG)
       (head_message ( "Subject\
                      \n\
                      \nBody\
@@ -615,31 +615,31 @@ let%expect_test "commit: comments stripped, signoff, user commentChar, empty mes
     {|
     run
       plan "Commit"
-      $ -c 'core.commentChar=#' commit --cleanup=strip -F $DIR/work/.git/CHES_COMMIT_EDITMSG
-      ok: [main a3b3279] Add b
+      $ -c 'core.commentChar=#' commit --cleanup=strip -F $DIR/work/.git/COBALT_COMMIT_EDITMSG
+      ok: [main f6d3efb] Add b
       log |Add b
       log |
       log |With a body.
     -- --signoff adds the trailer
     run
       plan "Commit"
-      $ -c 'core.commentChar=#' commit --cleanup=strip --signoff -F $DIR/work/.git/CHES_COMMIT_EDITMSG
-      ok: [main f1aaebc] Add c
+      $ -c 'core.commentChar=#' commit --cleanup=strip --signoff -F $DIR/work/.git/COBALT_COMMIT_EDITMSG
+      ok: [main 189f45a] Add c
       log |Add c
       log |
-      log |Signed-off-by: Ches Test <ches-test@example.invalid>
+      log |Signed-off-by: Cobalt Test <cobalt-test@example.invalid>
     -- core.commentChar=; in the repository: '#' lines still stripped
     run
       plan "Commit"
-      $ -c 'core.commentChar=#' commit --cleanup=strip -F $DIR/work/.git/CHES_COMMIT_EDITMSG
-      ok: [main 5e0f774] Add d
+      $ -c 'core.commentChar=#' commit --cleanup=strip -F $DIR/work/.git/COBALT_COMMIT_EDITMSG
+      ok: [main ce21e48] Add d
       log |Add d
       log |
       log |; kept: not a comment for this commit
     -- an empty message fails with git's stderr
     run
       plan "Commit"
-      $ -c 'core.commentChar=#' commit --cleanup=strip -F $DIR/work/.git/CHES_COMMIT_EDITMSG
+      $ -c 'core.commentChar=#' commit --cleanup=strip -F $DIR/work/.git/COBALT_COMMIT_EDITMSG
       failed: exit 1: Aborting commit due to empty commit message.
       log |Add d
       log |
@@ -647,8 +647,8 @@ let%expect_test "commit: comments stripped, signoff, user commentChar, empty mes
     -- --allow-empty with nothing staged
     run
       plan "Commit"
-      $ -c 'core.commentChar=#' commit --cleanup=strip --allow-empty -F $DIR/work/.git/CHES_COMMIT_EDITMSG
-      ok: [main eda817f] Nothing changed
+      $ -c 'core.commentChar=#' commit --cleanup=strip --allow-empty -F $DIR/work/.git/COBALT_COMMIT_EDITMSG
+      ok: [main 5890f16] Nothing changed
       log |Nothing changed
     -- nothing staged, through plan
     refused: Nothing staged; stage changes first (s), or allow an empty commit (-e); nothing ran
@@ -674,13 +674,13 @@ let%expect_test "hooks: a failing pre-commit fails the commit; --no-verify bypas
     {|
     run
       plan "Commit"
-      $ -c 'core.commentChar=#' commit --cleanup=strip -F $DIR/work/.git/CHES_COMMIT_EDITMSG
+      $ -c 'core.commentChar=#' commit --cleanup=strip -F $DIR/work/.git/COBALT_COMMIT_EDITMSG
       failed: exit 1: pre-commit: rejected
       log |base
     run
       plan "Commit"
-      $ -c 'core.commentChar=#' commit --cleanup=strip --no-verify -F $DIR/work/.git/CHES_COMMIT_EDITMSG
-      ok: [main 83a7657] Add b
+      $ -c 'core.commentChar=#' commit --cleanup=strip --no-verify -F $DIR/work/.git/COBALT_COMMIT_EDITMSG
+      ok: [main 5a881f1] Add b
       log |Add b
     |}]
 ;;
@@ -729,8 +729,8 @@ let%expect_test "amend and extend" =
     -- amend with nothing staged rewords HEAD (its message pre-filled)
     run
       plan "Amend HEAD"
-      $ -c 'core.commentChar=#' commit --cleanup=strip --amend -F $DIR/work/.git/CHES_COMMIT_EDITMSG
-      ok: [main acbe5a4] Add b
+      $ -c 'core.commentChar=#' commit --cleanup=strip --amend -F $DIR/work/.git/COBALT_COMMIT_EDITMSG
+      ok: [main 74dfe36] Add b
       log |Add b
       log |
       log |New body.
@@ -738,20 +738,20 @@ let%expect_test "amend and extend" =
     -- amend with a staged change and --signoff
     run
       plan "Amend HEAD"
-      $ -c 'core.commentChar=#' commit --cleanup=strip --amend --signoff -F $DIR/work/.git/CHES_COMMIT_EDITMSG
-      ok: [main d03ff49] Add b and c
+      $ -c 'core.commentChar=#' commit --cleanup=strip --amend --signoff -F $DIR/work/.git/COBALT_COMMIT_EDITMSG
+      ok: [main 75e7c7b] Add b and c
       log |Add b and c
       log |
-      log |Signed-off-by: Ches Test <ches-test@example.invalid>
+      log |Signed-off-by: Cobalt Test <cobalt-test@example.invalid>
     "a.txt\n"
     -- extend: the staged change joins HEAD, the message stays
     run
       plan "Extend HEAD"
       $ commit --amend --no-edit --no-verify --allow-empty
-      ok: [main e85e878] Add b and c
+      ok: [main df5bd7b] Add b and c
       log |Add b and c
       log |
-      log |Signed-off-by: Ches Test <ches-test@example.invalid>
+      log |Signed-off-by: Cobalt Test <cobalt-test@example.invalid>
      "a.txt\
     \nz.txt\
     \n"
@@ -793,8 +793,8 @@ let%expect_test "refusals through plan: unborn amend and extend, conflicted file
     -- the first commit on an unborn branch
     run
       plan "Commit"
-      $ -c 'core.commentChar=#' commit --cleanup=strip -F $DIR/work/.git/CHES_COMMIT_EDITMSG
-      ok: [main (root-commit) 0e161fa] First
+      $ -c 'core.commentChar=#' commit --cleanup=strip -F $DIR/work/.git/COBALT_COMMIT_EDITMSG
+      ok: [main (root-commit) a170abf] First
       log |First
     -- conflicted
     refused: Resolve the conflicted files first (s marks one resolved); nothing ran

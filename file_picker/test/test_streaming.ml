@@ -1,5 +1,5 @@
 open! Core
-open Ches_file_picker
+open Cobalt_file_picker
 module I = Interaction
 module D = Model.Discovery
 let candidate path = Model.Candidate.create ~root:"/project" ~relative_path:path |> Or_error.ok_exn

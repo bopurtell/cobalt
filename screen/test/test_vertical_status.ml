@@ -1,5 +1,5 @@
 open! Core
-open Ches_screen
+open Cobalt_screen
 open Helpers
 
 let field ?(priority = 99) ?(style = Style.Status) id text : Status_field.t =

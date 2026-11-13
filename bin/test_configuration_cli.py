@@ -16,9 +16,9 @@ import time
 
 
 binary = str(Path(sys.argv[1]).resolve())
-with tempfile.TemporaryDirectory(prefix="ches-config-cli-") as directory:
+with tempfile.TemporaryDirectory(prefix="cobalt-config-cli-") as directory:
     root = Path(directory)
-    config_dir = root / "ches"
+    config_dir = root / "cobalt"
     config_dir.mkdir()
     config = config_dir / "config.ml"
     marker = root / "loaded"
@@ -27,7 +27,7 @@ with tempfile.TemporaryDirectory(prefix="ches-config-cli-") as directory:
     document.write_bytes(original)
     env = dict(os.environ, XDG_CONFIG_HOME=str(root), HOME=str(root),
                TERM="xterm-256color", COLORTERM="truecolor", LC_ALL="C.UTF-8")
-    source = ("open Ches_config\nlet () =\n"
+    source = ("open Cobalt_config\nlet () =\n"
               f"  let out = open_out {json.dumps(str(marker))} in\n"
               "  output_string out \"loaded\"; close_out out;\n"
               '  Theme.set "glacier"\n')

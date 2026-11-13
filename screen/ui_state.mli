@@ -1,9 +1,9 @@
 (** All UI-side state, and the transition for one input. No Bonsai types appear here, so
     tests drive it headlessly, exactly as the terminal frontend does.
 
-    The model owns a {!Ches_app.Session.t}, with a cached active controller for presentation,
+    The model owns a {!Cobalt_app.Session.t}, with a cached active controller for presentation,
     per-buffer scroll positions, the layout
-    preferences, the scroll position, the shared {!Ches_tile.Host} (focus, capture, and a
+    preferences, the scroll position, the shared {!Cobalt_tile.Host} (focus, capture, and a
     bracketed paste's owner), and the minor views' adapter states. Workspace requests and
     zen suppression are UI state, not editor state. This module is application assembly:
     it installs the problems adapter ({!Problems_tile}), the static demo report
@@ -14,13 +14,13 @@
 
 open! Core
 type word_index_request =
-  { owner : Ches_app.Buffer_id.t option
-  ; document : Ches_app.Controller.Document_id.t
-  ; text : Ches_core.Text_buffer.t
-  ; request : Ches_completion.Model.Request.t
-  ; before : Ches_completion.Model.Buffer_words.t option
+  { owner : Cobalt_app.Buffer_id.t option
+  ; document : Cobalt_app.Controller.Document_id.t
+  ; text : Cobalt_core.Text_buffer.t
+  ; request : Cobalt_completion.Model.Request.t
+  ; before : Cobalt_completion.Model.Buffer_words.t option
   }
-open Ches_input
+open Cobalt_input
 
 module Message : sig
   type kind =
@@ -44,11 +44,11 @@ module Input : sig
     (** Event-time stamped editor key; [Key] uses [Time_ns.now ()]. *)
     | Toggle_tick of Time_ns.t
     (** Flush a timed Insert terminal-toggle prefix after 200ms of inactivity. *)
-    | Terminal of Ches_terminal.Model.event
-    | Terminal_update of { generation : int; event : Ches_terminal.Model.event }
-    | Terminal_session_update of { terminal : int; generation : int; event : Ches_terminal.Model.event }
-    | Terminal_key of Ches_terminal.Model.key
-    | Terminal_key_at of { key : Ches_terminal.Model.key; at : Time_ns.t }
+    | Terminal of Cobalt_terminal.Model.event
+    | Terminal_update of { generation : int; event : Cobalt_terminal.Model.event }
+    | Terminal_session_update of { terminal : int; generation : int; event : Cobalt_terminal.Model.event }
+    | Terminal_key of Cobalt_terminal.Model.key
+    | Terminal_key_at of { key : Cobalt_terminal.Model.key; at : Time_ns.t }
     (** Event-time stamped key; the unstamped form uses [Time_ns.now ()]. *)
     | Terminal_tick of Time_ns.t
     (** Full input-effect turn: flush a deferred Insert j after 150ms, independently
@@ -58,21 +58,21 @@ module Input : sig
     | Animation_tick of Time_ns.t
      (** A timestamped frontend animation-clock pulse; never reaches the editor. *)
     | Resize (** Reconcile allocation/focus without interpreting editor input. *)
-    | Source of Ches_error.Source_event.t
+    | Source of Cobalt_error.Source_event.t
      (** A diagnostic source's message, stamped with its owning buffer's revision.
         Diagnostic lists that arrive during Insert are held (newest per source and
         resource) until Insert ends; started/stopped apply at once. Never reaches the
         editor. *)
-    | File_picker_snapshot of Ches_file_picker.Model.Discovery.t
-    | File_picker_update of Ches_file_picker.Model.Discovery.Update.t
-    | File_preview of Ches_file_preview_model.Model.snapshot
-    | File_picker_work of Ches_file_picker.Model.Discovery.request
-    | File_picker_accept of Ches_tile.View_id.t Ches_file_picker.Model.Request.t
-    | Content_picker_accept of (Ches_tile.View_id.t Ches_content_picker.Model.intent [@sexp.opaque])
+    | File_picker_snapshot of Cobalt_file_picker.Model.Discovery.t
+    | File_picker_update of Cobalt_file_picker.Model.Discovery.Update.t
+    | File_preview of Cobalt_file_preview_model.Model.snapshot
+    | File_picker_work of Cobalt_file_picker.Model.Discovery.request
+    | File_picker_accept of Cobalt_tile.View_id.t Cobalt_file_picker.Model.Request.t
+    | Content_picker_accept of (Cobalt_tile.View_id.t Cobalt_content_picker.Model.intent [@sexp.opaque])
        (** One bounded ranking turn, rejected if its run/root no longer matches. *)
     | Line_picker_work of int (** Bounded turn, rejected after close/reopen. *)
-    | Content_picker_snapshot of (Ches_content_picker.Model.snapshot [@sexp.opaque])
-    | Vcs of Ches_vcs.Event.t
+    | Content_picker_snapshot of (Cobalt_content_picker.Model.snapshot [@sexp.opaque])
+    | Vcs of Cobalt_vcs.Event.t
     (** A runner's event for a job a registered view submitted ({!take_vcs_jobs}):
         delivered to that view as {!View_registry.Signal.t.Job}, focused or not, and
         dropped when no view owns the job (unknown, or after its [Finished]).
@@ -86,31 +86,31 @@ type t
     uses normal buffer ownership and never creates the file or parent directories. *)
 val with_configuration_path : t -> (string, string) Result.t -> t
 val take_word_index_request : t -> t * word_index_request option
-val receive_word_index : t -> word_index_request -> Ches_completion.Model.Buffer_words.t -> t
+val receive_word_index : t -> word_index_request -> Cobalt_completion.Model.Buffer_words.t -> t
 
 (** Pure atomic application; validates the snapshot/theme before any changes.
     [theme_override] persists across reloads. Explicit [create ~theme] is also
     retained. Creation does not request configuration loading; see CONFIGURATION.md. *)
 val apply_configuration
-  : ?theme_override:Ches_theme.Theme.t
-  -> t -> Ches_config_runtime.Settings.t -> (t, string) Result.t
+  : ?theme_override:Cobalt_theme.Theme.t
+  -> t -> Cobalt_config_runtime.Settings.t -> (t, string) Result.t
 val take_config_reload_requests : t -> t * int list
 val receive_configuration
-  : t -> generation:int -> (Ches_config_runtime.Settings.t, string) Result.t -> t
+  : t -> generation:int -> (Cobalt_config_runtime.Settings.t, string) Result.t -> t
 
 (** Automatic suggestions are enabled initially; ghost preview is independent and
     initially disabled. Candidate edits are installed only by acceptance keys. *)
 val completion_enabled : t -> bool
 val completion_ghost_enabled : t -> bool
-val completion_candidates : t -> Ches_completion.Model.Candidate.t list
+val completion_candidates : t -> Cobalt_completion.Model.Candidate.t list
 (** Original typed prefix, including while Tab cycling; empty without a live session. *)
 val completion_prefix : t -> string
-val completion_selected : t -> Ches_completion.Model.Candidate.t option
-val completion_info : t -> Ches_error.Completion_info.t option
-val completion_ghost : t -> Ches_completion.Model.ghost option
+val completion_selected : t -> Cobalt_completion.Model.Candidate.t option
+val completion_info : t -> Cobalt_error.Completion_info.t option
+val completion_ghost : t -> Cobalt_completion.Model.ghost option
 
 (** Absolute byte ranges of the active field, including linked occurrences. *)
-val snippet_ranges : t -> Ches_completion.Snippet.range list
+val snippet_ranges : t -> Cobalt_completion.Snippet.range list
 val snippet_choices : t -> string list option
 
 (** Pure asynchronous catalog boundary. Creation queues generation 1; draining
@@ -118,7 +118,7 @@ val snippet_choices : t -> string list option
     snippets or report feedback. The UI worker owns all disk access; see
     USER_SNIPPETS.md. Missing files should return [Ok User_snippets.builtins]. *)
 val take_snippet_reload_requests : t -> t * int list
-val receive_snippets : t -> generation:int -> (Ches_completion.User_snippets.t, string) Result.t -> t
+val receive_snippets : t -> generation:int -> (Cobalt_completion.User_snippets.t, string) Result.t -> t
 
 (** Numbered persistent shells share one transient float. The selected ID defaults
     to 1; [Space /] toggles it. [N Space /] selects N, opening it when hidden or
@@ -146,15 +146,15 @@ val toggle_key_pending : t -> bool
     Insert recognizes optional positive ASCII digits followed by Space /, with
     each gap strictly less than 200ms. At 200ms the prefix is literal. Paste
     bypasses recognition. Ownership loss safely cancels the bounded prefix. *)
-val take_terminal_requests : t -> t * Ches_terminal.Model.request list
+val take_terminal_requests : t -> t * Cobalt_terminal.Model.request list
 (** Legacy drain with session IDs discarded; single-session callers only. *)
-val take_terminal_session_requests : t -> t * (int * Ches_terminal.Model.request) list
+val take_terminal_session_requests : t -> t * (int * Cobalt_terminal.Model.request) list
 (** Requests carry the session that owned them when enqueued, in enqueue order. *)
 val terminal_number : t -> int
 val terminal_numbers : t -> int list
 (** Sorted cached session IDs, including the selected session (initially 1). *)
 val terminal_visible : t -> bool
-val terminal_snapshot : t -> Ches_terminal.Model.snapshot option
+val terminal_snapshot : t -> Cobalt_terminal.Model.snapshot option
 (** Latest backend screen, even while inspection is frozen. *)
 val terminal_inspection : t -> Terminal_tile.inspection option
 (** [None] is Insert: all shell keys, including Escape and Ctrl-backslash, pass
@@ -174,7 +174,7 @@ val terminal_layout : t -> width:int -> height:int -> Tile_shell.Layout.t option
 (** The global effective appearance: live preview while the theme picker is open,
     otherwise the committed base choice, with configured completion colors applied.
     Independent of presentation and file buffers; never mutates registered themes. *)
-val theme : t -> Ches_theme.Theme.t
+val theme : t -> Cobalt_theme.Theme.t
 val theme_picker : t -> Theme_picker_tile.t option
 val theme_picker_layout : t -> width:int -> height:int -> Tile_shell.Layout.t option
 (** Explicit snippet discovery over a captured catalog and editor snapshot. *)
@@ -184,20 +184,20 @@ val snippet_picker_layout : t -> width:int -> height:int -> Tile_shell.Layout.t 
 val hover : t -> Hover_tile.t option
 val waveform : t -> Waveform_tile.t option
 val waveform_layout : t -> width:int -> height:int -> Tile_shell.Layout.t option
-val take_harness_requests : t -> t * Ches_harness.Protocol.work list
+val take_harness_requests : t -> t * Cobalt_harness.Protocol.work list
 val receive_harness
   : t -> width:int -> height:int -> request:string
-  -> (Ches_harness.Protocol.reply * (Ches_harness.Vcd.t, string) Result.t option, string) Result.t
+  -> (Cobalt_harness.Protocol.reply * (Cobalt_harness.Vcd.t, string) Result.t option, string) Result.t
   -> t
 val signature_help : t -> Signature_overlay.t option
 val signature_help_enabled : t -> bool
 val destinations : t -> Destination_picker_tile.t option
-val navigation_preview_request : t -> Ches_navigation_preview_model.Model.request option
+val navigation_preview_request : t -> Cobalt_navigation_preview_model.Model.request option
 (** Bounded current retained-buffer extraction, without activation or disk I/O.
     Call against the current installed state after debounce. *)
 val navigation_preview_buffer
-  : t -> Ches_navigation_preview_model.Model.request -> Ches_navigation_preview_model.Model.state option
-val receive_navigation_preview : t -> Ches_navigation_preview_model.Model.snapshot -> t
+  : t -> Cobalt_navigation_preview_model.Model.request -> Cobalt_navigation_preview_model.Model.state option
+val receive_navigation_preview : t -> Cobalt_navigation_preview_model.Model.snapshot -> t
 val instances : t -> Instance_picker_tile.t option
 val active_instance_label : t -> string option
 val hover_layout : t -> width:int -> height:int -> Tile_shell.Layout.t option
@@ -206,7 +206,7 @@ val instances_layout : t -> width:int -> height:int -> Tile_shell.Layout.t optio
 val file_picker_visible_stamp : t -> (int * int * int) option
 
 val create
-  :  ?theme:Ches_theme.Theme.t
+  :  ?theme:Cobalt_theme.Theme.t
   -> ?prefs:Geometry.Prefs.t
   -> ?bare_prefs:Presentation.Bare_prefs.t
        (** Independent Bare profile; default numbers [Off]. May be supplied even
@@ -219,7 +219,7 @@ val create
   -> ?hotkey_hints:bool (** Tile key hints; default [false]. *)
   -> ?buffer_presentation:View_command.Buffer_presentation.t
         (** Default [Top]; [Status_rows] uses passive status rows when available. *)
-  -> ?directory_config:Ches_app.Directory_buffer.Config.t
+  -> ?directory_config:Cobalt_app.Directory_buffer.Config.t
        (** Protected hidden row identities by default; [Exposed] uses legacy tokens. *)
   -> ?smear_enabled:bool
   -> ?bare:bool (** Start borderless, with only transient bottom-row feedback. *)
@@ -236,31 +236,31 @@ val create
            (inactive until activated); one installed [Split] is the split view.
            Focusing or toggling a hidden view shows it where it [opens_in]
            ({!View_registry.Entry.install}). *)
-  -> Ches_app.Controller.t
+  -> Cobalt_app.Controller.t
   -> t
 
 (** The primary (editor) view and the non-focusable status view. *)
-val document_id : Ches_tile.View_id.t
-val directory_id : Ches_tile.View_id.t
+val document_id : Cobalt_tile.View_id.t
+val directory_id : Cobalt_tile.View_id.t
 val side_layout : t -> width:int -> height:int -> Tile_shell.Layout.t option
 (** Rendering-only snapshot of a retained surface; never adopt or dispatch it. *)
 val surface : t -> directory:bool -> t
 
-val status_id : Ches_tile.View_id.t
+val status_id : Cobalt_tile.View_id.t
 
 (** Active file or directory presentation snapshot. Last-file close normally shows
     the remembered/startup directory. If fallback loading failed, check [has_document]
     before dispatch/rendering; use [session] for ownership. *)
-val controller : t -> Ches_app.Controller.t
-val session : t -> Ches_app.Session.t
+val controller : t -> Cobalt_app.Controller.t
+val session : t -> Cobalt_app.Session.t
 val show_directory : ?select:string -> t -> width:int -> height:int -> string -> t Or_error.t
 val has_document : t -> bool
-val open_file : t -> width:int -> height:int -> string -> (t * Ches_app.Buffer_id.t) Or_error.t
-val activate_buffer : t -> width:int -> height:int -> Ches_app.Buffer_id.t -> t Or_error.t
+val open_file : t -> width:int -> height:int -> string -> (t * Cobalt_app.Buffer_id.t) Or_error.t
+val activate_buffer : t -> width:int -> height:int -> Cobalt_app.Buffer_id.t -> t Or_error.t
 val close_current : t -> width:int -> height:int -> force:bool -> t * bool
-val close_buffer : t -> width:int -> height:int -> Ches_app.Buffer_id.t -> force:bool -> t * bool
-val save_all : t -> width:int -> height:int -> t * (Ches_app.Buffer_id.t * bool) list
-val quit_session : t -> width:int -> height:int -> force:bool -> t * Ches_app.Controller.Status.t
+val close_buffer : t -> width:int -> height:int -> Cobalt_app.Buffer_id.t -> force:bool -> t * bool
+val save_all : t -> width:int -> height:int -> t * (Cobalt_app.Buffer_id.t * bool) list
+val quit_session : t -> width:int -> height:int -> force:bool -> t * Cobalt_app.Controller.Status.t
 val prefs : t -> Geometry.Prefs.t
 (** Bare-only number preferences. Number toggles and reset in Bare update this
     profile; other layout controls still update the saved workspace preferences. *)
@@ -282,14 +282,14 @@ val views : t -> View_registry.t
 
 (** Whether a registered view is placed (requested), even if zen or a small screen
     leaves it without an allocation, or it is an inactive tab. *)
-val view_visible : t -> Ches_tile.View_id.t -> bool
+val view_visible : t -> Cobalt_tile.View_id.t -> bool
 
 (** A view's title (its spec's), for notices. *)
-val view_title : t -> Ches_tile.View_id.t -> string
+val view_title : t -> Cobalt_tile.View_id.t -> string
 
 (** A view tab's label in the strip and status: its adapter's
     {!View_registry.Adapter.t.label} in its current state, else its title. *)
-val tab_label : t -> Ches_tile.View_id.t -> string
+val tab_label : t -> Cobalt_tile.View_id.t -> string
 
 (** The tab strip: the session's file tabs and the views placed [Tab], in order. *)
 val tab_entries : t -> Tab_strip.Entry.t list
@@ -301,7 +301,7 @@ val tab_items : t -> Tab_strip.Item.t list
 
 (** The active view tab, which fills the editor area instead of the active file tab
     (or a major directory) until a file is shown again. *)
-val active_tab_view : t -> Ches_tile.View_id.t option
+val active_tab_view : t -> Cobalt_tile.View_id.t option
 
 (** The requested side and share of the major split's view. *)
 val split : t -> Workspace.Major_split.t
@@ -355,15 +355,15 @@ val popup_layout : t -> width:int -> height:int -> Tile_shell.Layout.t option
     cancel discovery once. Returning restores the prior available capture. *)
 val open_file_picker
   : t -> width:int -> height:int
-  -> discovery:Ches_file_picker.Model.Discovery.t
+  -> discovery:Cobalt_file_picker.Model.Discovery.t
   -> release:(unit -> unit) -> t
 val can_open_file_picker : t -> width:int -> height:int -> bool
-val file_picker : t -> Ches_tile.View_id.t File_picker_tile.t option
+val file_picker : t -> Cobalt_tile.View_id.t File_picker_tile.t option
 val open_content_picker : t -> width:int -> height:int
-  -> snapshot:Ches_content_picker.Model.snapshot -> release:(unit -> unit) -> t
-val content_picker : t -> Ches_tile.View_id.t Content_picker_tile.t option
+  -> snapshot:Cobalt_content_picker.Model.snapshot -> release:(unit -> unit) -> t
+val content_picker : t -> Cobalt_tile.View_id.t Content_picker_tile.t option
 val content_picker_layout : t -> width:int -> height:int -> Tile_shell.Layout.t option
-val take_content_requests : t -> t * Ches_tile.View_id.t Ches_content_picker.Model.intent list
+val take_content_requests : t -> t * Cobalt_tile.View_id.t Cobalt_content_picker.Model.intent list
 val file_picker_layout : t -> width:int -> height:int -> Tile_shell.Layout.t option
 val open_line_picker : t -> width:int -> height:int -> t
 val line_picker : t -> Line_picker_tile.t option
@@ -371,7 +371,7 @@ val line_picker_generation : t -> int
 val line_picker_layout : t -> width:int -> height:int -> Tile_shell.Layout.t option
 (** Take after installing the returned UI state, then deliver to an injected
     consumer. Capture/discovery are already released; intents are not retried. *)
-val take_file_requests : t -> t * Ches_tile.View_id.t Ches_file_picker.Model.Request.t list
+val take_file_requests : t -> t * Cobalt_tile.View_id.t Cobalt_file_picker.Model.Request.t list
 val take_file_picker_activation : t -> t * bool
 val take_content_picker_activation : t -> t * bool
 val with_notice : ?source:string -> t -> string -> t
@@ -383,33 +383,33 @@ val palette_layout : t -> width:int -> height:int -> Tile_shell.Layout.t option
 (** The effective focus: a supporting view only while its layout is available.
     [floating] has the same overriding semantics as {!view_layout}. *)
 val focused_view
-  :  ?floating:(Ches_tile.View_id.t * Tile_shell.Layout.t option)
+  :  ?floating:(Cobalt_tile.View_id.t * Tile_shell.Layout.t option)
   -> t
   -> width:int
   -> height:int
-  -> Ches_tile.View_id.t
+  -> Cobalt_tile.View_id.t
 
 (** The view supplying the terminal cursor, if any: the document when focused. *)
 val cursor_owner
-  :  ?floating:(Ches_tile.View_id.t * Tile_shell.Layout.t option)
+  :  ?floating:(Cobalt_tile.View_id.t * Tile_shell.Layout.t option)
   -> t
   -> width:int
   -> height:int
-  -> Ches_tile.View_id.t option
+  -> Cobalt_tile.View_id.t option
 
 val problems_focused : t -> width:int -> height:int -> bool
 
 (** The terminal cell and shape of the focused minor view's cursor, when that view owns
-    the cursor and its adapter's {!Ches_tile.Cursor} intent lies in its content: a block
-    on the text cursor of open read-only text ({!Ches_tile.Text_view}). [None] while the
+    the cursor and its adapter's {!Cobalt_tile.Cursor} intent lies in its content: a block
+    on the text cursor of open read-only text ({!Cobalt_tile.Text_view}). [None] while the
     document owns the cursor, in a list, for views without text, or for an intent
     outside the content. Exactly one view owns the terminal cursor at a time. *)
 val minor_cursor
-  :  ?floating:(Ches_tile.View_id.t * Tile_shell.Layout.t option)
+  :  ?floating:(Cobalt_tile.View_id.t * Tile_shell.Layout.t option)
   -> t
   -> width:int
   -> height:int
-  -> (int * int * Ches_tile.Cursor.Shape.t) option
+  -> (int * int * Cobalt_tile.Cursor.Shape.t) option
 
 (** The shared shell layout of an allocated minor view. Rendering and the view's
     content viewport (selection rows, scroll range, detail wrapping) both use it. *)
@@ -417,7 +417,7 @@ val minor_layout
   :  t
   -> width:int
   -> height:int
-  -> Ches_tile.View_id.t
+  -> Cobalt_tile.View_id.t
   -> Tile_shell.Layout.t option
 
 (** Resolve a supporting view's shared shell in either layer. [floating] names
@@ -427,28 +427,28 @@ val minor_layout
     {!geometry}, rather than a supporting shell, and returns [None]. This query
     does not change workspace allocation or state. *)
 val view_layout
-  :  ?floating:(Ches_tile.View_id.t * Tile_shell.Layout.t option)
+  :  ?floating:(Cobalt_tile.View_id.t * Tile_shell.Layout.t option)
   -> t
   -> width:int
   -> height:int
-  -> Ches_tile.View_id.t
+  -> Cobalt_tile.View_id.t
   -> Tile_shell.Layout.t option
 
-(** Availability for {!Ches_tile.Host.focused}, [cursor_owner], and [reconcile].
+(** Availability for {!Cobalt_tile.Host.focused}, [cursor_owner], and [reconcile].
     The document is always available; supporting views use {!view_layout}. *)
 val view_available
-  :  ?floating:(Ches_tile.View_id.t * Tile_shell.Layout.t option)
+  :  ?floating:(Cobalt_tile.View_id.t * Tile_shell.Layout.t option)
   -> t
   -> width:int
   -> height:int
-  -> Ches_tile.View_id.t
+  -> Cobalt_tile.View_id.t
   -> bool
 
 val problem_navigation
   :  t
   -> width:int
   -> height:int
-  -> Problems.Key.t Ches_tile.Navigation.Selection.t
+  -> Problems.Key.t Cobalt_tile.Navigation.Selection.t
 
 val selected_problem : t -> width:int -> height:int -> Problems.Row.t option
 val problem_details : t -> bool
@@ -461,7 +461,7 @@ val capture_pending : t -> string option
 
 (** Shared feedback update with selection reconciliation. No editor input or IO. *)
 val update_feedback
-  : t -> width:int -> height:int -> Ches_error.Error.update -> t
+  : t -> width:int -> height:int -> Cobalt_error.Error.update -> t
 
 (** Effective workspace allocation. Zen and Bare suppress status without changing requested
     visibility/placement/sizes. Width and height requests are remembered separately.
@@ -487,7 +487,7 @@ val take_clipboard : t -> t * string option
     [Space v R]/[Space v K] requests in the order given. Empty unless
     [source_attached]. Paths changed by directory saves are dropped, never sent. The
     synchronous side never waits for the source. *)
-val take_source_requests : t -> t * Ches_error.Source_request.t list
+val take_source_requests : t -> t * Cobalt_error.Source_request.t list
 
 (** The jobs registered views submitted ({!View_registry.Outcome.t.jobs}) since the
     last take, in submission order, for the frontend's runner. Take after installing
@@ -501,11 +501,11 @@ val take_source_requests : t -> t * Ches_error.Source_request.t list
     adapter may turn into actions: [Shown] after the input that gave it a placement
     (from [Hidden], or the first input for a view installed placed); [Saved] after an
     input that saved files or directory edits, with the saved files' paths, then the
-    paths the directory saves changed ({!Ches_app.Session.directory_changes}) (every
+    paths the directory saves changed ({!Cobalt_app.Session.directory_changes}) (every
     view, placed or hidden; saves made by {!save_all} or {!quit_session} count at the
     next input); and [Job] for its jobs' events. A signalled action never moves
     focus; see {!View_registry.Signal} for how its outcome applies. *)
-val take_vcs_jobs : t -> t * Ches_vcs.Job.t list
+val take_vcs_jobs : t -> t * Cobalt_vcs.Job.t list
 
 (** Whether an input has returned [Exit]. From then on, {!apply} ignores its input and
     returns [Exit] again, so keys that arrive before the frontend has shut down (say,
@@ -530,7 +530,7 @@ val cursor_position : t -> width:int -> height:int -> (int * int) option
     {2 Minor view capture}
 
     Routing for a focused registered view is {!View_registry.key}, through
-    {!Ches_tile.Host.key}; the focused view's adapter performs its content actions. The problems bindings below are the
+    {!Cobalt_tile.Host.key}; the focused view's adapter performs its content actions. The problems bindings below are the
     problems adapter's; the demo report ([Space v d] shows/hides, [Space v D]
     focuses/returns) uses the same host with [j/k], [gg/G], [Ctrl-d/u], and [e]/Enter
     for details. So does the notification history ([Space v m] shows/hides,
@@ -626,11 +626,11 @@ val cursor_position : t -> width:int -> height:int -> (int * int) option
     {2 Read-only text in minor views}
 
     Open details (problems, the demo report, and history) are read-only text
-    ({!Ches_tile.Text_view}): a text cursor, which is then the terminal cursor (see
+    ({!Cobalt_tile.Text_view}): a text cursor, which is then the terminal cursor (see
     {!minor_cursor}), movement, [v]/[V] Visual selection, and [y]/[yy]/[Y] copies; in a
     list, [yy]/[Y] copy the selected item's whole text. Escape ends Visual before it
     closes details. A copy goes to the editor's unnamed register and the system
-    clipboard ({!Ches_app.Controller.yank}, then {!take_clipboard}) and shows
+    clipboard ({!Cobalt_app.Controller.yank}, then {!take_clipboard}) and shows
     [Copied ...] in the view's footer; it runs no editor command and never inspects,
     acknowledges, or jumps. Edit keys give [<Title>: read-only; edits unavailable].
     When a problem's text changes while its details are open, the view takes the new
@@ -642,7 +642,7 @@ val cursor_position : t -> width:int -> height:int -> (int * int) option
     The first visible line stays within the document, so [Line_down] ([Ctrl-e]) can scroll
     until the last line is at the top. When a scroll would take the cursor line out of
     view, the cursor is moved to the nearest visible line with a counted [Up]/[Down]
-    through {!Ches_app.Controller.move}, keeping its preferred column. This is the one
+    through {!Cobalt_app.Controller.move}, keeping its preferred column. This is the one
     view command that touches the editor: it moves the cursor only, never text, history,
     or dirty state.
 
@@ -675,7 +675,7 @@ val cursor_position : t -> width:int -> height:int -> (int * int) option
     A tick at new dimensions still reconciles and fits the workspace.
     The scroll is then fitted to keep the cursor visible (see {!fitted_scroll}). Once an
     input returns [Exit], no later input is applied (see {!exited}). *)
-val apply : t -> width:int -> height:int -> Input.t -> t * Ches_app.Controller.Status.t
+val apply : t -> width:int -> height:int -> Input.t -> t * Cobalt_app.Controller.Status.t
 
 (** The requested preferences after a view command; [Scroll] leaves them unchanged.
     [Shift] and [Adjust_width] also select centered mode, so their effect is visible. The
@@ -698,7 +698,7 @@ val apply_all
   -> width:int
   -> height:int
   -> Input.t list
-  -> t * Ches_app.Controller.Status.t
+  -> t * Cobalt_app.Controller.Status.t
 
 (** Document geometry within the effective workspace on a [width] x [height] screen. *)
 val geometry : t -> width:int -> height:int -> Geometry.t

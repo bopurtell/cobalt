@@ -6,8 +6,8 @@ From the repository root, in the intended opam switch:
 python3 scripts/package_release.py --version snapshot -j 6
 python3 scripts/package_release.py --version snapshot --strip -j 6
 python3 -m unittest discover -s packaging/tests -v
-CHES_PACKAGE_INTEGRATION=1 python3 -m unittest discover -s packaging/tests -v
-python3 packaging/smoke.py /path/to/ches-VERSION-linux-ARCH.tar.gz
+COBALT_PACKAGE_INTEGRATION=1 python3 -m unittest discover -s packaging/tests -v
+python3 packaging/smoke.py /path/to/cobalt-VERSION-linux-ARCH.tar.gz
 ```
 
 Pass one binary tarball path to the smoke test. `--version` is required; `snapshot`
@@ -17,7 +17,7 @@ archive epoch. Explicit release versions are filename-safe, not inferred release
 The manifest records HEAD, dirty state, epoch, executable/source hashes, tool
 versions, native architecture, build OS/glibc and ELF runtime requirements.
 
-Default build: `opam exec -- dune build -j 6 bin/ches.exe`. `-j/--jobs` accepts
+Default build: `opam exec -- dune build -j 6 bin/cobalt.exe`. `-j/--jobs` accepts
 1..20, with a hard cap. No dependency installation, downloads, git writes, system
 installation or config changes occur. `--no-build` packages an existing executable;
 its association with the current source is explicitly unattested. `--binary PATH`
@@ -26,7 +26,7 @@ only a trusted executable. Python 3.10+, opam, readelf (binutils), ldd and the
 already installed development switch are required. No patchelf dependency.
 
 `--strip` optionally removes symbols using GNU strip from a private **copied**
-executable, never `_build/default/bin/ches.exe` (no hard links). It uses
+executable, never `_build/default/bin/cobalt.exe` (no hard links). It uses
 `--strip-all --enable-deterministic-archives`, with no timestamp preservation or
 insertion; tar timestamps still use the chosen epoch. The manifest records
 `input_binary_sha256`/`input_binary_size` for the original executable and
@@ -43,7 +43,7 @@ directory or version for comparisons.
 
 `dist/` receives a binary `.tar.gz`, matching `-source.tar.gz`, external manifest
 and a version/architecture-scoped `.sha256` checksum file. The binary archive has
-`bin/ches`, README, notices/licenses, `metadata/`, `sources/`, and `SHA256SUMS`.
+`bin/cobalt`, README, notices/licenses, `metadata/`, `sources/`, and `SHA256SUMS`.
 The source archive is both embedded and adjacent so it accompanies copied binary
 archives. Tar entries are sorted regular files, uid/gid 0, empty owner names,
 normalized 0644/0755 modes and fixed epoch. Gzip filename is empty and mtime zero.
@@ -87,7 +87,7 @@ symbols); these remain OS dependencies. All `ldd`-resolved non-glibc dependencie
 must be explicitly named with `--bundle-library SONAME=/absolute/file`, matching
 actual loader resolution, plus `--extra-notices DIR`. Only named needed objects
 are copied, not an entire opam `lib/` tree. Transitive dependencies also require
-explicit selection. Bundled mode uses `libexec/ches`, `lib/SONAME` and a `bin/ches`
+explicit selection. Bundled mode uses `libexec/cobalt`, `lib/SONAME` and a `bin/cobalt`
 launcher setting a package-relative `LD_LIBRARY_PATH`. Launch that path directly;
 an external symlink to the launcher is not supported. Absolute ELF RPATH/RUNPATH
 entries are rejected. Minimum glibc includes bundled objects. Bundled dependencies'

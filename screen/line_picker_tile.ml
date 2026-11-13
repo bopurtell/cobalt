@@ -1,8 +1,8 @@
 open! Core
-module Lines = Ches_line_picker.Lines
-module Selection = Ches_tile.Navigation.Selection
-let id = Ches_tile.View_id.of_string "line-picker"
-let spec = Ches_tile.Spec.result_picker id ~title:"Document lines"
+module Lines = Cobalt_line_picker.Lines
+module Selection = Cobalt_tile.Navigation.Selection
+let id = Cobalt_tile.View_id.of_string "line-picker"
+let spec = Cobalt_tile.Spec.result_picker id ~title:"Document lines"
 type t = { session : Lines.t; mutable view : int Selection.t }
 let create controller = { session = Lines.create controller; view = Selection.empty }
 let session t = t.session

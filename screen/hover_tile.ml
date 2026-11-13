@@ -1,9 +1,9 @@
 open! Core
-module L = Ches_error.Language_query
-module Navigation = Ches_tile.Navigation
+module L = Cobalt_error.Language_query
+module Navigation = Cobalt_tile.Navigation
 
-let id = Ches_tile.View_id.of_string "hover"
-let spec = Ches_tile.Spec.read_only id ~title:"Hover"
+let id = Cobalt_tile.View_id.of_string "hover"
+let spec = Cobalt_tile.Spec.read_only id ~title:"Hover"
 
 type t = { lines : string list; top : int } [@@deriving sexp_of]
 
@@ -98,13 +98,13 @@ let fit t ~width ~rows =
 
 type action = Scroll of Navigation.Motion.t | Close [@@deriving sexp_of]
 
-let interpret (keys : Ches_input.Key.t list) : action Ches_tile.Content_key.t =
+let interpret (keys : Cobalt_input.Key.t list) : action Cobalt_tile.Content_key.t =
   match keys with
   | [Escape] -> Action Close
-  | [key] when Ches_input.Key.equal key (Ches_input.Key.char 'q') -> Action Close
+  | [key] when Cobalt_input.Key.equal key (Cobalt_input.Key.char 'q') -> Action Close
   | [Ctrl 'e'] -> Action (Scroll Down)
   | [Ctrl 'y'] -> Action (Scroll Up)
-  | keys -> Ches_tile.Content_key.map (Navigation.interpret keys) ~f:(fun m -> Scroll m)
+  | keys -> Cobalt_tile.Content_key.map (Navigation.interpret keys) ~f:(fun m -> Scroll m)
 ;;
 
 let scroll t ~width ~rows motion =

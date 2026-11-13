@@ -1,21 +1,21 @@
 open! Core
 open! Async
-open Ches_screen
-module Runtime = Ches_content_picker_host.Runtime
-module Model = Ches_content_picker.Model
-module Provider = Ches_content_search.Provider
+open Cobalt_screen
+module Runtime = Cobalt_content_picker_host.Runtime
+module Model = Cobalt_content_picker.Model
+module Provider = Cobalt_content_search.Provider
 module Expect_test_config = Async.Expect_test_config
 let width = 120
 let height = 40
 let fake_rg = Filename_unix.realpath "fake_rg/fake_rg.exe"
-let ui () = Ui_state.create (Ches_app.Controller.create
-  (Ches_core.Editor.create ~cell_width:Cell_map.width
-    (Ches_core.Text_buffer.of_string "dirty independent text"
-     |> Result.map_error ~f:Ches_core.Text_buffer.Invalid_text.to_string_hum
+let ui () = Ui_state.create (Cobalt_app.Controller.create
+  (Cobalt_core.Editor.create ~cell_width:Cell_map.width
+    (Cobalt_core.Text_buffer.of_string "dirty independent text"
+     |> Result.map_error ~f:Cobalt_core.Text_buffer.Invalid_text.to_string_hum
      |> Result.ok_or_failwith)))
 let apply ui inputs = fst (Ui_state.apply_all ui ~width ~height inputs)
 let key ui key = apply ui [ Key key ]
-let type_query ui text = apply ui (String.to_list text |> List.map ~f:(fun c -> Ui_state.Input.Key (Ches_input.Key.char c)))
+let type_query ui text = apply ui (String.to_list text |> List.map ~f:(fun c -> Ui_state.Input.Key (Cobalt_input.Key.char c)))
 let session ui = Content_picker_tile.session (Option.value_exn (Ui_state.content_picker ui))
 let frame ui = Frame.to_string (Frame.render ui ~width ~height)
 let open_picker runtime ui root = Runtime.open_picker runtime ui ~root ~width ~height |> Or_error.ok_exn
@@ -25,7 +25,7 @@ let timeout d =
 let drain runtime state = timeout (Runtime.pump runtime ~current:(fun () -> !state)
   ~inject:(fun events -> state := apply !state events; return ()))
 let with_root mode f =
-  let root = Filename_unix.realpath (Filename_unix.temp_dir "ches-content-host" "") in
+  let root = Filename_unix.realpath (Filename_unix.temp_dir "cobalt-content-host" "") in
   Out_channel.write_all (root ^ "/mode") ~data:mode;
   Monitor.protect (fun () -> f root) ~finally:(fun () ->
     Array.iter (Sys_unix.readdir root) ~f:(fun p -> Core_unix.unlink (root ^ "/" ^ p));
@@ -51,13 +51,13 @@ let%expect_test "provider-host: bounded batches, byte intent, empty/pending Ente
         let n = List.length (Model.snapshot (session !state)).hits in
         max_added := Int.max !max_added (n - !previous); previous := n; return ())) in
     assert (!max_added = 1 && !previous = 2);
-    state := key !state (Ches_input.Key.Ctrl 'n');
+    state := key !state (Cobalt_input.Key.Ctrl 'n');
     let selected = Option.value_exn (Model.selected (session !state)) in
     assert (selected.start_byte = 11);
     let old = session !state in
     state := key !state Enter;
     assert (Model.closed old && Option.is_none (Ui_state.content_picker !state));
-    assert (Ches_tile.View_id.equal (Ui_state.focused_view !state ~width ~height) Ui_state.document_id);
+    assert (Cobalt_tile.View_id.equal (Ui_state.focused_view !state ~width ~height) Ui_state.document_id);
     let next, intents = Ui_state.take_content_requests !state in state := next;
     let intent = List.hd_exn intents in
     assert (List.length intents = 1 && intent.byte_column = 11 && intent.line = 3);
@@ -100,14 +100,14 @@ let%expect_test "interrupted provider and paste: stale queries/reopens, resize, 
     state := apply !state [ Content_picker_snapshot
       { request = old_request; hits = []; status = Failed "OLD ERROR" } ];
     assert (not (String.is_substring (frame !state) ~substring:"OLD ERROR"));
-    state := apply !state [ Paste_start; Key (Ches_input.Key.char 'O') ];
+    state := apply !state [ Paste_start; Key (Cobalt_input.Key.char 'O') ];
     assert (Result.is_error (Runtime.open_picker runtime !state ~root ~width ~height));
     state := fst (Ui_state.apply_all !state ~width:13 ~height:5 [ Resize ]);
     let%bind () = timeout (Runtime.finished runtime) in
     (match Core_unix.wait_nohang (`Pid pid) with
      | exception Core_unix.Unix_error (ECHILD, _, _) -> ()
      | _ -> failwith "content child not reaped");
-    state := apply !state [ Key (Ches_input.Key.char 'L'); Paste_end ];
+    state := apply !state [ Key (Cobalt_input.Key.char 'L'); Paste_end ];
     assert (Option.is_none (Ui_state.content_picker !state));
     Out_channel.write_all (root ^ "/mode") ~data:"normal";
     state := type_query (open_picker runtime !state root) "needle";
@@ -120,8 +120,8 @@ let%expect_test "interrupted provider and paste: stale queries/reopens, resize, 
     let%bind () = drain runtime state in
     assert (List.length (Model.snapshot (session !state)).hits = 2);
     state := key !state Escape;
-    assert (String.equal (Ches_core.Text_buffer.to_string
-      (Ches_core.Editor.text (Ches_app.Controller.editor (Ui_state.controller !state)))) "dirty independent text");
+    assert (String.equal (Cobalt_core.Text_buffer.to_string
+      (Cobalt_core.Editor.text (Cobalt_app.Controller.editor (Ui_state.controller !state)))) "dirty independent text");
     timeout (Runtime.finished runtime))
 ;;
 

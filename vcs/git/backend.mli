@@ -1,23 +1,23 @@
-(** The git backend: {!Ches_vcs.Backend.S} over the parsers of this library.
+(** The git backend: {!Cobalt_vcs.Backend.S} over the parsers of this library.
 
     Panels, in order:
     - Files (["files"]): sections Conflicted, Untracked, Unstaged, Staged (and Ignored
-      when {!Ches_vcs.Backend.Refresh.t} asks for it), empty sections omitted. Item
+      when {!Cobalt_vcs.Backend.Refresh.t} asks for it), empty sections omitted. Item
       keys are paths (a rename's new path). A [Changed] or [Renamed_or_copied] entry
       appears in Staged when its index side changed and in Unstaged when its work-tree
       side changed (both for a partially staged file); [Unmerged] in Conflicted;
       [Untracked] and [Ignored] in theirs. Entries keep git's order.
     - Branches (["branches"]): one section ["local"], keyed by branch name.
     - Commits (["commits"]): one section ["recent"], keyed by full hash, titled
-      {!Ches_vcs.Log_scope.title} of the refresh's [log] and the commits read.
+      {!Cobalt_vcs.Log_scope.title} of the refresh's [log] and the commits read.
 
-    Actions arrive with the phases that need them: stage/unstage/discard in 3
-    ({!action}), line staging in 4 ({!Target.t.Lines}), commit in 5 ({!Commit}),
-    push/pull/fetch, branches and abort in 6 ({!Remote}, {!Branch_name}), merges,
-    continue/skip and whole-file resolution in 7 ({!Operation}, {!Resolution}). *)
+    Actions include stage/unstage/discard ({!action}), line staging
+    ({!Target.t.Lines}), commit ({!Commit}), push/pull/fetch and branches
+    ({!Remote}, {!Branch_name}), and merges, abort, continue/skip and whole-file
+    resolution ({!Operation}, {!Resolution}). *)
 
 open! Core
-open Ches_vcs
+open Cobalt_vcs
 
 module Section : sig
   type t =
@@ -46,7 +46,7 @@ val commits_panel : Panel.Id.t
 
 type snapshot =
   { repository : Repository.t
-  ; refresh : Ches_vcs.Backend.Refresh.t
+  ; refresh : Cobalt_vcs.Backend.Refresh.t
   ; status : Status.t
   ; branches : Branch_list.Branch.t list
   ; commits : Log.Commit.t list
@@ -108,12 +108,12 @@ module Target : sig
             equivalent to listing its lines). May be empty (nothing but header
             lines selected): refused as no change. *)
         }
-    (** The lines of one file a Visual selection in the diff touches (phase 4),
+    (** The lines of one file a Visual selection in the diff touches,
         acted on by one patch ({!Patch.hunks}) and so atomically. *)
   [@@deriving sexp_of]
 end
 
-(** The phase 3 to 6 actions. Line staging (phase 4) is a {!Target.t.Lines}
+(** Git actions. Line staging is a {!Target.t.Lines}
     target, not a new action. *)
 type action =
   | Stage of Target.t (** [s] *)
@@ -125,9 +125,9 @@ type action =
       { kind : Commit.Kind.t
       ; flags : string list (** The popup's enabled switches ({!Commit.flags}). *)
       ; message_file : string (** Absolute: {!Commit.Prepared.t.message_file}. *)
-      } (** [Space g c] in the message buffer (phase 5). *)
-  | Extend of { flags : string list } (** [e] in the commit popup (phase 5). *)
-  | Fetch (** [f] (phase 6). *)
+      } (** [Space g c] in the message buffer. *)
+  | Extend of { flags : string list } (** [e] in the commit popup. *)
+  | Fetch (** [f]. *)
   | Pull of { flags : string list } (** The pull popup's [p] ({!Remote.Pull}). *)
   | Push of
       { target : Remote.Push.Target.t
@@ -137,7 +137,7 @@ type action =
   | Checkout_previous (** [-] in Branches: [git switch -]. *)
   | Create_branch of string (** [n] in Branches: the prompt's name. *)
   | Abort of Operation.Kind.t (** [r a], [m a]. *)
-  | Continue of Operation.Kind.t (** [r r], [m m] (phase 7). *)
+  | Continue of Operation.Kind.t (** [r r], [m m]. *)
   | Skip_rebase_commit (** [r s]. *)
   | Merge of
       { branch : string
@@ -149,9 +149,9 @@ type action =
       } (** The resolve popup ([x] on a Conflicted item). *)
 [@@deriving sexp_of]
 
-(** Contract details beyond {!Ches_vcs.Backend.S}:
+(** Contract details beyond {!Cobalt_vcs.Backend.S}:
 
-    - [name] is ["git"]; [Repository] is {!Ches_vcs_git.Repository}.
+    - [name] is ["git"]; [Repository] is {!Cobalt_vcs_git.Repository}.
     - [detect]/[detected]: {!Repository.detect}/{!Repository.detected}.
     - [refresh repo r]: [Run (Status.command ~ignored:r.ignored)],
       [Run Branch_list.command], [Run (Log.command r.log)], then
@@ -183,7 +183,7 @@ type action =
       {!Diff_output.ok_exits} or was cut at its limit; then {!Diff_output.parse}.
     - [plan]: below.
 
-    {2 [plan]: the phase 3 and 4 command plans}
+    {2 [plan]: staging and discard command plans}
 
     [plan repo snapshot action] decides against [snapshot] (the one the action was
     chosen in) and never reads anything. Entries are looked up in
@@ -228,7 +228,7 @@ type action =
     Stage:
     - [File Unstaged]: add. Title ["Stage <path>"].
     - [File Untracked]: add; a key ending in ["/"] is refused: ["<path> is a nested
-      repository: Ches does not stage it; nothing ran"] (git would add a bare gitlink
+      repository: Cobalt does not stage it; nothing ran"] (git would add a bare gitlink
       without [.gitmodules]). Title ["Stage <path>"].
     - [File Conflicted] (owner decision, Magit's way): add, which marks it resolved;
       no confirmation, no check for leftover conflict markers. Title ["Mark <path>
@@ -305,20 +305,20 @@ type action =
       intent-to-add (git add -N): discarding would empty it; nothing ran"] (git
       restore truncates such a file: verified); any entry with a submodule:
       ["<path> is a submodule: discard is not supported; nothing ran"]; a nested
-      repository: ["<path> is a nested repository: delete it outside Ches; nothing
+      repository: ["<path> is a nested repository: delete it outside Cobalt; nothing
       ran"] (git clean silently keeps it); a Staged entry that also has unstaged
       changes: ["<path> also has unstaged changes: discard or stage them first;
       nothing ran"]; Ignored: ["<path> is ignored; nothing ran"] (the section:
       ["Ignored files are not discarded; nothing ran"]).
 
     Conflicted (owner decision): [Unstage], [Discard] and every [Hunk] action on a
-    Conflicted file or section are refused (phase 7 texts): a file: ["<path> is
+    Conflicted file or section are refused: a file: ["<path> is
     conflicted: take a side with x, or resolve it in the editor (Space x), then
     stage it (s) to mark it resolved; nothing ran"]; a section: ["Resolve conflicted
     files one at a time (x on a file); nothing ran"]; a hunk or lines: ["Resolve
     conflicts in the editor: Enter opens the file at the conflict, Space x u, l, a
     or b keeps a side; nothing ran"]. Only [Stage] (add) applies, and [Resolve]
-    (phase 7) takes a whole side. The view opens {!Resolution.popup} for [x] on a
+    takes a whole side. The view opens {!Resolution.popup} for [x] on a
     Conflicted item instead of planning [Discard].
 
     Hunk targets, before the rules above: a file without line actions
@@ -343,7 +343,7 @@ type action =
     intent-to-add discard refusal covers an Unstaged hunk too: reverse-applying its
     "new file" patch would delete the file.
 
-    {3 Lines (phase 4)}
+    {3 Lines}
 
     A [Lines { section; file; hunks }] target is planned like a [Hunk] of the same
     section, with one patch for all its hunks ({!Patch.hunks}, so a selection across
@@ -385,7 +385,7 @@ type action =
     A selection that no longer matches the index or work tree (the diff is stale)
     fails at the [--check] step and changes nothing.
 
-    {3 Commits (phase 5)}
+    {3 Commits}
 
     [Finish_commit { kind; flags; message_file }] and [Extend { flags }] are refused
     with {!Commit.refusal} of [snapshot.status] and [Choice.Message { kind; flags }]
@@ -404,7 +404,7 @@ type action =
     [core.commentChar]; [-F] and [--no-edit] never start an editor. An empty message
     after stripping, or a rejecting hook, fails the step (git's stderr says why).
 
-    {3 Remotes and branches (phase 6)}
+    {3 Remotes and branches}
 
     Network steps are [Run (Cli.network ~cwd:repo.root args)] (kind [Network],
     streamed; the runner adds the authentication environment) and each passes
@@ -476,14 +476,14 @@ type action =
         your conflict resolutions are lost; HEAD stays where it is."], plan [merge
         --abort], title ["Abort merge"].
 
-    {3 Merges, rebases and conflicts (phase 7)}
+    {3 Merges, rebases and conflicts}
 
     One or two [Run (Cli.mutate ~cwd:repo.root args)] steps, refusal texts as in
-    phase 6 (in progress, conflicted, unborn), plus not-in-progress: ["No rebase in
+    remote and branch actions (in progress, conflicted, unborn), plus not-in-progress: ["No rebase in
     progress; nothing ran"] / ["No merge in progress; nothing ran"]. Steps that git
     may answer by starting an editor ([rebase --continue] and [--skip], [commit
     --no-edit --cleanup=strip]) also set [GIT_EDITOR=true] in the spec's [env] (the runner forces it
-    for every child as well, {!Ches_vcs_host.Auth}), so the prepared message is kept
+    for every child as well, {!Cobalt_vcs_host.Auth}), so the prepared message is kept
     as it is. Every plan below has [rewrites_worktree = true]: it is refused while a
     buffer in the repository is dirty (save the resolutions first) and followed by
     reconciliation.
@@ -510,7 +510,7 @@ type action =
       ["<path> is not conflicted; nothing ran"]; [Markers] for a conflict other than
       [Both_modified] or [Both_added]: ["<path> has no conflict markers to restore
       (<Conflict.to_string_hum>); nothing ran"]. Else a [Confirm], the steps with
-      [--literal-pathspecs] and [-- <path>] as the phase 3 commands are:
+      [--literal-pathspecs] and [-- <path>] as the staging commands are:
       - [Ours] or [Theirs] where {!Resolution.has_file}: [checkout --ours] (or
         [--theirs]) then [add], so the file is marked resolved. Confirm title
         ["Resolve <path>"], message ["Take <label> for <path>? The other side's
@@ -525,7 +525,7 @@ type action =
         it stays unstaged). Message ["Restore the conflict markers in <path>? Edits
         to the file are lost."], plan ["Restore conflict markers in <path>"]. *)
 include
-  Ches_vcs.Backend.S
+  Cobalt_vcs.Backend.S
   with type Repository.t = Repository.t
    and type Snapshot.t = snapshot
    and type Item.t = item

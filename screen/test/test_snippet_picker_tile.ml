@@ -1,7 +1,7 @@
 open! Core
-open Ches_screen
+open Cobalt_screen
 module P = Snippet_picker_tile
-module U = Ches_completion.User_snippets
+module U = Cobalt_completion.User_snippets
 
 let item id prefix description body : U.item =
   { declaration = { id; prefix; description = Some description; body; scopes = ["ocaml"]; collection = None }
@@ -81,7 +81,7 @@ let%test_unit "preview shows raw body scope origin only when tall and clips Unic
       List.iter rendered ~f:(fun spans ->
         assert (Span.total_width spans <= width);
         List.iter spans ~f:(fun span ->
-          assert (Result.is_ok (Ches_core.Text_buffer.validate span.Span.text))));
+          assert (Result.is_ok (Cobalt_core.Text_buffer.validate span.Span.text))));
       let cursor = P.cursor t ~width in
       assert (cursor.column >= 0 && cursor.column <= Int.max 0 (width - 1))));
   let backspaced = P.update t ~rows:10 Backspace in
@@ -89,7 +89,7 @@ let%test_unit "preview shows raw body scope origin only when tall and clips Unic
 ;;
 
 let%test_unit "key interpretation delegates accept navigation and leaves cancellation to host" =
-  let open Ches_input in
+  let open Cobalt_input in
   List.iter [Key.Escape; Key.Ctrl 'c'] ~f:(fun key ->
     match P.interpret [key] with Unbound -> () | _ -> failwith "cancel must remain host-owned");
   (match P.interpret [Key.Enter] with
@@ -119,7 +119,7 @@ let%test_unit "long body lines and combining floods have bounded preview allocat
       List.iter rendered ~f:(fun spans ->
         assert (Span.total_width spans <= 12);
         List.iter spans ~f:(fun span ->
-          assert (Result.is_ok (Ches_core.Text_buffer.validate span.Span.text)))));
+          assert (Result.is_ok (Cobalt_core.Text_buffer.validate span.Span.text)))));
   let t = P.create [item "long" "long" "long body" (String.make 65_536 'x')] in
   List.iter [0; 1; 2] ~f:(fun width ->
     List.iter [0; 1; 8; 10] ~f:(fun rows ->

@@ -1,4 +1,4 @@
 (library
- (name ches_line_picker)
- (libraries ches_core ches_app ches_palette core)
+ (name cobalt_line_picker)
+ (libraries cobalt_core cobalt_app cobalt_palette core)
  (preprocess (pps ppx_jane)))

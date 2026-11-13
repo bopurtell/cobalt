@@ -1,5 +1,5 @@
 open! Core
-open Ches_core
+open Cobalt_core
 
 let text s = Text_buffer.of_string s |> Result.ok |> Option.value_exn
 let snap ?(cursor = 0) s = { History.text = text s; cursor }
@@ -95,8 +95,8 @@ let%test_unit "warming layout caches cannot grow the deterministic history charg
 ;;
 
 let%test_unit "hidden identities count, differ despite same bytes, and restore exactly" =
-  let a = { History.text = Text_buffer.with_identities (text "a\nb") ~scope:"dir" [0, "@ches[1]"; 2, "@ches[2]"]; cursor = 2 } in
-  let b = { a with text = Text_buffer.with_identities (text "a\nb") ~scope:"dir" [0, "@ches[2]"; 2, "@ches[1]"] } in
+  let a = { History.text = Text_buffer.with_identities (text "a\nb") ~scope:"dir" [0, "@cobalt[1]"; 2, "@cobalt[2]"]; cursor = 2 } in
+  let b = { a with text = Text_buffer.with_identities (text "a\nb") ~scope:"dir" [0, "@cobalt[2]"; 2, "@cobalt[1]"] } in
   assert (Text_buffer.retained_bytes a.text > Text_buffer.retained_bytes (text "a\nb"));
   let h = add (create 1 0) a b in
   let h, s = undo h in check_snapshot s a;

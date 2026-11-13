@@ -2,7 +2,7 @@ open! Core
 
 (** Pure, all-or-nothing proposals. Fresh rows create immediate children;
     existing/copy rows accept lexical destinations with encoded components.
-    Copy rows use [@copy[ID]], not duplicated [@ches[ID]]. Missing existing IDs
+    Copy rows use [@copy[ID]], not duplicated [@cobalt[ID]]. Missing existing IDs
     request permanent deletion. Filesystem collisions/devices/empty-directory
     policy and normalized destination aliases are checked by the executor. *)
 type operation =

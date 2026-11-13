@@ -3,8 +3,8 @@
    as $STAGE. *)
 
 open! Core
-open Ches_core
-open Ches_app
+open Cobalt_core
+open Cobalt_app
 
 let width _ = 1
 let child = Filename.concat
@@ -16,7 +16,7 @@ let rec remove_fixture path =
   else Core_unix.unlink path
 ;;
 let fixture f =
-  let root = Temp_fixture.scratch_dir "ches-directory-changes-" in
+  let root = Temp_fixture.scratch_dir "cobalt-directory-changes-" in
   Exn.protect ~f:(fun () -> f root) ~finally:(fun () -> remove_fixture root)
 ;;
 let write root name = Out_channel.write_all (child root name) ~data:name
@@ -24,7 +24,7 @@ let start root = Session.create ~cell_width:width (Startup.open_path ~cell_width
 let directory t = Session.directory_buffer t |> Option.value_exn
 let row (d : Directory_buffer.t) name destination =
   let entry = List.find_exn d.entries ~f:(fun e -> String.equal e.name name) in
-  sprintf "@ches[%d]\t%s%s" entry.id destination (if Directory_identity.Kind.equal entry.kind Directory then "/" else "")
+  sprintf "@cobalt[%d]\t%s%s" entry.id destination (if Directory_identity.Kind.equal entry.kind Directory then "/" else "")
 let copy_row (d : Directory_buffer.t) name destination =
   let entry = List.find_exn d.entries ~f:(fun e -> String.equal e.name name) in
   sprintf "@copy[%d]\t%s%s" entry.id destination (if Directory_identity.Kind.equal entry.kind Directory then "/" else "")
@@ -37,7 +37,7 @@ let edit t rows =
 let show root t =
   let scrub path =
     let path = String.substr_replace_all path ~pattern:root ~with_:"$ROOT" in
-    if String.is_prefix (Filename.basename path) ~prefix:".ches-stage-"
+    if String.is_prefix (Filename.basename path) ~prefix:".cobalt-stage-"
     then Filename.dirname path ^ "/$STAGE" else path in
   print_s [%sexp (List.map (Session.directory_changes t) ~f:scrub : string list)];
   assert (List.is_empty (Session.saved t))

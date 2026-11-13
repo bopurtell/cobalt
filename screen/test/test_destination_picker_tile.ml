@@ -1,7 +1,7 @@
 open! Core
-open Ches_screen
+open Cobalt_screen
 module P = Destination_picker_tile
-module L = Ches_error.Language_query
+module L = Cobalt_error.Language_query
 
 let target ?(encoding = L.Utf16) path line character : L.target =
   let position : L.position = { line; character } in
@@ -9,11 +9,11 @@ let target ?(encoding = L.Utf16) path line character : L.target =
   { path; range; selection = range; encoding }
 ;;
 
-module Preview = Ches_navigation_preview_model.Model
+module Preview = Cobalt_navigation_preview_model.Model
 let preview_rendered t ~width ~rows = (P.render t ~width ~rows).body
 
 let preview text target =
-  let buffer = Ches_core.Text_buffer.of_string text |> Result.ok |> Option.value_exn in
+  let buffer = Cobalt_core.Text_buffer.of_string text |> Result.ok |> Option.value_exn in
   Preview.of_buffer ~revision:4 target buffer
 ;;
 
@@ -142,7 +142,7 @@ let%test_unit "display is one-based character with encoding and fits tiny window
       List.iter (rendered t ~width ~rows) ~f:(fun spans ->
         assert (Span.total_width spans <= width);
         List.iter spans ~f:(fun span ->
-          assert (Result.is_ok (Ches_core.Text_buffer.validate span.Span.text))));
+          assert (Result.is_ok (Cobalt_core.Text_buffer.validate span.Span.text))));
       let cursor = P.cursor t ~width in
       assert (cursor.column >= 0 && cursor.column <= Int.max 0 (width - 1))))
 ;;

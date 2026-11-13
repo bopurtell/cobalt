@@ -8,7 +8,7 @@
     and otherwise the primary view is focused. {!reconcile} makes the request match. *)
 
 open! Core
-open Ches_input
+open Cobalt_input
 
 type t [@@deriving sexp_of]
 

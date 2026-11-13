@@ -1,10 +1,10 @@
 open! Core
-open Ches_file_picker
-module Selection = Ches_tile.Navigation.Selection
-module Preview = Ches_file_preview_model.Model
+open Cobalt_file_picker
+module Selection = Cobalt_tile.Navigation.Selection
+module Preview = Cobalt_file_preview_model.Model
 
-let id = Ches_tile.View_id.of_string "file-picker"
-let spec = Ches_tile.Spec.result_picker id ~title:"Files"
+let id = Cobalt_tile.View_id.of_string "file-picker"
+let spec = Cobalt_tile.Spec.result_picker id ~title:"Files"
 
 type 'token t =
   { session : 'token Interaction.t
@@ -59,11 +59,11 @@ let fit t ~rows =
   t.view <- { selected = Model.selected model; index; top }
 ;;
 
-type action = Event of Ches_palette.Palette.Event.t | Accept [@@deriving sexp_of]
+type action = Event of Cobalt_palette.Palette.Event.t | Accept [@@deriving sexp_of]
 
 let interpret keys =
   match Palette_tile.interpret keys with
-  | Action (Event event) -> Ches_tile.Content_key.Action (Event event)
+  | Action (Event event) -> Cobalt_tile.Content_key.Action (Event event)
   | Action Accept -> Action Accept
   | Prefix -> Prefix
   | Unbound -> Unbound

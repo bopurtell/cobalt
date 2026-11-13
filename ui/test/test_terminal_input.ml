@@ -1,28 +1,28 @@
 open! Core
 open Bonsai_term
-open Ches_ui
+open Cobalt_ui
 
 let show (event : Event.t) =
   print_s
     [%sexp
       (event : Event.t)
       , "->"
-      , (Terminal_input.inputs event : Ches_screen.Ui_state.Input.t list)]
+      , (Terminal_input.inputs event : Cobalt_screen.Ui_state.Input.t list)]
 ;;
 
 let key ?(mods = []) key : Event.t = Key_press { key; mods }
 
 let%test_unit "frontend keeps terminal capture through Ctrl-Space variants and Visual" =
-  let module U = Ches_screen.Ui_state in
-  let module M = Ches_terminal.Model in
-  let text = Result.ok (Ches_core.Text_buffer.of_string "unchanged") |> Option.value_exn in
-  let controller = Ches_app.Controller.create
-      (Ches_core.Editor.create ~cell_width:Ches_screen.Cell_map.width text) in
-  let cache = Ches_screen.Frame.Cache.create () in
+  let module U = Cobalt_screen.Ui_state in
+  let module M = Cobalt_terminal.Model in
+  let text = Result.ok (Cobalt_core.Text_buffer.of_string "unchanged") |> Option.value_exn in
+  let controller = Cobalt_app.Controller.create
+      (Cobalt_core.Editor.create ~cell_width:Cobalt_screen.Cell_map.width text) in
+  let cache = Cobalt_screen.Frame.Cache.create () in
   let initial = U.create ~bare:true controller in
   let feed ui event =
     let inputs = Terminal_input.inputs ~terminal:(U.terminal_capturing ui) event in
-    fst (Ches_screen.Frame.Cache.apply_inputs cache ui ~width:120 ~height:40 inputs) in
+    fst (Cobalt_screen.Frame.Cache.apply_inputs cache ui ~width:120 ~height:40 inputs) in
   let chars ui s = List.fold (String.to_list s) ~init:ui
       ~f:(fun ui c -> feed ui (key (ASCII c))) in
   List.iter [ key ~mods:[ Ctrl ] (ASCII ' ')
@@ -47,7 +47,7 @@ let%test_unit "frontend keeps terminal capture through Ctrl-Space variants and V
 ;;
 
 let%test_unit "terminal capture preserves every key and modifier combination" =
-  let module M = Ches_terminal.Model in
+  let module M = Cobalt_terminal.Model in
   let keys : (Event.Key.t * M.key_code) list =
     ([ Escape, Escape; Tab, Tab; Backspace, Backspace
     ; Insert, Insert; Delete, Delete; Home, Home; End, End
@@ -72,11 +72,11 @@ let%test_unit "terminal capture preserves every key and modifier combination" =
             | [ Terminal_key actual ] ->
               if not (M.equal_key actual expected) then
                 raise_s [%message "terminal key mismatch" (actual : M.key) (expected : M.key)]
-            | actual -> raise_s [%message "terminal key lost" (actual : Ches_screen.Ui_state.Input.t list)])))))
+            | actual -> raise_s [%message "terminal key lost" (actual : Cobalt_screen.Ui_state.Input.t list)])))))
 ;;
 
 let%test_unit "Notty LF remains Ctrl-J and CR remains Enter" =
-  let module M = Ches_terminal.Model in
+  let module M = Cobalt_terminal.Model in
   let decode bytes =
     let decoder = Notty.Unescape.create () in
     Notty.Unescape.input decoder (Bytes.of_string bytes) 0 (String.length bytes);
@@ -104,27 +104,27 @@ let%test_unit "terminal capture retains paste boundaries and ignores mouse" =
     ; Event.Mouse { kind = Left; position = { x = 4; y = 2 }; mods = [ Ctrl ] } ]
     ~f:(fun event ->
       assert (String.equal
-        (Sexp.to_string [%sexp (Terminal_input.inputs event : Ches_screen.Ui_state.Input.t list)])
-        (Sexp.to_string [%sexp (Terminal_input.inputs ~terminal:true event : Ches_screen.Ui_state.Input.t list)])))
+        (Sexp.to_string [%sexp (Terminal_input.inputs event : Cobalt_screen.Ui_state.Input.t list)])
+        (Sexp.to_string [%sexp (Terminal_input.inputs ~terminal:true event : Cobalt_screen.Ui_state.Input.t list)])))
 ;;
 
 let%test_unit "frontend normalizes Insert navigation without synthesizing paste text" =
-  let module U = Ches_screen.Ui_state in
-  let module E = Ches_core.Editor in
-  let text = Ches_core.Text_buffer.of_string "界é\nnext" |> Result.ok |> Option.value_exn in
-  let controller = Ches_app.Controller.create (E.create ~cell_width:Ches_screen.Cell_map.width text) in
+  let module U = Cobalt_screen.Ui_state in
+  let module E = Cobalt_core.Editor in
+  let text = Cobalt_core.Text_buffer.of_string "界é\nnext" |> Result.ok |> Option.value_exn in
+  let controller = Cobalt_app.Controller.create (E.create ~cell_width:Cobalt_screen.Cell_map.width text) in
   let feed ui event = fst (U.apply_all ui ~width:80 ~height:10 (Terminal_input.inputs event)) in
   let ui = U.create ~bare:true controller |> fun ui -> feed ui (key (ASCII 'i')) in
   let ui = List.fold [key End; key (Arrow `Left); key (ASCII 'X'); key Home; key (Arrow `Right)]
       ~init:ui ~f:feed in
-  let editor = Ches_app.Controller.editor (U.controller ui) in
-  assert (String.equal (Ches_core.Text_buffer.to_string (E.text editor)) "界Xé\nnext");
+  let editor = Cobalt_app.Controller.editor (U.controller ui) in
+  assert (String.equal (Cobalt_core.Text_buffer.to_string (E.text editor)) "界Xé\nnext");
   assert (E.cursor editor = 3);
-  List.iter [ Event.Key.Arrow `Left, Ches_input.Key.Left; Arrow `Right, Right; Home, Home; End, End ]
+  List.iter [ Event.Key.Arrow `Left, Cobalt_input.Key.Left; Arrow `Right, Right; Home, Home; End, End ]
     ~f:(fun (native, normalized) ->
-      assert (Option.is_none (Ches_input.Key.text normalized));
+      assert (Option.is_none (Cobalt_input.Key.text normalized));
       match Terminal_input.inputs (key native) with
-      | [Key actual] -> assert (Ches_input.Key.equal actual normalized)
+      | [Key actual] -> assert (Cobalt_input.Key.equal actual normalized)
       | _ -> assert false)
 ;;
 

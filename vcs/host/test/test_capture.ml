@@ -1,6 +1,6 @@
 open! Core
-open Ches_vcs
-module Capture = Ches_vcs_host.Capture
+open Cobalt_vcs
+module Capture = Cobalt_vcs_host.Capture
 
 let feed_all chunks =
   let lines = Capture.Lines.create () in

@@ -1,6 +1,6 @@
 # Pure snippets integration contract
 
-`Ches_completion.Snippet.parse : string -> t Or_error.t` and `text : t -> string`
+`Cobalt_completion.Snippet.parse : string -> t Or_error.t` and `text : t -> string`
 are the source-facing API. A candidate carries `snippet : Snippet.t option`;
 its `primary.text` must equal `Snippet.text` when present. Buffer words use `None`.
 Malformed/unsupported snippets should be skipped by providers.

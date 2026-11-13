@@ -1,5 +1,5 @@
 open! Core
-module F = Ches_palette.Fuzzy
+module F = Cobalt_palette.Fuzzy
 module Fast = F.Fast
 
 let%test_unit "loose folded-token prefix proof accepts only compatible extensions and preserves membership" =

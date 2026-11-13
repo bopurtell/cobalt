@@ -1,5 +1,5 @@
 open! Core
-open Ches_vcs
+open Cobalt_vcs
 
 type t =
   { root : string
@@ -17,7 +17,7 @@ let first_line text =
   | None -> String.strip text
 ;;
 
-let detected ~cwd (reports : Job.Step_report.t list) : t Ches_vcs.Backend.Detection.t =
+let detected ~cwd (reports : Job.Step_report.t list) : t Cobalt_vcs.Backend.Detection.t =
   match reports with
   | [ { step = Run spec; outcome = Ran result } ] ->
     if Exec.Result.succeeded result

@@ -40,7 +40,7 @@ No personal config or Git staging/commit/push changes.
 
 ## Status
 
-Implemented and validated. A new pure `ches_navigation_preview_model` extracts
+Implemented and validated. A new pure `cobalt_navigation_preview_model` extracts
 bounded context from retained text or a streaming reader, using exact negotiated
 positions for multiline/zero-width highlights. The destination picker reserves a
 preview below its result list when at least eight content rows are available and

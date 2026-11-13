@@ -1,1 +1,1 @@
-include Ches_file_preview_model.Model
+include Cobalt_file_preview_model.Model

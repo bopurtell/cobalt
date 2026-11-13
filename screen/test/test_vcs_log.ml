@@ -1,16 +1,16 @@
-(* The VCS view's log and history browsing (phase 8) end to end: the default bindings
+(* The VCS view's log and history browsing end to end: the default bindings
    ([l] and its popup in the list panels, [+] in Commits, [\}] [\{] and Enter in the
    diff, [Space g l] from a buffer), git run synchronously by [Vcs_driver] in a fixture
    repository with a merged side branch, an unmerged branch and a rename. The graph
-   rows are [Ches_vcs.Graph]'s; the commit file list is [Vcs_diff_text]'s. Paths under
+   rows are [Cobalt_vcs.Graph]'s; the commit file list is [Vcs_diff_text]'s. Paths under
    the fixture print as $DIR; commit hashes are reproducible. *)
 
 open! Core
-open Ches_screen
-module Controller = Ches_app.Controller
-module View_id = Ches_tile.View_id
-module Text_view = Ches_tile.Text_view
-module Fixture = Ches_vcs_fixture.Fixture_repo
+open Cobalt_screen
+module Controller = Cobalt_app.Controller
+module View_id = Cobalt_tile.View_id
+module Text_view = Cobalt_tile.Text_view
+module Fixture = Cobalt_vcs_fixture.Fixture_repo
 
 let width = 100
 let height = 40
@@ -136,7 +136,7 @@ let popup_rows t =
 
 (* The scope the view reads next, and the log commands of the command log since
    [after] (stale ones marked). *)
-let scope t = print_s [%sexp (Vcs_view.scope (vcs t) : Ches_vcs.Log_scope.t)]
+let scope t = print_s [%sexp (Vcs_view.scope (vcs t) : Cobalt_vcs.Log_scope.t)]
 
 let log_commands ?(after = 0) repo t =
   List.drop (Vcs_view.log (vcs t)) after
@@ -144,7 +144,7 @@ let log_commands ?(after = 0) repo t =
     let command =
       String.chop_prefix_if_exists
         entry.command
-        ~prefix:(String.concat ~sep:" " ("git" :: Ches_vcs_git.Cli.prefix) ^ " ")
+        ~prefix:(String.concat ~sep:" " ("git" :: Cobalt_vcs_git.Cli.prefix) ^ " ")
     in
     if String.is_prefix command ~prefix:"--literal-pathspecs log "
     then
@@ -167,7 +167,8 @@ let print_diff t =
   let cursor_line = String.count (String.prefix text (Text_view.cursor view)) ~f:(Char.equal '\n') in
   String.split_lines text
   |> List.iteri ~f:(fun i line ->
-    printf "%s%2d|%s\n" (if i = cursor_line then ">" else " ") i line)
+    printf "%s%2d|%s\n" (if i = cursor_line then ">" else " ") i
+      (Vcs_driver.normalize_printed_date line))
 ;;
 
 (* The diff cursor's line. *)
@@ -197,12 +198,12 @@ let%expect_test "l opens the log popup with -g on; l l logs HEAD with the graph 
     jobs: detect g1.1, refresh g1.2
     | 3 Commits (6)
     | > - Recent commits (6)
-    |   ● ae77634 (HEAD -> main) edit b
-    |   ● fae2523 rename
-    |   ●─╮ 46521dc Merge side
-    |   │ ● e8808ae (side) side work
-    |   ● │ 04217d0 (tag: v1) two
-    |   ●─╯ fbcd33d one
+    |   ● 9ef947e (HEAD -> main) edit b
+    |   ● b97a857 rename
+    |   ●─╮ 6b171dd Merge side
+    |   │ ● a1da48b (side) side work
+    |   ● │ e2a83de (tag: v1) two
+    |   ●─╯ 4976aae one
     focused popup; popup Log [--graph]
     ╭─ Log ────────────────────────────────────────────────────────────────────╮
     │ Switches                                                                 │
@@ -219,12 +220,12 @@ let%expect_test "l opens the log popup with -g on; l l logs HEAD with the graph 
     focused vcs (Commits)
     | 3 Commits (6)
     | > - Recent commits (6)
-    |   ● ae77634 (HEAD -> main) edit b
-    |   ● fae2523 rename
-    |   ●─╮ 46521dc Merge side
-    |   │ ● e8808ae (side) side work
-    |   ● │ 04217d0 (tag: v1) two
-    |   ●─╯ fbcd33d one
+    |   ● 9ef947e (HEAD -> main) edit b
+    |   ● b97a857 rename
+    |   ●─╮ 6b171dd Merge side
+    |   │ ● a1da48b (side) side work
+    |   ● │ e2a83de (tag: v1) two
+    |   ●─╯ 4976aae one
     ((range Head) (path ()) (graph true) (merges true) (first_parent false)
      (limit 200))
     |}]
@@ -279,18 +280,18 @@ let%expect_test "l b logs the branch selected in Branches; the title names it" =
     focused vcs (Commits)
     | 3 Commits (2)
     | > - Commits on side (2)
-    |   ● e8808ae (side) side work
-    |   ● fbcd33d one
+    |   ● a1da48b (side) side work
+    |   ● 4976aae one
     focused popup; popup Log [--graph]
     jobs: refresh g1.4
     | 3 Commits (6)
     | > - Recent commits (6)
-    |   ● ae77634 (HEAD -> main) edit b
-    |   ● fae2523 rename
-    |   ●─╮ 46521dc Merge side
-    |   │ ● e8808ae (side) side work
-    |   ● │ 04217d0 (tag: v1) two
-    |   ●─╯ fbcd33d one
+    |   ● 9ef947e (HEAD -> main) edit b
+    |   ● b97a857 rename
+    |   ●─╮ 6b171dd Merge side
+    |   │ ● a1da48b (side) side work
+    |   ● │ e2a83de (tag: v1) two
+    |   ●─╯ 4976aae one
     |}]
 ;;
 
@@ -307,13 +308,13 @@ let%expect_test "l a logs all branches" =
     focused vcs (Commits)
     | 3 Commits (7)
     | > - All branches (7)
-    |   ● ae77634 (HEAD -> main) edit b
-    |   ● fae2523 rename
-    |   ●─╮ 46521dc Merge side
-    |   │ ● e8808ae (side) side work
-    |   ● │ 04217d0 (tag: v1) two
-    |   │ │ ● ef11f02 (other) other work
-    |   ●─╯─╯ fbcd33d one
+    |   ● 9ef947e (HEAD -> main) edit b
+    |   ● b97a857 rename
+    |   ●─╮ 6b171dd Merge side
+    |   │ ● a1da48b (side) side work
+    |   ● │ e2a83de (tag: v1) two
+    |   │ │ ● e699f86 (other) other work
+    |   ●─╯─╯ 4976aae one
     log: [exit 0] git --literal-pathspecs log -z --no-color --no-show-signature --decorate=short --max-count=200 --topo-order ... HEAD --
     log: [exit 0] git --literal-pathspecs log -z --no-color --no-show-signature --decorate=short --max-count=200 --topo-order --branches --remotes ... HEAD --
     |}]
@@ -336,20 +337,20 @@ let%expect_test "-m l hides the merge and drops the graph; -p l follows first pa
     focused vcs (Commits)
     | 3 Commits (5)
     | > - Recent commits (no merges) (5)
-    |   ae77634 (HEAD -> main) edit b
-    |   fae2523 rename
-    |   04217d0 (tag: v1) two
-    |   e8808ae (side) side work
-    |   fbcd33d one
+    |   9ef947e (HEAD -> main) edit b
+    |   b97a857 rename
+    |   e2a83de (tag: v1) two
+    |   a1da48b (side) side work
+    |   4976aae one
     focused popup; popup Log [--graph --no-merges]
     jobs: refresh g1.4
     | 3 Commits (5)
     | > - Recent commits (first parent) (5)
-    |   ● ae77634 (HEAD -> main) edit b
-    |   ● fae2523 rename
-    |   ● 46521dc Merge side
-    |   ● 04217d0 (tag: v1) two
-    |   ● fbcd33d one
+    |   ● 9ef947e (HEAD -> main) edit b
+    |   ● b97a857 rename
+    |   ● 6b171dd Merge side
+    |   ● e2a83de (tag: v1) two
+    |   ● 4976aae one
     ((range Head) (path ()) (graph true) (merges true) (first_parent true)
      (limit 200))
     |}]
@@ -381,12 +382,12 @@ let%expect_test "+ doubles the commits read, up to the cap" =
     log: [exit 0] git --literal-pathspecs log -z --no-color --no-show-signature --decorate=short --max-count=400 --topo-order ... HEAD --
     | 3 Commits (6)
     |   - Recent commits (6)
-    | > ● ae77634 (HEAD -> main) edit b
-    |   ● fae2523 rename
-    |   ●─╮ 46521dc Merge side
-    |   │ ● e8808ae (side) side work
-    |   ● │ 04217d0 (tag: v1) two
-    |   ●─╯ fbcd33d one
+    | > ● 9ef947e (HEAD -> main) edit b
+    |   ● b97a857 rename
+    |   ●─╮ 6b171dd Merge side
+    |   │ ● a1da48b (side) side work
+    |   ● │ e2a83de (tag: v1) two
+    |   ●─╯ 4976aae one
     jobs: refresh g1.6, refresh g1.7, refresh g1.8, refresh g1.9, refresh g1.10, diff g1.11
     focused vcs (Commits)
     notice: Showing the most commits already (12800)
@@ -419,13 +420,13 @@ let%expect_test "a scope chosen while a refresh is in flight: the stale read is 
     log: [exit 0] git --literal-pathspecs log -z --no-color --no-show-signature --decorate=short --max-count=200 --topo-order --branches --remotes ... HEAD --
     | 3 Commits (7)
     | > - All branches (7)
-    |   ● ae77634 (HEAD -> main) edit b
-    |   ● fae2523 rename
-    |   ●─╮ 46521dc Merge side
-    |   │ ● e8808ae (side) side work
-    |   ● │ 04217d0 (tag: v1) two
-    |   │ │ ● ef11f02 (other) other work
-    |   ●─╯─╯ fbcd33d one
+    |   ● 9ef947e (HEAD -> main) edit b
+    |   ● b97a857 rename
+    |   ●─╮ 6b171dd Merge side
+    |   │ ● a1da48b (side) side work
+    |   ● │ e2a83de (tag: v1) two
+    |   │ │ ● e699f86 (other) other work
+    |   ●─╯─╯ 4976aae one
     |}]
 ;;
 
@@ -478,8 +479,8 @@ let%expect_test "l f from Files and from a commit's diff; Enter in the history l
     focused vcs (Commits)
     | 3 Commits (2)
     | > - History of z.txt (2)
-    |   04217d0 (tag: v1) two
-    |   fbcd33d one
+    |   e2a83de (tag: v1) two
+    |   4976aae one
     jobs: diff g1.6, diff g1.7
     focused vcs (Diff)
     diff line 18: diff --git a/z.txt b/z.txt
@@ -502,10 +503,10 @@ let%expect_test "l f from Files and from a commit's diff; Enter in the history l
     focused vcs (Commits)
     | 3 Commits (4)
     | > - History of b.txt (4)
-    |   ae77634 (HEAD -> main) edit b
-    |   fae2523 rename
-    |   04217d0 (tag: v1) two
-    |   fbcd33d one
+    |   9ef947e (HEAD -> main) edit b
+    |   b97a857 rename
+    |   e2a83de (tag: v1) two
+    |   4976aae one
     jobs: diff g1.12, diff g1.13
     diff line 10: diff --git a/a.txt b/b.txt
     |}]
@@ -545,16 +546,16 @@ let%expect_test "} and { move between files; Enter on a listed file jumps to it,
     printf
       "file %s\n"
       (Option.value_map
-         (Ches_core.Editor.path (Controller.editor (Ui_state.controller t)))
+         (Cobalt_core.Editor.path (Controller.editor (Ui_state.controller t)))
          ~default:"none"
          ~f:Filename.basename));
   [%expect {|
     jobs: detect g1.1, refresh g1.2
     jobs: diff g1.3, diff g1.4, diff g1.5, diff g1.6, diff g1.7
-    > 0|commit 04217d0347a619f5e651e65bbee0565c09238a8d
-      1|Author:     Ches Test <ches-test@example.invalid>
+    > 0|commit e2a83de7c4f8bda027eb510b2f7c181b90949485
+      1|Author:     Cobalt Test <cobalt-test@example.invalid>
       2|AuthorDate: 2026-01-01T00:00:00+00:00
-      3|Commit:     Ches Test <ches-test@example.invalid>
+      3|Commit:     Cobalt Test <cobalt-test@example.invalid>
       4|CommitDate: 2026-01-01T00:00:00+00:00
       5|
       6|    two
@@ -613,19 +614,19 @@ let%expect_test "Space g l with the view hidden and never shown: opens focused o
     focused vcs (Commits)
     | 3 Commits (4)
     | > - History of b.txt (4)
-    |   ae77634 (HEAD -> main) edit b
-    |   fae2523 rename
-    |   04217d0 (tag: v1) two
-    |   fbcd33d one
+    |   9ef947e (HEAD -> main) edit b
+    |   b97a857 rename
+    |   e2a83de (tag: v1) two
+    |   4976aae one
     ((range Head) (path (b.txt)) (graph true) (merges true) (first_parent false)
      (limit 200))
     focused vcs (Commits)
     | 3 Commits (4)
     | > - History of b.txt (4)
-    |   ae77634 (HEAD -> main) edit b
-    |   fae2523 rename
-    |   04217d0 (tag: v1) two
-    |   fbcd33d one
+    |   9ef947e (HEAD -> main) edit b
+    |   b97a857 rename
+    |   e2a83de (tag: v1) two
+    |   4976aae one
     |}]
 ;;
 
@@ -654,7 +655,7 @@ let%expect_test "Space g l from a directory buffer and for a file outside the re
       Ui_state.create
         ~tiles_visible:false
         ~views:[ Vcs_view.entry ~cwd:repo.work () ]
-        (Ches_app.Startup.open_path ~cell_width:Cell_map.width repo.work |> Or_error.ok_exn)
+        (Cobalt_app.Startup.open_path ~cell_width:Cell_map.width repo.work |> Or_error.ok_exn)
     in
     last_message := "";
     let t = run repo t " gl" in
@@ -679,12 +680,12 @@ let%expect_test "Space g l from a directory buffer and for a file outside the re
     message: note.txt is not in the repository at $DIR/work
     | 3 Commits (6)
     | > - Recent commits (6)
-    |   ● ae77634 (HEAD -> main) edit b
-    |   ● fae2523 rename
-    |   ●─╮ 46521dc Merge side
-    |   │ ● e8808ae (side) side work
-    |   ● │ 04217d0 (tag: v1) two
-    |   ●─╯ fbcd33d one
+    |   ● 9ef947e (HEAD -> main) edit b
+    |   ● b97a857 rename
+    |   ●─╮ 6b171dd Merge side
+    |   │ ● a1da48b (side) side work
+    |   ● │ e2a83de (tag: v1) two
+    |   ●─╯ 4976aae one
     ((range Head) (path ()) (graph true) (merges true) (first_parent false)
      (limit 200))
     focused document
@@ -710,7 +711,7 @@ let branches t =
 ;;
 
 (* Records the behaviour while the owner decides whether the title should name the
-   log when it is empty (docs/plans/vcs_workspace.md, phase 8's known gaps). *)
+   log when it is empty (see the known gaps in docs/plans/vcs_workspace.md). *)
 let%expect_test "an empty chosen log: the logged branch deleted outside the view, and an \
                  unborn branch"
   =
@@ -733,11 +734,11 @@ let%expect_test "an empty chosen log: the logged branch deleted outside the view
     focused vcs (Commits)
     | 3 Commits (2)
     | > - Commits on other (2)
-    |   ● ef11f02 (other) other work
-    |   ● fbcd33d one
+    |   ● e699f86 (other) other work
+    |   ● 4976aae one
     jobs: refresh g1.4
     focused vcs (Commits)
-    | Head: main ae77634
+    | Head: main 9ef947e
     | 1 problem reading the repository (@: >
     | 3 Commits (0)
     |   (none)

@@ -1,8 +1,8 @@
 open! Core
-open Ches_core
-open Ches_app
-open Ches_highlight
-open Ches_screen
+open Cobalt_core
+open Cobalt_app
+open Cobalt_highlight
+open Cobalt_screen
 open Helpers
 
 let count ui = Controller.highlight_parse_count (Ui_state.controller ui)

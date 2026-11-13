@@ -1,6 +1,6 @@
 open! Core
-module Buffer_id = Ches_app.Buffer_id
-module View_id = Ches_tile.View_id
+module Buffer_id = Cobalt_app.Buffer_id
+module View_id = Cobalt_tile.View_id
 
 module Entry = struct
   type t =
@@ -18,7 +18,7 @@ module Item = struct
     }
   [@@deriving sexp_of]
 
-  let of_file ({ label; active; modified; missing; id = _ } : Ches_app.Open_buffers.t) =
+  let of_file ({ label; active; modified; missing; id = _ } : Cobalt_app.Open_buffers.t) =
     { label; active; modified; missing }
   ;;
 end

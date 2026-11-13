@@ -1,11 +1,11 @@
 open! Core
-open Ches_core
-open Ches_app
-open Ches_screen
+open Cobalt_core
+open Cobalt_app
+open Cobalt_screen
 open Helpers
 
-module U = Ches_completion.User_snippets
-module M = Ches_completion.Model
+module U = Cobalt_completion.User_snippets
+module M = Cobalt_completion.Model
 
 let press t s = run t (keys s)
 let editor t = Controller.editor (Ui_state.controller t)
@@ -26,7 +26,7 @@ let loaded ?path initial =
   Ui_state.receive_snippets (ui ?path initial) ~generation:1 (Ok (Lazy.force catalog))
 ;;
 
-module Settings = Ches_config_runtime.Settings
+module Settings = Cobalt_config_runtime.Settings
 
 let declaration ?(id = "test.aff") ?(prefix = "aff") body =
   U.Add { id; prefix; scopes = []; collection = None; description = None; body }
@@ -72,7 +72,7 @@ let%test_unit "configuration changes, disables, removals and invalid whole snaps
       signature_help_enabled = false;
       completion_ghost_preview = true; completion_min_prefix_chars = 3;
       completion_prefer_local_snippets = false; line_numbers = true;
-      theme = Ches_theme.Theme.id (List.last_exn Ches_theme.Theme.all); completion_colors = [];
+      theme = Cobalt_theme.Theme.id (List.last_exn Cobalt_theme.Theme.all); completion_colors = [];
       snippets = [declaration "would replace $0"; declaration ~id:"bad.entry" "${UNKNOWN}"] };
     Ok { Settings.default with theme = "missing"; snippets = [] }]
     ~f:(fun result ->
@@ -82,7 +82,7 @@ let%test_unit "configuration changes, disables, removals and invalid whole snaps
        assert (Ui_state.completion_enabled failed);
        assert (Bool.equal (Ui_state.completion_ghost_enabled pending)
          (Ui_state.completion_ghost_enabled failed));
-       assert (Ches_theme.Theme.equal (Ui_state.theme pending) (Ui_state.theme failed));
+       assert (Cobalt_theme.Theme.equal (Ui_state.theme pending) (Ui_state.theme failed));
        assert (Geometry.Prefs.equal (Ui_state.prefs pending) (Ui_state.prefs failed));
        assert (Presentation.Bare_prefs.equal (Ui_state.bare_prefs pending) (Ui_state.bare_prefs failed));
        assert (List.equal M.Candidate.equal before (candidates failed));
@@ -178,7 +178,7 @@ let%expect_test "snippet tags follow aligned labels and coexist with buffer and 
   let t = press t "iaff" in
   let t, requests = Ui_state.take_source_requests t in
   let req = List.find_map_exn requests ~f:(function
-    | Ches_error.Source_request.Complete r -> Some r | _ -> None) in
+    | Cobalt_error.Source_request.Complete r -> Some r | _ -> None) in
   let c : M.Candidate.t =
     { id = "plain"; source = Lsp "test"; label = "aff"; detail = None
     ; filter_text = "aff"; sort_text = "aff"
@@ -195,7 +195,7 @@ let%expect_test "snippet tags follow aligned labels and coexist with buffer and 
   assert (String.is_substring rendered ~substring:"affinity  [buffer]");
   let _, requests = Ui_state.take_source_requests t in
   assert (not (List.exists requests ~f:(function
-    | Ches_error.Source_request.Resolve_completion _ -> true | _ -> false)));
+    | Cobalt_error.Source_request.Resolve_completion _ -> true | _ -> false)));
   let rec choose t remaining =
     assert (remaining > 0);
     match Ui_state.completion_selected t with
@@ -229,7 +229,7 @@ let%expect_test "reload generation rejects stale successes/errors and source rep
   assert (List.is_empty (candidates t));
   let _, requests = Ui_state.take_source_requests t in
   assert (List.exists requests ~f:(function
-    | Ches_error.Source_request.Cancel_completion token -> M.Token.equal token req.token
+    | Cobalt_error.Source_request.Cancel_completion token -> M.Token.equal token req.token
     | _ -> false));
   [%expect {| |}]
 ;;

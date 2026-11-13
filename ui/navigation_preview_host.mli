@@ -1,6 +1,6 @@
 open! Core
 open! Async
-module Model = Ches_navigation_preview_model.Model
+module Model = Cobalt_navigation_preview_model.Model
 type t
 (** Late, bounded retained lookup. Every [Some] state is authoritative. *)
 val create : ?debounce:Time_ns.Span.t -> ?timeout:Time_ns.Span.t

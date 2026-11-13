@@ -8,8 +8,8 @@ The host's reply pump injects a separate state-machine action, applying
 Startup uses the screen's queued generation 1; **Reload snippets** follows the
 same path. No filesystem work occurs in rendering or key transitions.
 
-The path is `$XDG_CONFIG_HOME/ches/snippets.json` for a nonempty absolute XDG
-value, otherwise `$HOME/.config/ches/snippets.json`. Missing HOME when needed is
+The path is `$XDG_CONFIG_HOME/cobalt/snippets.json` for a nonempty absolute XDG
+value, otherwise `$HOME/.config/cobalt/snippets.json`. Missing HOME when needed is
 an error. A missing file returns `User_snippets.builtins`; other read and parse
 errors include the path. The runtime never creates files or directories.
 

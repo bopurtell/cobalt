@@ -27,14 +27,14 @@ type kind = Hover | Declaration | Definition | References | Instances
   | Activate_instance of instance_activated | Instantiation
   | Signature_help of { automatic : bool; character : string option; retrigger : bool }
   | Companion_files [@@deriving sexp_of, equal]
-type request = { token : Ches_completion.Model.Token.t; cursor : int; kind : kind }
+type request = { token : Cobalt_completion.Model.Token.t; cursor : int; kind : kind }
 [@@deriving sexp_of, equal]
 type result = Hover_result of hover option | Locations of target list
   | Instance_list of instance_list | Instance_activated of instance_activated
   | Signature_result of signature_help option | Companions of string list | Failed of string
 [@@deriving sexp_of, equal]
 type reply =
-  { token : Ches_completion.Model.Token.t; cursor : int; kind : kind
+  { token : Cobalt_completion.Model.Token.t; cursor : int; kind : kind
   ; source : string; result : result }
 [@@deriving sexp_of, equal]
 

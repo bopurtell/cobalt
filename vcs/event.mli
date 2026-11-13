@@ -1,6 +1,6 @@
 (** What a runner reports to its consumer, in order. Plain data with no Async, so the
-    UI state can name it (phase 2 adds a [Ui_state.Input] case carrying it, as
-    [Ches_error.Source_event] is carried for diagnostic sources).
+    UI state can name it (a [Ui_state.Input] case carries it, as
+    [Cobalt_error.Source_event] is carried for diagnostic sources).
 
     Per job: for each [Run] step that starts, one [Started], then its [Output] lines
     (only if the spec streams), then, after the last step, exactly one [Finished].

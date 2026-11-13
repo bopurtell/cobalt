@@ -1,8 +1,8 @@
 (* Run explicitly: dune exec -j6 completion/test/bench_buffer_words.exe
    CPU timings isolate index work from Text_buffer's deliberate full-string blit. *)
 open! Core
-open Ches_core
-open Ches_completion.Model
+open Cobalt_core
+open Cobalt_completion.Model
 module B = Text_buffer
 module W = Buffer_words
 

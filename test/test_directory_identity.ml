@@ -1,5 +1,5 @@
 open! Core
-open Ches_core
+open Cobalt_core
 module D = Directory_identity
 
 let text s =
@@ -18,7 +18,7 @@ let baseline =
 
 let rows s = D.parse baseline (text s) |> Or_error.ok_exn
 let ids rows = List.map rows ~f:(fun row -> row.D.Row.identity)
-let initial = "@ches[1]\talpha\n@ches[2]\tfolder/\n@ches[3]\tlink"
+let initial = "@cobalt[1]\talpha\n@cobalt[2]\tfolder/\n@cobalt[3]\tlink"
 let editor () = Editor.create ~cell_width:Cell_width.f (D.text baseline)
 
 let run editor commands =
@@ -42,7 +42,7 @@ let%test_unit "baseline serialization and byte-name codec are lossless" =
     |> List.filter ~f:(fun c -> not (Char.equal c '/'))
     |> List.map ~f:(fun c -> "a" ^ String.of_char c ^ "z")
   in
-  List.iter (String.concat names :: "@ches[999]\tpretend" :: " space " :: names) ~f:(fun name ->
+  List.iter (String.concat names :: "@cobalt[999]\tpretend" :: " space " :: names) ~f:(fun name ->
     let encoded = D.encode_name name in
     assert (Result.is_ok (Text_buffer.validate encoded));
     assert (String.equal name (D.decode_name encoded |> Or_error.ok_exn));
@@ -103,7 +103,7 @@ let%test_unit "whole row movement and multiline replacement keep identities not 
   assert (List.is_empty (D.missing_ids baseline (parsed moved)));
   let replaced = run (editor ())
     [ Enter_visual `Linewise; Move { motion = Last_line; count = None }; Visual_change
-    ; Insert_text "@ches[3]\tlink\nnew/\n@ches[1]\tother\n@ches[2]\tfolder/"
+    ; Insert_text "@cobalt[3]\tlink\nnew/\n@cobalt[1]\tother\n@cobalt[2]\tfolder/"
     ; Exit_insert
     ] in
   assert ([%equal: D.Row.identity list] (ids (parsed replaced))
@@ -127,17 +127,17 @@ let%test_unit "join split and invalid token edits cannot validate" =
   assert (Result.is_error (D.parse baseline (Editor.text split)));
   assert (String.equal (contents (run split [ Undo ])) initial);
   List.iter
-    [ "@ches[99]\tname"; "@ches[01]\talpha"; "@ches[1] alpha"
-    ; "@ches[1]\talpha@ches[2]\tfolder/"; "@ches[1]\talpha/"
-    ; "@ches[1]\nalpha"; "@ches[1]\t"
-    ; "@ches[1]\ta\\x00b"; "@ches[1]\ta\\x2Fb"; "\\x61lpha"
+    [ "@cobalt[99]\tname"; "@cobalt[01]\talpha"; "@cobalt[1] alpha"
+    ; "@cobalt[1]\talpha@cobalt[2]\tfolder/"; "@cobalt[1]\talpha/"
+    ; "@cobalt[1]\nalpha"; "@cobalt[1]\t"
+    ; "@cobalt[1]\ta\\x00b"; "@cobalt[1]\ta\\x2Fb"; "\\x61lpha"
     ; "\\xFF\\xff"; "new\\"; "."; ".."; "nested/name"; "@filename"
     ]
     ~f:(fun raw -> assert (Result.is_error (D.parse baseline (text raw))))
 ;;
 
 let%test_unit "identity-like names are escaped; spaces and blank rows are unambiguous" =
-  let name = "@ches[1]\talpha" in
+  let name = "@cobalt[1]\talpha" in
   let row = rows (D.encode_name name) |> List.hd_exn in
   assert ([%equal: D.Row.identity] row.identity Fresh);
   assert (String.equal row.name name);
@@ -150,9 +150,9 @@ let%test_unit "identity-like names are escaped; spaces and blank rows are unambi
 let%test_unit "unsupported entries remain visible and read only; symlink type stays link" =
   let baseline = D.create [ { id = 4; name = "pipe\255"; kind = Unsupported } ] |> Or_error.ok_exn in
   assert (Result.is_ok (D.parse baseline (D.text baseline)));
-  assert (Result.is_error (D.parse baseline (text "@ches[4]\trename")));
+  assert (Result.is_error (D.parse baseline (text "@cobalt[4]\trename")));
   assert (Result.is_error (D.parse baseline Text_buffer.empty));
-  let link = rows "@ches[3]\tother" |> List.hd_exn in
+  let link = rows "@cobalt[3]\tother" |> List.hd_exn in
   assert (D.Kind.equal link.kind Symlink);
   assert (Result.is_error (D.create [ { id = 0; name = "x"; kind = File } ]));
   assert (Result.is_error (D.create

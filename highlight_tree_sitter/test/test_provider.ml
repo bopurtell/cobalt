@@ -1,6 +1,6 @@
 open! Core
-open Ches_highlight
-open Ches_highlight_tree_sitter
+open Cobalt_highlight
+open Cobalt_highlight_tree_sitter
 
 let make_key provider ?(revision = 0) () =
   Provider.key provider ~document:(Snapshot.Document_id.create ()) ~revision

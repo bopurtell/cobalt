@@ -1,7 +1,7 @@
 open! Core
 open Bonsai_test
 open Bonsai_term
-open Ches_core
+open Cobalt_core
 
 let handle ?theme ?zen ?bare ?(width = 40) ?(height = 6) ?(document_only = true) s =
   let text =
@@ -10,10 +10,10 @@ let handle ?theme ?zen ?bare ?(width = 40) ?(height = 6) ?(document_only = true)
          (Text_buffer.of_string s)
          ~f:Text_buffer.Invalid_text.to_string_hum)
   in
-  let controller = Ches_app.Controller.create (Editor.create ~path:"f.txt" ~cell_width:Ches_screen.Cell_map.width text) in
+  let controller = Cobalt_app.Controller.create (Editor.create ~path:"f.txt" ~cell_width:Cobalt_screen.Cell_map.width text) in
   let exit () = Bonsai_term.Effect.print_s [%sexp "EXIT"] in
   let handle =
-    Bonsai_term_test.create_handle (Ches_ui.Editor_view.app
+    Bonsai_term_test.create_handle (Cobalt_ui.Editor_view.app
       ~configuration_path:(Error "No configuration path in this rendering fixture")
       ?theme ?zen ?bare controller ~exit)
   in
@@ -64,7 +64,7 @@ let%expect_test "frontend Zen opt-in, Workspace default, and Bare startup preced
 ;;
 
 let%expect_test "theme preview recolors real views, cancels, accepts and stays instance-local" =
-  let find id = Option.value_exn (Ches_theme.Theme.find id) in
+  let find id = Option.value_exn (Cobalt_theme.Theme.find id) in
   let create theme =
     handle ~theme ~bare:true ~document_only:false ~width:120 ~height:40 "same text\n" in
   let crimson = create (find "crimson") in

@@ -3,8 +3,8 @@
    tested in test_plan.ml. *)
 
 open! Core
-open Ches_vcs
-open Ches_vcs_git
+open Cobalt_vcs
+open Cobalt_vcs_git
 
 let files text = (ok_exn (Diff_output.parse Diff.Limits.default ~cut:false text)).files
 
@@ -384,7 +384,7 @@ index 1111111..2222222
     |}]
 ;;
 
-(* Phase 4: line selections and patches of several hunks. *)
+(* Line selections and patches of several hunks. *)
 
 let print_lines ?(reverse = false) file selections =
   match Patch.hunks file selections ~reverse with

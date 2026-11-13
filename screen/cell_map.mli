@@ -1,4 +1,4 @@
-(** {!Ches_core.Cell_layout} with the widths the terminal draws with.
+(** {!Cobalt_core.Cell_layout} with the widths the terminal draws with.
 
     Drawing, clipping, cursor placement, and scrolling all go through {!glyphs}, and
     the editor is created with {!width}, so the screen and editing semantics agree on
@@ -12,12 +12,12 @@
 open! Core
 
 (** [Notty.Tty_width_hint.tty_width_hint]. Pass it to [Editor.create]. *)
-val width : Ches_core.Cell_layout.Width.t
+val width : Cobalt_core.Cell_layout.Width.t
 
 val tab_stop : int
 
-module Kind = Ches_core.Cell_layout.Kind
-module Glyph = Ches_core.Cell_layout.Glyph
+module Kind = Cobalt_core.Cell_layout.Kind
+module Glyph = Cobalt_core.Cell_layout.Glyph
 
 (** [Cell_layout.glyphs ~width]. *)
 val glyphs : string -> Glyph.t array

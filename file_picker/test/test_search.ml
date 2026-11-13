@@ -1,5 +1,5 @@
 open! Core
-open Ches_file_picker
+open Cobalt_file_picker
 
 let candidate path = Model.Candidate.create ~root:"/project" ~relative_path:path |> Or_error.ok_exn
 let rank query paths = Search.rank ~query (Search.prepare (List.map paths ~f:candidate))
@@ -9,7 +9,7 @@ let check_order query input expected = assert (List.equal String.equal (paths (r
 (* Independent pre-6c oracle: retain original fuzzy DP and two separately prepared
    weighted fields, including basename offset and escaped-display conversion. *)
 let oracle query candidates =
-  let module F = Ches_palette.Fuzzy in
+  let module F = Cobalt_palette.Fuzzy in
   let raw = List.map candidates ~f:(fun candidate ->
     let path = Model.Candidate.relative_path candidate in
     let start = match String.rindex path '/' with None -> 0 | Some i -> i + 1 in

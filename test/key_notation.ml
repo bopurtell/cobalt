@@ -1,5 +1,5 @@
 open! Core
-open Ches_input
+open Cobalt_input
 
 (* Keys in a vim-like notation: [<Esc>], [<CR>], [<Tab>], [<S-Tab>], [<BS>], [<Del>], and [<C-x>]
    for Ctrl and a lowercase letter; any other code point, including a literal space,

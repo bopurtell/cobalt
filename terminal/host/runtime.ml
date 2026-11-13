@@ -1,7 +1,7 @@
 open! Core
 open! Async
-open Ches_terminal
-module Emulator = Ches_terminal_emulator.Emulator
+open Cobalt_terminal
+module Emulator = Cobalt_terminal_emulator.Emulator
 
 type session =
   { pty : Pty.t

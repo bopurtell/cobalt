@@ -1,5 +1,5 @@
 (** The synthetic diagnostic producer ([--synthetic-checker]), speaking the same
-    boundary messages a language-server client will. Like ocamllsp it is one source,
+    boundary messages as a language-server client. Like ocamllsp it is one source,
     {!source}, running two checks and merging them into one list per file:
 
     - an edit check, like merlin: {!Config.edit_delay} after a change it checks the
@@ -14,8 +14,7 @@
     (none before the first). The other file's list is unversioned.
 
     [Kill] stops the source as a crash would; [Restart] starts a new session, which
-    forgets the old results and runs both checks again. There is no automatic restart
-    (phase 10). *)
+    forgets the old results and runs both checks again. There is no automatic restart. *)
 open! Core
 open! Async
 
@@ -43,10 +42,10 @@ val start
   -> Source.t
 
 (** The edit check's findings for [text]. *)
-val edit_findings : string -> Ches_error.Error.Diagnostics.Finding.t list
+val edit_findings : string -> Cobalt_error.Error.Diagnostics.Finding.t list
 
 (** The build check's findings for [text] (only the open file's part). *)
-val build_findings : string -> Ches_error.Error.Diagnostics.Finding.t list
+val build_findings : string -> Cobalt_error.Error.Diagnostics.Finding.t list
 
 (** Scripted producers, for tests and measurements: play events at given times
     regardless of requests, to make bursts, out-of-order revisions, and crashes
@@ -54,7 +53,7 @@ val build_findings : string -> Ches_error.Error.Diagnostics.Finding.t list
 module Script : sig
   type step =
     | Wait of Time_ns.Span.t
-    | Emit of Ches_error.Source_event.t
+    | Emit of Cobalt_error.Source_event.t
 
   (** Plays [steps] in order, starting at once. Requests are ignored. *)
   val play : ?time_source:Time_source.t -> step list -> Source.t
@@ -66,5 +65,5 @@ module Script : sig
     -> snapshots:int
     -> resources:int
     -> findings:int
-    -> Ches_error.Source_event.t list
+    -> Cobalt_error.Source_event.t list
 end

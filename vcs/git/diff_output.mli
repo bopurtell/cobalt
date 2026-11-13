@@ -1,8 +1,8 @@
 (** The diff panel's git commands ([diff], [diff --cached], [diff --no-index],
-    [show]) and the parser of their patch output into {!Ches_vcs.Diff.t}. *)
+    [show]) and the parser of their patch output into {!Cobalt_vcs.Diff.t}. *)
 
 open! Core
-open Ches_vcs
+open Cobalt_vcs
 
 module Source : sig
   type t =

@@ -1,5 +1,5 @@
 open! Core
-open Ches_tile
+open Cobalt_tile
 
 (* Wide CJK and emoji, a zero-width combining acute, and narrow everything else: the
    cases the screen's real width table distinguishes. *)
@@ -33,7 +33,7 @@ let type_ ?(width = 10) ?(rows = 3) t s =
             print_s
               [%message
                 (Text_view.Effect.describe_copy register)
-                  ~clipboard:(Ches_core.Register.to_string register : string)]
+                  ~clipboard:(Cobalt_core.Register.to_string register : string)]
           | Notice text -> print_endline ("notice: " ^ text));
         t, [])
   in
@@ -55,7 +55,7 @@ let show ?(width = 10) ?(rows = 3) t =
     then (
       let cells =
         Array.to_list row.glyphs
-        |> List.map ~f:(fun (g : Ches_core.Cell_layout.Glyph.t) ->
+        |> List.map ~f:(fun (g : Cobalt_core.Cell_layout.Glyph.t) ->
           let text = if selected (row.line_start + g.pos) then "[" ^ g.text ^ "]" else g.text in
           if i = cursor_row && g.col - row.first_col = cursor_col && g.width > 0
           then "#" ^ text

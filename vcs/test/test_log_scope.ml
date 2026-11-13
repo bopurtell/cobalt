@@ -1,8 +1,8 @@
-(* Log scopes (phase 8): the Commits section's title, [+]'s doubling up to the cap, and
+(* Log scopes: the Commits section's title, [+]'s doubling up to the cap, and
    when the graph is drawn. *)
 
 open! Core
-open Ches_vcs
+open Cobalt_vcs
 
 let default = Log_scope.default
 

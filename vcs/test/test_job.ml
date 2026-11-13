@@ -1,5 +1,5 @@
 open! Core
-open Ches_vcs
+open Cobalt_vcs
 
 let spec ?(kind = Exec.Kind.Read) ?(cwd = "/repo") args =
   Exec.Spec.create ~kind ~cwd "git" args

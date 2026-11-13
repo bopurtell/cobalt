@@ -1,11 +1,11 @@
 open! Core
-module L = Ches_error.Language_query
-module Selection = Ches_tile.Navigation.Selection
-module Query = Ches_palette.Query
-module Fuzzy = Ches_palette.Fuzzy
+module L = Cobalt_error.Language_query
+module Selection = Cobalt_tile.Navigation.Selection
+module Query = Cobalt_palette.Query
+module Fuzzy = Cobalt_palette.Fuzzy
 
-let id = Ches_tile.View_id.of_string "instance-picker"
-let spec = Ches_tile.Spec.result_picker id ~title:"Select active instance"
+let id = Cobalt_tile.View_id.of_string "instance-picker"
+let spec = Cobalt_tile.Spec.result_picker id ~title:"Select active instance"
 
 type t =
   { module_name : string
@@ -34,7 +34,7 @@ let query t = t.query
 let interpret = Palette_tile.interpret
 let cursor t ~width = Picker_text.cursor t.query ~width
 
-let update t ~rows (event : Ches_palette.Palette.Event.t) =
+let update t ~rows (event : Cobalt_palette.Palette.Event.t) =
   let query = match event with
     | Insert c -> Query.append t.query (Uchar.Utf8.to_string c)
     | Paste text -> Query.append t.query text

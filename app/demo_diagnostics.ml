@@ -1,7 +1,7 @@
 open! Core
-open Ches_core
-module Feedback = Ches_error.Error
-module Source_event = Ches_error.Source_event
+open Cobalt_core
+module Feedback = Cobalt_error.Error
+module Source_event = Cobalt_error.Source_event
 
 let install controller =
   let editor = Controller.editor controller in

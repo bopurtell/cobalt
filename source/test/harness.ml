@@ -3,9 +3,9 @@
    transition. Time is simulated, so delays are exact. *)
 open! Core
 open! Async
-open Ches_screen
-open Ches_source
-module Controller = Ches_app.Controller
+open Cobalt_screen
+open Cobalt_source
+module Controller = Cobalt_app.Controller
 
 let width = 120
 let height = 24
@@ -21,7 +21,7 @@ let create_time () = Time_source.create ~now:Time_ns.epoch ()
 
 (* A document [a.ml] with [text] in a fresh directory, and [source] for it. *)
 let create ?(text = "let x = 1\n") ~source () =
-  let directory = Core_unix.mkdtemp (Filename.concat (Filename.temp_dir_name) "ches-source") in
+  let directory = Core_unix.mkdtemp (Filename.concat (Filename.temp_dir_name) "cobalt-source") in
   let path = Filename.concat directory "a.ml" in
   Out_channel.write_all path ~data:text;
   let controller =

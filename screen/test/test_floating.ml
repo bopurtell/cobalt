@@ -1,5 +1,5 @@
 open! Core
-open Ches_screen
+open Cobalt_screen
 
 let rect x y width height : Geometry.Rect.t = { x; y; width; height }
 let preferred : Floating.Size.t = { width = 80; height = 14 }
@@ -110,17 +110,17 @@ let%test_unit "floating availability overrides tiled placement and drives the sh
   let workspace = Ui_state.workspace t ~width ~height in
   let geometry = Ui_state.geometry t ~width ~height in
   let scroll = Ui_state.scroll t in
-  let id = Ches_tile.View_id.of_string "synthetic-float" in
+  let id = Cobalt_tile.View_id.of_string "synthetic-float" in
   let layout = floating_layout (rect 0 0 width height) in
   let available = Ui_state.view_available ~floating:(id, layout) t ~width ~height in
   let host =
-    Ches_tile.Host.create ~leader:(Ches_input.Key.char ' ') ~primary:Ui_state.document_id
-      [ Ches_tile.Spec.primary Ui_state.document_id ~title:"Document"
-      ; Ches_tile.Spec.text_input id ~title:"Synthetic"
+    Cobalt_tile.Host.create ~leader:(Cobalt_input.Key.char ' ') ~primary:Ui_state.document_id
+      [ Cobalt_tile.Spec.primary Ui_state.document_id ~title:"Document"
+      ; Cobalt_tile.Spec.text_input id ~title:"Synthetic"
       ]
-    |> fun host -> Ches_tile.Host.focus host id
+    |> fun host -> Cobalt_tile.Host.focus host id
   in
-  assert (Ches_tile.View_id.equal (Ches_tile.Host.focused host ~available) id);
+  assert (Cobalt_tile.View_id.equal (Cobalt_tile.Host.focused host ~available) id);
   assert ([%equal: Tile_shell.Layout.t option]
     (Ui_state.view_layout ~floating:(id, layout) t ~width ~height id) layout);
   assert (not (Ui_state.view_available t ~width ~height id));
@@ -128,11 +128,11 @@ let%test_unit "floating availability overrides tiled placement and drives the sh
   assert (Option.is_none (Ui_state.view_layout t ~width ~height Ui_state.document_id));
   assert (Ui_state.view_available ~floating:(Ui_state.document_id, None) t ~width ~height Ui_state.document_id);
   let unavailable = Ui_state.view_available ~floating:(id, None) t ~width ~height in
-  let host, result = Ches_tile.Host.reconcile host ~available:unavailable in
+  let host, result = Cobalt_tile.Host.reconcile host ~available:unavailable in
   (match result with
-   | `Returned returned -> assert (Ches_tile.View_id.equal returned id)
+   | `Returned returned -> assert (Cobalt_tile.View_id.equal returned id)
    | `Kept -> assert false);
-  assert (Ches_tile.View_id.equal (Ches_tile.Host.focused host ~available) Ui_state.document_id);
+  assert (Cobalt_tile.View_id.equal (Cobalt_tile.Host.focused host ~available) Ui_state.document_id);
   (* An unavailable float must not accidentally reveal a docked duplicate. *)
   assert (Ui_state.view_available t ~width ~height Problems_tile.id);
   assert (not (Ui_state.view_available ~floating:(Problems_tile.id, None) t ~width ~height Problems_tile.id));

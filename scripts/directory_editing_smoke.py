@@ -15,10 +15,10 @@ from pathlib import Path
 
 def main():
     executable = Path(sys.argv[1] if len(sys.argv) > 1 else
-                        Path(__file__).resolve().parents[1] / "_build/default/bin/ches.exe").resolve()
+                        Path(__file__).resolve().parents[1] / "_build/default/bin/cobalt.exe").resolve()
     # Under /tmp whatever TMPDIR is: checks match messages that show this path on
     # a fixed-width screen, so it must stay short.
-    root = Path(tempfile.mkdtemp(prefix="directory-phase6-pty-", dir="/tmp"))
+    root = Path(tempfile.mkdtemp(prefix="directory-editing-pty-", dir="/tmp"))
     (root / "a.txt").write_text("original\n")
     master, slave = pty.openpty()
     fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 24, 120, 0, 0))
@@ -43,12 +43,12 @@ def main():
 
     try:
         pump(1)
-        assert b"@ches[" not in capture
+        assert b"@cobalt[" not in capture
         send(b" vt vb")  # Leave history wide enough for actionable feedback.
         send(b" mmA.renamed\x1b")
-        assert b"@ches[" not in capture  # Active/edited rows never reveal IDs.
+        assert b"@cobalt[" not in capture  # Active/edited rows never reveal IDs.
         send(b"0iPREFIX")
-        assert b"@ches[" not in capture  # Including while still in Insert mode.
+        assert b"@cobalt[" not in capture  # Including while still in Insert mode.
         send(b"\x1bu")
         assert b"1 pending" in capture
         assert not (root / "a.txt.renamed").exists()
@@ -70,12 +70,12 @@ def main():
         send(b"u q")  # Text undo cannot undo the committed directory creation.
         assert proc.wait(timeout=5) == 0
         assert sorted(p.name for p in root.iterdir()) == ["a.txt", "fresh"]
-        assert b"@ches[" not in capture
+        assert b"@cobalt[" not in capture
         print("PASS: pending edits/undo, dirty refresh refusal, backing-path open,")
         print("      hidden dirty quit guard, fresh-row refusal, apply/undo boundary")
         print("Fixture:", root)
     finally:
-        Path("/tmp/directory-phase6-pty.log").write_bytes(capture)
+        Path("/tmp/directory-editing-pty.log").write_bytes(capture)
         if proc.poll() is None:
             proc.terminate()
             proc.wait(timeout=5)

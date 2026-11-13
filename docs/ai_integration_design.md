@@ -1,10 +1,10 @@
-# Ches AI integration: context and proposed direction
+# Cobalt AI integration: context and proposed direction
 
 Status: design notes, not an implemented feature or a settled protocol choice.
 
 ## Goal
 
-Keep code and an AI companion together inside Ches, replacing the need to arrange
+Keep code and an AI companion together inside Cobalt, replacing the need to arrange
 separate applications with i3 or tmux. Preserve the comfortable, low-distraction
 editing experience and make returning to a zen document view easy.
 
@@ -27,7 +27,7 @@ Integration can grow in independent stages:
 3. **Editing coordination:** handle agent-written files, inspect proposed changes,
    preserve local work, and provide coherent undo behavior.
 4. **Native presentation:** render conversations, tool activity, and proposals as
-   Ches views backed by a structured agent connection.
+   Cobalt views backed by a structured agent connection.
 
 The first three address the motivating workflow. Native presentation is optional.
 
@@ -57,7 +57,7 @@ route. Terminal support is a substantive feature, not just a split-screen widget
 
 ### Connect to an agent through a structured interface
 
-Ches owns conversation presentation and consumes agent events through a supported
+Cobalt owns conversation presentation and consumes agent events through a supported
 protocol or API. ACP (Agent Client Protocol) is a candidate where supported by the
 chosen agent; compatibility and capabilities need verification before selection.
 
@@ -68,11 +68,11 @@ Advantages:
 
 Costs:
 
-- Ches must implement conversation input, streaming output, tool-event display,
+- Cobalt must implement conversation input, streaming output, tool-event display,
   session handling, cancellation, and protocol compatibility.
 - Features vary by agent; use capability discovery or explicit adapter capabilities.
 
-Calling a model API directly is a different scope: it also makes Ches responsible
+Calling a model API directly is a different scope: it also makes Cobalt responsible
 for the agent loop, tools, execution, and conversation management. It is not the
 recommended starting point for this workflow.
 
@@ -83,7 +83,7 @@ recommended starting point for this workflow.
 - Make the focused pane unmistakable.
 - Provide a reliable workspace escape/focus shortcut even when a CLI owns input.
 - Define which keys are workspace commands and which reach the AI interface.
-  In particular, do not assume Escape belongs to Ches inside a terminal pane.
+  In particular, do not assume Escape belongs to Cobalt inside a terminal pane.
 - Support zoom/restore and a reversible zen layout.
 - Background output must not steal focus or force a reader to the latest message.
 
@@ -115,7 +115,7 @@ Support these as distinct workflows:
 - For dirty buffers, show the conflict and provide comparison/reconciliation;
   never silently replace local edits.
 
-**Agent proposes edits for Ches to apply:**
+**Agent proposes edits for Cobalt to apply:**
 
 - Associate proposals with a base revision or equivalent content identity.
 - Detect stale proposals when the document has changed.
@@ -169,7 +169,7 @@ terminal prose or require token metrics for basic integration.
 - Which workspace shortcut reliably escapes terminal input capture?
 - What context is sent by each command, especially for unsaved documents?
 - Does the initial backend write files directly, return proposals, or support both?
-- What session state should persist across Ches restarts?
+- What session state should persist across Cobalt restarts?
 
 ## Success criteria
 

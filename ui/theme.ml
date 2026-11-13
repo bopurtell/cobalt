@@ -14,15 +14,15 @@ end
 let selected : Preset.t = Crimson
 
 module Role = struct
-  include Ches_theme.Theme.Role
+  include Cobalt_theme.Theme.Role
 
   let color ?(preset = selected) t =
     let id = match preset with
       | Midnight -> "midnight" | Crimson -> "crimson"
       | Ember -> "ember" | Glacier -> "glacier"
     in
-    let theme = Option.value_exn (Ches_theme.Theme.find id) in
-    let r, g, b = Ches_theme.Theme.color theme t in
+    let theme = Option.value_exn (Cobalt_theme.Theme.find id) in
+    let r, g, b = Cobalt_theme.Theme.color theme t in
     Attr.Color.rgb ~r ~g ~b
   ;;
 end
@@ -40,7 +40,7 @@ module Font = struct
     | Underline -> Attr.underline
   ;;
 
-  let default : Ches_screen.Style.t -> t list = function
+  let default : Cobalt_screen.Style.t -> t list = function
     | Completion { part = Match; _ } -> [ Bold ]
     | Completion _ -> []
     | Title | Mode _ | Dirty | Pending | Error -> [ Bold ]
@@ -70,7 +70,7 @@ module Font = struct
   ;;
 end
 
-let syntax_role : Ches_screen.Style.Syntax.t -> Role.t = function
+let syntax_role : Cobalt_screen.Style.Syntax.t -> Role.t = function
   | Plain | Variable | Operator | Punctuation -> Foreground
   | Keyword -> Syntax_keyword
   | String -> Syntax_string
@@ -82,16 +82,16 @@ let syntax_role : Ches_screen.Style.Syntax.t -> Role.t = function
   | Constructor | Constant | Escape -> Syntax_constant
 ;;
 
-let colors theme (style : Ches_screen.Style.t) =
+let colors theme (style : Cobalt_screen.Style.t) =
   let color role =
-    let r, g, b = Ches_theme.Theme.color theme role in
+    let r, g, b = Cobalt_theme.Theme.color theme role in
     Attr.Color.rgb ~r ~g ~b
   in
   let colors fg bg = [ Attr.fg (color fg); Attr.bg (color bg) ] in
   match style with
   | Terminal style ->
     let terminal_color default = function
-      | Ches_terminal.Model.Default -> color default
+      | Cobalt_terminal.Model.Default -> color default
       | Indexed index -> Attr.Color.xterm_256 index
       | Rgb (r, g, b) -> Attr.Color.rgb ~r ~g ~b
     in
@@ -156,9 +156,9 @@ let colors theme (style : Ches_screen.Style.t) =
   | Diff_meta -> colors Foreground Surface
 ;;
 
-let attrs ?(theme = Ches_theme.Theme.default) ?(font = Font.default) style =
+let attrs ?(theme = Cobalt_theme.Theme.default) ?(font = Font.default) style =
   (* A custom editor font policy must not erase the child application's SGR. *)
   let fonts = match style with
-    | Ches_screen.Style.Terminal _ -> Font.default style
+    | Cobalt_screen.Style.Terminal _ -> Font.default style
     | _ -> font style in
   colors theme style @ List.map fonts ~f:Font.attr

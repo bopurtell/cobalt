@@ -1,6 +1,6 @@
 open! Core
 open! Async
-open Ches_vcs
+open Cobalt_vcs
 open Helpers
 
 let first_output events sequence =

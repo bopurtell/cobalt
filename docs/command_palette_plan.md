@@ -1,4 +1,4 @@
-# Ches command palette implementation plan
+# Cobalt command palette implementation plan
 
 Presentation follow-up (2026-10-06): the live palette is now floating. The docked
 placement, zen restriction, and bottom-band sizing below describe the original
@@ -31,8 +31,8 @@ and this branch (`4ccde73`). See
 
 ### Stage 1 — catalog and matching: done (2026-10-05, commit `0a80828`)
 
-New library `ches_palette` in `palette/` (depends on `ches_core`, `ches_input`,
-`core` only), with headless tests in `palette/test/` (`ches_palette_test`). No
+New library `cobalt_palette` in `palette/` (depends on `cobalt_core`, `cobalt_input`,
+`core` only), with headless tests in `palette/test/` (`cobalt_palette_test`). No
 shared or collision-prone file was edited; `test/dune` is untouched.
 
 - `palette/fuzzy.ml(i)`: pure field-aware matcher depending only on `Core`.
@@ -133,7 +133,7 @@ Checks: `dune build` and `dune runtest` pass on the OxCaml switch.
 
 - **Input.** `View_command.Open_palette`, bound to `Space c c` (`input/bindings.ml`,
   documented in `input/keymap.mli`). `Bindings.to_list` and `Keymap.bindings` expose
-  the active table for shortcut hints. `screen` now depends on `ches_palette`.
+  the active table for shortcut hints. `screen` now depends on `cobalt_palette`.
 - **Adapter** `screen/palette_tile.ml(i)` (`Palette_tile`, view `palette`,
   `Spec.text_input` titled "Commands"): wraps `Palette.t` with the document's
   `View_id` as token. It keeps a `Navigation.Selection` only for the viewport `top`;
@@ -205,7 +205,7 @@ The design doc is now `docs/workspace_tiles_design.md`. `dune build` and
 
 | Phase | State |
 | --- | --- |
-| 7A generic host/routing | Merged (`tile/`, library `ches_tile`); human-accepted 2026-10-05 |
+| 7A generic host/routing | Merged (`tile/`, library `cobalt_tile`); human-accepted 2026-10-05 |
 | 7B shared shell, padding, gaps, 10-row band | Merged; human-accepted 2026-10-06; open look (frames on the backdrop) |
 | 7C read-only text cursor/selection/copy | Merged (`tile/text_view.ml`); human-accepted 2026-10-06; not a palette prerequisite |
 | 8 notification history tile | Merged; human-accepted 2026-10-06 |
@@ -213,14 +213,14 @@ The design doc is now `docs/workspace_tiles_design.md`. `dune build` and
 
 Also merged and useful here: `Keymap.reset` and `Keymap.lookup` (workspace-only
 routing without feeding editor input), `Controller.cancel_pending`, and the shared
-`Ches_error.Error` feedback lifecycle. `Space c` has no binding (`Space v c` is
+`Cobalt_error.Error` feedback lifecycle. `Space c` has no binding (`Space v c` is
 Toggle centered), so `Space c c` is free.
 
 ### What the host provides for the palette
 
-- `Ches_tile.View_id.t`: opaque, string-backed view identity. Use it as the
+- `Cobalt_tile.View_id.t`: opaque, string-backed view identity. Use it as the
   palette's `'token`; do not define another target ID.
-- `Ches_tile.Spec.t`: role plus `focusable`, `accepts_paste`, `owns_cursor`.
+- `Cobalt_tile.Spec.t`: role plus `focusable`, `accepts_paste`, `owns_cursor`.
   Constructors are `primary`, `read_only`, `read_only_text` (7C) and `companion`;
   none fits the palette (Minor + focusable + accepts paste + owns cursor + takes
   text), so Extension 1 adds one.
@@ -272,7 +272,7 @@ All three were still open after the merge and are now implemented as proposed:
    paste and text, owns the cursor. `Host.key` starts a leader sequence only when the
    focused view does not accept text. Escape, Ctrl-c and Tab keep their precedence.
    Test: `tile/test/test_host.ml` "a text-input view takes the leader as text".
-2. **Cursor intent.** New `Ches_tile.Cursor` (`{ row; column; shape = Block | Bar }`,
+2. **Cursor intent.** New `Cobalt_tile.Cursor` (`{ row; column; shape = Block | Bar }`,
    relative to the content area). `Ui_state.text_cursor` is replaced by
    `Ui_state.minor_cursor`, which returns cell and shape. A private
    `cursor_intent` asks the view's adapter; `Text_view` views give today's block.
@@ -336,7 +336,7 @@ and Bonsai. The workspace/tiling worktree supplies the generic presentation host
 - `screen/ui_state.ml` and `.mli`: terminal-independent UI transitions, view-command
   application, scrolling, paste collection, feedback, and animation state.
 - `ui/editor_view.ml`: Bonsai frontend and rendering integration.
-- `tile/` (`ches_tile`): generic host, view specs, shared navigation, read-only text.
+- `tile/` (`cobalt_tile`): generic host, view specs, shared navigation, read-only text.
   `docs/workspace_tiles_design.md` is the merged tiling design.
 
 ### Tiling worktree baseline and dependencies
@@ -356,7 +356,7 @@ feedback pending. Phases 7A–7C are explicitly **planned, not implemented**:
 
 The working tree already includes `screen/workspace.ml`, problems presentation and
 navigation modules, `Controller.cancel_pending`, `Keymap.reset`, and controller
-`feedback`/`update_feedback` APIs backed by `Ches_error.Error`. These are useful
+`feedback`/`update_feedback` APIs backed by `Cobalt_error.Error`. These are useful
 existing implementation points, not a promise that the final 7A API is settled.
 The tiling controller also differs from this checkout's highlighting-aware
 controller: integration must preserve both branches' behavior, not copy either
@@ -574,7 +574,7 @@ host guarantees rather than inventing alternate paste ownership or Escape routin
 Opening the palette changes focus, not the execution target. A view command such
 as toggling line numbers applies to the originating document view, not the palette.
 
-Initially Ches has one document; keep this contract explicit without implementing
+Initially Cobalt has one document; keep this contract explicit without implementing
 a speculative multi-document registry. The workspace layer supplies stable target
 identity through its 7A view contract, even with only one document. Keep invocation
 tokens abstract until that contract lands; do not define a competing `Pane_id`.

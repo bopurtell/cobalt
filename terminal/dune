@@ -1,4 +1,4 @@
 (library
- (name ches_terminal)
+ (name cobalt_terminal)
  (libraries core)
  (preprocess (pps ppx_jane)))

@@ -1,15 +1,15 @@
 (* Open-buffer reconciliation ([Session.reconcile], [Controller.reconcile_with_disk]):
-   after something outside Ches rewrote files, clean buffers are reloaded or marked
+   after something outside Cobalt rewrote files, clean buffers are reloaded or marked
    missing, and dirty, busy and unreadable ones are left alone. *)
 
 open! Core
-open Ches_core
-open Ches_app
+open Cobalt_core
+open Cobalt_app
 
 let width _ = 1
 
 let with_dir f =
-  let directory = Core_unix.mkdtemp (Filename.concat Filename.temp_dir_name "ches-reconcile-") in
+  let directory = Core_unix.mkdtemp (Filename.concat Filename.temp_dir_name "cobalt-reconcile-") in
   Exn.protect
     ~f:(fun () -> f directory)
     ~finally:(fun () -> ignore (Core_unix.system (sprintf "rm -rf %s" (Filename.quote directory)) : Core_unix.Exit_or_signal.t))
@@ -36,7 +36,7 @@ let show ?(dir = "") t (reconciled : Session.Reconciled.t) =
   ids "busy" reconciled.busy;
   List.iter reconciled.failed ~f:(fun (id, _) -> printf "failed: %s\n" (label t id));
   printf "feedback: %s\n"
-    (Option.value_map (Ches_error.Error.notification (Session.feedback t)) ~default:"(none)"
+    (Option.value_map (Cobalt_error.Error.notification (Session.feedback t)) ~default:"(none)"
        ~f:(fun n ->
          if String.is_empty dir then n.text
          else String.substr_replace_all n.text ~pattern:dir ~with_:"$DIR"))
@@ -151,7 +151,7 @@ let%expect_test "dirty, busy and unreadable buffers are left alone" =
       b.txt: "b\n", line 1, column 1, dirty false, missing false
       c.txt: "c\n", line 1, column 1, dirty false, missing false
       |}];
-    let problems = Ches_error.Error.problems (Session.feedback t) in
+    let problems = Cobalt_error.Error.problems (Session.feedback t) in
     printf "problems: %d\n" (List.length problems);
     [%expect {| problems: 1 |}];
     Session.dispose t)

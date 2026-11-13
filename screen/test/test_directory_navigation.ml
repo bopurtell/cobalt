@@ -1,7 +1,7 @@
 open! Core
-open Ches_core
-open Ches_app
-open Ches_screen
+open Cobalt_core
+open Cobalt_app
+open Cobalt_screen
 open Helpers
 
 let width = 72
@@ -13,7 +13,7 @@ let text ui = Text_buffer.to_string (Editor.text (Controller.editor (Ui_state.co
 let create path = Ui_state.create ~tiles_visible:false ~source_attached:true
   (Startup.open_path ~cell_width:Cell_map.width path |> Or_error.ok_exn)
 let fixture f =
-  let root = scratch_dir "ches-directory-test-" in
+  let root = scratch_dir "cobalt-directory-test-" in
   let child = Filename.concat root "child" in
   Core_unix.mkdir child;
   let names = [ ".hidden"; "a.txt"; "b.txt"; "bad.txt"; "odd\n\255" ]
@@ -47,12 +47,12 @@ let%test_unit "an unreadable batch file does not prevent later files, and failed
 
 let%test_unit "mark commands are discoverable with shortcuts and execute through the palette" =
   fixture (fun root _ ->
-    let action = Ches_input.Keymap.Action.View Ches_input.View_command.Toggle_entry_mark in
-    let entry = Ches_palette.Catalog.find Ches_palette.Catalog.default
-      (Ches_palette.Catalog.Id.of_string "directory.toggle-mark") |> Option.value_exn in
-    assert (Ches_input.Keymap.Action.equal (Ches_palette.Catalog.Entry.action entry) action);
-    let shortcuts = Ches_palette.Shortcut.sequences (Ches_input.Bindings.to_list Ches_input.Bindings.default) action in
-    assert (List.exists shortcuts ~f:(fun keys -> String.equal (Ches_palette.Shortcut.to_string_hum keys) "Space m m"));
+    let action = Cobalt_input.Keymap.Action.View Cobalt_input.View_command.Toggle_entry_mark in
+    let entry = Cobalt_palette.Catalog.find Cobalt_palette.Catalog.default
+      (Cobalt_palette.Catalog.Id.of_string "directory.toggle-mark") |> Option.value_exn in
+    assert (Cobalt_input.Keymap.Action.equal (Cobalt_palette.Catalog.Entry.action entry) action);
+    let shortcuts = Cobalt_palette.Shortcut.sequences (Cobalt_input.Bindings.to_list Cobalt_input.Bindings.default) action in
+    assert (List.exists shortcuts ~f:(fun keys -> String.equal (Cobalt_palette.Shortcut.to_string_hum keys) "Space m m"));
     let ui = create root |> fun ui -> run ui " cctoggle directory entry mark<CR>" in
     assert (Set.length (directory ui).marks = 1);
     let ui = run ui " ccclear directory marks<CR>" in
@@ -153,7 +153,7 @@ let%test_unit "directory startup and complete persistent-tab workflow with edita
     assert (String.equal (directory ui).path root);
     let ui, requests = Ui_state.take_source_requests ui in
     assert (List.for_all requests ~f:(function
-      | Ches_error.Source_request.Document_opened { resource; _ }
+      | Cobalt_error.Source_request.Document_opened { resource; _ }
       | Document_changed { resource; _ } -> not (String.equal resource root)
       | _ -> true));
     Session.dispose (Ui_state.session ui))
@@ -180,7 +180,7 @@ let%test_unit "cached navigation, origin selection, refresh identities, failures
     let ui = run ui "j<CR>" in
     assert (String.equal (selected ui).name "broken");
     let before = text ui in
-    let ui = Helpers.run ~width ~height ui [ Paste_start; Key (Ches_input.Key.char 'X'); Paste_end ] in
+    let ui = Helpers.run ~width ~height ui [ Paste_start; Key (Cobalt_input.Key.char 'X'); Paste_end ] in
     assert (String.equal before (text ui));
     let ui = run ui "gg8j<CR>" in
     assert (String.equal (selected ui).name "pipe");
@@ -211,7 +211,7 @@ let%test_unit "per-directory viewport caching and input/paste context switches w
         let ui = run ui " o" in
         assert (Editor.cursor (Controller.editor (Ui_state.controller ui)) = cursor);
         let aid = Session.active_id (Ui_state.session ui) |> Option.value_exn in
-        let ui = run ui "i" |> fun ui -> Helpers.run ~width ~height ui [ Paste_start; Key (Ches_input.Key.char 'X') ] in
+        let ui = run ui "i" |> fun ui -> Helpers.run ~width ~height ui [ Paste_start; Key (Cobalt_input.Key.char 'X') ] in
         let ui = Ui_state.show_directory ui ~width ~height root |> Or_error.ok_exn in
         let ui = Ui_state.activate_buffer ui ~width ~height aid |> Or_error.ok_exn in
         let before = text ui in

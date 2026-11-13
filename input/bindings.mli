@@ -16,7 +16,7 @@
     - a sequence containing [Escape] or [Ctrl-c], which always cancel. *)
 
 (* [open! Core] would shadow our [Command] with Core's command-line [Command]. *)
-module Editor_command := Ches_core.Command
+module Editor_command := Cobalt_core.Command
 
 open! Core
 module Command := Editor_command
@@ -27,7 +27,7 @@ module Target : sig
       take a count; the keymap rejects a count before any other target, except
       [Paste], which repeats the register, and the counted editing targets below. *)
   type t =
-    | Move of Ches_core.Motion.t (** [Command.Move], with the count if one was typed. *)
+    | Move of Cobalt_core.Motion.t (** [Command.Move], with the count if one was typed. *)
     | Editor of Command.t (** An editor command, which takes no count. *)
     | View of View_command.t (** A layout command, which takes no count. *)
     | Scroll of View_command.Scroll.t
@@ -41,7 +41,7 @@ module Target : sig
     | Delete_chars_backward (** [X], taking a count. *)
     | Delete_to_line_end (** [D], taking a count like [d$]. *)
     | Paste of { before : bool } (** [P] or [p], taking a count. *)
-    | Find of { direction : Ches_core.Motion.Find.direction; till : bool }
+    | Find of { direction : Cobalt_core.Motion.Find.direction; till : bool }
     | Repeat_find of { opposite : bool }
     | Search_prompt of { forward : bool }
     | Repeat_search of { opposite : bool }

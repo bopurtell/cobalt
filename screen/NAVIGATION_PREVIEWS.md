@@ -1,6 +1,6 @@
 # Navigation preview integration contract
 
-`Ches_navigation_preview_model.Model` is pure (Core, Ches_core, Ches_error).
+`Cobalt_navigation_preview_model.Model` is pure (Core, Cobalt_core, Cobalt_error).
 `request = { generation; target }`, `snapshot = { request; state }`. The host
 owns generation/stamp freshness and maps file failures to `Missing`/`Unreadable`.
 `collect ~source ~target ~cancelled ~read` is synchronous worker work; read uses
