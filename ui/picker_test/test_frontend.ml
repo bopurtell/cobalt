@@ -39,12 +39,17 @@ let%expect_test "frontend chains async turns and consumes only after release, wi
     let%bind result = Clock_ns.with_timeout (Time_ns.Span.of_int_sec 10) (settle ()) in
     assert (match result with `Result () -> true | `Timeout -> false);
     assert (Interaction.prepared_count session = 0); (* blank open never decodes paths *)
+    assert (List.length (Model.results (Interaction.model session)) = 300);
+    let selected () = Model.selected (Interaction.model session) in
+    (* Discovery arrives in batches. The picker keeps the initially selected
+       candidate visible as later batches sort around it; it need not be file000. *)
+    let selected_name = Filename.basename
+      (Model.Candidate.Id.to_string (Option.value_exn (selected ()))) in
     Bonsai_term_test.print_view (Bonsai_term_test.last_view handle);
     let output = [%expect.output] in
     cursor_output := output;
-    assert (String.is_substring output ~substring:"file000.ml");
+    assert (String.is_substring output ~substring:selected_name);
     assert (not (String.is_substring output ~substring:"Filtering..."));
-    let selected () = Model.selected (Interaction.model session) in
     let first = selected () in
     Bonsai_term_test.send_event handle (Key_press { key = Tab; mods = [] });
     Handle.recompute_view handle;

@@ -279,6 +279,10 @@ save_bare_bytes() {
 }
 expect_row 0 alpha
 expect_row 1 beta
+# Bare permits transient feedback. Wait for asynchronous startup to settle, then
+# dismiss it before checking the quiet chrome (movement must not edit the file).
+expect_screen 'Snippets reloaded'
+keys l h
 expect_bare_chrome
 save_screen "bare-startup"
 
@@ -495,6 +499,8 @@ if poll alternate_is 1; then ok "launched cobalt --superzen"; else fail "--super
 expect_cursor "0 0 1"
 expect_row 0 alpha
 expect_row 1 beta
+expect_screen 'Snippets reloaded'
+keys l h
 expect_bare_chrome
 save_screen "superzen-startup"
 keys Space q
@@ -1691,6 +1697,15 @@ resize 80 24
 printf 'history one\n' > "$work/history.txt"
 printf 'Xhistory one\n' > "$work/history.expected"
 launch history.txt
+# Startup snippet loading records a notification asynchronously. Observe it in
+# history, then clear it so this scenario counts only its controlled save events.
+keys Space v M
+expect_screen 'info [snippets]'
+keys X
+expect_screen 'No history'
+keys Escape Space v m
+if poll eval '! screen_has "History:"'; then ok "startup history cleared and hidden";
+else fail "startup history did not hide"; fi
 mv "$work/history.txt" "$work/history.saved"
 mkdir "$work/history.txt"
 keys i X Escape Space w
@@ -2221,14 +2236,19 @@ save_screen "palette-workspace-after"
 keys Space c c
 type_text 'tile'
 keys Tab Tab Tab Tab BTab
-# The four Tile Term commands also match "tile".
-expect_screen "4/24 ─"
+# Check selection and result-count preservation across resizes, rather than a
+# catalog-wide count: fuzzy matches also include commands without "tile" titles.
+palette_fourth_result() { screen | grep -qE '4/([4-9]|[1-9][0-9]+) ─'; }
+if poll palette_fourth_result; then ok "fourth palette result selected";
+else fail "fourth palette result not selected"; fi
+palette_selection=$(screen | grep -oE '4/[0-9]+ ─' | head -n 1)
+palette_selection=${palette_selection:-'missing fourth palette result'}
 expect_palette 20 13 80 14
 resize 50 12
 expect_palette 1 1 48 10
 expect_cursor "9 2 1"
 expect_screen "│ > tile"
-expect_screen "4/24 ─"
+expect_screen "$palette_selection"
 save_screen "palette-resize-clamped"
 resize 14 4
 expect_palette 0 0 14 4
@@ -2236,7 +2256,7 @@ expect_cursor "7 1 1"
 save_screen "palette-minimum"
 resize 120 40
 expect_palette 20 13 80 14
-expect_screen "4/24 ─"
+expect_screen "$palette_selection"
 expect_screen "│ > tile"
 save_screen "palette-resize-restored"
 resize 120 3

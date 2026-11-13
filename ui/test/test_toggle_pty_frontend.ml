@@ -35,7 +35,9 @@ let%expect_test "frontend timeout turns deliver deferred terminal bytes without 
       (* Paste bypasses shortcuts and starts a byte-reporting child. Split the
          readiness marker so the shell's initial command echo cannot satisfy it. *)
       Bonsai_term_test.send_event handle (Paste `Start);
-      type_ "stty -echo -icanon min 1 time 0; printf 'CLOCK_%s\\n' READY; od -An -tu1 -w1";
+      (* Bound each read: plain [od -w1] still buffers its input until EOF or a
+         full input block, so it cannot demonstrate delivery of a lone byte. *)
+      type_ "stty -echo -icanon min 1 time 0; printf 'CLOCK_%s\\n' READY; while :; do od -An -tu1 -N1; done";
       Bonsai_term_test.send_event handle (Paste `End);
       send Enter;
       let%bind () = wait "CLOCK_READY" in

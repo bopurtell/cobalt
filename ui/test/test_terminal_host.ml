@@ -42,11 +42,22 @@ let contains snapshots terminal needle =
     String.is_substring (text snapshot) ~substring:needle)
 ;;
 
+let find_pid snapshots terminal marker =
+  Option.bind (Hashtbl.find snapshots terminal) ~f:(fun (_, snapshot) ->
+    let output = text snapshot in
+    List.find_map
+      (List.rev (String.substr_index_all output ~pattern:marker ~may_overlap:false))
+      ~f:(fun start ->
+        let tail = String.drop_prefix output (start + String.length marker) in
+        let digits = String.take_while tail ~f:Char.is_digit in
+        if not (String.is_empty digits)
+           && String.is_prefix (String.drop_prefix tail (String.length digits)) ~prefix:";"
+        then Int.of_string_opt digits
+        else None))
+;;
+
 let pid snapshots terminal marker =
-  let output = text (snd (Hashtbl.find_exn snapshots terminal)) in
-  let start = List.last_exn (String.substr_index_all output ~pattern:marker ~may_overlap:false)
-    + String.length marker in
-  Int.of_string (String.take_while (String.drop_prefix output start) ~f:Char.is_digit)
+  Option.value_exn (find_pid snapshots terminal marker)
 ;;
 
 let process_running pid =
@@ -66,10 +77,11 @@ let%expect_test "numbered pool drains hidden shells fairly, keeps independent st
         [ 1, Start { cwd = "/"; rows = 12; cols = 100 }
         ; large, Start { cwd = "/tmp"; rows = 14; cols = 110 }
         ];
-      command host 1 {|stty -echo; COBALT_POOL=one; printf 'ONE_%s PID_%s\n' "$COBALT_POOL" $$|};
-      command host large {|stty -echo; COBALT_POOL=two; printf 'TWO_%s PID_%s\n' "$COBALT_POOL" $$|};
+      command host 1 {|stty -echo; COBALT_POOL=one; printf 'ONE_%s PID_%s;\n' "$COBALT_POOL" $$|};
+      command host large {|stty -echo; COBALT_POOL=two; printf 'TWO_%s PID_%s;\n' "$COBALT_POOL" $$|};
       let%bind () = wait_sessions host snapshots (fun s ->
-        contains s 1 "ONE_one PID_" && contains s large "TWO_two PID_") in
+        Option.is_some (find_pid s 1 "ONE_one PID_")
+        && Option.is_some (find_pid s large "TWO_two PID_")) in
       let first_pid = pid snapshots 1 "PID_" in
       let second_pid = pid snapshots large "PID_" in
       assert (first_pid <> second_pid);
@@ -101,12 +113,14 @@ let%expect_test "numbered pool drains hidden shells fairly, keeps independent st
       let%bind () = wait_sessions host snapshots (fun s ->
         Option.exists (Hashtbl.find s 1) ~f:(fun (_, s) -> Option.is_some s.exited)) in
       assert (not (process_running first_pid));
-      command host large {|printf 'STILL_%s PID_%s\n' "$COBALT_POOL" $$|};
-      let%bind () = wait_sessions host snapshots (fun s -> contains s large "STILL_two") in
-      assert (pid snapshots large "PID_" = second_pid);
+      command host large {|printf 'STILL_%s PID_%s;\n' "$COBALT_POOL" $$|};
+      let%bind () = wait_sessions host snapshots (fun s ->
+        Option.is_some (find_pid s large "STILL_two PID_")) in
+      assert (pid snapshots large "STILL_two PID_" = second_pid);
       Host.submit_sessions host [ 1, Start { cwd = "/"; rows = 8; cols = 90 } ];
-      command host 1 {|stty -echo; printf 'NEW_%s PID_%s\n' "${COBALT_POOL:-empty}" $$|};
-      let%bind () = wait_sessions host snapshots (fun s -> contains s 1 "NEW_empty") in
+      command host 1 {|stty -echo; printf 'NEW_%s PID_%s;\n' "${COBALT_POOL:-empty}" $$|};
+      let%bind () = wait_sessions host snapshots (fun s ->
+        Option.is_some (find_pid s 1 "NEW_empty PID_")) in
       let generation, snapshot = Hashtbl.find_exn snapshots 1 in
       assert (generation = 2 && Array.length snapshot.rows = 8);
       let restarted_pid = pid snapshots 1 "PID_" in
@@ -115,9 +129,9 @@ let%expect_test "numbered pool drains hidden shells fairly, keeps independent st
       (* Background children in both PTYs must die too, even when ignoring HUP. *)
       List.iter [ 1; large ] ~f:(fun terminal ->
         command host terminal
-          "(trap '' HUP; while :; do sleep 1; done) & printf 'BG_%s\\n' $!");
+          "(trap '' HUP; while :; do sleep 1; done) & printf 'BG_%s;\\n' $!");
       let%bind () = wait_sessions host snapshots (fun s ->
-        contains s 1 "BG_" && contains s large "BG_") in
+        Option.is_some (find_pid s 1 "BG_") && Option.is_some (find_pid s large "BG_")) in
       let background = List.map [ 1; large ] ~f:(fun terminal -> pid snapshots terminal "BG_") in
       assert (List.for_all background ~f:process_running);
       Host.stop host;

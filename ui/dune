@@ -5,6 +5,9 @@
 
 (library
  (name cobalt_ui)
+ (foreign_stubs
+  (language c)
+  (names terminal_mode_stubs))
  (libraries cobalt_harness cobalt_navigation_preview_model cobalt_error cobalt_config_runtime cobalt_completion cobalt_terminal cobalt_terminal_host cobalt_theme cobalt_app cobalt_core cobalt_input cobalt_screen cobalt_source cobalt_tile cobalt_file_picker cobalt_file_preview cobalt_file_picker_host cobalt_line_picker cobalt_content_picker cobalt_content_picker_host cobalt_vcs cobalt_vcs_host core async base64 bonsai bonsai_term)
  (preprocess
   (pps ppx_jane bonsai.ppx_bonsai)))

@@ -158,6 +158,18 @@ let summary t =
   |> List.iter ~f:(fun row -> printf "| %s\n" row)
 ;;
 
+(* Git's optional advice changes wording (and blank-line whitespace) across versions.
+   Filter it only when printing snapshots, leaving the events and view untouched.
+   Recent Git also inserts a comment marker before the failed rebase commit's subject;
+   retain the substantive failure, hash and subject with the older separator. *)
+let stable_git_output line =
+  if String.is_prefix line ~prefix:"hint:"
+  then None
+  else if String.is_prefix line ~prefix:"Could not apply "
+  then Some (String.substr_replace_first line ~pattern:"... # " ~with_:"... ")
+  else Some line
+;;
+
 (* The command log's commands other than the refresh's, with status, output and progress. *)
 let commands ?(after = 0) repo t =
   List.drop (Vcs_view.log (vcs t)) after
@@ -183,7 +195,8 @@ let commands ?(after = 0) repo t =
         "log: [%s] git %s\n"
         (Option.value entry.status ~default:"running")
         (scrub repo command);
-      List.iter entry.output ~f:(fun line -> printf "      %S\n" (scrub repo line));
+      List.filter_map entry.output ~f:stable_git_output
+      |> List.iter ~f:(fun line -> printf "      %S\n" (scrub repo line));
       Option.iter entry.progress ~f:(fun line -> printf "      progress %S\n" line)))
 ;;
 
@@ -292,10 +305,6 @@ let%expect_test "p opens the pull popup; p fast-forwards; a diverged pull fails 
       HEAD: Local < Other one < One; branch main; status: clean
       log: [exit 0] git pull --progress --ff-only --no-rebase
       log: [exit 128] git pull --progress --ff-only --no-rebase
-            "hint: "
-            "hint: \tgit rebase"
-            "hint: "
-            "hint: Disable this message with \"git config advice.diverging false\""
             "fatal: Not possible to fast-forward, aborting."
       |}])
 ;;
@@ -524,10 +533,6 @@ let%expect_test "a rebase pull stops on a conflict: the summary says press r; r 
       | Head: detached at 6b0cb12
       | Rebasing main onto 6b0cb12 (press r)
       log: [exit 1] git pull --progress --rebase
-            "hint: Resolve all conflicts manually, mark them as resolved with"
-            "hint: \"git add/rm <conflicted_files>\", then run \"git rebase --continue\"."
-            "hint: You can instead skip this commit: run \"git rebase --skip\"."
-            "hint: To abort and get back to the state before \"git rebase\", run \"git rebase --abort\"."
             "Could not apply 71ae0ce... Ours"
       refresh toggle-log leave focus-files focus-branches focus-commits focus-diff toggle-diff toggle-fold stage unstage discard stage-all unstage-all log commit fetch pull push rebase merge copy next previous first last half-page-down half-page-up
       |}];

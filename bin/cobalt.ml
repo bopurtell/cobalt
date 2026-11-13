@@ -139,8 +139,8 @@ let command =
             (* Preserve CR (Enter) versus LF (Ctrl-J) before Notty reads stdin.
                Notty's own terminal setup retains these input flags. Restore the
                original settings after its shutdown handlers have run. *)
-            let tty = Core_unix.Terminal_io.tcgetattr Core_unix.stdin in
-            Stdlib.at_exit (fun () -> Core_unix.Terminal_io.tcsetattr tty Core_unix.stdin ~mode:TCSANOW);
+             ignore (Cobalt_ui.Terminal_mode.save () : unit -> unit);
+             let tty = Core_unix.Terminal_io.tcgetattr Core_unix.stdin in
             Core_unix.Terminal_io.tcsetattr
               { tty with c_icrnl = false; c_inlcr = false; c_igncr = false }
               Core_unix.stdin ~mode:TCSANOW;

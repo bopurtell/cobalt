@@ -222,7 +222,9 @@ def run(smoke):
     s.t("set-option", "-g", "window-size", "manual")
     s.t("set-option", "-t", SESSION, "status", "off")
     before, after, code = (s.work / name for name in ("stty.before", "stty.after", "exit-code"))
-    s.type(f"stty -g > {before}; {shlex.quote(str(s.binary))} --no-lsp a.txt; "
+    # Placement/tab-strip assertions exercise workspace, not default Zen (which
+    # intentionally suppresses companion tiles and the buffer strip).
+    s.type(f"stty -g > {before}; {shlex.quote(str(s.binary))} --workspace --buffers top --no-lsp a.txt; "
            f"printf '%s' $? > {code}; stty -g > {after}\n")
     s.wait("cobalt starts", lambda sc: s.display("#{alternate_on}") == "1" and "NORMAL" in sc)
     # Hide status, problems and history: the checks read the view's rows.

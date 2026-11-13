@@ -37,6 +37,10 @@ git init -q -b main work
 cd work
 id
 git remote add origin ../remote.git
+# Keep the fixture's ref set stable across Git versions. Newer Git fetches
+# otherwise create origin/HEAD automatically, adding a decoration that crowds
+# the commit subject out of the narrow VCS log column.
+git config remote.origin.followRemoteHEAD never
 
 seq -f 'line %g' 1 30 > a.txt
 printf 'hello\n' > old_name.txt
