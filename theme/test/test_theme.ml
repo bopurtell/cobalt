@@ -116,7 +116,7 @@ let%test_unit "invalid completion role or non-strict RGB rejects the entire list
 ;;
 
 let%test_unit "registry is total, valid, distinct, and normalized" =
-  assert (List.length Theme.all = 54);
+  assert (List.length Theme.all = 58);
   assert (String.equal (Theme.id Theme.default) "vim-classic");
   assert (not (List.contains_dup (List.map Theme.all ~f:Theme.id) ~compare:String.compare));
   List.iter Theme.all ~f:(fun theme ->
@@ -165,8 +165,8 @@ let%test_unit "Vim, Solarized, and metallic palettes retain their registry ident
       let theme = Option.value_exn (Theme.find id) in
       assert (String.equal (Theme.title theme) title);
       assert (Theme.Kind.equal (Theme.kind theme) kind));
-  assert (List.count Theme.all ~f:(fun t -> Theme.Kind.equal (Theme.kind t) Dark) = 35);
-  assert (List.count Theme.all ~f:(fun t -> Theme.Kind.equal (Theme.kind t) Light) = 19);
+  assert (List.count Theme.all ~f:(fun t -> Theme.Kind.equal (Theme.kind t) Dark) = 38);
+  assert (List.count Theme.all ~f:(fun t -> Theme.Kind.equal (Theme.kind t) Light) = 20);
   let vim = Option.value_exn (Theme.find "vim-classic") in
   List.iter [ Theme.Role.Background; Backdrop; Current_line ] ~f:(fun role ->
     assert (Poly.equal (Theme.color vim role) (0, 0, 0)));
