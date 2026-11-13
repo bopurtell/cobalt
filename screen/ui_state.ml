@@ -60,6 +60,7 @@ type completion_session =
   ; base : Text_buffer.t
   ; base_cursor : int
   ; prefer_local_snippets : bool
+  ; snippet_base : snippet_session option
   }
 
 type completion_acceptance =
@@ -802,10 +803,15 @@ let snippet_choices t =
 
 let completion_current t (c : completion_session) =
   let editor = Controller.editor t.controller in
+  (* The planning model tracks the primary edit alone. A preceding linked
+     occurrence can move the live caret; the snippet session tracks that caret. *)
+  let cursor = match c.snippet_base, Completion.selected c.model with
+    | Some _, Some candidate when c.installed -> candidate.primary.start + candidate.cursor
+    | _ -> Editor.cursor editor in
   Option.equal Buffer_id.equal c.owner (Session.context_id t.session)
   && Controller.Document_id.equal c.document (Controller.document_id t.controller)
   && Mode.equal (Editor.mode editor) Insert
-  && Completion.matches c.model ~revision:(Editor.revision editor) ~cursor:(Editor.cursor editor)
+   && Completion.matches c.model ~revision:(Editor.revision editor) ~cursor
 ;;
 
 let completion_candidates t =
@@ -951,7 +957,7 @@ let receive_snippets t ~generation result =
 
 let resolve_completion t =
   match t.completion with
-  | Some c when completion_current t c && t.source_attached ->
+   | Some c when completion_current t c && t.source_attached && Option.is_none c.snippet_base ->
     (match Completion.selected c.model with
      | Some candidate when (match candidate.source with Lsp _ -> true | Buffer | Snippet -> false) ->
         let revision = Editor.revision (Controller.editor t.controller) in
@@ -976,9 +982,67 @@ let resolve_completion t =
   | _ -> t
 ;;
 
+let apply_snippet_change t (s : snippet_session) change =
+  let revision = Editor.revision (Controller.editor t.controller) in
+  Option.bind (Or_error.ok change) ~f:(fun change ->
+    Option.map (Controller.apply_insert_edits t.controller ~expected_revision:revision
+      ~edits:[ Snippet.Session.edits change ] ~cursor:(Snippet.Session.cursor_after change)
+      |> Or_error.ok) ~f:(fun controller ->
+        let fields = Snippet.Session.applied change
+            ~revision:(Editor.revision (Controller.editor controller)) in
+        { t with controller; snippet = Some { s with fields } }))
+;;
+
+(* Nested templates and out-of-field edits cannot be applied through a linked
+   placeholder. Plain identifier completions use the snippet's mirroring API. *)
+let field_completion_allowed (c : completion_session) (candidate : Completion.Candidate.t) =
+  match c.snippet_base with
+  | None -> true
+  | Some s ->
+    Option.exists (Snippet.Session.active_range s.fields) ~f:(fun range ->
+      Option.is_none candidate.snippet && List.is_empty candidate.additional
+      && candidate.primary.start >= range.start && candidate.primary.stop <= range.stop
+      && candidate.cursor = String.length candidate.primary.text)
+;;
+
 let install_completion t c plan =
   if not (completion_current t c) then dismiss_completion t else
   let editor = Controller.editor t.controller in
+  match c.snippet_base, t.snippet with
+  | Some base, Some live ->
+    let model = Completion.applied c.model plan ~revision:(Editor.revision editor) in
+    (match Completion.selected model,
+           Snippet.Session.active_range base.fields,
+           Snippet.Session.active_range live.fields with
+     | Some candidate, Some original, Some current when field_completion_allowed c candidate ->
+       let start, stop = match Snippet.Session.selection base.fields with
+         | Some selection -> selection.start, selection.stop
+         | None -> candidate.primary.start, candidate.primary.stop in
+       (* Rebuild from the query snapshot, not the previously installed choice:
+          candidates can replace different prefix ranges or leave a suffix. *)
+       let replacement =
+         Text_buffer.slice c.base ~pos:original.start ~len:(start - original.start)
+         ^ candidate.primary.text
+         ^ Text_buffer.slice c.base ~pos:stop ~len:(original.stop - stop) in
+       (match apply_snippet_change t live
+         (Snippet.Session.replace live.fields ~revision:(Editor.revision editor)
+            ~text:(Editor.text editor) ~start:current.start ~stop:current.stop ~replacement) with
+        | None -> dismiss_completion t
+        | Some t ->
+          let live = Option.value_exn t.snippet in
+          let range = Snippet.Session.active_range live.fields |> Option.value_exn in
+          let cursor = range.start + start - original.start + candidate.cursor in
+          let fields = Snippet.Session.set_cursor live.fields cursor |> Or_error.ok_exn in
+          let controller = Controller.apply_insert_edits t.controller
+              ~expected_revision:(Editor.revision (Controller.editor t.controller))
+              ~edits:[] ~cursor |> Or_error.ok_exn in
+          let model = Completion.applied c.model plan
+              ~revision:(Editor.revision (Controller.editor controller)) in
+          { t with controller; snippet = Some { live with fields }
+            ; completion = Some { c with model; installed = true } })
+     | _ -> dismiss_completion t)
+  | Some _, None -> dismiss_completion t
+  | None, _ ->
   match Controller.apply_insert_edits t.controller
       ~expected_revision:(Editor.revision editor) ~edits:(Completion.edits plan)
       ~cursor:(Completion.cursor plan) with
@@ -1034,6 +1098,7 @@ let finalize_completion t =
   let t = { t with snippet = None } in
   let t = match t.completion_acceptance with None -> t | Some _ -> dismiss_completion t in
   match t.completion with
+  | Some c when Option.is_some c.snippet_base -> dismiss_completion t
   | Some c when completion_current t c && c.installed
       && Option.exists (Completion.selected c.model) ~f:(fun selected ->
         List.is_empty selected.additional && Option.exists (completion_metadata c selected) ~f:(fun info ->
@@ -1095,7 +1160,6 @@ let start_completion ?(manual = false) t =
   let t = dismiss_completion t in
   let editor = Controller.editor t.controller in
   if (not manual && not t.completion_enabled) || not (has_document t)
-     || Option.is_some t.snippet
      || not (Controller.Kind.equal (Controller.kind t.controller) File)
      || not (Mode.equal (Editor.mode editor) Insert)
      || not (List.is_empty (Editor.block_insert_points editor))
@@ -1125,7 +1189,8 @@ let start_completion ?(manual = false) t =
       ?words ~limit:100 () with
   | None -> t
   | Some (model, request) ->
-    let snippets = Cobalt_completion.User_snippets.candidates t.user_snippets
+    let snippets = if Option.is_some t.snippet then [] else
+      Cobalt_completion.User_snippets.candidates t.user_snippets
         ~path:(Editor.path editor) ~text ~cursor:(Editor.cursor editor) ~limit:100 in
     let model = Completion.receive model
         { token; source = "\000user-snippets"; candidates = snippets; incomplete = false } in
@@ -1139,9 +1204,12 @@ let start_completion ?(manual = false) t =
       match Text_buffer.prev_boundary text at with
       | None -> count
       | Some previous -> prefix_chars previous (count + 1) in
-    if not manual && not punctuation
-       && (not identifier_character
-           || prefix_chars request.cursor 0 < t.completion_min_prefix_chars) then t else
+    let outside_field = Option.exists t.snippet ~f:(fun s ->
+      not (Option.exists (Snippet.Session.active_range s.fields) ~f:(fun range ->
+        request.fallback_start >= range.start && request.cursor <= range.stop))) in
+    if outside_field || (not manual && not punctuation
+        && (not identifier_character
+            || prefix_chars request.cursor 0 < t.completion_min_prefix_chars)) then t else
     let request = if punctuation && not manual then
         { request with trigger = Character preceding }
       else request in
@@ -1150,7 +1218,7 @@ let start_completion ?(manual = false) t =
         Some { owner; document; text; request; before })
     ; completion = Some { model; token; owner; document = Controller.document_id t.controller; installed = false
         ; metadata = String.Map.empty; resolving = None; base = text; base_cursor = Editor.cursor editor
-        ; prefer_local_snippets = t.completion_prefer_local_snippets }
+        ; prefer_local_snippets = t.completion_prefer_local_snippets; snippet_base = t.snippet }
     ; source_commands = if t.source_attached && not (String.is_empty token.resource)
         then Complete request :: t.source_commands else t.source_commands }
 ;;
@@ -1225,7 +1293,7 @@ let insert_demo_snippet t =
       ; completion = Some { model; token; owner = Session.context_id t.session
           ; document = Controller.document_id controller; installed = false
           ; metadata = String.Map.empty; resolving = None; base = text; base_cursor = cursor
-          ; prefer_local_snippets = true } } in
+          ; prefer_local_snippets = true; snippet_base = None } } in
     accept_completion (cycle_completion t Next)
 ;;
 
@@ -4292,17 +4360,6 @@ let finish_step t ~width ~height ~controller ~views ~keymap_notice =
     }
 ;;
 
-let apply_snippet_change t (s : snippet_session) change =
-  let revision = Editor.revision (Controller.editor t.controller) in
-  Option.bind (Or_error.ok change) ~f:(fun change ->
-    Option.map (Controller.apply_insert_edits t.controller ~expected_revision:revision
-      ~edits:[ Snippet.Session.edits change ] ~cursor:(Snippet.Session.cursor_after change)
-      |> Or_error.ok) ~f:(fun controller ->
-        let fields = Snippet.Session.applied change
-            ~revision:(Editor.revision (Controller.editor controller)) in
-        { t with controller; snippet = Some { s with fields } }))
-;;
-
 let snippet_command t command =
   Option.bind t.snippet ~f:(fun s ->
     let editor = Controller.editor t.controller in
@@ -4397,18 +4454,33 @@ let feed t ~width ~height (input : Keymap.Input.t) =
             Signature_overlay.cycle help (if Char.equal key 'g' then 1 else -1)) }) },
     Controller.Status.Running
   | Key (Ctrl 'n') when Mode.equal (Editor.mode (Controller.editor t.controller)) Insert ->
-    start_completion ~manual:true (finalize_completion t), Controller.Status.Running
+    (if Option.is_some t.snippet then
+       if accepting then cycle_completion t Next else start_completion ~manual:true t
+     else start_completion ~manual:true (finalize_completion t)), Controller.Status.Running
+  | Key (Ctrl 'p') when Option.is_some t.snippet && accepting ->
+    cycle_completion t Previous, Controller.Status.Running
   | Key (Tab | Shift_tab as key) when Option.is_some t.snippet ->
-    navigate_snippet t (if Key.equal key Tab then Next else Previous), Controller.Status.Running
+    navigate_snippet (dismiss_completion t) (if Key.equal key Tab then Next else Previous), Controller.Status.Running
   | Key (Ctrl ('e' | 'y' as key)) when
       Option.exists t.snippet ~f:(fun s -> Option.is_some (Snippet.Session.choices s.fields)) ->
-    let t = { t with controller = Controller.cancel_pending t.controller } in
+    let t = dismiss_completion { t with controller = Controller.cancel_pending t.controller } in
     let s = Option.value_exn t.snippet in
     let editor = Controller.editor t.controller in
     let change = Snippet.Session.cycle_choice s.fields (if Char.equal key 'e' then Next else Previous)
         ~revision:(Editor.revision editor) ~text:(Editor.text editor) in
     Option.value (apply_snippet_change t s change) ~default:{ t with snippet = None }, Controller.Status.Running
-  | Key _ when Option.is_some t.snippet -> feed_snippet t ~width ~height input
+  | Key Enter when Option.is_some t.snippet && accepting ->
+    let t = if Option.exists t.completion ~f:(fun c -> c.installed) then t
+      else cycle_completion t Next in
+    dismiss_completion t, Controller.Status.Running
+  | Key _ when Option.is_some t.snippet ->
+    let revision = Editor.revision (Controller.editor t.controller) in
+    let t, status = feed_snippet (dismiss_completion t) ~width ~height input in
+    let t = match input with
+      | Key (Char _ | Backspace | Delete | Ctrl 'h') when
+          Editor.revision (Controller.editor t.controller) <> revision -> start_completion t
+      | _ -> t in
+    t, status
   | Key (Tab | Shift_tab as key) when accepting ->
     cycle_completion t (if Key.equal key Tab then Next else Previous), Controller.Status.Running
   | Key Enter when accepting ->
@@ -5011,6 +5083,8 @@ let rec receive t (event : Cobalt_error.Source_event.t) =
   | Completion reply ->
     (match t.completion with
      | Some c when completion_current t c ->
+       let reply = { reply with candidates = List.filter reply.candidates
+           ~f:(field_completion_allowed c) } in
        resolve_completion { t with completion = Some { c with model = Completion.receive c.model reply } }
       | _ -> t)
   | Completion_metadata { token; source; items } ->

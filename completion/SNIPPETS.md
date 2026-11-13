@@ -116,3 +116,11 @@ Next after the last field clears selection and places the cursor at `$0`, settin
 field reselects it. `matches` checks the exact revision and document snapshot;
 external edits should cancel the session. The UI owns escape, undo, buffer/document
 lifetime, external movement, and cancellation.
+
+Completion inside an active field uses `Session.replace`, not direct document
+edits, so linked occurrences and later fields remain tracked. Each candidate is
+rebuilt from the query's original field contents when cycling; mirrors before the
+active occurrence may shift its live offset. Only plain candidates confined to
+the field, without additional edits, are accepted; nested templates and resolve
+imports are not applied. Enter accepts, Ctrl-n/p cycles suggestions, and Tab/
+Shift-Tab retain field navigation.

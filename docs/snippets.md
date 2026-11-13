@@ -92,20 +92,29 @@ decisions about the intended state machine.
 
 | Triggers | Templates |
 | --- | --- |
-| `tbclk`, `tbrst` | Clock generator and active-high reset sequence |
+| `tbclk`, `tbrst` | Clock generator and active-low reset sequence |
 | `tbtimeout`, `tbdump` | Fatal timeout and simulator-dependent VCD dump |
-| `tb` | Testbench with linked clock/reset/DUT fields and timeout |
+| `tb` | Parameterized DUT testbench with linked clock/reset fields and timeout |
 | `sva`, `prop`, `coverp` | Concurrent assertion, named property/assertion, cover property |
 | `svaimp`, `svabound` | Selectable implication and bounded response |
 
+The testbench uses `t_clk` / `t_rst`, DUT ports `clk_i` / `rst_n_i`, and instance
+name `dut_inst0`. Its `// Params` section declares an editable `DATA_W` local
+parameter linked to the DUT's `#(.DATA_W(DATA_W))` override. Rename/add parameters
+for your DUT, or remove the parameter declaration and override for a DUT without
+parameters.
+
 The testbench declares `timeunit 1ns` and `timeprecision 1ps`. Standalone timing
 fragments use explicit literals such as `5ns`; the enclosing precision must
-resolve them. Reset is held across rising edges and released on a falling edge;
-the testbench leaves stimulus on falling edges to avoid racing rising-edge RTL.
+resolve them. Reset is active low: `t_rst` starts at `0`, is held across rising
+edges, and is released to `1` on a falling edge. `tbclk` and `tbrst` use the same
+signal names and polarity. The testbench leaves stimulus on falling edges to
+avoid racing rising-edge RTL.
 Sample checks after DUT updates. VCD system-task support depends on the simulator.
 
-Assertions sample at the rising edge. `disable iff (rst)` disables asynchronously;
-use `0` for no reset-disable condition. In `svaimp`, `|->` starts the consequent
+Assertions sample at the rising edge of `t_clk`. `disable iff (!t_rst)` disables
+asynchronously during active-low reset; use `1` for the reset field for no
+reset-disable condition. In `svaimp`, `|->` starts the consequent
 at the antecedent's sampled cycle, while `|=>` starts it on the next sampled
 cycle. `svabound` uses inclusive `##[MIN:MAX]` bounds measured from that sample.
 

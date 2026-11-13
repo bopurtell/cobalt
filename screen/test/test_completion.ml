@@ -807,6 +807,72 @@ let snippet_menu ?(initial = "") ?(prefix = "ial") ?(additional = []) syntax =
 
 let active t = not (List.is_empty (Ui_state.snippet_ranges t))
 
+let%test_unit "buffer completion inside a linked field preserves navigation and undo" =
+  let initial = "\nbyte_count_r byte_count_next" in
+  let t = fst (snippet_menu ~initial "if (${1:condition}) begin\n$0\nend // $1")
+      |> fun t -> press t "<CR>byte_c" in
+  assert (active t && has_menu t);
+  assert (List.mem (labels t) "byte_count_r" ~equal:String.equal);
+  let t = press t "<CR>" in
+  assert (active t && not (has_menu t));
+  let ranges = Ui_state.snippet_ranges t in
+  List.iter ranges ~f:(fun range ->
+    assert (String.equal (Text_buffer.slice (Editor.text (editor t))
+      ~pos:range.start ~len:(range.stop - range.start)) "byte_count_next"));
+  let t = press t "_x" in
+  assert (String.is_substring (text t) ~substring:"byte_count_next_x");
+  let t = press t "<Tab>" in
+  assert (not (active t));
+  assert (String.equal (text (press t "<Esc>u")) initial)
+;;
+
+let%test_unit "field completion cycles safely when a mirror precedes the active occurrence" =
+  let t = fst (snippet_menu "$1/$1/${2:value}$0")
+      |> fun t -> press t "<CR><Right>by" in
+  assert (active t);
+  let t, req = request t in
+  let t = reply t req [candidate req "byte_count_r"; candidate req "byte_total_r"] in
+  assert (has_menu t);
+  let t = press t "<C-n>" in
+  assert (String.equal (text t) "byte_count_r/byte_count_r/value");
+  assert (active t && has_menu t);
+  let t = press t "<C-n>" in
+  assert (String.equal (text t) "byte_total_r/byte_total_r/value");
+  let t = press t "<C-p><CR>" in
+  assert (String.equal (text t) "byte_count_r/byte_count_r/value");
+  assert (active t && not (has_menu t));
+  let t = press t "<Tab>42<Tab>" in
+  assert (String.equal (text t) "byte_count_r/byte_count_r/42");
+  assert (not (active t))
+;;
+
+let%test_unit "field completion rejects nested snippets and edits outside the placeholder" =
+  let t = fst (snippet_menu "${1:condition}/${2:next}") |> fun t -> press t "<CR>by" in
+  let t, req = request t in
+  let outside = { (candidate req "byte_outside") with
+    primary = { start = 0; stop = Text_buffer.length (Editor.text (editor t)); text = "bad" } } in
+  let imported = candidate req ~additional:[{ start = 0; stop = 0; text = "import\n" }] "byte_import" in
+  let nested = { (candidate req "byte_nested") with
+    snippet = Some (Snippet.parse "${1:nested}" |> Or_error.ok_exn) } in
+  let t = reply t req [outside; imported; nested; candidate req "byte_count_r"] in
+  [%test_eq: string list] (labels t) ["byte_count_r"];
+  let t = press t "<CR><Tab>done<Tab>" in
+  assert (String.equal (text t) "byte_count_r/done");
+  assert (not (active t))
+;;
+
+let%test_unit "manual completion with automatic suggestions disabled retains the field" =
+  let t = fst (snippet_menu ~prefix:" cccompletion.toggle<CR>ial<C-n>"
+    "${1:condition}/${2:next}") |> fun t -> press t "<CR>by" in
+  assert (active t && not (has_menu t));
+  assert (not (Ui_state.completion_enabled t));
+  let t, req = request (press t "<C-n>") in
+  let t = reply t req [candidate req "byte_count_r"] |> fun t -> press t "<CR>" in
+  assert (String.equal (text t) "byte_count_r/next" && active t);
+  let t = press t "<Tab>done<Tab>" in
+  assert (String.equal (text t) "byte_count_r/done" && not (active t))
+;;
+
 let%expect_test "demo palette command inserts at the Normal cursor and uses live linked fields with one undo" =
   let initial = "préTAIL" in
   let t = press (ui initial) "lll ccInsert demo snippet<CR>" in
@@ -1074,14 +1140,14 @@ let%expect_test "snippet terminal prefix timeout replays every held key through 
   [%expect {| |}]
 ;;
 
-let%expect_test "snippet safe cancellation for paste, newline, buffer change, control command and terminal toggle" =
+let%expect_test "snippet safe cancellation and manual completion preserves fields" =
   let make () = fst (snippet_menu "${1:default}/$1$0") |> fun t -> press t "<CR>" in
   let t = run (make ()) (paste "界<CR>jk") in
   assert (String.equal (text t) "default界\njk/default" && not (active t) && not (has_menu t));
   let t = press (make ()) "<CR>" in
   assert (String.equal (text t) "default\n/default" && not (active t));
   let t = press (make ()) "<C-n>" in
-  assert (not (active t));
+  assert (active t);
   let _, requests = Ui_state.take_source_requests t in
   assert (List.exists requests ~f:(function Complete _ -> true | _ -> false));
   let t = press (make ()) " /" in
@@ -1156,7 +1222,7 @@ let%test_unit "choice hint is clipped by cells, nonfocus, and follows active fie
   assert (Option.exists frame.cursor ~f:(fun cursor -> Frame.Cursor.equal_shape cursor.shape Bar));
   assert (not (has_menu t));
   assert (not (String.is_substring (render (press t "<Tab>")) ~substring:"Ctrl-e/y"));
-  assert (not (String.is_substring (render (press t "<C-n>")) ~substring:"Ctrl-e/y"))
+  assert (String.is_substring (render (press t "<C-n>")) ~substring:"Ctrl-e/y")
 ;;
 
 let%test_unit "choice hint bounds alternatives before span rendering" =

@@ -137,10 +137,50 @@ let%test_unit "braces and simulator dollars expand literally, filenames resolve 
   contains dump "$dumpfile(\"counter_tb.vcd\")";
   contains dump "$dumpvars(0, counter_tb)";
   let tb = expand "tb" in
-  List.iter [ "timeunit 1ns;"; "timeprecision 1ps;"; "always #(5ns) clk = ~clk;";
-              ".clk(clk)"; ".rst(rst)"; "@(negedge clk);\n        rst = 1'b0;";
+  List.iter [ "timeunit 1ns;"; "timeprecision 1ps;"; "always #(5ns) t_clk = ~t_clk;";
+              "localparam int unsigned DATA_W = 8;"; ".DATA_W(DATA_W)";
+              "dut_inst0\n      ("; ".clk_i(t_clk)"; ".rst_n_i(t_rst)";
+              "logic t_rst = 1'b0;"; "@(negedge t_clk);\n        t_rst = 1'b1;";
               "$display(\"Test complete\")"; "$finish;"; "$fatal(1," ] ~f:(contains tb);
   contains (expand "tbtimeout") "#(100us)"
+;;
+
+let%test_unit "verification fragments share testbench clock and active-low reset conventions" =
+  contains (expand "tbclk") "logic t_clk = 1'b0;\nalways #(5ns) t_clk = ~t_clk;";
+  let reset = expand "tbrst" in
+  contains reset "t_rst = 1'b0;";
+  contains reset "repeat (4) @(posedge t_clk);\n    @(negedge t_clk);\n    t_rst = 1'b1;";
+  List.iter [ "sva"; "prop"; "coverp"; "svaimp"; "svabound" ]
+    ~f:(fun prefix -> contains (expand prefix) "@(posedge t_clk) disable iff (!t_rst)")
+;;
+
+let%test_unit "testbench parameter and signal renames update all linked occurrences" =
+  List.iter [ 2, "PAYLOAD_W"; 4, "sim_clk"; 5, "sim_rst" ] ~f:(fun (number, name) ->
+    let template = parse "tb" in
+    let text = Text_buffer.of_string (N.text template) |> Result.ok |> Option.value_exn in
+    let session = S.start template ~base:0 ~revision:0 ~text |> Or_error.ok_exn in
+    let rec select session =
+      match S.active session with
+      | Some field when field.number = number -> session
+      | Some _ -> select (S.navigate session Next)
+      | None -> failwith "missing testbench field" in
+    let change = S.insert (select session) ~revision:0 ~text name |> Or_error.ok_exn in
+    let text = Text_edit.apply text [S.edits change] |> Or_error.ok_exn in
+    let session = S.applied change ~revision:1 in
+    assert (S.matches session ~revision:1 ~text);
+    let text = Text_buffer.to_string text in
+    match number with
+    | 2 ->
+      contains text "localparam int unsigned PAYLOAD_W = 8;";
+      contains text ".PAYLOAD_W(PAYLOAD_W)"
+    | 4 ->
+      List.iter [ "logic sim_clk"; "sim_clk = ~sim_clk"; ".clk_i(sim_clk)";
+                  "@(posedge sim_clk)"; "@(negedge sim_clk)" ] ~f:(contains text);
+      assert (not (String.is_substring text ~substring:"t_clk"))
+    | _ ->
+      List.iter [ "logic sim_rst = 1'b0;"; ".rst_n_i(sim_rst)"; "sim_rst = 1'b1;" ]
+        ~f:(contains text);
+      assert (not (String.is_substring text ~substring:"t_rst")))
 ;;
 
 let%test_unit "SVA implication choice changes only timing operator; bounds stay visible" =
@@ -157,7 +197,7 @@ let%test_unit "SVA implication choice changes only timing operator; bounds stay 
   [%test_eq: string list option] (S.choices session) (Some [ "|->"; "|=>" ]);
   let change = S.cycle_choice session Next ~revision:0 ~text |> Or_error.ok_exn in
   let text = Text_edit.apply text [ S.edits change ] |> Or_error.ok_exn |> Text_buffer.to_string in
-  contains text "@(posedge clk) disable iff (rst)";
+  contains text "@(posedge t_clk) disable iff (!t_rst)";
   contains text "(request) |=> (acknowledge)";
   contains (expand "svabound") "(request) |-> ##[1:4] (acknowledge)";
   contains (expand "prop") "assert property (p_check)"

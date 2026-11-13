@@ -941,7 +941,15 @@ occurrences.
 | `Left` / `Right` | Move within a field without losing linked updates; leaving it ends the snippet |
 | `Home` / `End` | Move to the current line's start/end; retain the snippet only when still within an active occurrence |
 | `Escape` | Retain expanded text, end the snippet, and return to Normal mode |
-| `Ctrl-n` | End the snippet and explicitly request completion |
+| `Enter` | Accept a visible completion without leaving the field |
+| `Ctrl-n` | Request completion, or cycle forward through visible suggestions |
+| `Ctrl-p` | Cycle backward through visible suggestions |
+
+Automatic buffer-word and language-server completions are available while editing
+a field. Acceptance updates its linked occurrences and keeps the remaining fields
+active. Tab/Shift-Tab still navigate fields, even with a completion menu open.
+Nested snippet completions and candidates requiring edits outside the active field
+(such as imports) are omitted while a snippet is active.
 
 For example, a server snippet `assign ${1:signal} = $1;$0` expands to
 `assign signal = signal;`. Enter selects the first `signal`; typing `ready`
@@ -958,7 +966,7 @@ A compact hint shows available choices while the field is active. Cycling keeps
 the chosen value selected, so typing replaces it with custom text. After custom
 text, Ctrl-e chooses the first option and Ctrl-y the last. For a quick hands-on
 test in a SystemVerilog file, accept the bundled `aff` snippet with Enter, press
-Ctrl-e to change `posedge` to `negedge`, then Tab to edit `clk`.
+Ctrl-e to change `posedge` to `negedge`, then Tab to edit `clk_i`.
 
 Filename variables work in local and language-server snippets: `TM_FILENAME`,
 `TM_FILENAME_BASE` (only the final extension removed), `TM_DIRECTORY`, and

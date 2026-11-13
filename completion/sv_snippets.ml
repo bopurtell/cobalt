@@ -263,15 +263,15 @@ always_comb begin
     $0
 end|}
   ; verification "tbclk" "Simulation clock: explicit time literal half-period; enclosing precision must resolve it"
-      {|logic ${1:clk} = 1'b0;
+      {|logic ${1:t_clk} = 1'b0;
 always #(${2:5ns}) $1 = ~$1;
 $0|}
-  ; verification "tbrst" "Simulation active-high reset: hold for rising edges, release on falling edge"
+  ; verification "tbrst" "Simulation active-low reset: hold for rising edges, release on falling edge"
       {|initial begin
-    ${1:rst} = 1'b1;
-    repeat (${2:4}) @(posedge ${3:clk});
+    ${1:t_rst} = 1'b0;
+    repeat (${2:4}) @(posedge ${3:t_clk});
     @(negedge $3);
-    $1 = 1'b0;
+    $1 = 1'b1;
     $0
 end|}
   ; verification "tbtimeout" "Simulation timeout: explicit time literal, fatal exit; enclosing precision applies"
@@ -286,58 +286,66 @@ end|}
     \$dumpvars(0, ${2:${TM_FILENAME_BASE:tb}});
     $0
 end|}
-  ; verification "tb" "Simulation testbench: 1ns/1ps, linked clock/reset/DUT, falling-edge stimulus, timeout"
+  ; verification "tb" "Simulation testbench: DUT parameters, t_ signals, active-low reset, falling-edge stimulus, timeout"
       {|module ${1:${TM_FILENAME_BASE:tb}};
     timeunit 1ns;
     timeprecision 1ps;
 
-    logic ${2:clk} = 1'b0;
-    logic ${3:rst} = 1'b1;
-    always #(${4:5ns}) $2 = ~$2;
+    // Params
+    localparam int unsigned ${2:DATA_W} = ${3:8};
 
-    ${5:dut_module} dut (
-        .${6:clk}($2),
-        .${7:rst}($3)
-    );
+    logic ${4:t_clk} = 1'b0;
+    logic ${5:t_rst} = 1'b0;
+    always #(${6:5ns}) $4 = ~$4;
+
+    ${7:dut_module}
+    #(
+        .$2($2)
+    )
+    ${8:dut_inst0}
+      (
+        .${9:clk_i}($4),
+        .${10:rst_n_i}($5)
+      );
 
     initial begin
-        repeat (${8:4}) @(posedge $2);
-        @(negedge $2);
-        $3 = 1'b0;
+        repeat (${11:4}) @(posedge $4);
+        @(negedge $4);
+        $5 = 1'b1;
         // Drive stimulus on falling edges; sample checks after DUT updates.
         $0
-        repeat (4) @(negedge $2);
+        repeat (4) @(negedge $4);
         \$display("Test complete");
         \$finish;
     end
 
     initial begin
-        #(${9:100us});
+        #(${12:100us});
         \$fatal(1, "Simulation timeout");
     end
 endmodule|}
-  ; verification "sva" "Concurrent assertion: posedge sampled, asynchronous disable iff reset (use 0 for none)"
-      {|${1:a_check}: assert property (@(posedge ${2:clk}) disable iff (${3:rst})
+  ; verification "sva" "Concurrent assertion: posedge sampled, asynchronous disable iff active-low reset (use 1 for none)"
+      {|${1:a_check}: assert property (@(posedge ${2:t_clk}) disable iff (!${3:t_rst})
     ${4:condition})
     else \$error("${5:Assertion failed}");
 $0|}
-  ; verification "prop" "Named property and assertion: posedge sampling, asynchronous disable iff (use 0 for none)"
+  ; verification "prop" "Named property and assertion: posedge sampling, active-low reset disable iff (use 1 for none)"
       {|property ${1:p_check};
-    @(posedge ${2:clk}) disable iff (${3:rst})
+    @(posedge ${2:t_clk}) disable iff (!${3:t_rst})
         ${4:condition};
 endproperty
 ${5:a_check}: assert property ($1);
 $0|}
-  ; verification "coverp" "Cover property: posedge sampling, asynchronous disable iff (use 0 for none)"
-      {|${1:c_event}: cover property (@(posedge ${2:clk}) disable iff (${3:rst})
+  ; verification "coverp" "Cover property: posedge sampling, active-low reset disable iff (use 1 for none)"
+      {|${1:c_event}: cover property (@(posedge ${2:t_clk}) disable iff (!${3:t_rst})
     ${4:condition});
 $0|}
   ; verification "svaimp" "SVA implication: |-> same sampled cycle; choice |=> starts next sampled cycle"
-      {snippet|${1:a_response}: assert property (@(posedge ${2:clk}) disable iff (${3:rst})
+      {snippet|${1:a_response}: assert property (@(posedge ${2:t_clk}) disable iff (!${3:t_rst})
     (${4:request}) ${5|\|->,\|=>|} (${6:acknowledge}));
 $0|snippet}
   ; verification "svabound" "SVA bounded response: |-> ##[MIN:MAX] cycles from request sample, inclusive bounds"
-      {|${1:a_bounded_response}: assert property (@(posedge ${2:clk}) disable iff (${3:rst})
+      {|${1:a_bounded_response}: assert property (@(posedge ${2:t_clk}) disable iff (!${3:t_rst})
     (${4:request}) |-> ##[${5:1}:${6:4}] (${7:acknowledge}));
 $0|}
   ]
