@@ -20,11 +20,25 @@ let verification = make "sv.verification"
 
 let all =
   [ design "aff" "Clocked always block"
-      "always_ff @(${1|posedge,negedge|} ${2:clk}) begin\n    $0\nend"
+      "always_ff @(${1|posedge,negedge|} ${2:clk_i}) begin\n    $0\nend"
   ; design "acomb" "Combinational always block"
       "always_comb begin\n    $0\nend"
-  ; design "mod" "Module declaration"
-      "module ${1:${TM_FILENAME_BASE:module_name}} (\n    $0\n);\nendmodule"
+   ; design "mod" "Module declaration with spaced port section"
+       {|module
+  ${1:${TM_FILENAME_BASE:module_name}}
+
+// Port
+(
+    $0
+);
+
+endmodule|}
+   ; design "pint" "Unsigned integer parameter"
+       {|parameter int unsigned ${1:PARAM_NAME} = ${2:8},$0|}
+   ; design "ilog" "Input logic port"
+       {|input  logic ${1:signal_i},$0|}
+   ; design "olog" "Output logic port"
+       {|output logic ${1:signal_o},$0|}
   ; design "inst" "Module instance"
       "${1:module_name} ${2:instance_name} (\n    .${3:port}($3)$0\n);"
   ; design "genfor" "Generate loop"
@@ -123,7 +137,32 @@ end|}
     end
     $0
 end|}
-  ; design "ucase" "Unique case with explicit default branch"
+   ; design "if" "If statement"
+       {|if (${1:condition}) begin
+    $0
+end|}
+   ; design "ifelse" "If/else statement"
+       {|if (${1:condition}) begin
+    ${2:// true branch}
+end else begin
+    ${3:// false branch}
+end
+$0|}
+   ; design "else" "Else branch"
+       {|else begin
+    $0
+end|}
+   ; design "case" "Case statement with explicit default branch"
+       {|case (${1:selector})
+    ${2:VALUE}: begin
+        ${3:// branch}
+    end
+    default: begin
+        ${4:// default behavior}
+    end
+endcase
+$0|}
+   ; design "ucase" "Unique case with explicit default branch"
       {|unique case (${1:selector})
     ${2:VALUE}: begin
         ${3:// branch}
@@ -153,15 +192,24 @@ $0|}
   ; design "lparam" "Typed local parameter"
       {|localparam ${1:int unsigned} ${2:COUNT} = ${3:8};
 $0|}
-  ; design "modp" "Parameterized module with filename-backed name and width-linked ports"
-      {|module ${1:${TM_FILENAME_BASE:module_name}} #(
-    parameter int unsigned ${2:WIDTH} = ${3:8}
-) (
-    input  logic ${4:clk},
-    input  logic [$2-1:0] ${5:data_i},
-    output logic [$2-1:0] ${6:data_o}
+   ; design "modp" "Parameterized module with spaced parameter and port sections"
+       {|module
+  ${1:${TM_FILENAME_BASE:module_name}}
+
+// Params
+#(
+    parameter int unsigned ${2:DATA_W} = ${3:8}
+)
+
+// Port
+(
+    input  logic ${4:clk_i},
+    input  logic [$2 - 1 : 0] ${5:data_i},
+    output logic [$2 - 1 : 0] ${6:data_o}
 );
+
     $0
+
 endmodule|}
   ; design "genif" "Conditional generate with named true and false blocks"
       {|if (${1:ENABLE}) begin : ${2:gen_enabled}

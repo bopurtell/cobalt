@@ -15,6 +15,7 @@ let configured = { Settings.completion_enabled = false
   ; signature_help_enabled = false
   ; completion_ghost_preview = true; completion_min_prefix_chars = 3
   ; completion_prefer_local_snippets = false; line_numbers = true
+  ; relative_line_numbers = false
   ; theme = Theme.id (List.last_exn Theme.all); snippets = []; completion_colors = [] }
 
 let%test_unit "startup application is explicit; session toggles and removed fields reset on reload" =
@@ -128,6 +129,26 @@ let%test_unit "line numbers update both profiles without resetting layout; theme
     assert (Line_numbers.equal (Ui_state.prefs t).line_numbers Off);
     assert (Line_numbers.equal (Ui_state.bare_prefs t).line_numbers Off);
     assert (String.equal (text t) "keep"))
+;;
+
+let%test_unit "configured number switches survive reload in both presentation profiles" =
+  List.iter [false; true] ~f:(fun bare ->
+    List.iter [false, false, Line_numbers.Off; true, false, Absolute;
+               false, true, Relative; true, true, Hybrid]
+      ~f:(fun (absolute, relative, expected) ->
+        let settings = { Settings.default with line_numbers = absolute;
+          relative_line_numbers = relative } in
+        let t = Ui_state.create ~bare (Ui_state.controller (Helpers.ui "one\ntwo\nthree"))
+          |> fun t -> apply t settings in
+        let check t =
+          assert (Line_numbers.equal (Ui_state.prefs t).line_numbers expected);
+          assert (Line_numbers.equal (Ui_state.bare_prefs t).line_numbers expected)
+        in
+        check t;
+        let t = press t " vN" |> reload in
+        let t = Ui_state.receive_configuration t ~generation:1 (Ok settings) in
+        check t;
+        assert (String.equal (text t) "one\ntwo\nthree")))
 ;;
 
 let%test_unit "explicit startup theme and apply override persist across reloads" =

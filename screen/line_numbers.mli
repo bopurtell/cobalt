@@ -14,6 +14,9 @@ type t =
   (** The cursor line shows its line number, left-aligned; the others their distance. *)
 [@@deriving sexp_of, equal, enumerate]
 
+(** Select a style from independent absolute and relative switches. *)
+val of_switches : absolute:bool -> relative:bool -> t
+
 (** Flips the absolute ('number') switch, keeping the relative one. *)
 val toggle_absolute : t -> t
 

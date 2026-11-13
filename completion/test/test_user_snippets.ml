@@ -272,7 +272,7 @@ let%test_unit "bundled module uses an editable filename default in SystemVerilog
       let candidate = candidates ~path U.builtins "mod" |> List.hd_exn in
       [%test_eq: string] candidate.id "user-snippet:sv.mod";
       [%test_eq: string] candidate.primary.text
-        ("module " ^ name ^ " (\n    \n);\nendmodule");
+         ("module\n  " ^ name ^ "\n\n// Port\n(\n    \n);\n\nendmodule");
       let installed = Text_edit.apply (text "mod") [[candidate.primary]] |> Or_error.ok_exn in
       let snippet = Option.value_exn candidate.snippet in
       let module S = Snippet.Session in
@@ -285,10 +285,10 @@ let%test_unit "bundled module uses an editable filename default in SystemVerilog
         (B.slice installed ~pos:selected.start ~len:(selected.stop - selected.start)) name;
       let change = S.insert session ~revision:1 ~text:installed "renamed" |> Or_error.ok_exn in
       let edited = Text_edit.apply installed [S.edits change] |> Or_error.ok_exn in
-      [%test_eq: string] (B.to_string edited) "module renamed (\n    \n);\nendmodule";
+       [%test_eq: string] (B.to_string edited) "module\n  renamed\n\n// Port\n(\n    \n);\n\nendmodule";
       let session = S.applied change ~revision:2 |> fun session -> S.navigate session Next in
       assert (S.finished session);
-      [%test_eq: int] (S.cursor session) (String.length "module renamed (\n    "));
+       [%test_eq: int] (S.cursor session) (String.length "module\n  renamed\n\n// Port\n(\n    "));
   List.iter ["bruh.v"; "bruh.ml"; "bruh.txt"] ~f:(fun path ->
     assert (not (has (candidates ~path U.builtins "mod") "sv.mod")));
   assert (List.is_empty (candidates U.builtins "mod"))

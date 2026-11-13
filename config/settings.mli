@@ -8,6 +8,7 @@ type t =
   ; completion_prefer_local_snippets : bool
   ; completion_colors : (string * string) list
   ; line_numbers : bool
+  ; relative_line_numbers : bool
   ; theme : string
   ; snippets : Cobalt_completion.User_snippets.operation list
   }

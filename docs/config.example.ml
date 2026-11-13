@@ -10,6 +10,7 @@ let () =
   Completion.set_prefer_local_snippets true;
   Signature_help.set_enabled true;
   View.set_line_numbers false;
+  View.set_relative_line_numbers false; (* Set both number switches true for hybrid. *)
   Theme.set "vim-classic"
 
 (* Optional completion-menu overrides (otherwise colors follow the theme):

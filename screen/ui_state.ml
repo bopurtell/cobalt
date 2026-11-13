@@ -882,7 +882,8 @@ let apply_configuration ?theme_override t (settings : Cobalt_config_runtime.Sett
       match Cobalt_theme.Theme.with_completion_colors theme settings.completion_colors with
       | Error error -> Error (Error.to_string_hum error)
       | Ok _ ->
-      let line_numbers = if settings.line_numbers then Line_numbers.Absolute else Off in
+       let line_numbers = Line_numbers.of_switches
+         ~absolute:settings.line_numbers ~relative:settings.relative_line_numbers in
       let t = dismiss_signature (dismiss_snippet_picker (dismiss_completion t)) in
       let host = if Option.is_some t.theme_picker then
           Host.focus (Host.invalidate_paste t.host Theme_picker_tile.id) t.theme_picker_return

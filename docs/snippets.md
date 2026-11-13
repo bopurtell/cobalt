@@ -3,7 +3,7 @@
 [Documentation index](README.md) · [Configuration](configuration.md#snippets) ·
 [Field controls](editor_reference.md#snippet-placeholders)
 
-Cobalt bundles 93 templates in seven collections. All collections are enabled by
+Cobalt bundles 100 templates in seven collections. All collections are enabled by
 default. File scopes still apply: SV templates appear in `.sv`/`.svh`, while
 OCaml and Hardcaml share OCaml files. Implementation-only OCaml templates are
 restricted to `.ml`; declarations intended for interfaces also appear in `.mli`.
@@ -50,11 +50,13 @@ completion and the picker. Disabled templates cannot be inserted by ID either.
 Project-specific activation and separate alias triggers are not implemented.
 Use the shared `config.ml` to select collections and the picker to narrow a search.
 
-## SystemVerilog design — `sv.design` (28)
+## SystemVerilog design — `sv.design` (35)
 
 | Triggers | Templates |
 | --- | --- |
 | `aff`, `acomb`, `mod`, `inst`, `genfor` | Original clocked/combinational blocks, module, instance, generate loop |
+| `pint`, `ilog`, `olog` | Unsigned integer parameter and input/output logic ports |
+| `if`, `ifelse`, `else`, `case` | Conditional blocks and plain case with default branch |
 | `affr`, `affrn` | Synchronous reset, active high / active low |
 | `affar`, `affarn` | Asynchronous reset, active high / active low |
 | `affe` | Enable-only register, holding when disabled |
@@ -69,7 +71,9 @@ Use the shared `config.ml` to select collections and the picker to narrow a sear
 Register variants use a rising-edge clock and active-high enable where present.
 Reset/set/clear takes priority over enable; disabled registers hold their values.
 Reset-value fields default to `'0`; set/preset variants use all ones (`'1`).
-`aff` retains its selectable rising/falling edge.
+`aff` retains its selectable rising/falling edge and defaults to `clk_i`.
+`mod` and `modp` use spaced module layouts with a `// Port` section;
+`modp` also includes a `// Params` section and width-linked ports.
 
 Search the picker for **FDRE**, **FDSE**, **FDCE**, or **FDPE** to find `affre`,
 `affse`, `affce`, or `affpe` respectively. These are generic behavioral RTL

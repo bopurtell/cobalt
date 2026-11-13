@@ -9,6 +9,7 @@ let ghost_preview = ref false
 let min_prefix_chars = ref 1
 let prefer_local_snippets = ref true
 let line_numbers = ref false
+let relative_line_numbers = ref false
 let theme = ref "vim-classic"
 let completion_colors = ref []
 
@@ -36,6 +37,7 @@ end
 
 module View = struct
   let set_line_numbers value = line_numbers := value
+  let set_relative_line_numbers value = relative_line_numbers := value
 end
 
 module Theme = struct
@@ -96,7 +98,7 @@ let write_result path =
   let number n = line (string_of_int n) in
   let operations = List.rev !(Snippets.operations) in
   if List.length operations > 1000 then invalid_arg "snippets exceeds 1000 operations";
-  line "COBALT_SETTINGS_4";
+  line "COBALT_SETTINGS_5";
   List.iter (fun value -> line (string_of_bool value)) [!enabled; !ghost_preview];
   number !min_prefix_chars;
   List.iter (fun value -> line (string_of_bool value)) [!prefer_local_snippets; !line_numbers];
@@ -124,6 +126,7 @@ let write_result path =
     invalid_arg "completion colors exceeds 11 entries";
   number (List.length !completion_colors);
   List.iter (fun (role, color) -> hex role; hex color) !completion_colors;
+  line (string_of_bool !relative_line_numbers);
   let channel = open_out_bin path in
   Fun.protect ~finally:(fun () -> close_out channel) (fun () ->
     output_string channel (Buffer.contents buffer))

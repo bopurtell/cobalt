@@ -51,12 +51,14 @@ let () =
   Completion.set_min_prefix_chars (List.fold_left (+) 0 [1; 2]);
   Completion.set_prefer_local_snippets false;
   View.set_line_numbers true;
+  View.set_relative_line_numbers true;
   Theme.set (String.concat "-" ["custom"; "theme"])
 |}) in
     let expected : Settings.t =
       { completion_enabled = false; signature_help_enabled = false; completion_ghost_preview = true
       ; completion_min_prefix_chars = 3; completion_prefer_local_snippets = false
-      ; completion_colors = []; line_numbers = true; theme = "custom-theme"; snippets = [] } in
+      ; completion_colors = []; line_numbers = true; relative_line_numbers = true
+      ; theme = "custom-theme"; snippets = [] } in
     check (Settings.equal (ok result) expected) "real Stdlib configuration";
     check_clean ();
     let%bind defaults = load "let () = ()" in
@@ -215,6 +217,7 @@ let () = Snippets.add ~id:"invalid.first" ~prefix:"q" "${UNKNOWN}";
       "legacy v2 add did not default to untagged";
     check legacy.signature_help_enabled "legacy signature default";
     check (List.is_empty legacy.completion_colors) "v2 colors must default empty";
+    check (not legacy.relative_line_numbers) "legacy relative numbers default off";
     let protocol3 = String.substr_replace_first protocol ~pattern:"COBALT_SETTINGS_2" ~with_:"COBALT_SETTINGS_3" ^ "true\n" in
     List.iter ["1\ncollection\n612e\nfalse\n"; "1\ncollection\n61\ninvalid\n";
                 "1\nadd\n61\n62\n0\ninvalid\nnone\n63\n"] ~f:(fun suffix ->
@@ -227,6 +230,17 @@ let () = Snippets.add ~id:"invalid.first" ~prefix:"q" "${UNKNOWN}";
         "v3 signature field decoded incorrectly");
     let prefix3 = String.substr_replace_first protocol ~pattern:"COBALT_SETTINGS_2" ~with_:"COBALT_SETTINGS_3" in
     let protocol4 = String.substr_replace_first protocol3 ~pattern:"COBALT_SETTINGS_3" ~with_:"COBALT_SETTINGS_4" ^ "0\n" in
+    let legacy4 = Loader.For_testing.decode (protocol4 ^ "0\n") |> Or_error.ok_exn in
+    check (not legacy4.relative_line_numbers) "v4 relative numbers default off";
+    let protocol5 = String.substr_replace_first protocol4 ~pattern:"COBALT_SETTINGS_4"
+      ~with_:"COBALT_SETTINGS_5" ^ "0\n" in
+    List.iter [true; false] ~f:(fun relative ->
+      let decoded = Loader.For_testing.decode (protocol5 ^ Bool.to_string relative ^ "\n")
+        |> Or_error.ok_exn in
+      check (Bool.equal decoded.relative_line_numbers relative) "v5 relative setting roundtrip");
+    List.iter [""; "true"; "TRUE\n"; "1\n"; "true\nextra\n"] ~f:(fun suffix ->
+      check (Result.is_error (Loader.For_testing.decode (protocol5 ^ suffix)))
+        "malformed v5 relative setting accepted");
     let hex text = String.concat (List.init (String.length text) ~f:(fun i ->
       sprintf "%02x" (Char.to_int text.[i]))) ^ "\n" in
     let pair role color = hex role ^ hex color in

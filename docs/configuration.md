@@ -40,6 +40,7 @@ let () =
   Completion.set_prefer_local_snippets true;
   Signature_help.set_enabled true;
   View.set_line_numbers false;
+  View.set_relative_line_numbers false;
   Theme.set "vim-classic"
 ```
 
@@ -70,7 +71,18 @@ let () =
 | `Completion.set_color ~role` | Theme-derived | Override one completion-menu color with `"#RRGGBB"` |
 | `Signature_help.set_enabled` | `true` | Automatically show server-provided call signatures while typing |
 | `View.set_line_numbers` | `false` | Show absolute line numbers; applies across presentation profiles |
+| `View.set_relative_line_numbers` | `false` | Show relative line numbers; enable both number settings for hybrid mode |
 | `Theme.set` | `"vim-classic"` | Select a built-in theme by ID |
+
+For hybrid numbers (absolute current line, relative surrounding lines), use:
+
+```ocaml
+let () =
+  View.set_line_numbers true;
+  View.set_relative_line_numbers true
+```
+
+Both switches are reapplied on configuration reload in Workspace, Zen, and Bare.
 
 Manual Ctrl-n and punctuation triggers bypass the minimum-prefix setting. Turning
 off local-snippet preference changes ranking, not availability. Prefix scanning

@@ -66,6 +66,7 @@ let decode text =
     | "COBALT_SETTINGS_2" -> 2
     | "COBALT_SETTINGS_3" -> 3
     | "COBALT_SETTINGS_4" -> 4
+    | "COBALT_SETTINGS_5" -> 5
     | _ -> failwith "malformed or unsupported settings result" in
   let completion_enabled = boolean () in
   let completion_ghost_preview = boolean () in
@@ -115,12 +116,13 @@ let decode text =
       let color = hex () in
       role, color)
   in
+  let relative_line_numbers = if version >= 5 then boolean () else false in
   (match !lines with
    | [ "" ] -> ()
    | _ -> failwith "malformed settings result framing");
   Settings.validate
     { completion_enabled; signature_help_enabled; completion_ghost_preview; completion_min_prefix_chars
-    ; completion_prefer_local_snippets; completion_colors; line_numbers; theme; snippets }
+    ; completion_prefer_local_snippets; completion_colors; line_numbers; relative_line_numbers; theme; snippets }
   |> Or_error.ok_exn
 ;;
 

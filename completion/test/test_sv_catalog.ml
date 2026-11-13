@@ -53,11 +53,11 @@ let%test_unit "SV catalog metadata is unique, purpose-scoped and parseable" =
       ignore (S.start template ~base:0 ~revision:0 ~text |> Or_error.ok_exn : S.t)))
 ;;
 
-let%test_unit "five starter IDs, prefixes and raw bodies remain compatible" =
+let%test_unit "starter IDs and prefixes retain their bundled definitions" =
   List.iter
-    [ "aff", "always_ff @(${1|posedge,negedge|} ${2:clk}) begin\n    $0\nend"
+    [ "aff", "always_ff @(${1|posedge,negedge|} ${2:clk_i}) begin\n    $0\nend"
     ; "acomb", "always_comb begin\n    $0\nend"
-    ; "mod", "module ${1:${TM_FILENAME_BASE:module_name}} (\n    $0\n);\nendmodule"
+    ; "mod", "module\n  ${1:${TM_FILENAME_BASE:module_name}}\n\n// Port\n(\n    $0\n);\n\nendmodule"
     ; "inst", "${1:module_name} ${2:instance_name} (\n    .${3:port}($3)$0\n);"
     ; "genfor", "for (genvar ${1:i} = 0; $1 < ${2:COUNT}; $1++) begin : ${3:gen_block}\n    $0\nend"
     ]
@@ -65,6 +65,38 @@ let%test_unit "five starter IDs, prefixes and raw bodies remain compatible" =
       let d = find prefix in
       [%test_eq: string] d.id ("sv." ^ prefix);
       [%test_eq: string] d.body body)
+;;
+
+let%test_unit "ported parameter, port and module snippets expand as configured" =
+  [%test_eq: string] (expand "pint") "parameter int unsigned PARAM_NAME = 8,";
+  [%test_eq: string] (expand "ilog") "input  logic signal_i,";
+  [%test_eq: string] (expand "olog") "output logic signal_o,";
+  [%test_eq: string] (expand "aff") "always_ff @(posedge clk_i) begin\n    \nend";
+  List.iter [ "mod"; "modp" ] ~f:(fun prefix ->
+    let template = N.resolve (parse prefix) ~path:(Some "rtl/counter.sv")
+      |> Or_error.ok_exn in
+    contains (N.text template) "module\n  counter\n\n";
+    contains (N.text template) "// Port\n(\n");
+  let text = expand "modp" in
+  contains text "// Params\n#(\n    parameter int unsigned DATA_W = 8\n)";
+  contains text "input  logic clk_i,";
+  contains text "input  logic [DATA_W - 1 : 0] data_i,";
+  contains text "output logic [DATA_W - 1 : 0] data_o";
+  assert (not (List.exists all ~f:(fun (d : D.t) ->
+    String.is_substring d.body ~substring:"University")))
+;;
+
+let%test_unit "conditional and ordinary case snippets have editable branches" =
+  [%test_eq: string] (expand "if") "if (condition) begin\n    \nend";
+  [%test_eq: string] (expand "else") "else begin\n    \nend";
+  [%test_eq: string] (expand "ifelse")
+    "if (condition) begin\n    // true branch\nend else begin\n    // false branch\nend\n";
+  [%test_eq: string] (expand "case")
+    "case (selector)\n    VALUE: begin\n        // branch\n    end\n    default: begin\n        // default behavior\n    end\nendcase\n";
+  List.iter [ "ifelse", [ 1; 2; 3 ]; "case", [ 1; 2; 3; 4 ] ]
+    ~f:(fun (prefix, numbers) ->
+      [%test_eq: int list] (List.map (N.fields (parse prefix)) ~f:(fun field -> field.number))
+        numbers)
 ;;
 
 let%test_unit "reset polarity, reset-before-enable priority and hold semantics" =

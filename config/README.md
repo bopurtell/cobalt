@@ -12,6 +12,7 @@ module Settings : sig
     ; completion_prefer_local_snippets : bool
     ; completion_colors : (string * string) list
     ; line_numbers : bool
+    ; relative_line_numbers : bool
     ; theme : string
     ; snippets : Cobalt_completion.User_snippets.operation list
     }
@@ -25,7 +26,7 @@ module Loader : sig
 end
 ```
 
-Defaults, in record-field order: `true`, `true`, `false`, `1`, `true`, `[]`, `false`,
+Defaults, in record-field order: `true`, `true`, `false`, `1`, `true`, `[]`, `false`, `false`,
 `"vim-classic"`, `[]`. Validation requires a positive minimum prefix and a theme that
 is nonempty after trimming whitespace. The screen must check theme existence
 before applying the snapshot. It validates every snippet operation against the
@@ -46,6 +47,7 @@ let () =
   Completion.set_color ~role:"detail" "#b8d7a3";
   Signature_help.set_enabled true;
   View.set_line_numbers false;
+  View.set_relative_line_numbers false;
   Theme.set "vim-classic"
 ```
 
@@ -59,7 +61,10 @@ module Completion : sig
   val set_prefer_local_snippets : bool -> unit
   val set_color : role:string -> string -> unit
 end
-module View : sig val set_line_numbers : bool -> unit end
+module View : sig
+  val set_line_numbers : bool -> unit
+  val set_relative_line_numbers : bool -> unit
+end
 module Signature_help : sig val set_enabled : bool -> unit end
 module Theme : sig val set : string -> unit end
 module Snippets : sig
@@ -153,7 +158,7 @@ details, not supported user API.
   and line numbers. Argument vectors are passed directly, without a shell.
 - Source and result reads are each capped at **1 MiB**; nonregular files are
   rejected. The helper bounds its entire encoded result to 1 MiB before writing,
-   and accepts at most **1000 snippet operations**. `COBALT_SETTINGS_4` uses newline
+   and accepts at most **1000 snippet operations**. `COBALT_SETTINGS_5` uses newline
   framing: magic; enabled; ghost; minimum prefix; prefer local; line numbers;
   hex theme; signature-help enabled; decimal operation count; then ordered operations. A `disable` tag
   is followed by hex ID. An `add` tag is followed by hex ID, hex prefix, decimal
@@ -161,7 +166,10 @@ details, not supported user API.
    encoded as `none` or `some` followed by its hex value), and hex body. A
    `collection` operation tag is followed by hex collection name and enabled
     boolean. After the operations, version 4 appends a canonical decimal color
-    count (maximum **11**) followed by that many hex role / hex color pairs.
+     count (maximum **11**) followed by that many hex role / hex color pairs.
+     Version 5 appends a relative-line-numbers boolean after the colors; versions
+     2–4 remain supported and default that switch to false. Absolute and relative
+     switches together select hybrid numbering.
     Unknown roles and malformed RGB values are rejected; duplicate roles normalize
     last-wins only after every entry is validated. Version-3 decoding retains its
     signature-help and collection fields and defaults colors to `[]`.
