@@ -355,9 +355,35 @@ let sandstone_solar =
     ~green:0x657900 ~cyan:0x087f78 ~magenta:0xaf296d ~selection:0x234e5b
 ;;
 
+(* Warframe's Orokin: porcelain and ivory, gilded ornament, and cool Void energy.
+   Gold stays deep enough to read on white; the dark variant lifts the same hues.
+   Separate overlays keep highlighted text readable without tinting all chrome. *)
+let orokin_light =
+  of_base16 ~id:"orokin-light" ~title:"Orokin Light" ~kind:Light
+    ~palette:(Array.of_list_map
+      [0xfafaf7;0xeff1ef;0xcdd2cf;0x737d80;0x505d64;0x293740;0x192830;0x101b23;0xb33e4b;0x92582d;0x85651f;0x396f60;0x197780;0x85651f;0x66518c;0x896c43]
+      ~f:rgb)
+  |> fun t -> with_overrides t
+    [ Syntax_keyword, 0x85651f; Special, 0x197780
+    ; Selection_background, 0xead8a6; Selection_foreground, 0x293740
+    ; Search_background, 0xead8a6; Search_foreground, 0x293740
+    ; Search_current_background, 0xb9e6e6; Search_current_foreground, 0x192830 ]
+;;
+
+let orokin_dark =
+  of_base16 ~id:"orokin-dark" ~title:"Orokin Dark" ~kind:Dark
+    ~palette:(Array.of_list_map
+      [0x101820;0x1b2630;0x394752;0x879599;0xb9c3c1;0xeeeade;0xf9f6eb;0xfffdf5;0xed8790;0xd9a478;0xe4c77b;0x99c6ae;0x79d4db;0xe4c77b;0xbaabd8;0xbea17a]
+      ~f:rgb)
+  |> fun t -> with_overrides t
+    [ Syntax_keyword, 0xe4c77b; Special, 0x79d4db
+    ; Selection_background, 0x65532e; Selection_foreground, 0xfffdf5 ]
+;;
+
 let all =
   [ midnight; crimson; ember; glacier
-  ; vim_classic; solarized_light; linen_solar; sandstone_solar ]
+   ; vim_classic; solarized_light; linen_solar; sandstone_solar
+   ; orokin_light; orokin_dark ]
   @ List.map curated ~f:(fun (id, title, kind, values) ->
     of_base16 ~id ~title ~kind ~palette:(Array.of_list_map values ~f:rgb))
 ;;

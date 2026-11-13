@@ -2122,7 +2122,7 @@ starts with the default layout.
 
 ### Colors and safe display
 
-Ches includes **52 themes: 34 dark and 18 light**. Vim Classic is the default;
+Ches includes **54 themes: 35 dark and 19 light**. Vim Classic is the default;
 Midnight, Crimson, Ember, and Glacier retain their original colors. Other palettes are
 curated designs or adaptations rather than exact ports of upstream themes. Examples
 include Abyss, Moss, Orchid, Cobalt Room, Paper, Porcelain, Terminal Amber,
@@ -2151,6 +2151,14 @@ slate text, green keywords, cyan strings, blue functions, and magenta literals.
 **Linen Solar** (`linen-solar`) has lighter warm paper with stronger teal/blue/green
 syntax; **Sandstone Solar** (`sandstone-solar`) has golden paper and deeper ink
 and accents. The original Linen and Sandstone palettes remain available unchanged.
+
+The Warframe-inspired **Orokin** family pairs gilded accents with cool cyan Void
+energy. **Orokin Light** (`orokin-light`) uses porcelain-white surfaces, dark ink,
+and deep gold syntax and cursor accents. **Orokin Dark** (`orokin-dark`) uses
+blue-black surfaces, ivory text, and luminous gold. Both include readable search,
+selection, and completion colors. Start with `ches --theme orokin-light PATH` or
+`ches --theme orokin-dark PATH`, or persist either ID with `Theme.set` in your
+configuration.
 
 `Space v T` or **Choose theme** in the command palette opens a framed floating
 chooser in workspace, zen, or bare. It starts on the current theme; `*` marks the

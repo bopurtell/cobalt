@@ -116,7 +116,7 @@ let%test_unit "invalid completion role or non-strict RGB rejects the entire list
 ;;
 
 let%test_unit "registry is total, valid, distinct, and normalized" =
-  assert (List.length Theme.all = 52);
+  assert (List.length Theme.all = 54);
   assert (String.equal (Theme.id Theme.default) "vim-classic");
   assert (not (List.contains_dup (List.map Theme.all ~f:Theme.id) ~compare:String.compare));
   List.iter Theme.all ~f:(fun theme ->
@@ -165,8 +165,8 @@ let%test_unit "Vim, Solarized, and metallic palettes retain their registry ident
       let theme = Option.value_exn (Theme.find id) in
       assert (String.equal (Theme.title theme) title);
       assert (Theme.Kind.equal (Theme.kind theme) kind));
-  assert (List.count Theme.all ~f:(fun t -> Theme.Kind.equal (Theme.kind t) Dark) = 34);
-  assert (List.count Theme.all ~f:(fun t -> Theme.Kind.equal (Theme.kind t) Light) = 18);
+  assert (List.count Theme.all ~f:(fun t -> Theme.Kind.equal (Theme.kind t) Dark) = 35);
+  assert (List.count Theme.all ~f:(fun t -> Theme.Kind.equal (Theme.kind t) Light) = 19);
   let vim = Option.value_exn (Theme.find "vim-classic") in
   List.iter [ Theme.Role.Background; Backdrop; Current_line ] ~f:(fun role ->
     assert (Poly.equal (Theme.color vim role) (0, 0, 0)));
@@ -177,6 +177,33 @@ let%test_unit "Vim, Solarized, and metallic palettes retain their registry ident
       ; Search_foreground, Search_background
       ; Search_current_foreground, Search_current_background ]
       ~f:(fun (fg, bg) -> assert (not (Poly.equal (Theme.color theme fg) (Theme.color theme bg)))))
+;;
+
+let%test_unit "Orokin variants retain gold accents and readable syntax and overlays" =
+  List.iter
+    [ "orokin-light", "Orokin Light", Theme.Kind.Light, (250, 250, 247), (133, 101, 31)
+    ; "orokin-dark", "Orokin Dark", Dark, (16, 24, 32), (228, 199, 123) ]
+    ~f:(fun (id, title, kind, background, gold) ->
+      let theme = Option.value_exn (Theme.find id) in
+      assert (String.equal (Theme.title theme) title);
+      assert (Theme.Kind.equal (Theme.kind theme) kind);
+      assert (Poly.equal (Theme.color theme Background) background);
+      List.iter [ Theme.Role.Normal_accent; Block_cursor; Syntax_keyword; Syntax_function ]
+        ~f:(fun role -> assert (Poly.equal (Theme.color theme role) gold));
+      List.iter
+        [ Theme.Role.Foreground; Syntax_keyword; Syntax_string; Syntax_number
+        ; Syntax_type; Syntax_function; Syntax_module; Syntax_constant ]
+        ~f:(fun role ->
+          List.iter [ Theme.Role.Background; Current_line ] ~f:(fun bg ->
+            assert (Float.(contrast (Theme.color theme role) (Theme.color theme bg) >= 4.5))));
+      List.iter
+        [ Theme.Role.Selection_foreground, Theme.Role.Selection_background
+        ; Search_foreground, Search_background
+        ; Search_current_foreground, Search_current_background ]
+        ~f:(fun (fg, bg) ->
+          assert (Float.(contrast (Theme.color theme fg) (Theme.color theme bg) >= 4.5))));
+  assert (Option.equal Theme.equal (Theme.find " Orokin_Light ") (Theme.find "orokin-light"));
+  assert (Option.equal Theme.equal (Theme.find "Orokin Dark") (Theme.find "orokin-dark"))
 ;;
 
 let%test_unit "original Linen and Sandstone palettes remain unchanged" =
