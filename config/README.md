@@ -4,6 +4,10 @@ Editor library: `Cobalt_config_runtime` (`core`/`async` internally). Public entr
 
 ```ocaml
 module Settings : sig
+  module File_picker : sig
+    type t = { include_ignored : bool; max_candidates : int; max_total_path_bytes : int }
+    val default : t
+  end
   type t =
     { completion_enabled : bool
     ; signature_help_enabled : bool
@@ -13,6 +17,7 @@ module Settings : sig
     ; completion_colors : (string * string) list
     ; line_numbers : bool
     ; relative_line_numbers : bool
+    ; file_picker : File_picker.t
     ; theme : string
     ; snippets : Cobalt_completion.User_snippets.operation list
     }
@@ -27,8 +32,9 @@ end
 ```
 
 Defaults, in record-field order: `true`, `true`, `false`, `1`, `true`, `[]`, `false`, `false`,
-`"vim-classic"`, `[]`. Validation requires a positive minimum prefix and a theme that
-is nonempty after trimming whitespace. The screen must check theme existence
+`{ include_ignored = false; max_candidates = 50_000; max_total_path_bytes = 8 * 1024 * 1024 }`,
+`"vim-classic"`, `[]`. Validation requires positive file-picker limits, a positive
+minimum prefix and a theme that is nonempty after trimming whitespace. The screen must check theme existence
 before applying the snapshot. It validates every snippet operation against the
 builtin catalog using `User_snippets.apply`. `Settings` also derives `sexp` and `equal`.
 
@@ -48,6 +54,9 @@ let () =
   Signature_help.set_enabled true;
   View.set_line_numbers false;
   View.set_relative_line_numbers false;
+  File_picker.set_include_ignored false;
+  File_picker.set_max_candidates 50_000;
+  File_picker.set_max_total_path_bytes (8 * 1024 * 1024);
   Theme.set "vim-classic"
 ```
 
@@ -66,6 +75,11 @@ module View : sig
   val set_relative_line_numbers : bool -> unit
 end
 module Signature_help : sig val set_enabled : bool -> unit end
+module File_picker : sig
+  val set_include_ignored : bool -> unit
+  val set_max_candidates : int -> unit
+  val set_max_total_path_bytes : int -> unit
+end
 module Theme : sig val set : string -> unit end
 module Snippets : sig
   val add : id:string -> prefix:string -> ?scope:string list -> ?collection:string -> ?description:string -> string -> unit
@@ -138,7 +152,13 @@ catalog. Legacy `parse : string -> t Core.Or_error.t` remains available and stil
 rejects duplicate JSON user IDs. Apply OCaml operations to the chosen legacy/base
 catalog to preserve legacy entries and give OCaml declarations precedence.
 
-Invalid prefix/theme/color setters raise `Invalid_argument`. Snapshots are validated
+The file-picker settings are applied at its next opening after startup/reload.
+Including ignored files adds `--no-ignore` to file discovery only, preserving hidden
+and metadata exclusions and the no-directory-symlink policy. Content search is unchanged.
+The positive limits bound candidate count and retained candidate path-string bytes.
+See [finding ignored files](../docs/configuration.md#finding-ignored-files).
+
+Invalid prefix/theme/color/file-picker-limit setters raise `Invalid_argument`. Snapshots are validated
 again by the host. Other definitions in the embedded source are implementation
 details, not supported user API.
 
@@ -158,7 +178,7 @@ details, not supported user API.
   and line numbers. Argument vectors are passed directly, without a shell.
 - Source and result reads are each capped at **1 MiB**; nonregular files are
   rejected. The helper bounds its entire encoded result to 1 MiB before writing,
-   and accepts at most **1000 snippet operations**. `COBALT_SETTINGS_5` uses newline
+   and accepts at most **1000 snippet operations**. `COBALT_SETTINGS_6` uses newline
   framing: magic; enabled; ghost; minimum prefix; prefer local; line numbers;
   hex theme; signature-help enabled; decimal operation count; then ordered operations. A `disable` tag
   is followed by hex ID. An `add` tag is followed by hex ID, hex prefix, decimal
@@ -167,6 +187,9 @@ details, not supported user API.
    `collection` operation tag is followed by hex collection name and enabled
     boolean. After the operations, version 4 appends a canonical decimal color
      count (maximum **11**) followed by that many hex role / hex color pairs.
+     Version 6 appends the file-picker include-ignored boolean, candidate limit,
+     and path-byte limit (canonical positive decimals), after the relative-number
+     switch. Versions 2–5 remain supported and use default file-picker settings.
      Version 5 appends a relative-line-numbers boolean after the colors; versions
      2–4 remain supported and default that switch to false. Absolute and relative
      switches together select hybrid numbering.

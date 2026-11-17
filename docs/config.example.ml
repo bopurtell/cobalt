@@ -11,6 +11,9 @@ let () =
   Signature_help.set_enabled true;
   View.set_line_numbers false;
   View.set_relative_line_numbers false; (* Set both number switches true for hybrid. *)
+  File_picker.set_include_ignored false;
+  File_picker.set_max_candidates 50_000;
+  File_picker.set_max_total_path_bytes (8 * 1024 * 1024);
   Theme.set "vim-classic"
 
 (* Optional completion-menu overrides (otherwise colors follow the theme):

@@ -72,6 +72,9 @@ let () =
 | `Signature_help.set_enabled` | `true` | Automatically show server-provided call signatures while typing |
 | `View.set_line_numbers` | `false` | Show absolute line numbers; applies across presentation profiles |
 | `View.set_relative_line_numbers` | `false` | Show relative line numbers; enable both number settings for hybrid mode |
+| `File_picker.set_include_ignored` | `false` | Include files excluded by Git/ripgrep ignore rules in Find project files |
+| `File_picker.set_max_candidates` | `50_000` | Positive file discovery candidate limit |
+| `File_picker.set_max_total_path_bytes` | `8 * 1024 * 1024` | Positive retained candidate path-string budget, in bytes |
 | `Theme.set` | `"vim-classic"` | Select a built-in theme by ID |
 
 For hybrid numbers (absolute current line, relative surrounding lines), use:
@@ -94,6 +97,32 @@ configuration at startup and on reload.
 These setters are the initial supported API. Other editor options retain their
 existing CLI/keybinding behavior; arbitrary editor commands and external OCaml
 packages are not exposed through this configuration API.
+
+### Finding ignored files
+
+To search Git-ignored notes without changing what Git tracks:
+
+```ocaml
+let () =
+  Cobalt_config.File_picker.set_include_ignored true;
+  Cobalt_config.File_picker.set_max_candidates 100_000;
+  Cobalt_config.File_picker.set_max_total_path_bytes (64 * 1024 * 1024)
+```
+
+The switch disables all ripgrep ignore rules, including `.gitignore`, `.ignore`
+and global ignores. Hidden paths and `.git` metadata remain excluded; directory
+symlinks are not followed. This affects **Find project files** (`Space f f`), not
+content search. It does not change `.gitignore` or add private files to Git.
+
+Large trees may require both higher limits, as in the example. The byte budget
+counts root, absolute, relative and escaped display strings, not file contents;
+indexes and ranking require additional memory. Other discovery bounds remain
+unchanged (4 KiB/path, 32 MiB output, 30-second timeout). A truncated list is not
+exhaustive and is labelled in the picker.
+
+After **Reload configuration**, close and reopen the file picker to use the new
+settings. Changed settings invalidate incompatible reopen-cache data. Removing
+the setters and reloading restores the defaults.
 
 ## Session changes and reload
 

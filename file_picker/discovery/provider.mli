@@ -30,8 +30,11 @@ val create : ?prog:string -> ?limits:Limits.t -> unit -> t
 (** Cancels the previous run, allocates a fresh identity, and returns immediately
     in Loading state. Absolute roots only, at most 4 KiB. Traversal occurs in the
     subprocess and stream reads are asynchronous. A failed launch is delivered
-    as Failed with installation guidance. *)
-val start : ?reuse:Model.Discovery.Candidates.t -> t -> root:string -> run Or_error.t
+     as Failed with installation guidance. [include_ignored] defaults to false;
+     true disables ignore rules but still excludes hidden paths and metadata and
+     does not follow directory symlinks. [limits] overrides this run only. *)
+val start : ?reuse:Model.Discovery.Candidates.t -> ?include_ignored:bool -> ?limits:Limits.t
+  -> t -> root:string -> run Or_error.t
 val request : run -> Model.Discovery.request
 
 (** Kill/close delivery immediately; [finished] acknowledges descriptor closure

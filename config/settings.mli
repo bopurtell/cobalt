@@ -1,5 +1,15 @@
 open Core
 
+module File_picker : sig
+  type t =
+    { include_ignored : bool
+    ; max_candidates : int
+    ; max_total_path_bytes : int
+    }
+  [@@deriving sexp, equal]
+  val default : t
+end
+
 type t =
   { completion_enabled : bool
   ; signature_help_enabled : bool
@@ -9,6 +19,7 @@ type t =
   ; completion_colors : (string * string) list
   ; line_numbers : bool
   ; relative_line_numbers : bool
+  ; file_picker : File_picker.t
   ; theme : string
   ; snippets : Cobalt_completion.User_snippets.operation list
   }
@@ -18,7 +29,8 @@ val default : t
 
 (** Checks and lowercases strict #RRGGBB completion colors for the eleven supported
     roles. Every entry is validated before repeated roles are resolved last-wins.
-    Also checks a positive minimum prefix, a nonempty theme, and all snippet operations
+    Also checks positive file-picker limits, a positive minimum prefix, a nonempty
+    theme, and all snippet operations
     against the builtin catalog. Theme existence is
     checked by the screen before applying the snapshot. *)
 val validate : t -> t Or_error.t

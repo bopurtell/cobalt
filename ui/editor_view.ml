@@ -276,6 +276,7 @@ let app_with_terminal ~terminal ?snippets ?configuration ?startup_configuration 
             let model, activate_files = Ui_state.take_file_picker_activation model in
             let model = if not activate_files then model else
               match Cobalt_file_picker_host.Runtime.open_picker file_runtime model
+                ~settings:(Ui_state.file_picker_settings model)
                 ~root:project_root ~width ~height with
               | Ok model -> model
               | Error error -> Ui_state.with_notice model (Error.to_string_hum error) in

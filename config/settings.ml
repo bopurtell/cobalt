@@ -1,5 +1,18 @@
 open Core
 
+module File_picker = struct
+  type t =
+    { include_ignored : bool
+    ; max_candidates : int
+    ; max_total_path_bytes : int
+    }
+  [@@deriving sexp, equal]
+
+  let default =
+    { include_ignored = false; max_candidates = 50_000
+    ; max_total_path_bytes = 8 * 1024 * 1024 }
+end
+
 type t =
   { completion_enabled : bool
   ; signature_help_enabled : bool
@@ -9,6 +22,7 @@ type t =
   ; completion_colors : (string * string) list
   ; line_numbers : bool
   ; relative_line_numbers : bool
+  ; file_picker : File_picker.t
   ; theme : string
   ; snippets : Cobalt_completion.User_snippets.operation list
   }
@@ -23,6 +37,7 @@ let default =
   ; completion_colors = []
   ; line_numbers = false
   ; relative_line_numbers = false
+  ; file_picker = File_picker.default
   ; theme = "vim-classic"
   ; snippets = []
   }
@@ -49,6 +64,8 @@ let validate_colors colors =
 let validate t =
   if t.completion_min_prefix_chars < 1
   then Or_error.error_string "completion_min_prefix_chars must be positive"
+  else if t.file_picker.max_candidates < 1 || t.file_picker.max_total_path_bytes < 1
+  then Or_error.error_string "file_picker limits must be positive"
   else if String.is_empty (String.strip t.theme)
   then Or_error.error_string "theme must be nonempty"
   else

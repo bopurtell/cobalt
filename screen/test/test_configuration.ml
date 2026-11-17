@@ -16,6 +16,8 @@ let configured = { Settings.completion_enabled = false
   ; completion_ghost_preview = true; completion_min_prefix_chars = 3
   ; completion_prefer_local_snippets = false; line_numbers = true
   ; relative_line_numbers = false
+  ; file_picker = { include_ignored = true; max_candidates = 100_000
+                  ; max_total_path_bytes = 64 * 1024 * 1024 }
   ; theme = Theme.id (List.last_exn Theme.all); snippets = []; completion_colors = [] }
 
 let%test_unit "startup application is explicit; session toggles and removed fields reset on reload" =
@@ -24,6 +26,7 @@ let%test_unit "startup application is explicit; session toggles and removed fiel
   assert (List.is_empty requests);
   let t = apply t configured in
   assert (not (Ui_state.completion_enabled t) && Ui_state.completion_ghost_enabled t);
+  assert (Settings.File_picker.equal (Ui_state.file_picker_settings t) configured.file_picker);
   assert (Line_numbers.equal (Ui_state.prefs t).line_numbers Absolute);
   let t = press t " cccompletion.toggle<CR> cccompletion.ghost<CR>A edit<Esc>" in
   assert (Ui_state.completion_enabled t && not (Ui_state.completion_ghost_enabled t));
@@ -38,6 +41,7 @@ let%test_unit "startup application is explicit; session toggles and removed fiel
   assert (Ui_state.completion_enabled t && not (Ui_state.completion_ghost_enabled t));
   assert (Line_numbers.equal (Ui_state.prefs t).line_numbers Off);
   assert (Theme.equal (Ui_state.theme t) Theme.default);
+  assert (Settings.File_picker.equal (Ui_state.file_picker_settings t) Settings.File_picker.default);
   assert (String.equal snapshot (text t) && revision = Editor.revision (editor t));
   let _, requests = Ui_state.take_source_requests t in
   assert (List.is_empty requests);
@@ -50,9 +54,12 @@ let%test_unit "invalid theme and invalid prefix are atomic even with a CLI overr
   assert (not (List.is_empty (Ui_state.completion_candidates t)));
   let candidates = Ui_state.completion_candidates t in
   List.iter [ { configured with theme = "missing-theme" }
+            ; { configured with file_picker = { configured.file_picker with max_candidates = 0 } }
+            ; { configured with file_picker = { configured.file_picker with max_total_path_bytes = -1 } }
             ; { configured with completion_min_prefix_chars = 0 } ] ~f:(fun settings ->
     assert (Result.is_error (Ui_state.apply_configuration ~theme_override:Theme.default t settings));
     assert (Ui_state.completion_enabled t && not (Ui_state.completion_ghost_enabled t));
+    assert (Settings.File_picker.equal (Ui_state.file_picker_settings t) Settings.File_picker.default);
     assert (List.equal Cobalt_completion.Model.Candidate.equal candidates (Ui_state.completion_candidates t));
     assert (String.equal (text t) "f\nfoobar"));
   let applied = apply t configured in

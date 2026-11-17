@@ -33,6 +33,8 @@ type delivery =
 
 type run =
   { request : Discovery.request
+  ; limits : Limits.t
+  ; include_ignored : bool
   ; reader : delivery Pipe.Reader.t
   ; writer : delivery Pipe.Writer.t
   ; finished : unit Ivar.t
@@ -54,14 +56,18 @@ type t =
   ; mutable reaped : unit Deferred.t
   }
 
-let create ?(prog = "rg") ?(limits = Limits.default) () =
+let validate_limits (limits : Limits.t) =
   if List.exists
        [ limits.max_candidates; limits.max_path_bytes; limits.max_total_path_bytes
        ; limits.max_output_bytes; limits.batch_size
        ] ~f:(fun n -> n <= 0)
      || Time_ns.Span.(limits.timeout <= zero)
-  then invalid_arg "File discovery limits must be positive";
-   { prog; limits; next_id = 0; active = None; current = None
+  then invalid_arg "File discovery limits must be positive"
+;;
+
+let create ?(prog = "rg") ?(limits = Limits.default) () =
+  validate_limits limits;
+  { prog; limits; next_id = 0; active = None; current = None
   ; snapshot = None; reaped = return () }
 ;;
 
@@ -190,7 +196,8 @@ let collect run (limits : Limits.t) reader =
 let worker t run =
   let%bind created =
     Process.create ~prog:t.prog
-      ~args:(Cobalt_file_picker.Scope.rg_args @ [ "--files"; "--null"; "--"; "." ])
+      ~args:(Cobalt_file_picker.Scope.file_rg_args ~include_ignored:run.include_ignored
+             @ [ "--files"; "--null"; "--"; "." ])
       ~working_dir:run.request.root ~buf_len:4096 ()
   in
   match created with
@@ -205,7 +212,7 @@ let worker t run =
     run.process <- Some process;
     if run.stopped then kill run;
     let timer =
-      Clock_ns.Event.run_after t.limits.timeout (fun () ->
+      Clock_ns.Event.run_after run.limits.timeout (fun () ->
       if not (Ivar.is_full run.finished) && not run.stopped then (
         run.timed_out <- true;
         Ivar.fill_if_empty run.abort_delivery ();
@@ -213,7 +220,7 @@ let worker t run =
     in
     upon (finished run) (fun () -> Clock_ns.Event.abort_if_possible timer ());
     let stderr = Monitor.try_with (fun () -> stderr_prefix (Process.stderr process)) in
-    let%bind result = Monitor.try_with (fun () -> collect run t.limits (Process.stdout process)) in
+    let%bind result = Monitor.try_with (fun () -> collect run run.limits (Process.stdout process)) in
     (match result with
      | Ok `Complete -> ()
      | Ok (`Truncated | `Failed _) | Error _ -> kill run);
@@ -279,7 +286,9 @@ let safe_worker t run =
     return ()
 ;;
 
-let start ?reuse t ~root =
+let start ?reuse ?(include_ignored = false) ?limits t ~root =
+  let limits = Option.value limits ~default:t.limits in
+  validate_limits limits;
   let validation =
     if String.length root > 4096 then Or_error.error_string "File picker root exceeds 4 KiB"
     else Candidate.create ~root ~relative_path:"root-validation"
@@ -296,7 +305,7 @@ let start ?reuse t ~root =
       { run_id = Model.Run_id.of_int t.next_id; root = Candidate.root candidate }
     in
     let run =
-      { request; reader; writer; finished = Ivar.create (); abort_delivery = Ivar.create ()
+      { request; limits; include_ignored; reader; writer; finished = Ivar.create (); abort_delivery = Ivar.create ()
       ; terminal = None; process = None
       ; stopped = false; timed_out = false; reuse }
     in

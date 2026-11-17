@@ -1,6 +1,6 @@
 (library
  (name cobalt_file_picker_host_test)
- (libraries core core_unix core_unix.filename_unix core_unix.sys_unix async cobalt_app cobalt_core cobalt_input cobalt_tile cobalt_screen cobalt_file_picker cobalt_file_discovery cobalt_file_picker_host)
+ (libraries core core_unix core_unix.filename_unix core_unix.sys_unix async cobalt_config_runtime cobalt_app cobalt_core cobalt_input cobalt_tile cobalt_screen cobalt_file_picker cobalt_file_discovery cobalt_file_picker_host)
  (inline_tests
   (deps fake_rg/fake_rg.exe)
   (flags (:standard -source-tree-root .)))

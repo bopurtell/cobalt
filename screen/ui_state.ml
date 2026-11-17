@@ -190,6 +190,7 @@ type t =
   ; navigation_preview_serial : int
   ; jump_history : Jump_history.t
   ; configuration_path : (string, string) Result.t
+  ; file_picker_settings : Cobalt_config_runtime.Settings.File_picker.t
   ; snippet : snippet_session option
   ; completion : completion_session option
   ; completion_acceptance : completion_acceptance option
@@ -370,6 +371,7 @@ let create
   ; navigation_preview_serial = 0
   ; jump_history = Jump_history.empty
   ; configuration_path = Error "Configuration path is unavailable"
+  ; file_picker_settings = Cobalt_config_runtime.Settings.File_picker.default
   ; snippet = None
   ; completion = None
   ; completion_acceptance = None
@@ -496,6 +498,7 @@ let create
 
 let controller t = t.controller
 let with_configuration_path t configuration_path = { t with configuration_path }
+let file_picker_settings t = t.file_picker_settings
 let terminal_snapshot t = t.terminal_snapshot
 let terminal_inspection t = t.terminal_inspection
 let terminal_generation t = t.terminal_generation
@@ -902,6 +905,7 @@ let apply_configuration ?theme_override t (settings : Cobalt_config_runtime.Sett
         ; user_snippets; configuration_snippets = settings.snippets
         ; configuration_theme_override; theme; theme_picker = None; host
         ; completion_colors = settings.completion_colors
+        ; file_picker_settings = settings.file_picker
         ; prefs = { t.prefs with line_numbers }
         ; bare_prefs = { line_numbers } }
 ;;

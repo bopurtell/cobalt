@@ -40,6 +40,19 @@ module View = struct
   let set_relative_line_numbers value = relative_line_numbers := value
 end
 
+module File_picker = struct
+  let include_ignored = ref false
+  let max_candidates = ref 50_000
+  let max_total_path_bytes = ref (8 * 1024 * 1024)
+  let set_include_ignored value = include_ignored := value
+  let set_max_candidates value =
+    if value < 1 then invalid_arg "file_picker max_candidates must be positive";
+    max_candidates := value
+  let set_max_total_path_bytes value =
+    if value < 1 then invalid_arg "file_picker max_total_path_bytes must be positive";
+    max_total_path_bytes := value
+end
+
 module Theme = struct
   let set value =
     if String.trim value = "" then invalid_arg "theme must be nonempty";
@@ -98,7 +111,7 @@ let write_result path =
   let number n = line (string_of_int n) in
   let operations = List.rev !(Snippets.operations) in
   if List.length operations > 1000 then invalid_arg "snippets exceeds 1000 operations";
-  line "COBALT_SETTINGS_5";
+  line "COBALT_SETTINGS_6";
   List.iter (fun value -> line (string_of_bool value)) [!enabled; !ghost_preview];
   number !min_prefix_chars;
   List.iter (fun value -> line (string_of_bool value)) [!prefer_local_snippets; !line_numbers];
@@ -127,6 +140,9 @@ let write_result path =
   number (List.length !completion_colors);
   List.iter (fun (role, color) -> hex role; hex color) !completion_colors;
   line (string_of_bool !relative_line_numbers);
+  line (string_of_bool !(File_picker.include_ignored));
+  number !(File_picker.max_candidates);
+  number !(File_picker.max_total_path_bytes);
   let channel = open_out_bin path in
   Fun.protect ~finally:(fun () -> close_out channel) (fun () ->
     output_string channel (Buffer.contents buffer))

@@ -19,10 +19,14 @@ val cache_entries : t -> int
 val cache_hits : t -> int
 val cache_evictions : t -> int
 val invalidate_cache : t -> unit
-val open_picker_with_policy : t -> Cobalt_screen.Ui_state.t -> root:string -> policy:string
+(** Settings apply to this opening, with ignore policy and limits included in the
+    reopen-cache key. Omission retains normal ignores and the runtime's limits. *)
+val open_picker_with_policy : ?settings:Cobalt_config_runtime.Settings.File_picker.t
+  -> t -> Cobalt_screen.Ui_state.t -> root:string -> policy:string
   -> width:int -> height:int -> Cobalt_screen.Ui_state.t Or_error.t
 val open_picker
-  : t -> Cobalt_screen.Ui_state.t -> root:string -> width:int -> height:int
+   : ?settings:Cobalt_config_runtime.Settings.File_picker.t
+   -> t -> Cobalt_screen.Ui_state.t -> root:string -> width:int -> height:int
   -> Cobalt_screen.Ui_state.t Or_error.t
 (** Await, inject returned inputs, install resulting UI state, then repeat while
     nonempty. Async yields between 128-record work turns, polls one provider batch,

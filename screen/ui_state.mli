@@ -85,6 +85,7 @@ type t
 (** Frontend-resolved loader path (or its resolution error). Opening configuration
     uses normal buffer ownership and never creates the file or parent directories. *)
 val with_configuration_path : t -> (string, string) Result.t -> t
+val file_picker_settings : t -> Cobalt_config_runtime.Settings.File_picker.t
 val take_word_index_request : t -> t * word_index_request option
 val receive_word_index : t -> word_index_request -> Cobalt_completion.Model.Buffer_words.t -> t
 

@@ -129,6 +129,49 @@ let%expect_test "failed and truncated cached refreshes are explicit, nonacceptin
     close state; let%map () = timeout (R.finished runtime) in R.cancel runtime)
 ;;
 
+let%expect_test "configured ignore and limit changes never restore an incompatible cached corpus" =
+  with_root (fun root ->
+    Out_channel.write_all (root ^ "/.ignore") ~data:"b.ml\n";
+    let runtime = R.create () and state = ref (ui ()) in
+    let defaults = Cobalt_config_runtime.Settings.File_picker.default in
+    let included = { defaults with include_ignored = true } in
+    let open_with settings =
+      state := R.open_picker ~settings runtime !state ~root ~width ~height |> Or_error.ok_exn in
+    open_with defaults;
+    let%bind () = drain runtime state in
+    [%test_eq: string list] (names state) ["a.ml"];
+    close state; let%bind () = timeout (R.finished runtime) in
+    open_with included;
+    assert (R.cache_hits runtime = 0 && not (I.refreshing (session !state)));
+    let%bind () = drain runtime state in
+    [%test_eq: string list] (names state) ["a.ml"; "b.ml"];
+    close state; let%bind () = timeout (R.finished runtime) in
+    open_with included;
+    assert (R.cache_hits runtime = 1);
+    let%bind () = drain runtime state in
+    close state; let%bind () = timeout (R.finished runtime) in
+    open_with { included with max_candidates = 1 };
+    assert (R.cache_hits runtime = 1 && not (I.refreshing (session !state)));
+    let%bind () = drain runtime state in
+    assert (M.Discovery.equal_status (M.discovery_status (I.model (session !state)))
+      (Complete { truncated = true }));
+    close state; let%bind () = timeout (R.finished runtime) in
+    open_with included;
+    let%bind () = drain runtime state in
+    close state; let%bind () = timeout (R.finished runtime) in
+    open_with { included with max_total_path_bytes = 1 };
+    assert (R.cache_hits runtime = 1 && not (I.refreshing (session !state)));
+    let%bind () = drain runtime state in
+    assert (M.Discovery.equal_status (M.discovery_status (I.model (session !state)))
+      (Complete { truncated = true }));
+    close state; let%bind () = timeout (R.finished runtime) in
+    open_with defaults;
+    let%bind () = drain runtime state in
+    [%test_eq: string list] (names state) ["a.ml"];
+    close state; let%map () = timeout (R.finished runtime) in
+    R.cancel runtime)
+;;
+
 let%expect_test "root cap evicts data, and cached data has no reference to the retired UI/session" =
   with_root (fun first -> with_root (fun second ->
     let runtime = R.create ~cache_limits:{ R.Cache_limits.default with max_roots = 1 } () in

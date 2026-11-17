@@ -59,6 +59,56 @@ let%expect_test "batched picker activation routes following keys and cancel to t
   return ()
 ;;
 
+let%expect_test "production file picker uses startup include-ignored configuration and limits" =
+  let root = Filename_unix.realpath (Filename_unix.temp_dir "cobalt-production-ignored" "") in
+  Core_unix.mkdir (root ^ "/Private");
+  Out_channel.write_all (root ^ "/dune-project") ~data:"";
+  Out_channel.write_all (root ^ "/.ignore") ~data:"Private/\n";
+  Out_channel.write_all (root ^ "/public.md") ~data:"public note";
+  Out_channel.write_all (root ^ "/Private/companies_to_apply_to.md") ~data:"career note";
+  let%bind () = Monitor.protect (fun () ->
+    Deferred.List.iter ~how:`Sequential [false; true] ~f:(fun include_ignored ->
+      let controller = Cobalt_app.Controller.open_file ~cell_width:Cell_map.width
+        (root ^ "/public.md") |> Or_error.ok_exn in
+      let settings = { Cobalt_config_runtime.Settings.default with
+        file_picker = { include_ignored; max_candidates = 100_000
+                      ; max_total_path_bytes = 64 * 1024 * 1024 } } in
+      let handle = Bonsai_term_test.create_handle ~initial_dimensions:{ width = 100; height = 30 }
+        (Cobalt_ui.Editor_view.app ~startup_configuration:(Ok settings)
+          controller ~exit:(fun () -> Effect.Ignore)) in
+      let key key = Bonsai_term_test.send_event handle (Key_press { key; mods = [] }) in
+      let type_text text = String.iter text ~f:(fun c -> key (ASCII c)) in
+      let view () =
+        Handle.recompute_view handle;
+        Bonsai_term_test.print_view (Bonsai_term_test.last_view handle);
+        [%expect.output] in
+      type_text " ffcompanies_to_apply_to.md";
+      let rec wait () =
+        let output = view () in
+        if String.is_substring output ~substring:"Loading"
+           || String.is_substring output ~substring:"Filtering"
+        then let%bind () = Clock_ns.after (Time_ns.Span.of_int_ms 2) in wait ()
+        else return output in
+      let%bind result = Clock_ns.with_timeout (Time_ns.Span.of_int_sec 10) (wait ()) in
+      let output = match result with `Result output -> output | `Timeout -> failwith (view ()) in
+      assert (Bool.equal include_ignored
+        (String.is_substring output ~substring:"Private/companies_to_apply_to.md"));
+      key Escape;
+      type_text " Q";
+      ignore (view () : string);
+      Cobalt_app.Controller.close controller;
+      return ()))
+    ~finally:(fun () ->
+      List.iter [ "Private/companies_to_apply_to.md"; "public.md"; ".ignore"; "dune-project" ]
+        ~f:(fun path -> Core_unix.unlink (root ^ "/" ^ path));
+      Core_unix.rmdir (root ^ "/Private"); Core_unix.rmdir root;
+      return ()) in
+  ignore ([%expect.output] : string);
+  print_endline "production startup ignore configuration passed";
+  [%expect {| production startup ignore configuration passed |}];
+  return ()
+;;
+
 let%expect_test "production binding opens session buffers, retains dirty text and scope, and reports failed opens" =
   let root = Filename_unix.realpath (Filename_unix.temp_dir "cobalt-production-files" "") in
   Core_unix.mkdir (root ^ "/nested");

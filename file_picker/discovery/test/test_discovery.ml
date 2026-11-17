@@ -43,9 +43,9 @@ let rec complete provider =
   | Complete _ | Failed _ | Cancelled -> return snapshot
 ;;
 
-let run ?prog ?limits root =
+let run ?prog ?limits ?include_ignored root =
   let provider = Provider.create ?prog ?limits () in
-  let run = Provider.start provider ~root |> Or_error.ok_exn in
+  let run = Provider.start ?include_ignored provider ~root |> Or_error.ok_exn in
   let%bind snapshot = timeout (complete provider) in
   let%map () = timeout (Provider.finished run) in
   snapshot
@@ -118,6 +118,43 @@ let%expect_test "real rg includes untracked, respects ignores, omits hidden and 
     List.iter snapshot.candidates ~f:(fun candidate ->
       [%test_eq: string] (Candidate.path candidate) (root ^ "/" ^ Candidate.relative_path candidate);
       assert (Stdlib.String.is_valid_utf_8 (Candidate.display_path candidate))))
+;;
+
+let%expect_test "including ignored files keeps hidden, metadata and directory symlink exclusions" =
+  with_root (fun root ->
+    write root ".git/config" "";
+    write root ".gitignore" "/Private/\n";
+    write root ".ignore" "local-ignore.txt\n";
+    List.iter [ "public.md"; "Private/20 - Areas/Career/companies_to_apply_to.md"
+              ; "local-ignore.txt"; ".hidden"; "Private/.secret/a" ]
+      ~f:(fun path -> write root path "");
+    Core_unix.symlink ~target:(root ^ "/Private") ~link_name:(root ^ "/alias");
+    let%bind normal = run root in
+    [%test_eq: string list] (paths normal) [ "public.md" ];
+    let%map included = run ~include_ignored:true root in
+    is_complete included ~truncated:false;
+    [%test_eq: string list] (paths included)
+      [ "Private/20 - Areas/Career/companies_to_apply_to.md"; "local-ignore.txt"; "public.md" ])
+;;
+
+let%expect_test "per-run settings can change limits and ignore policy on the same provider" =
+  with_root (fun root ->
+    write root ".git/config" "";
+    write root ".gitignore" "ignored.md\n";
+    List.iter ["a.md"; "b.md"; "ignored.md"] ~f:(fun path -> write root path "");
+    let provider = Provider.create ~limits:{ Provider.Limits.default with max_candidates = 1 } () in
+    let discover ?include_ignored ?limits () =
+      let run = Provider.start ?include_ignored ?limits provider ~root |> Or_error.ok_exn in
+      let%bind snapshot = timeout (complete provider) in
+      let%map () = timeout (Provider.finished run) in snapshot in
+    let%bind limited = discover () in
+    is_complete limited ~truncated:true;
+    let%bind included = discover ~include_ignored:true ~limits:Provider.Limits.default () in
+    is_complete included ~truncated:false;
+    [%test_eq: string list] (paths included) ["a.md"; "b.md"; "ignored.md"];
+    let%map limited_again = discover () in
+    is_complete limited_again ~truncated:true;
+    assert (List.length limited_again.candidates = 1))
 ;;
 
 let%expect_test "empty rg project and empty exit code are complete not failed" =

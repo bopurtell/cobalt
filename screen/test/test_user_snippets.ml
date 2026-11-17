@@ -73,6 +73,7 @@ let%test_unit "configuration changes, disables, removals and invalid whole snaps
       completion_ghost_preview = true; completion_min_prefix_chars = 3;
       completion_prefer_local_snippets = false; line_numbers = true;
       relative_line_numbers = false;
+      file_picker = Settings.File_picker.default;
       theme = Cobalt_theme.Theme.id (List.last_exn Cobalt_theme.Theme.all); completion_colors = [];
       snippets = [declaration "would replace $0"; declaration ~id:"bad.entry" "${UNKNOWN}"] };
     Ok { Settings.default with theme = "missing"; snippets = [] }]

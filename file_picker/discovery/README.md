@@ -21,7 +21,10 @@ process API, an argument vector, and an explicit working directory, never a shel
 rg --no-config --files --null --glob '!**/.git/**' -- .
 ```
 
-Normal ripgrep ignore rules apply (`.gitignore`, `.ignore`, global ignores, etc.).
+Normal ripgrep ignore rules apply by default (`.gitignore`, `.ignore`, global ignores, etc.).
+`Provider.start ~include_ignored:true` adds `--no-ignore` for that run. Production
+uses `File_picker.set_include_ignored` from the OCaml configuration. Hidden paths
+and metadata remain excluded, and directory symlinks are still not followed.
 Untracked files are included. Hidden path components and `.git` metadata are
 excluded; directory symlinks are not followed. User ripgrep configuration is
 disabled so it cannot silently enable hidden files or symlink traversal. File

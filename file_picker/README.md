@@ -196,8 +196,10 @@ One frontend runtime retains at most **two roots / 128 MiB conservative ownershi
 charge**, with a **30-second monotonic TTL since successful validation**. This is
 separate from the four-entry query LRU. Keys use normalized lexical roots and an
 explicit discovery-policy version (`native-v1` by default); use
-`Runtime.open_picker_with_policy` when changing discovery configuration. Lookup
-touches LRU order but does not extend validation age. Runtime cancellation clears
+`Runtime.open_picker_with_policy` for additional caller-owned policy changes.
+The include-ignored switch and configurable candidate/path-byte limits are always
+part of the cache key. See [configuration](../docs/configuration.md#finding-ignored-files).
+Lookup touches LRU order but does not extend validation age. Runtime cancellation clears
 the cache; configurable root caps are limited to 0–4, with zero disabling retention.
 
 Only idle, successful, untruncated streamed sessions export snapshots on close.

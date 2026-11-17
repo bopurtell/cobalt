@@ -52,12 +52,17 @@ let () =
   Completion.set_prefer_local_snippets false;
   View.set_line_numbers true;
   View.set_relative_line_numbers true;
+  File_picker.set_include_ignored true;
+  File_picker.set_max_candidates 100_000;
+  File_picker.set_max_total_path_bytes (64 * 1024 * 1024);
   Theme.set (String.concat "-" ["custom"; "theme"])
 |}) in
     let expected : Settings.t =
       { completion_enabled = false; signature_help_enabled = false; completion_ghost_preview = true
       ; completion_min_prefix_chars = 3; completion_prefer_local_snippets = false
       ; completion_colors = []; line_numbers = true; relative_line_numbers = true
+      ; file_picker = { include_ignored = true; max_candidates = 100_000
+                      ; max_total_path_bytes = 64 * 1024 * 1024 }
       ; theme = "custom-theme"; snippets = [] } in
     check (Settings.equal (ok result) expected) "real Stdlib configuration";
     check_clean ();
@@ -218,6 +223,8 @@ let () = Snippets.add ~id:"invalid.first" ~prefix:"q" "${UNKNOWN}";
     check legacy.signature_help_enabled "legacy signature default";
     check (List.is_empty legacy.completion_colors) "v2 colors must default empty";
     check (not legacy.relative_line_numbers) "legacy relative numbers default off";
+    check (Settings.File_picker.equal legacy.file_picker Settings.File_picker.default)
+      "legacy file picker defaults";
     let protocol3 = String.substr_replace_first protocol ~pattern:"COBALT_SETTINGS_2" ~with_:"COBALT_SETTINGS_3" ^ "true\n" in
     List.iter ["1\ncollection\n612e\nfalse\n"; "1\ncollection\n61\ninvalid\n";
                 "1\nadd\n61\n62\n0\ninvalid\nnone\n63\n"] ~f:(fun suffix ->
@@ -241,6 +248,23 @@ let () = Snippets.add ~id:"invalid.first" ~prefix:"q" "${UNKNOWN}";
     List.iter [""; "true"; "TRUE\n"; "1\n"; "true\nextra\n"] ~f:(fun suffix ->
       check (Result.is_error (Loader.For_testing.decode (protocol5 ^ suffix)))
         "malformed v5 relative setting accepted");
+    let protocol6 = String.substr_replace_first protocol5 ~pattern:"COBALT_SETTINGS_5"
+      ~with_:"COBALT_SETTINGS_6" ^ "false\n" in
+    let picker = Loader.For_testing.decode (protocol6 ^ "true\n100000\n67108864\n")
+      |> Or_error.ok_exn in
+    check (Settings.File_picker.equal picker.file_picker expected.file_picker)
+      "v6 file picker roundtrip";
+    List.iter [""; "true\n"; "true\n100000\n"; "TRUE\n100000\n67108864\n";
+               "true\n0\n67108864\n"; "true\n100000\n0\n"; "true\n-1\n1\n";
+               "true\n01\n1\n"; "true\n1\n1\nextra\n"] ~f:(fun suffix ->
+      check (Result.is_error (Loader.For_testing.decode (protocol6 ^ suffix)))
+        "malformed v6 picker setting accepted");
+    let%bind () = Deferred.List.iter ~how:`Sequential
+      ["set_max_candidates", 0; "set_max_candidates", -1;
+       "set_max_total_path_bytes", 0; "set_max_total_path_bytes", -1]
+      ~f:(fun (setter, value) ->
+        let%map result = load (sprintf "let () = Cobalt_config.File_picker.%s (%d)" setter value) in
+        check (contains (error result) "must be positive") "picker setter validation") in
     let hex text = String.concat (List.init (String.length text) ~f:(fun i ->
       sprintf "%02x" (Char.to_int text.[i]))) ^ "\n" in
     let pair role color = hex role ^ hex color in

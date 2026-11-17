@@ -91,13 +91,19 @@ retains and explicitly passes this root for its lifetime, even on cross-project
 tab activation (including nested markers). Restart the editor to select another
 scope. Diagnostic root discovery is unchanged.
 
-Both rg providers include untracked files, respect normal ignore rules (including
+By default, both rg providers include untracked files, respect normal ignore rules (including
 parent/global rules), omit hidden components and `.git` metadata, and do not follow
 directory symlinks. User rg configuration is disabled with `--no-config`. File
 discovery uses NUL framing; content search uses structured JSON/base64 fields.
 Raw paths remain separate from escaped display strings; an escaped spelling is
 not a path alias. Discovery ordering is bytewise/deduplicated; content occurrences
 retain traversal order. Capped subsets are not promised sorted prefixes.
+
+File discovery can include ignored files with `File_picker.set_include_ignored true`
+in the OCaml configuration, without changing Git tracking. Its candidate count and
+retained path-string budget are also configurable. Content search keeps its normal
+ignore policy; hidden paths, metadata and directory symlinks remain excluded.
+See [finding ignored files](configuration.md#finding-ignored-files).
 
 ## Bounds, freshness and coordinates
 

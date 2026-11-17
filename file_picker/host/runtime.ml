@@ -12,14 +12,14 @@ module Cache_limits = struct
 end
 type entry = { root : string; policy : string; data : Interaction.Snapshot.t; validated : Time_ns.t }
 type t =
-  { provider : Provider.t; mutable run : Provider.run option; cache_limits : Cache_limits.t
+  { provider : Provider.t; limits : Provider.Limits.t; mutable run : Provider.run option; cache_limits : Cache_limits.t
   ; now : unit -> Time_ns.t; mutable entries : entry list; mutable hits : int; mutable evictions : int
   ; mutable validation : (Model.Discovery.request * Time_ns.t option ref) option }
 let monotonic () = Time_ns.of_int63_ns_since_epoch (Or_error.ok_exn Core_unix.Clock.gettime Core_unix.Clock.Monotonic)
-let create ?prog ?limits ?(cache_limits = Cache_limits.default) ?(now = monotonic) () =
+let create ?prog ?(limits = Provider.Limits.default) ?(cache_limits = Cache_limits.default) ?(now = monotonic) () =
   if cache_limits.max_roots < 0 || cache_limits.max_roots > 4 || cache_limits.max_bytes < 0
      || Time_ns.Span.(cache_limits.ttl < zero) then invalid_arg "Reopen cache limits";
-  { provider = Provider.create ?prog ?limits (); run = None; cache_limits; now
+  { provider = Provider.create ?prog ~limits (); limits; run = None; cache_limits; now
   ; entries = []; hits = 0; evictions = 0; validation = None }
 let prune t =
   let now = t.now () in
@@ -52,7 +52,15 @@ let same_run t request =
     Model.Discovery.equal_request snapshot.request request)
 ;;
 
-let open_picker_with_policy t ui ~root ~policy ~width ~height =
+let open_picker_with_policy ?settings t ui ~root ~policy ~width ~height =
+  let include_ignored, limits = match settings with
+    | None -> false, t.limits
+    | Some (settings : Cobalt_config_runtime.Settings.File_picker.t) ->
+      settings.include_ignored,
+      { t.limits with max_candidates = settings.max_candidates
+        ; max_total_path_bytes = settings.max_total_path_bytes } in
+  let policy = Sexp.to_string ([%sexp (policy : string), (include_ignored : bool),
+    (limits.max_candidates : int), (limits.max_total_path_bytes : int)]) in
   if not (Ui_state.can_open_file_picker ui ~width ~height)
   then Or_error.error_string
     "Files unavailable: finish paste, leave Insert/Visual, and allow at least 14 columns and 5 rows"
@@ -62,7 +70,8 @@ let open_picker_with_policy t ui ~root ~policy ~width ~height =
     let root_key = Model.Candidate.create ~root ~relative_path:"cache-root" |> Or_error.map ~f:Model.Candidate.root in
     Or_error.bind root_key ~f:(fun root ->
     let cached = find t root policy in
-    Or_error.map (Provider.start ?reuse:(Option.map cached ~f:(fun e -> Interaction.Snapshot.candidates e.data)) t.provider ~root) ~f:(fun run ->
+    Or_error.map (Provider.start ~include_ignored ~limits
+      ?reuse:(Option.map cached ~f:(fun e -> Interaction.Snapshot.candidates e.data)) t.provider ~root) ~f:(fun run ->
     t.run <- Some run;
      let request = Provider.request run in
      let validated = ref None in
@@ -79,7 +88,7 @@ let open_picker_with_policy t ui ~root ~policy ~width ~height =
       Interaction.set_snapshot_sink session (fun data ->
         remember t ~root ~policy ~validated:(Option.value !validated ~default:(t.now ())) data));
     ui)))
-let open_picker t ui ~root ~width ~height = open_picker_with_policy t ui ~root ~policy:"native-v1" ~width ~height
+let open_picker ?settings t ui ~root ~width ~height = open_picker_with_policy ?settings t ui ~root ~policy:"native-v1" ~width ~height
 ;;
 
 (* The frontend chains these deferred turns, not one turn per rendered frame.
