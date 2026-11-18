@@ -6,7 +6,7 @@
 
 (library
  (name cobalt_screen_test)
- (libraries cobalt_config_runtime cobalt_completion cobalt_theme cobalt_error cobalt_app cobalt_core cobalt_input cobalt_palette cobalt_file_picker cobalt_line_picker cobalt_content_picker cobalt_tile cobalt_screen cobalt_highlight cobalt_vcs cobalt_vcs_git cobalt_vcs_fixture core expect_test_helpers_core)
+ (libraries cobalt_config_runtime cobalt_completion cobalt_theme cobalt_error cobalt_app cobalt_core cobalt_input cobalt_palette cobalt_file_picker cobalt_line_picker cobalt_content_picker cobalt_tile cobalt_screen cobalt_highlight cobalt_decoration cobalt_vcs cobalt_vcs_git cobalt_vcs_fixture core expect_test_helpers_core)
  ; See core/dune for why this flag is needed.
  (inline_tests
   (flags

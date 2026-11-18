@@ -1,0 +1,4 @@
+(library
+ (name cobalt_decoration)
+ (libraries core)
+ (preprocess (pps ppx_jane)))

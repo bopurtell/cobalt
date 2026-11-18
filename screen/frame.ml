@@ -190,7 +190,7 @@ let overlay_floating rows (layer : Floating_layer.t) ~focused =
     else Span.overlay row ~x:outer.x ~width:outer.width layer_rows.(y - outer.y))
 ;;
 
-let prepare_document ?highlights ?allocation ?reserve_status_row ?floating ui ~width ~height =
+let prepare_document ?highlights ?decorations ?allocation ?reserve_status_row ?floating ui ~width ~height =
   let width = Int.max 0 width
   and height = Int.max 0 height in
   let floating = floating_layer ?allocation ?floating ui ~width ~height in
@@ -233,6 +233,23 @@ let prepare_document ?highlights ?allocation ?reserve_status_row ?floating ui ~w
   let reserve_status_row = Option.value reserve_status_row ~default:default_reservation in
   let editor = Controller.editor (Ui_state.controller ui) in
   let text = Editor.text editor in
+  let decorations =
+    (* The caller owns document identity and provider/configuration generations.
+       The retained source object independently binds prepared geometry to text.
+       Directory surfaces never consume file decorations. *)
+    match decorations with
+    | None -> None
+    | Some (expected_key, prepared) ->
+      if Decoration.is_empty prepared
+         || not (Decoration.matches prepared expected_key)
+         || Cobalt_decoration.Snapshot.Key.revision expected_key <> Editor.revision editor
+         || not (Decoration.matches_source prepared text)
+         || Option.is_some (Session.input_directory (Ui_state.session ui))
+         || (match Editor.mode editor with Visual _ -> true | Normal | Insert -> false)
+         || not (List.is_empty (Editor.block_insert_points editor))
+      then None
+      else Some prepared
+  in
   let key, snapshot =
     Option.value highlights ~default:(Controller.highlights (Ui_state.controller ui))
   in
@@ -484,6 +501,8 @@ let prepare_document ?highlights ?allocation ?reserve_status_row ?floating ui ~w
           let search_highlight = search_highlighter line_start in
           let layout = Text_buffer.line_layout text ~width:Cell_map.width line in
           let line_length = Cell_layout.Index.length layout in
+          (* Reveal all presentation roles on the active source line. *)
+          let decoration = if on_cursor_line then None else decorations in
           let syntax =
             Option.map highlights ~f:(fun snapshot ->
               let lookup = Cobalt_highlight.Snapshot.lookup_from snapshot line_start in
@@ -491,7 +510,24 @@ let prepare_document ?highlights ?allocation ?reserve_status_row ?floating ui ~w
                 if glyph.pos >= line_length then Style.Syntax.Plain
                 else lookup (line_start + glyph.pos))
           in
+          let syntax =
+            match decoration with
+            | None -> syntax
+            | Some prepared ->
+              let lookup = Decoration.lookup_from prepared ~line_start in
+              Some (fun (glyph : Cell_map.Glyph.t) ->
+                if glyph.pos >= line_length then Style.Syntax.Plain
+                else match lookup glyph with
+                  | Some category -> category
+                  | None -> Option.value_map syntax ~default:Style.Syntax.Plain
+                      ~f:(fun lookup -> lookup glyph))
+          in
           let glyphs = Cell_layout.Index.window layout ~left:scroll.left ~cols:viewport.width in
+          let glyphs =
+            match decoration with
+            | None -> glyphs
+            | Some prepared -> Decoration.apply prepared ~line_start glyphs
+          in
           let block_columns =
             match block with
             | Some block when line >= block.first_line && line <= block.last_line ->
@@ -794,13 +830,14 @@ let prepare_document ?highlights ?allocation ?reserve_status_row ?floating ui ~w
     { width; height; rows; cursor; smear }
 ;;
 
-let prepare ?highlights ?allocation ?reserve_status_row ?floating ui ~width ~height =
+let prepare ?highlights ?decorations ?allocation ?reserve_status_row ?floating ui ~width ~height =
   if Ui_state.has_document ui then
     match allocation, Ui_state.side_layout ui ~width ~height with
     | None, Some layout ->
       let floating = floating_layer ?floating ui ~width ~height in
-      let file_overlay = prepare_document ?highlights ?floating (Ui_state.surface ui ~directory:false) ~width ~height in
+      let file_overlay = prepare_document ?highlights ?decorations ?floating (Ui_state.surface ui ~directory:false) ~width ~height in
       let file = file_overlay (Animation.create ~enabled:false) in
+      (* File decorations are intentionally not forwarded to the directory. *)
       let dir = prepare_document (Ui_state.surface ui ~directory:true)
         ~allocation:{ Geometry.Rect.x = 0; y = 0; width = layout.content.width; height = layout.content.height }
         ~reserve_status_row:false ~width:layout.content.width ~height:layout.content.height
@@ -828,7 +865,7 @@ let prepare ?highlights ?allocation ?reserve_status_row ?floating ui ~width ~hei
         let file = file_overlay animation in
         let cursor = if focused then side_cursor else file.cursor in
         { file with rows; cursor; smear = (if focused then [] else file.smear) }
-    | _ -> prepare_document ?highlights ?allocation ?reserve_status_row ?floating ui ~width ~height
+    | _ -> prepare_document ?highlights ?decorations ?allocation ?reserve_status_row ?floating ui ~width ~height
   else
     let width = Int.max 0 width and height = Int.max 0 height in
     let messages =
@@ -840,8 +877,8 @@ let prepare ?highlights ?allocation ?reserve_status_row ?floating ui ~width ~hei
     fun _ -> { width; height; rows; cursor = None; smear = [] }
 ;;
 
-let render ?highlights ?allocation ?reserve_status_row ?floating ui ~width ~height =
-  prepare ?highlights ?allocation ?reserve_status_row ?floating ui ~width ~height
+let render ?highlights ?decorations ?allocation ?reserve_status_row ?floating ui ~width ~height =
+  prepare ?highlights ?decorations ?allocation ?reserve_status_row ?floating ui ~width ~height
     (Ui_state.animation ui)
 ;;
 

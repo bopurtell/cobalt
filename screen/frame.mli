@@ -68,9 +68,27 @@ type t =
     parsing. [highlights] overrides them with an expected current key and snapshot. The
     caller owns identity/configuration and must supply the current key, never the key
     copied from an obsolete result. Mismatched keys or editor revisions fall back to
-    plain text. No provider work occurs here. *)
+    plain text. No provider work occurs here.
+
+    [decorations] is opt-in: an independently obtained current expected key and
+    immutable screen-prepared geometry (see {!Decoration.prepare}). Omission is
+    the disabled/unsupported/failed path and retains the lazy indexed plain
+    renderer with no decoration preparation, validation, or provider work.
+    Empty snapshots, key/revision mismatches, and a different source buffer
+    object fall back to that path. No snapshot is retained in UI state/cache.
+    As with highlights, the host owns current document identity/configuration:
+    copying an obsolete result's key does not prove it is current. The source
+    provenance check cannot distinguish different documents sharing one buffer.
+
+    Decorations are suppressed on directory/non-file surfaces, the active source
+    line, throughout Visual mode and block insertion. Same-cell-width display
+    substitutions preserve source offsets and all cursor/scroll geometry; search
+    and selection/insert overlays remain authoritative. Preparation failure must
+    be handled by the caller by omitting [decorations], never by drawing an
+    unvalidated snapshot. *)
 val render
   :  ?highlights:Cobalt_highlight.Snapshot.Key.t * Cobalt_highlight.Snapshot.t
+  -> ?decorations:Cobalt_decoration.Snapshot.Key.t * Decoration.t
   -> ?allocation:Geometry.Rect.t
    -> ?reserve_status_row:bool
    -> ?floating:Floating_layer.t
@@ -84,7 +102,9 @@ val render
      including empty synchronization turns, invalidate. Dimensions and file content
      stamps are checked independently; mutable picker equality is never a cache key. [draw_base] is
     called once per miss, allowing the frontend to retain its base terminal image.
-    Hits only rasterize smear and select the already computed settled cursor. *)
+    Hits only rasterize smear and select the already computed settled cursor.
+    This cache deliberately remains undecorated; decoration-aware production
+    cache ownership/lifecycle is deferred until there is a feature host. *)
 module Cache : sig
   type frame = t
   type 'a t

@@ -1,0 +1,5 @@
+(library
+ (name cobalt_decoration_test)
+ (libraries cobalt_decoration core expect_test_helpers_core)
+ (inline_tests (flags (:standard -source-tree-root .)))
+ (preprocess (pps ppx_jane)))

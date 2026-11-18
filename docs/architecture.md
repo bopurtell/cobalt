@@ -16,6 +16,7 @@ frames. Bonsai_term adapts terminal events and displays those frames.
 | `app/` | Session/buffer ownership, filesystem apply, file I/O, and highlight cache |
 | `highlight/` | Provider-independent highlight ranges and snapshots |
 | `highlight_tree_sitter/` | Tree-sitter providers, grammars, and queries |
+| `decoration/` | Pure, provider-independent display decoration snapshots; no Markdown or terminal dependency |
 | `error/` | Notifications, active problems, and bounded history |
 | `source/` | Asynchronous diagnostic sources and language-server completion/hover/navigation client |
 | `completion/` | Pure completion sessions, buffer-word candidates, cycling, and edit plans |
@@ -39,6 +40,19 @@ The editing core, input layer, and application controller have no Bonsai or
 terminal-library dependencies. The screen model is also independent of Bonsai;
 it uses Notty's character-width table to keep editing and rendering aligned.
 These boundaries allow most behavior to be tested headlessly.
+
+Document decorations are an optional presentation input, not part of editing
+state. The screen accepts prepared, current decoration data and otherwise uses
+its ordinary indexed source renderer. Preparation validates cell geometry outside
+frame rendering; neither parsing nor provider callbacks run while drawing. The
+editing core and input layer have no decoration dependency.
+
+The first decoration slice supports semantic range styling and conservative
+same-width glyph substitutions. It does not install a Markdown provider or change
+normal editor behavior. A future Markdown provider belongs in a separate optional
+library selected at the composition boundary, not in the core, input, or screen
+libraries. See the [decoration and Markdown plan](plans/markdown_decorations.md)
+for the staged scope and no-provider build requirement.
 
 Asynchronous producers deliver events into the UI state transition. Requests
 leave as data and are submitted to their hosts after the transition. File and
