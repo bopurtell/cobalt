@@ -61,12 +61,17 @@ def smoke(binary):
             os.write(master, b" w")
             until(lambda: document.read_bytes() == b"X" + original)
             # Exercise the actual generic palette entry in this stub build.
+            output.clear()
             os.write(master, b" cc")
             until(lambda: b"Commands" in output or b"Palette" in output)
+            output.clear()
             os.write(master, b"Toggle document decorations")
-            until(lambda: b"Toggle document decorations" in output)
+            until(lambda: b"1/1" in output)
+            output.clear()
             os.write(master, b"\r")
-            time.sleep(.2)
+            # The palette closes by clearing its overlay; the document itself
+            # need not be repainted, so wait for the cleared palette region.
+            until(lambda: b" " * 80 in output)
             os.write(master, b" q")
             until(lambda: process.poll() is not None)
             assert process.wait(timeout=5) == 0

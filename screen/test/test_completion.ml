@@ -911,7 +911,7 @@ let%expect_test "demo command also works on an empty file and does not request a
 
 let%expect_test "demo is absent over directory and read-only views; block Insert cannot open its palette" =
   let directory = Ui_state.create ~tiles_visible:false
-      (Controller.create ~kind:Directory (Editor.create ~path:"/tmp"
+      (Controller.create ~kind:Directory (Editor.create ~path:"/"
         ~cell_width:Cell_map.width Text_buffer.empty)) in
   let report = Ui_state.create ~report:Report_tile.demo ~tiles_visible:true
       (Controller.create (Editor.create ~path:"/demo.txt" ~cell_width:Cell_map.width Text_buffer.empty))

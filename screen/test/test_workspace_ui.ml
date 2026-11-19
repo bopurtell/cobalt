@@ -97,6 +97,23 @@ let%expect_test "document and status compose in separate rectangles with one doc
     |}]
 ;;
 
+let%test_unit "zen status row omits mode and path without hiding the editor title" =
+  let workspace = ui "hello" in
+  let zen = run ~width:80 ~height:12 workspace (keys " vz") in
+  let frame = Frame.render zen ~width:80 ~height:12 in
+  let text = Frame.to_string frame in
+  let bottom = String.concat (List.map (List.last_exn frame.rows) ~f:(fun span -> span.text)) in
+  assert (String.is_substring text ~substring:"f.txt");
+  assert (not (String.is_substring bottom ~substring:"NORMAL"));
+  assert (not (String.is_substring bottom ~substring:"f.txt"));
+  assert (String.is_substring bottom ~substring:"1:1");
+  let restored = run ~width:80 ~height:12 zen (keys " vz") in
+  let bottom = String.concat (List.map (List.last_exn (Frame.render restored ~width:80 ~height:12).rows)
+      ~f:(fun span -> span.text)) in
+  assert (String.is_substring bottom ~substring:"NORMAL");
+  assert (String.is_substring bottom ~substring:"f.txt")
+;;
+
 let%expect_test "workspace transitions preserve editor state and undo/redo behavior" =
   let t = run ~width:80 ~height:12 (ui "abc") (keys "iX<Esc>") in
   let editor = Cobalt_app.Controller.editor (Ui_state.controller t) in
@@ -141,11 +158,11 @@ let%expect_test "errors and pending feedback survive workspace, compact, and zen
   assert ([%equal: Ui_state.Message.t option] error (Ui_state.message zen));
   let frame = Frame.render zen ~width:160 ~height:12 in
   let bottom = String.concat (List.map (List.last_exn frame.rows) ~f:(fun span -> span.text)) in
-  assert (String.is_substring bottom ~substring:"NORMAL");
+  assert (not (String.is_substring bottom ~substring:"NORMAL"));
   assert (String.is_substring bottom ~substring:"Space");
   assert (String.is_substring bottom ~substring:"Failed to write");
-  print_endline "error message preserved; mode, pending, and error visible in tile and zen";
-  [%expect {| error message preserved; mode, pending, and error visible in tile and zen |}]
+  print_endline "error message preserved; pending and error visible in zen without mode or path";
+  [%expect {| error message preserved; pending and error visible in zen without mode or path |}]
 ;;
 
 let%expect_test "workspace scrolling and frame cursor share geometry through all placements" =

@@ -393,13 +393,21 @@ let () = Snippets.add ~id:"invalid.first" ~prefix:"q" "${UNKNOWN}";
         not (Char.equal stat.[pos + 2] 'Z')
       with _ -> false
     in
-    check (not (running pid)) "child survived process-group termination";
+    let rec wait_for_exit pid attempts =
+      if running pid && attempts > 0 then (
+        let%bind () = Clock_ns.after (Time_ns.Span.of_ms 10.) in
+        wait_for_exit pid (attempts - 1))
+      else return (not (running pid))
+    in
+    let%bind stopped = wait_for_exit pid 100 in
+    check stopped "child survived process-group termination";
     check_clean ();
     let%bind result = load (remember ^ sprintf "let () = ignore (Sys.command %S)\n"
       (sprintf "sleep 30 & printf '%%s' $! > %s" (Filename.quote child_pid))) in
     check (Settings.equal (ok result) Settings.default) "successful parent result";
     let pid = Int.of_string (In_channel.read_all child_pid) in
-    check (not (running pid)) "child survived successful parent exit";
+    let%bind stopped = wait_for_exit pid 100 in
+    check stopped "child survived successful parent exit";
     check_clean ();
     print_endline "configuration tests passed";
     return ())

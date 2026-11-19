@@ -613,7 +613,14 @@ let prepare_document ?highlights ?decorations ?allocation ?reserve_status_row ?f
         | _ -> match tab_row, area_on_row Status_row y with
         | Some (rect, spans), _ when y = rect.y -> [ rect, spans ]
         | _, Some area ->
-          let spans = Status.render area fields in
+          let status_fields =
+            if Ui_state.zen ui then
+              List.filter fields ~f:(fun (field : Status_field.t) ->
+                not (Status_field.Id.equal field.id Mode
+                     || Status_field.Id.equal field.id Filename))
+            else fields
+          in
+          let spans = Status.render area status_fields in
           let spans = if Ui_state.bare ui then List.map spans ~f:(fun span ->
             if Style.equal span.Span.style Status
             then { span with style = Style.document () } else span) else spans in

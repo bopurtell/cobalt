@@ -12,14 +12,17 @@
 (rule
  (alias runtest)
  (deps test_configuration_cli.py)
+ (locks /smoke)
  (action (run python3 %{dep:test_configuration_cli.py} %{exe:cobalt.exe})))
 
 (rule
  (alias runtest)
  (deps test_harness_cli.py)
+ (locks /smoke)
   (action (run python3 %{dep:test_harness_cli.py} %{exe:cobalt.exe})))
 
 (rule
  (alias runtest)
  (deps test_no_provider_cli.py)
+ (locks /smoke)
  (action (run python3 %{dep:test_no_provider_cli.py} %{exe:cobalt_no_provider.exe})))

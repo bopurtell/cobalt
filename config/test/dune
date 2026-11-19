@@ -1,5 +1,6 @@
 (test
  (name test_config)
+ (locks /smoke)
  (modules test_config)
  (libraries core core_unix async cobalt_config_runtime)
  (preprocess (pps ppx_jane)))
@@ -12,6 +13,7 @@
 
 (test
  (name test_cache)
+ (locks /smoke)
  (modules test_cache)
  (libraries core core_unix async cobalt_config_runtime)
  (preprocess (pps ppx_jane)))

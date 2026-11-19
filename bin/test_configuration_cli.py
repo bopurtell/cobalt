@@ -77,9 +77,11 @@ with tempfile.TemporaryDirectory(prefix="cobalt-config-cli-") as directory:
             prefix = bytes(output).split(b"CONFIGURATION_DOCUMENT", 1)[0]
             colors = tuple(re.findall(rb"(?:38|48);2;\d+;\d+;\d+", prefix))
             assert colors, prefix
-            os.write(master, b" Q")
-            drain_until(lambda _: process.poll() is not None)
-            assert process.wait(timeout=5) == 0
+            # This test checks startup, not keyboard quit (covered by the other
+            # CLI PTY tests). Stop explicitly rather than racing startup redraws
+            # with a modal shortcut.
+            process.terminate()
+            process.wait(timeout=5)
             assert document.read_bytes() == original
             return colors
         finally:
