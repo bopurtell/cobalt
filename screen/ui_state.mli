@@ -82,6 +82,10 @@ module Input : sig
 end
 
 type t
+(** Session-only preference and composition availability; no provider state. *)
+val document_decorations_enabled : t -> bool
+val document_decorations_available : t -> bool
+val with_document_decorations : ?enabled:bool -> t -> available:bool -> t
 (** Frontend-resolved loader path (or its resolution error). Opening configuration
     uses normal buffer ownership and never creates the file or parent directories. *)
 val with_configuration_path : t -> (string, string) Result.t -> t

@@ -8,6 +8,92 @@ let default_color role =
   let r, g, b = Cobalt_theme.Theme.color Cobalt_theme.Theme.default role in
   Attr.Color.rgb ~r ~g ~b
 
+let document_decorations : Cobalt_decoration.Snapshot.Role.t list =
+  [ Accent; Literal; Muted
+  ; Heading_1; Heading_2; Heading_3; Heading_4; Heading_5; Heading_6
+  ; Emphasis; Strong; Code_inline; Code_block; Link; Link_destination
+  ; Quote; List_marker; Checkbox ]
+;;
+
+let%test_unit "rich document colors and default fonts use the live light and dark palettes" =
+  let module Palette = Cobalt_theme.Theme in
+  let module Style = Cobalt_screen.Style in
+  let cases : (Cobalt_decoration.Snapshot.Role.t * Palette.Role.t * Palette.Role.t * Theme.Font.t list) list =
+    [ Accent, Syntax_keyword, Background, []
+    ; Literal, Syntax_string, Background, []
+    ; Muted, Syntax_comment, Background, []
+    ; Heading_1, Syntax_keyword, Background, [ Bold ]
+    ; Heading_2, Syntax_type, Background, [ Bold ]
+    ; Heading_3, Syntax_function, Background, [ Bold ]
+    ; Heading_4, Syntax_module, Background, [ Bold ]
+    ; Heading_5, Syntax_constant, Background, [ Bold ]
+    ; Heading_6, Syntax_string, Background, [ Bold ]
+    ; Emphasis, Syntax_number, Background, [ Italic ]
+    ; Strong, Syntax_number, Background, [ Bold ]
+    ; Code_inline, Syntax_number, Surface, []
+    ; Code_block, Syntax_number, Surface, []
+    ; Link, Syntax_function, Background, [ Underline ]
+    ; Link_destination, Muted, Background, []
+    ; Quote, Syntax_comment, Background, []
+    ; List_marker, Normal_accent, Background, []
+    ; Checkbox, Insert_accent, Background, [] ]
+  in
+  assert (List.exists Palette.all ~f:(fun theme -> Palette.Kind.equal (Palette.kind theme) Light));
+  assert (List.exists Palette.all ~f:(fun theme -> Palette.Kind.equal (Palette.kind theme) Dark));
+  List.iter Palette.all ~f:(fun theme ->
+    let color role =
+      let r, g, b = Palette.color theme role in Attr.Color.rgb ~r ~g ~b in
+    List.iter cases ~f:(fun (decoration, fg, bg, fonts) ->
+      let style = Style.document ~syntax:Number ~decoration () in
+      let colors = [ Attr.fg (color fg); Attr.bg (color bg) ] in
+      assert ([%equal: Theme.Font.t list] (Theme.Font.default style) fonts);
+      let font_attr : Theme.Font.t -> Attr.t = function
+        | Bold -> Attr.bold | Italic -> Attr.italic | Underline -> Attr.underline in
+      assert (same_attrs (Theme.attrs ~theme style) (colors @ List.map fonts ~f:font_attr));
+      (* Custom font policies still replace defaults rather than adding to them. *)
+      assert (same_attrs (Theme.attrs ~theme ~font:(fun _ -> []) style) colors);
+      assert (same_attrs (Theme.attrs ~theme ~font:(fun _ -> [ Italic ]) style)
+        (colors @ [ Attr.italic ]))))
+;;
+
+let%test_unit "special cells and every overlay outrank every decoration foreground and background" =
+  let module Palette = Cobalt_theme.Theme in
+  let module Style = Cobalt_screen.Style in
+  List.iter Palette.all ~f:(fun theme ->
+    List.iter document_decorations ~f:(fun decoration ->
+      List.iter Style.Syntax.all ~f:(fun syntax ->
+        List.iter [ false; true ] ~f:(fun current_line ->
+          List.iter [ false; true ] ~f:(fun special ->
+            let plain ?overlay () = Style.document ~syntax ~current_line ~special ?overlay () in
+            let decorated ?overlay () = Style.document ~syntax ~current_line ~special ~decoration ?overlay () in
+            if special then
+              assert (same_attrs (Theme.attrs ~theme (decorated ())) (Theme.attrs ~theme (plain ())));
+            List.iter Style.Overlay.all ~f:(fun overlay ->
+              assert (same_attrs
+                (Theme.attrs ~theme ~font:(fun _ -> []) (decorated ~overlay ()))
+                (Theme.attrs ~theme ~font:(fun _ -> []) (plain ~overlay ())))))))))
+;;
+
+let%test_unit "inline and block code surfaces compose with every syntax foreground, never padding" =
+  let module Style = Cobalt_screen.Style in
+  List.iter Cobalt_theme.Theme.all ~f:(fun theme ->
+    let color role =
+      let r, g, b = Cobalt_theme.Theme.color theme role in Attr.Color.rgb ~r ~g ~b in
+    List.iter [ Cobalt_decoration.Snapshot.Role.Code_inline; Code_block ] ~f:(fun decoration ->
+      List.iter Style.Syntax.all ~f:(fun syntax ->
+        let spans = Cobalt_screen.Span.of_glyphs (Cobalt_screen.Cell_map.glyphs "x")
+            ~syntax:(fun _ -> syntax) ~decoration:(fun _ -> Some decoration)
+            ~left:0 ~cols:3 ~text:(Style.document ()) ~special:(Style.document ~special:true ()) in
+        match spans with
+        | [ source; padding ] ->
+          assert (same_attrs (Theme.attrs ~theme source.style)
+            [ Attr.fg (color (Theme.syntax_role syntax)); Attr.bg (color Surface) ]);
+          assert (String.equal padding.text "  ");
+          assert (same_attrs (Theme.attrs ~theme padding.style)
+            [ Attr.fg (color Foreground); Attr.bg (color Background) ])
+        | _ -> assert false)))
+;;
+
 let%test_unit "completion parts retain independent selected colors and uniform documentation" =
   let module Palette = Cobalt_theme.Theme in
   let cases : (Cobalt_screen.Style.Completion.part * Palette.Role.t * Palette.Role.t) list =

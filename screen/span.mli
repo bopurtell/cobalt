@@ -30,12 +30,18 @@ val merge : t list -> t list
     styles and replaces only their overlay. As before, clipped escape fragments
     and wide-character markers keep [special] without the interaction overlay;
     clipped TAB cells retain their overlay. Combining marks attach only after a
-    fully drawn plain glyph, retaining the supplied [text] style. Blank padding
+     fully drawn plain glyph, retaining the supplied [text] style (decorated marks
+     also retain interaction overlays). Blank padding
      also uses [text], never an interaction overlay or syntax. [syntax] supplies
      a category per glyph (including combining marks); special treatment still
-     takes foreground precedence. Clipped escape/wide markers stay plain special. *)
+      takes foreground precedence. Clipped escape/wide markers stay plain special.
+      [decoration] adds a generic role without replacing syntax. It is applied only
+      to real Plain/TAB glyphs (and attached combining marks), never escapes,
+      clipped-glyph markers or EOL padding. Callers must exclude any synthetic
+      glyphs they append to the source window. *)
 val of_glyphs
    :  ?syntax:(Cell_map.Glyph.t -> Style.Syntax.t)
+    -> ?decoration:(Cell_map.Glyph.t -> Cobalt_decoration.Snapshot.Role.t option)
    -> ?highlight:(Cell_map.Glyph.t -> [ `Match | `Current | `Selection | `Insert_cursor | `Insert_point ] option)
   -> Cell_map.Glyph.t array
   -> left:int

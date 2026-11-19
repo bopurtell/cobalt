@@ -88,6 +88,7 @@ type t =
   | Toggle_absolute_numbers
   | Toggle_relative_numbers
   | Toggle_smear
+  | Toggle_document_decorations
   | Toggle_status
   | Toggle_hotkey_hints
   | Position_status of Status_position.t
@@ -170,6 +171,7 @@ let scale t ~count =
   | Toggle_absolute_numbers
   | Toggle_relative_numbers
   | Toggle_smear
+  | Toggle_document_decorations
   | Toggle_status
   | Toggle_hotkey_hints
   | Position_status _

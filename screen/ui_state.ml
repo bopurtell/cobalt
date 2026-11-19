@@ -168,6 +168,8 @@ type toggle_pending =
 
 type t =
   { controller : Controller.t
+  ; document_decorations_enabled : bool
+  ; document_decorations_available : bool
   ; harness_requests : Cobalt_harness.Protocol.work list
   ; harness_busy : bool
   ; harness_root : string option
@@ -480,6 +482,8 @@ let create
   ; content_requests = []
   ; scroll = Scroll.zero
   ; rows = None
+  ; document_decorations_enabled = false
+  ; document_decorations_available = false
   ; animation = Animation.create ~enabled:smear_enabled
   ; animation_time = None
   ; fitted_dimensions = None
@@ -2759,6 +2763,7 @@ let apply_view (prefs : Geometry.Prefs.t) (view : View_command.t) : Geometry.Pre
   | Kill_source
   | Scroll _
   | Toggle_smear
+  | Toggle_document_decorations
   | Toggle_completion | Toggle_completion_ghost
   | Insert_demo_snippet
   | Insert_snippet | Open_configuration
@@ -2881,6 +2886,10 @@ let view_feedback t ~before ~width ~height (view : View_command.t) : string opti
       (if Animation.enabled t.animation
        then "Smear cursor enabled"
        else "Smear cursor disabled")
+  | Toggle_document_decorations ->
+    if not t.document_decorations_available then None
+    else Some (if t.document_decorations_enabled
+      then "Document decorations enabled" else "Document decorations disabled")
   | Toggle_hotkey_hints ->
     Some (if t.hotkey_hints then "Hotkey hints shown" else "Hotkey hints hidden")
   | Toggle_zen -> Some (if zen t then "Zen (status hidden)" else "Workspace restored")
@@ -4262,6 +4271,8 @@ let apply_view_command t ~width ~height (view : View_command.t) =
     { t with
       animation = Animation.set_enabled t.animation (not (Animation.enabled t.animation))
     }
+  | Toggle_document_decorations ->
+    { t with document_decorations_enabled = not t.document_decorations_enabled }
   | Toggle_hotkey_hints -> { t with hotkey_hints = not t.hotkey_hints }
   | Toggle_zen ->
     { t with presentation = (if zen t then Workspace else Zen); rows = None }
@@ -5654,6 +5665,13 @@ let with_notice ?(source = "file picker") t text =
     controller = Controller.update_feedback t.controller
       (Notify { source; scope = path t; severity = Error;
         text; history = true }) }
+;;
+
+let document_decorations_enabled t = t.document_decorations_enabled
+let document_decorations_available t = t.document_decorations_available
+let with_document_decorations ?enabled t ~available =
+  { t with document_decorations_available = available
+    ; document_decorations_enabled = Option.value enabled ~default:t.document_decorations_enabled }
 ;;
 
 let open_file t ~width ~height path =

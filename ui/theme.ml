@@ -44,8 +44,17 @@ module Font = struct
     | Completion { part = Match; _ } -> [ Bold ]
     | Completion _ -> []
     | Title | Mode _ | Dirty | Pending | Error -> [ Bold ]
+    | Document { special = true; _ } -> []
+    | Document { decoration; _ } ->
+      (match decoration with
+       | Some (Heading_1 | Heading_2 | Heading_3 | Heading_4 | Heading_5 | Heading_6 | Strong) ->
+         [ Bold ]
+       | Some Emphasis -> [ Italic ]
+       | Some Link -> [ Underline ]
+       | Some (Accent | Literal | Muted | Code_inline | Code_block | Link_destination
+              | Quote | List_marker | Checkbox)
+       | None -> [])
     | Backdrop
-    | Document _
     | Gutter
     | Gutter_cursor_line
     | Border
@@ -82,6 +91,25 @@ let syntax_role : Cobalt_screen.Style.Syntax.t -> Role.t = function
   | Constructor | Constant | Escape -> Syntax_constant
 ;;
 
+(* Decoration does not change the stored syntax category. In particular, fonts
+   and code surfaces compose with syntax highlighting instead of replacing it.
+   All colors come from the active immutable palette, including code's Surface. *)
+let document_foreground (document : Cobalt_screen.Style.Document.t) : Role.t =
+  match document.decoration with
+  | Some (Accent | Heading_1) -> Syntax_keyword
+  | Some (Literal | Heading_6) -> Syntax_string
+  | Some (Muted | Quote) -> Syntax_comment
+  | Some Heading_2 -> Syntax_type
+  | Some (Heading_3 | Link) -> Syntax_function
+  | Some Heading_4 -> Syntax_module
+  | Some Heading_5 -> Syntax_constant
+  | Some Link_destination -> Muted
+  | Some List_marker -> Normal_accent
+  | Some Checkbox -> Insert_accent
+  | Some (Emphasis | Strong | Code_inline | Code_block) | None ->
+    syntax_role document.syntax
+;;
+
 let colors theme (style : Cobalt_screen.Style.t) =
   let color role =
     let r, g, b = Cobalt_theme.Theme.color theme role in
@@ -114,7 +142,7 @@ let colors theme (style : Cobalt_screen.Style.t) =
       | Documentation -> Completion_background
       | _ -> if selected then Completion_selected_background else Completion_background in
     colors foreground background
-  | Document { syntax; current_line; special; overlay } ->
+  | Document ({ current_line; special; overlay; decoration; _ } as document) ->
     (match overlay with
      | Some Search_match -> colors Search_foreground Search_background
      | Some Search_current -> colors Search_current_foreground Search_current_background
@@ -123,8 +151,11 @@ let colors theme (style : Cobalt_screen.Style.t) =
      | Some Insert_point -> colors Background Block_copy
      | None ->
        colors
-         (if special then Special else syntax_role syntax)
-         (if current_line then Current_line else Background))
+          (if special then Special else document_foreground document)
+          (if special then (if current_line then Current_line else Background)
+           else match decoration with
+             | Some (Code_inline | Code_block) -> Surface
+             | Some _ | None -> if current_line then Current_line else Background))
   | Gutter -> colors Muted Background
   | Gutter_cursor_line -> colors Foreground Current_line
   (* Frame cells (borders and the labels set into them) sit on the backdrop, so rounded

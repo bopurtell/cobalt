@@ -102,6 +102,7 @@ type t =
   | Toggle_relative_numbers
   (** Flip the relative line-number switch (Vim's ['relativenumber']). *)
   | Toggle_smear (** Enable or disable the animated terminal cursor. *)
+  | Toggle_document_decorations (** Session-only optional document presentation. *)
   | Toggle_status (** Show/hide the requested status cell, independent of zen. *)
   | Toggle_hotkey_hints (** Show/hide tile hotkey hints; hidden by default. *)
   | Position_status of Status_position.t (** Place status and request visibility. *)

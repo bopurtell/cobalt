@@ -19,6 +19,15 @@ preserved. OCaml Tree-sitter grammars/runtime are statically supplied by the opa
 tree-sitter package; see its asset record for previously unresolved upstream
 notice/revision questions. No missing upstream license text is fabricated here.
 
+Markdown-enabled builds additionally incorporate the optional MIT-licensed
+`tree-sitter-markdown` block/inline grammars pinned under `markdown/`. Their
+licenses, public Tree-sitter header notice, binding notice and asset hashes are
+recorded there. The no-provider executable does not link those grammars.
+Untracked new source/notices are not automatically included by the packager:
+before those files are tracked, supply explicit `--include-source` and
+`--extra-notices` inputs. The packaging tool does not stage files or establish
+clearance for a public release.
+
 `metadata/opam-inventory.json` records **all installed packages in the build
 switch**, including build-only/unrelated packages, with versions, declared
 licenses and source repository/homepage links as reported by local opam metadata.

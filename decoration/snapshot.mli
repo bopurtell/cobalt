@@ -1,7 +1,15 @@
 open! Core
 
 module Role : sig
-  type t = Accent | Literal | Muted [@@deriving sexp_of, equal, compare]
+  (** Generic document semantics, independent of any provider/parser. Declaration
+      order is the stable tie-breaker for equally sized overlapping Style ranges;
+      the original Accent/Literal/Muted ordering and meaning are unchanged. *)
+  type t =
+    | Accent | Literal | Muted
+    | Heading_1 | Heading_2 | Heading_3 | Heading_4 | Heading_5 | Heading_6
+    | Emphasis | Strong | Code_inline | Code_block | Link | Link_destination
+    | Quote | List_marker | Checkbox
+  [@@deriving sexp_of, equal, compare]
 end
 
 module Document_id : sig
@@ -60,7 +68,7 @@ type t
 
     Operations are sorted by range start, stop, then Style before Replace, then
     role/text. Duplicates of styles are retained. Style lookup chooses the
-    shortest covering Style range, then Accent before Literal before Muted,
+     shortest covering Style range, then Role declaration order,
     then ascending start/stop. Input order never changes precedence.
 
     No source bytes are retained. Keys are authoritative for freshness.
@@ -95,7 +103,7 @@ val source_length : t -> int
 val intersecting : t -> start:int -> stop:int -> Operation.t list
 
 (** O(log n) lookup of Style operations only. Shortest covering range wins,
-    followed by Accent before Literal before Muted, then ascending start/stop.
+     followed by Role declaration order, then ascending start/stop.
     Gaps and out-of-bounds offsets return [None].
 
     Replacement roles remain attached to their operations: the adapter applies

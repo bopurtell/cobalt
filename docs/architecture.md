@@ -17,6 +17,7 @@ frames. Bonsai_term adapts terminal events and displays those frames.
 | `highlight/` | Provider-independent highlight ranges and snapshots |
 | `highlight_tree_sitter/` | Tree-sitter providers, grammars, and queries |
 | `decoration/` | Pure, provider-independent display decoration snapshots; no Markdown or terminal dependency |
+| `markdown/` | Optional source-preserving Markdown provider and pinned block/inline grammars |
 | `error/` | Notifications, active problems, and bounded history |
 | `source/` | Asynchronous diagnostic sources and language-server completion/hover/navigation client |
 | `completion/` | Pure completion sessions, buffer-word candidates, cycling, and edit plans |
@@ -47,12 +48,18 @@ its ordinary indexed source renderer. Preparation validates cell geometry outsid
 frame rendering; neither parsing nor provider callbacks run while drawing. The
 editing core and input layer have no decoration dependency.
 
-The first decoration slice supports semantic range styling and conservative
-same-width glyph substitutions. It does not install a Markdown provider or change
-normal editor behavior. A future Markdown provider belongs in a separate optional
-library selected at the composition boundary, not in the core, input, or screen
-libraries. See the [decoration and Markdown plan](plans/markdown_decorations.md)
-for the staged scope and no-provider build requirement.
+The generic layer supports semantic range styling and conservative same-width
+glyph substitutions. Markdown adds only source-preserving style ranges, and is
+off by default. `ui/document_decoration_host.ml` owns injected sessions outside
+editor state and synchronizes source changes at input transitions, not while
+drawing. The frame cache includes expected keys and prepared-source identity.
+
+`bin/composition/` selects the concrete provider or a no-provider adapter. No
+concrete Markdown dependency enters core, input, app, screen or the generic UI
+host. The explicit no-provider executable shares the CLI/UI; removing the entire
+`markdown/` subtree also selects the stub for the default executable. See the
+[decoration and Markdown plan](plans/markdown_decorations.md) for scope and the
+tested absent-library build.
 
 Asynchronous producers deliver events into the UI state transition. Requests
 leave as data and are submitted to their hosts after the transition. File and

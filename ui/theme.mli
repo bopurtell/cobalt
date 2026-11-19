@@ -40,13 +40,16 @@ module Font : sig
     | Underline
   [@@deriving sexp_of, equal, enumerate]
 
-  (** Bold for the title, mode badge, dirty and pending markers, errors, and
-      completion prefix matches; every other style is plain. *)
+  (** Bold for the title, mode badge, dirty/pending markers, errors, completion
+      matches, document headings and strong text; italic for emphasis and
+      underline for link labels. Special-display cells ignore document fonts. *)
   val default : Cobalt_screen.Style.t -> t list
 end
 
 (** Colors from [theme] (default [Cobalt_theme.Theme.default]) and fonts from
     [font] (default {!Font.default}). Overlays replace foreground/background;
+    special cells ignore decoration, and code uses the existing Surface while
+    preserving its syntax foreground. Other semantic colors use existing roles;
     frames sit on the backdrop. Completion parts retain independent foregrounds
     on a shared row background; documentation always uses the unselected ground.
     A custom [font] policy replaces completion fonts too. No global state is changed. *)

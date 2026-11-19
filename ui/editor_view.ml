@@ -92,7 +92,7 @@ let apply_startup_configuration ?theme_override ui result =
       ("Configuration startup failed; using defaults: " ^ error)
 ;;
 
-let app_with_terminal ~terminal ?snippets ?configuration ?startup_configuration ?configuration_path ?(smear_enabled = false) ?(zen = false) ?bare ?theme ?buffer_presentation ?report ?source ?vcs ?font ?file_picker ?content_picker controller ~exit ~dimensions (local_ graph)
+let app_with_terminal ~terminal ?snippets ?configuration ?startup_configuration ?configuration_path ?document_decorations ?document_decoration_host ?(document_decorations_enabled = false) ?(smear_enabled = false) ?(zen = false) ?bare ?theme ?buffer_presentation ?report ?source ?vcs ?font ?file_picker ?content_picker controller ~exit ~dimensions (local_ graph)
   =
   (* Scope belongs to this editor instance, not the currently active tab. Directory
      startup and unnamed documents use the session's explicit startup directory. *)
@@ -142,6 +142,14 @@ let app_with_terminal ~terminal ?snippets ?configuration ?startup_configuration 
   let initial_ui = Ui_state.with_configuration_path initial_ui configuration_path in
   let initial_ui = Option.value_map startup_configuration ~default:initial_ui
     ~f:(apply_startup_configuration ?theme_override:theme initial_ui) in
+  (* Session opt-in is applied after configuration; providers are injected only
+     by executable composition. Neither screen rendering nor config loads them. *)
+  let document_decorations = Option.value_or_thunk document_decoration_host ~default:(fun () ->
+    Document_decoration_host.create
+      (Option.value document_decorations ~default:Document_decoration_host.Factory.unavailable)) in
+  let initial_ui = Ui_state.with_document_decorations
+    ~enabled:document_decorations_enabled initial_ui ~available:false
+    |> Document_decoration_host.follow ~parse:false document_decorations in
   let current_ui = ref initial_ui in
   let navigation_preview = Navigation_preview_host.create ~buffer:(fun request ->
     Ui_state.navigation_preview_buffer !current_ui request) () in
@@ -225,7 +233,8 @@ let app_with_terminal ~terminal ?snippets ?configuration ?startup_configuration 
        ~default_model:initial_ui
       ~apply_action:(fun context input model action ->
         match input with
-         | Inactive -> clear_preview (); Navigation_preview_host.clear navigation_preview; model
+         | Inactive -> clear_preview (); Navigation_preview_host.clear navigation_preview;
+           Document_decoration_host.clear document_decorations; model
          | Active ({ Dimensions.width; height }, write_to_tty) ->
             let model = match action with
               | `Words (request, words) ->
@@ -287,9 +296,12 @@ let app_with_terminal ~terminal ?snippets ?configuration ?startup_configuration 
               | Ok model -> model
               | Error error -> Ui_state.with_notice ~source:"content picker" model (Error.to_string_hum error) in
               synchronize_navigation_preview (synchronize_preview model)
+              |> Document_decoration_host.follow ~parse:false ~width ~height document_decorations
           in
             let model, status = Frame.Cache.apply_inputs render_cache ~after_step:activate_pickers model ~width ~height inputs in
-            let model = synchronize_navigation_preview (synchronize_preview model) in
+            let model = synchronize_navigation_preview (synchronize_preview model)
+              |> Document_decoration_host.follow ~width ~height document_decorations in
+            current_ui := model;
             if not !navigation_preview_pumping
                && Option.is_some (Navigation_preview_host.snapshot navigation_preview)
             then (
@@ -402,6 +414,7 @@ let app_with_terminal ~terminal ?snippets ?configuration ?startup_configuration 
              | Exit when was_running ->
                Harness_host.stop harness;
                Navigation_preview_host.stop navigation_preview;
+               Document_decoration_host.clear document_decorations;
               Word_index_host.stop word_index;
               Snippet_host.stop snippets;
               Configuration_host.stop configuration;
@@ -460,9 +473,12 @@ let app_with_terminal ~terminal ?snippets ?configuration ?startup_configuration 
       in
       pump ())
     graph;
-   Bonsai.Edge.lifecycle
+  Bonsai.Edge.lifecycle
      ~on_deactivate:(Bonsai.return (Effect.of_thunk (fun () -> Navigation_preview_host.stop navigation_preview)))
      graph;
+  Bonsai.Edge.lifecycle
+    ~on_deactivate:(Bonsai.return (Effect.of_thunk (fun () ->
+      Document_decoration_host.clear document_decorations))) graph;
    Bonsai.Edge.lifecycle ~on_activate:(let%arr inject in inject [])
     ~on_deactivate:(Bonsai.return
       (Effect.of_thunk (fun () ->
@@ -566,7 +582,8 @@ let app_with_terminal ~terminal ?snippets ?configuration ?startup_configuration 
     then (
       Frame.Cache.invalidate render_cache;
       last_drawn_theme := Some theme);
-    Frame.Cache.get render_cache model ~width ~height ~draw_base:(draw_base ~theme ?font)
+    Frame.Cache.get ?decorations:(Document_decoration_host.decorations ~width ~height document_decorations model)
+      render_cache model ~width ~height ~draw_base:(draw_base ~theme ?font)
   in
   let frame = let%arr frame, _ = rendered in frame in
   let set_cursor = Effect.set_cursor graph in
@@ -590,14 +607,21 @@ let app_with_terminal ~terminal ?snippets ?configuration ?startup_configuration 
   ~view, ~handler
 ;;
 
-let app ?terminal ?snippets ?configuration ?startup_configuration ?configuration_path ?smear_enabled ?(zen = false) ?bare ?theme ?buffer_presentation ?report ?source ?vcs ?font
+let app ?terminal ?snippets ?configuration ?startup_configuration ?configuration_path ?document_decorations ?document_decorations_enabled ?smear_enabled ?(zen = false) ?bare ?theme ?buffer_presentation ?report ?source ?vcs ?font
   ?file_picker ?content_picker controller ~exit ~dimensions (local_ graph) =
   let terminal = Option.value_or_thunk terminal ~default:Terminal_host.create in
-  app_with_terminal ~terminal ?snippets ?configuration ?startup_configuration ?configuration_path ?smear_enabled ~zen ?bare ?theme ?buffer_presentation
+  app_with_terminal ~terminal ?snippets ?configuration ?startup_configuration ?configuration_path ?document_decorations ?document_decorations_enabled ?smear_enabled ~zen ?bare ?theme ?buffer_presentation
     ?report ?source ?vcs ?font ?file_picker ?content_picker controller ~exit ~dimensions graph
 ;;
 
-let run ?configuration ?startup_configuration ?configuration_path ?(smear_enabled = false) ?(zen = false) ?bare ?theme ?font ?buffer_presentation ?report ?source ?vcs controller =
+let run ?configuration ?startup_configuration ?configuration_path ?document_decorations ?document_decorations_enabled ?(smear_enabled = false) ?(zen = false) ?bare ?theme ?font ?buffer_presentation ?report ?source ?vcs controller =
+  let document_decoration_host = Document_decoration_host.create
+    (Option.value document_decorations ~default:Document_decoration_host.Factory.unavailable) in
+  let decorations_at_shutdown = ref (Some document_decoration_host) in
+  Async.Shutdown.at_shutdown (fun () ->
+    Option.iter !decorations_at_shutdown ~f:Document_decoration_host.clear;
+    decorations_at_shutdown := None;
+    Async.return ());
   let configuration = Option.value_or_thunk configuration ~default:(fun () -> Configuration_host.create ()) in
   let configuration_at_shutdown = ref (Some configuration) in
   Async.Shutdown.at_shutdown (fun () ->
@@ -633,8 +657,10 @@ let run ?configuration ?startup_configuration ?configuration_path ?(smear_enable
        ~dispose:true
        ~mouse:No_mouse_events
        ~bpaste:true
-        (app_with_terminal ~terminal ~configuration ~startup_configuration ?configuration_path ~smear_enabled ~zen ?bare ?theme ?buffer_presentation ?report ?source ?vcs ?font controller))
-    ~f:(fun result ->
+         (app_with_terminal ~terminal ~configuration ~startup_configuration ?configuration_path ~document_decoration_host ?document_decorations_enabled ~smear_enabled ~zen ?bare ?theme ?buffer_presentation ?report ?source ?vcs ?font controller))
+     ~f:(fun result ->
+       Document_decoration_host.clear document_decoration_host;
+       decorations_at_shutdown := None;
       Configuration_host.stop configuration;
       Option.iter source ~f:Cobalt_source.Source.stop;
       Cobalt_app.Controller.close controller;

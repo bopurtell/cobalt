@@ -2018,6 +2018,55 @@ The terminal checklist below covers visual review. See
 [`docs/archive/syntax_highlighting_plan.md`](archive/syntax_highlighting_plan.md) for measurements,
 check outcomes and the acceptance handoff.
 
+## Markdown document styling
+
+Markdown styling is **opt-in and source-preserving**:
+
+```sh
+cobalt --markdown README.md
+```
+
+In the command palette (`Space c c`), choose **Toggle document decorations** to
+turn it on or off for the session. There is no configuration-file setting for it
+yet. Ordinary launches remain unchanged.
+
+The optional provider recognizes `.md` and `.markdown`, ASCII-case-insensitively.
+It styles heading levels, emphasis/strong text, inline and fenced/indented code,
+explicit inline-link labels and destinations, quotations, and list/check markers.
+Fonts depend on terminal support and the active/custom font policy. Colors come
+from the current theme; code backgrounds cover source cells, not full-width boxes.
+Reference/shortcut links are conservative rather than guessed.
+
+All punctuation, URLs, fences and table pipes remain visible. Tables are not
+aligned or reformatted; there is no wrapping, concealment, image/HTML rendering,
+network fetching, link activation, or embedded-language highlighting in fences.
+The current source line reveals its ordinary form; Visual modes and block
+insertion show the entire document without decorations. Search overlays retain
+their normal precedence. Saving, registers, motions, dirty state and undo/redo
+still operate on the original source.
+
+The host reuses prepared data for unchanged text, cursor movement, resize and
+theme changes. Buffer identity, revision, source object and path changes invalidate
+it. Turning the feature off releases the provider; unsupported files do not
+initialize it.
+
+Parsing is synchronous and bounded: at most **256 KiB, 4096 logical lines and 4096
+style operations**, with syntax-visit/depth/inline-parse limits and a shared
+**100 ms native parse/walk deadline**. This is a cooperative timeout, not a hard
+input-latency guarantee. Oversized files remain plain without parsing. A provider
+failure clears current decoration, reports a bounded notice, and does not retry
+the same unchanged source on every redraw; editing or toggling can retry.
+
+The provider and both pinned Tree-sitter grammars live under `markdown/`; the
+screen, input, application and UI host do not import that concrete library.
+`bin/cobalt_no_provider.exe` uses the same CLI/UI without linking the provider.
+Requesting `--markdown` in such a build reports unavailability without preventing
+editing or saving. Removing `markdown/` from build inputs also makes the default
+executable select that stub. See the
+[asset/provenance and budget record](../markdown/ASSETS.md), the
+[implementation plan](plans/markdown_decorations.md), and the
+[manual checklist and fixture](testing/markdown_manual.md).
+
 ## Text
 
 Cobalt edits UTF-8 text with LF line endings. Opening a file fails with a clear

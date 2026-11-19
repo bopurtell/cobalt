@@ -17,6 +17,30 @@ let create ?limits source operations =
 let snapshot ?limits source operations = create ?limits source operations |> Or_error.ok_exn
 let rejects ?limits source operations = assert (Result.is_error (create ?limits source operations))
 
+let document_roles : Snapshot.Role.t list =
+  [ Accent; Literal; Muted
+  ; Heading_1; Heading_2; Heading_3; Heading_4; Heading_5; Heading_6
+  ; Emphasis; Strong; Code_inline; Code_block; Link; Link_destination
+  ; Quote; List_marker; Checkbox ]
+;;
+
+let%test_unit "generic document roles have stable declaration-order precedence" =
+  List.iteri document_roles ~f:(fun i role ->
+    let earlier = List.take document_roles i in
+    List.iter earlier ~f:(fun before ->
+      assert (Snapshot.Role.compare before role < 0);
+      List.iter [ [ style 0 3 role; style 0 3 before ]
+                ; [ style 0 3 before; style 0 3 role ] ] ~f:(fun operations ->
+        let s = snapshot "abc" operations in
+        [%test_result: Snapshot.Role.t option] (Snapshot.style_at s 1)
+          ~expect:(Some before)));
+    let s = snapshot "abcde" [ style 0 5 Accent; style 1 4 role ] in
+    let lookup = Snapshot.lookup_from s 0 in
+    List.iter [ 0, Some Snapshot.Role.Accent; 1, Some role; 3, Some role
+              ; 4, Some Accent; 5, None; 1, Some role ] ~f:(fun (at, expected) ->
+      [%test_result: Snapshot.Role.t option] (lookup at) ~expect:expected))
+;;
+
 let%test_unit "empty snapshot and source provenance" =
   let s = snapshot "" [] in
   assert (Snapshot.is_empty s);

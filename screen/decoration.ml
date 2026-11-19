@@ -27,6 +27,17 @@ let syntax_of_role = function
   | Snapshot.Role.Accent -> Style.Syntax.Keyword
   | Literal -> Style.Syntax.String
   | Muted -> Style.Syntax.Comment
+  | Heading_1 -> Style.Syntax.Keyword
+  | Heading_2 -> Style.Syntax.Type
+  | Heading_3 -> Style.Syntax.Function
+  | Heading_4 -> Style.Syntax.Module
+  | Heading_5 -> Style.Syntax.Constant
+  | Heading_6 -> Style.Syntax.String
+  | Emphasis | Strong -> Style.Syntax.Plain
+  | Code_inline | Code_block -> Style.Syntax.String
+  | Link -> Style.Syntax.Function
+  | Link_destination | Quote -> Style.Syntax.Comment
+  | List_marker | Checkbox -> Style.Syntax.Keyword
 ;;
 
 (* Width equality alone does not prevent new grapheme clusters (emoji modifiers,
@@ -148,7 +159,7 @@ let apply t ~line_start glyphs =
       | Some _ | None -> glyph)
 ;;
 
-let lookup_from t ~line_start =
+let role_lookup_from t ~line_start =
   let style_at = Snapshot.lookup_from t.snapshot line_start in
   fun (glyph : Cell_map.Glyph.t) ->
     if Cell_map.Kind.equal glyph.kind Escape then None
@@ -159,5 +170,10 @@ let lookup_from t ~line_start =
         | Some { role = Some role; _ } -> Some role
         | Some _ | None -> style_at offset
       in
-      Option.map role ~f:syntax_of_role
+      role
+;;
+
+let lookup_from t ~line_start =
+  let lookup = role_lookup_from t ~line_start in
+  fun glyph -> Option.map (lookup glyph) ~f:syntax_of_role
 ;;

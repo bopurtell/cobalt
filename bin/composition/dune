@@ -1,0 +1,8 @@
+; This is the only concrete provider dependency outside markdown/. Removing that
+; complete subtree selects the stub, without any native Markdown build inputs.
+(library
+ (name cobalt_document_decorations)
+ (libraries cobalt_ui
+  (select provider_adapter.ml from
+   (cobalt_markdown -> provider_adapter.enabled.ml)
+   (-> provider_adapter.disabled.ml))))

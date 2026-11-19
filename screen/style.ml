@@ -25,11 +25,12 @@ module Document = struct
     ; current_line : bool
     ; special : bool
     ; overlay : Overlay.t option
+    ; decoration : Cobalt_decoration.Snapshot.Role.t option [@sexp.option]
     }
   [@@deriving sexp_of, equal]
 
-  let create ?(syntax = Syntax.Plain) ?(current_line = false) ?(special = false) ?overlay () =
-    { syntax; current_line; special; overlay }
+  let create ?(syntax = Syntax.Plain) ?(current_line = false) ?(special = false) ?overlay ?decoration () =
+    { syntax; current_line; special; overlay; decoration }
   ;;
 end
 
@@ -64,8 +65,8 @@ type t =
 
 let completion ?(selected = false) part = Completion { part; selected }
 
-let document ?syntax ?current_line ?special ?overlay () =
-  Document (Document.create ?syntax ?current_line ?special ?overlay ())
+let document ?syntax ?current_line ?special ?overlay ?decoration () =
+  Document (Document.create ?syntax ?current_line ?special ?overlay ?decoration ())
 ;;
 
 let with_overlay style overlay =
@@ -80,10 +81,16 @@ let with_syntax style syntax =
   | _ -> invalid_arg "Style.with_syntax: expected a document style"
 ;;
 
+let with_decoration style decoration =
+  match style with
+  | Document text -> Document { text with decoration = Some decoration }
+  | _ -> invalid_arg "Style.with_decoration: expected a document style"
+;;
+
 (* Frame dumps describe the effective appearance, preserving their compact labels.
    [sexp_of_t] still exposes every component for structural debugging/tests. *)
 let to_string_hum = function
-  | Document { syntax; current_line; special; overlay } ->
+  | Document { syntax; current_line; special; overlay; decoration } ->
     (match overlay with
      | Some Insert_cursor -> "Insert_cursor"
      | Some Insert_point -> "Insert_point"
@@ -93,12 +100,18 @@ let to_string_hum = function
        if special then "Search_special_match_current" else "Search_match_current"
      | None ->
        (match special, current_line with
-        | false, false ->
-          if Syntax.equal syntax Plain then "Text"
-          else Sexp.to_string_hum (Syntax.sexp_of_t syntax)
-        | false, true ->
-          if Syntax.equal syntax Plain then "Text_cursor_line"
-          else Sexp.to_string_hum (Syntax.sexp_of_t syntax) ^ "_cursor_line"
+         | false, false ->
+           (match decoration with
+            | Some role -> Sexp.to_string_hum (Cobalt_decoration.Snapshot.Role.sexp_of_t role)
+            | None ->
+              if Syntax.equal syntax Plain then "Text"
+              else Sexp.to_string_hum (Syntax.sexp_of_t syntax))
+         | false, true ->
+           (match decoration with
+            | Some role -> Sexp.to_string_hum (Cobalt_decoration.Snapshot.Role.sexp_of_t role) ^ "_cursor_line"
+            | None ->
+              if Syntax.equal syntax Plain then "Text_cursor_line"
+              else Sexp.to_string_hum (Syntax.sexp_of_t syntax) ^ "_cursor_line")
         | true, false -> "Special"
         | true, true -> "Special_cursor_line"))
   | style -> Sexp.to_string_hum (sexp_of_t style)

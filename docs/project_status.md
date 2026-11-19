@@ -41,6 +41,11 @@ session-local rather than saved across editor restarts.
   retro-terminal, and warm paper variants. `--list-themes` is the live catalog.
 - **Highlighting:** incremental Tree-sitter parsing for OCaml, Verilog,
   SystemVerilog, and AT&T/GAS assembly (`.s` / `.S`).
+- **Optional Markdown styles:** `--markdown` or **Toggle document decorations**
+  adds source-preserving heading/emphasis/code/link/list styles for
+  `.md`/`.markdown`. Default-off; no concealed syntax, aligned tables or preview
+  layout. The provider is removable at build time; a no-provider binary shares
+  normal editing behavior.
 - **Diagnostics:** `ocamllsp` for OCaml and `slang-server` for Verilog/SystemVerilog,
   with freshness tracking, a problems view, restart controls, and a live
   **Language servers** report (`Space l i`) showing attachment and process state. Language-server
@@ -68,6 +73,11 @@ reuse the array.
 Highlighted files still query the full syntax tree after each change. Files above
 64 KiB, 2,000 lines, or 16,000 captures fall back to plain text to limit synchronous
 work. See the [editor reference](editor_reference.md) for fallback and recovery.
+
+Optional Markdown styling has its own 256 KiB / 4096-line admission policy and
+cooperative native-work deadline. It falls back to undecorated source rather than
+blocking editing/saving on an ordinary provider failure; these limits do not
+change the code-highlighting policy above.
 
 Undo retains whole-text snapshots, bounded per buffer to 1,000 complete
 transactions or a conservative 64 MiB soft charge budget. The newest complete

@@ -10,8 +10,10 @@
   bonsai_test
   cobalt_app
   cobalt_core
+  cobalt_decoration
   cobalt_input
   cobalt_screen
+  cobalt_theme
   cobalt_terminal
   async
   cobalt_ui

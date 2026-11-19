@@ -37,6 +37,9 @@ and status and diagnostics around the edges.*
 - **Make it yours.** Executable `config.ml`, live theme previews, semantic completion
   colors, adjustable layouts, and optional key hints. Runtime changes remain
   session-local unless you put them in your configuration.
+- **Optional Markdown styling.** `--markdown` adds headings, emphasis, code
+  surfaces and link/list styling without hiding source or changing save bytes.
+  Choose **Toggle document decorations** in the palette; tables stay source-shaped.
 
 ## Focus when you want it, tiles when you need them
 

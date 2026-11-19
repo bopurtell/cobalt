@@ -1,0 +1,10 @@
+(library
+ (name cobalt_markdown)
+ (private_modules native)
+ (libraries core cobalt_decoration tree-sitter cobalt_markdown_block_grammar
+  cobalt_markdown_inline_grammar)
+ (foreign_stubs
+  (language c)
+  (names native_stubs)
+  (extra_deps tree_sitter/api.h))
+ (preprocess (pps ppx_jane)))

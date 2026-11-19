@@ -105,6 +105,7 @@ let%expect_test "the default catalog, with shortcuts derived from bindings" =
     view.toggle-relative-numbers   Toggle relative line numbers           Space v N
     view.toggle-centered           Toggle centered layout                 Space v c
     view.toggle-smear              Toggle animated smear cursor           Space v s
+    view.toggle-document-decorations Toggle document decorations
     view.reset-layout              Reset layout                           Space v r
     view.move-tile-left-2          Move document tile left by 2 columns   Space v h
     view.move-tile-right-2         Move document tile right by 2 columns  Space v l

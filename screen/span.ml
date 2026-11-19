@@ -21,7 +21,7 @@ let merge spans =
   |> List.rev
 ;;
 
-let of_glyphs ?syntax ?highlight glyphs ~left ~cols ~(text : Style.t) ~(special : Style.t) =
+let of_glyphs ?syntax ?decoration ?highlight glyphs ~left ~cols ~(text : Style.t) ~(special : Style.t) =
   let right = left + cols in
   let spans, _attachable =
     Array.fold
@@ -39,6 +39,14 @@ let of_glyphs ?syntax ?highlight glyphs ~left ~cols ~(text : Style.t) ~(special 
           Option.value_map category ~default:style ~f:(Style.with_syntax style)
         in
         let text = with_syntax text in
+        let text =
+          match kind with
+          | Escape -> text
+          | Plain | Tab ->
+            Option.value_map
+              (Option.bind decoration ~f:(fun f -> f glyph))
+              ~default:text ~f:(Style.with_decoration text)
+        in
         let style : Style.t =
           match kind with
           | Escape -> with_syntax special
@@ -55,8 +63,15 @@ let of_glyphs ?syntax ?highlight glyphs ~left ~cols ~(text : Style.t) ~(special 
         in
         if width = 0
         then
-          (* Attach to the preceding cell when that cell was drawn as itself. *)
-          if attachable then create text s ~width:0 :: spans, true else spans, false
+          (* Attach only to a fully drawn source glyph. Keep the historical
+             undecorated mark style, but semantic marks must yield to interaction
+             colors just like their positive-width source cells. *)
+          let mark_style =
+            match text with
+            | Document { decoration = Some _; _ } -> style
+            | _ -> text
+          in
+          if attachable then create mark_style s ~width:0 :: spans, true else spans, false
         else if stop <= left || col >= right
         then spans, false
         else if col >= left && stop <= right

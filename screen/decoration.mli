@@ -27,7 +27,12 @@ type t
     Snapshot keys must identify the supplied source version, just as for syntax
     highlights. The prepared value retains [source] as its provenance; rendering
     requires that exact buffer object, not merely equal lengths or revisions.
-    Callers should omit decorations after any [Error]. *)
+    Callers should omit decorations after any [Error].
+
+    Rich styles remain source-shaped: no concealment, inserted labels, reflow,
+    changed cell widths or whole-row code backgrounds. Only actual source glyphs
+    receive roles, not blank EOL padding or unsafe display forms. The conservative
+    same-width Replace primitive remains available for synthetic providers. *)
 val prepare
   :  source:Cobalt_core.Text_buffer.t
   -> Cobalt_decoration.Snapshot.t
@@ -42,8 +47,9 @@ val is_empty : t -> bool
     the independently supplied expected key remains authoritative for that. *)
 val matches_source : t -> Cobalt_core.Text_buffer.t -> bool
 
-(** Existing semantic theme roles: Accent = Keyword, Literal = String,
-    Muted = Comment. No new theme vocabulary. *)
+(** Legacy syntax projection. Accent = Keyword, Literal = String, Muted = Comment.
+    Rich roles have meaningful fallback categories, but should normally travel
+    separately through [Style.Document.decoration] to preserve existing syntax. *)
 val syntax_of_role : Cobalt_decoration.Snapshot.Role.t -> Style.Syntax.t
 
 (** Apply replacements only to an already-windowed array from the prepared source.
@@ -61,3 +67,10 @@ val apply : t -> line_start:int -> Cell_map.Glyph.t array -> Cell_map.Glyph.t ar
     positions safely reset the underlying style cursor. This helper works on
     either original or replaced glyphs. *)
 val lookup_from : t -> line_start:int -> (Cell_map.Glyph.t -> Style.Syntax.t option)
+
+(** Same source/replacement precedence and safety rules as [lookup_from], retaining
+    the generic role rather than projecting it to syntax. *)
+val role_lookup_from
+  :  t
+  -> line_start:int
+  -> (Cell_map.Glyph.t -> Cobalt_decoration.Snapshot.Role.t option)

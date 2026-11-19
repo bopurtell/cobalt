@@ -155,6 +155,11 @@ let default =
         ~keywords:[ "animation"; "cursor trail" ]
         Toggle_smear
     ; view
+        ~id:"view.toggle-document-decorations"
+        ~title:"Toggle document decorations"
+        ~keywords:[ "presentation"; "source"; "optional" ]
+        Toggle_document_decorations
+    ; view
         ~id:"view.reset-layout"
         ~title:"Reset layout"
         ~keywords:[ "default"; "restore"; "layout" ]

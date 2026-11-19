@@ -30,6 +30,7 @@ module Document : sig
     ; current_line : bool
     ; special : bool (** Control escapes and clipped-glyph markers. *)
     ; overlay : Overlay.t option
+    ; decoration : Cobalt_decoration.Snapshot.Role.t option [@sexp.option]
     }
   [@@deriving sexp_of, equal]
 
@@ -38,6 +39,7 @@ module Document : sig
     -> ?current_line:bool
     -> ?special:bool
     -> ?overlay:Overlay.t
+    -> ?decoration:Cobalt_decoration.Snapshot.Role.t
     -> unit
     -> t
 end
@@ -46,8 +48,8 @@ type t =
   | Terminal of Cobalt_terminal.Model.style
   | Backdrop (** The screen outside the tile and status line. *)
   | Document of Document.t
-  (** Independent foreground, current-line background, special-display treatment,
-      and interaction overlay. Chrome styles remain separate. *)
+  (** Independent syntax, semantic decoration, current-line background,
+      special-display treatment, and interaction overlay. Chrome remains separate. *)
   | Completion of Completion.t
   | Gutter
   | Gutter_cursor_line
@@ -80,6 +82,7 @@ val document
   -> ?current_line:bool
   -> ?special:bool
   -> ?overlay:Overlay.t
+  -> ?decoration:Cobalt_decoration.Snapshot.Role.t
   -> unit
   -> t
 
@@ -90,6 +93,12 @@ val with_overlay : t -> Overlay.t -> t
 
 (** Replaces only the syntax foreground role. Raises for chrome styles. *)
 val with_syntax : t -> Syntax.t -> t
+
+(** Replaces only the generic document decoration, preserving syntax and overlays.
+    Raises for chrome styles. Frontends resolve decoration fonts/colors, but
+    special cells ignore decoration and overlays win both foreground/background.
+    [None] is omitted from sexps to preserve undecorated snapshots. *)
+val with_decoration : t -> Cobalt_decoration.Snapshot.Role.t -> t
 
 (** Compact effective-appearance labels for frame dumps. Unlike [sexp_of_t], these
     omit document components hidden by an overlay. *)

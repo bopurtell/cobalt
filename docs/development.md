@@ -71,7 +71,16 @@ dune build -j 4 @scripts/smoke-directory
 dune build -j 4 @scripts/smoke-picker
 dune build -j 4 @scripts/smoke-vcs
 dune build -j 4 @scripts/smoke-lsp
+
+# Optional Markdown styling and the explicit no-provider executable:
+dune build -j 4 @scripts/smoke-markdown
 ```
+
+The Markdown smoke isolates HOME/XDG state and uses a private tmux server. It is
+a separate opt-in target, not part of the historical default `@smoke` aggregate.
+`python3 scripts/smoke_no_markdown.py --jobs 6` additionally builds a temporary
+source copy without `markdown/` and exercises the stub-selected CLI. Neither
+command edits source files or personal configuration.
 
 After building, scripts can also be run directly:
 

@@ -55,6 +55,14 @@
   (run python3 %{dep:theme_smoke.py} %{dep:../bin/cobalt.exe})))
 
 (rule
+ (alias smoke-markdown)
+ (deps (universe))
+ (locks /smoke)
+ (action
+   (run python3 %{dep:markdown_smoke.py} %{dep:../bin/cobalt.exe}
+    %{dep:../bin/cobalt_no_provider.exe})))
+
+(rule
  (alias smoke-vcs)
  (deps (universe) vcs_sandbox.sh)
  (locks /smoke)

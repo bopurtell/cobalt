@@ -103,8 +103,8 @@ val render
      stamps are checked independently; mutable picker equality is never a cache key. [draw_base] is
     called once per miss, allowing the frontend to retain its base terminal image.
     Hits only rasterize smear and select the already computed settled cursor.
-    This cache deliberately remains undecorated; decoration-aware production
-    cache ownership/lifecycle is deferred until there is a feature host. *)
+    Decoration identity includes the key and physical prepared payload; replacing
+    or removing it invalidates independently of animation/file-work stamps. *)
 module Cache : sig
   type frame = t
   type 'a t
@@ -115,7 +115,8 @@ module Cache : sig
       All other inputs invalidate. Effects/after_step still run on work turns. *)
   val apply_inputs : ?after_step:(Ui_state.t -> Ui_state.t) -> 'a t -> Ui_state.t
     -> width:int -> height:int -> Ui_state.Input.t list -> Ui_state.t * Cobalt_app.Controller.Status.t
-  val get : 'a t -> Ui_state.t -> width:int -> height:int
+  val get : ?decorations:(Cobalt_decoration.Snapshot.Key.t * Decoration.t)
+    -> 'a t -> Ui_state.t -> width:int -> height:int
     -> draw_base:(frame -> 'a) -> frame * 'a
 end
 

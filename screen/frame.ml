@@ -514,13 +514,26 @@ let prepare_document ?highlights ?decorations ?allocation ?reserve_status_row ?f
             match decoration with
             | None -> syntax
             | Some prepared ->
-              let lookup = Decoration.lookup_from prepared ~line_start in
+              let lookup = Decoration.role_lookup_from prepared ~line_start in
               Some (fun (glyph : Cell_map.Glyph.t) ->
                 if glyph.pos >= line_length then Style.Syntax.Plain
                 else match lookup glyph with
-                  | Some category -> category
-                  | None -> Option.value_map syntax ~default:Style.Syntax.Plain
+                  | Some ((Accent | Literal | Muted) as role) ->
+                    Decoration.syntax_of_role role
+                  | Some _ | None -> Option.value_map syntax ~default:Style.Syntax.Plain
                       ~f:(fun lookup -> lookup glyph))
+          in
+          (* Rich semantics are independent of syntax: emphasis changes fonts,
+             and code can add a surface without erasing token categories. Only
+             actual source cells receive them, never synthetic insertion padding. *)
+          let decoration_style =
+            Option.map decoration ~f:(fun prepared ->
+              let lookup = Decoration.role_lookup_from prepared ~line_start in
+              fun (glyph : Cell_map.Glyph.t) ->
+                if glyph.pos >= line_length then None
+                else match lookup glyph with
+                  | Some (Accent | Literal | Muted) | None -> None
+                  | Some _ as role -> role)
           in
           let glyphs = Cell_layout.Index.window layout ~left:scroll.left ~cols:viewport.width in
           let glyphs =
@@ -562,6 +575,7 @@ let prepare_document ?highlights ?decorations ?allocation ?reserve_status_row ?f
           let glyphs = if List.is_empty edges then glyphs else split_tabs glyphs ~edges in
            Span.of_glyphs
               ?syntax
+              ?decoration:decoration_style
              glyphs
             ~left:scroll.left
             ~cols:viewport.width
@@ -892,6 +906,7 @@ module Cache = struct
     ; base : 'a
     ; file_stamp : (int * int * int) option
     ; theme : Cobalt_theme.Theme.t
+    ; decorations : (Cobalt_decoration.Snapshot.Key.t * Decoration.t) option
     }
 
   type 'a t = { mutable entry : 'a entry option }
@@ -912,16 +927,37 @@ module Cache = struct
     next, status
   ;;
 
-  let get t ui ~width ~height ~draw_base =
+  let get ?decorations t ui ~width ~height ~draw_base =
+    (* Re-check before cache lookup, not only on a prepare miss: a retained
+       decorated row must never bypass the current source/key freshness gates. *)
+    let decorations = Option.bind decorations ~f:(fun (key, prepared) ->
+      let source_ui = if Option.is_some (Ui_state.side_layout ui ~width ~height)
+        then Ui_state.surface ui ~directory:false else ui in
+      let hidden_by_tab = Option.exists (Ui_state.active_tab_view source_ui) ~f:(fun id ->
+        Option.is_some (Ui_state.minor_layout source_ui ~width ~height id)) in
+      let controller = Ui_state.controller source_ui in
+      if hidden_by_tab || Controller.Kind.equal (Controller.kind controller) Directory
+      then None else (
+        let editor = Controller.editor controller in
+        Option.some_if
+          (Decoration.matches prepared key
+           && Cobalt_decoration.Snapshot.Key.revision key = Editor.revision editor
+           && Decoration.matches_source prepared (Editor.text editor))
+          (key, prepared))) in
+    let same_decorations a b =
+      Option.equal (fun (key, prepared) (other_key, other_prepared) ->
+        Cobalt_decoration.Snapshot.Key.equal key other_key
+        && phys_equal prepared other_prepared) a b in
     let entry = match t.entry with
-       | Some entry when entry.width = width && entry.height = height
-           && Cobalt_theme.Theme.equal entry.theme (Ui_state.theme ui)
+        | Some entry when entry.width = width && entry.height = height
+            && Cobalt_theme.Theme.equal entry.theme (Ui_state.theme ui)
+            && same_decorations entry.decorations decorations
           && Option.equal [%equal: int * int * int] entry.file_stamp (Ui_state.file_picker_visible_stamp ui) -> entry
       | _ ->
-        let overlay = prepare ui ~width ~height in
+        let overlay = prepare ?decorations ui ~width ~height in
         let base = draw_base (overlay (Animation.create ~enabled:false)) in
          let entry = { width; height; overlay; base; file_stamp = Ui_state.file_picker_visible_stamp ui
-           ; theme = Ui_state.theme ui } in
+            ; theme = Ui_state.theme ui; decorations } in
         t.entry <- Some entry;
         entry in
     entry.overlay (Ui_state.animation ui), entry.base

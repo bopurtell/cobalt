@@ -4,6 +4,7 @@
 
 - [Builds and automated test suites](../development.md)
 - [VCS manual acceptance](vcs_manual.md)
+- [Markdown styling manual acceptance](markdown_manual.md)
 - [Performance test plan](../plans/performance_tests.md)
 - [Project status and validation handoffs](../project_status.md#validation-and-handoff)
 

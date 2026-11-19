@@ -1,0 +1,5 @@
+(library
+ (name cobalt_markdown_test)
+ (libraries cobalt_markdown cobalt_decoration cobalt_markdown_block_grammar tree-sitter core)
+ (inline_tests (flags (:standard -source-tree-root .)))
+ (preprocess (pps ppx_jane)))

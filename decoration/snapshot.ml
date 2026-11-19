@@ -1,7 +1,12 @@
 open! Core
 
 module Role = struct
-  type t = Accent | Literal | Muted [@@deriving sexp_of, equal, compare]
+  type t =
+    | Accent | Literal | Muted
+    | Heading_1 | Heading_2 | Heading_3 | Heading_4 | Heading_5 | Heading_6
+    | Emphasis | Strong | Code_inline | Code_block | Link | Link_destination
+    | Quote | List_marker | Checkbox
+  [@@deriving sexp_of, equal, compare]
 end
 
 module Document_id = struct

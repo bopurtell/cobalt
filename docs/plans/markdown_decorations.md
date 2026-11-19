@@ -2,8 +2,8 @@
 
 [Implementation plans](README.md) · [Architecture](../architecture.md)
 
-Status: milestone 1 implemented, 2026-11-17; verification recorded below.
-Milestones 2–4 remain proposed and outside the current implementation scope.
+Status: milestones 1 and 2 implemented and verified, 2026-11-18.
+Milestones 3–4 remain proposed and outside the current scope.
 
 ## Goal and architectural decision
 
@@ -15,8 +15,9 @@ links. Preserve normal source editing, not a second rich-text document model.
 in a separate, optional feature library.** This need not be a dynamically loaded
 plugin, but it must not become a vital organ of the editor.
 
-The first implementation should stop after milestone 1 below. Later milestones
-are separately reviewable work, not permission to implement the entire plan.
+Milestone 1 was implemented and reviewed separately. The current authorized slice
+is milestone 2 only; it does not authorize width-changing projection, concealed
+links, or aligned tables from milestones 3–4.
 
 ## Binding constraints
 
@@ -214,7 +215,7 @@ The caller still owns the independent current document/configuration key.
 The active source line, Visual modes, block insertion, and directory surfaces
 stay raw. Replacement roles override range styles, which override existing syntax
 colors; interaction overlays remain authoritative. Existing `Style` and frontend
-theme types are unchanged.
+theme types were unchanged in milestone 1.
 
 The initial substitution allowlist is printable ASCII, Latin letters in
 U+00C0–00D6/U+00D8–00F6/U+00F8–02AF, bullet U+2022, box drawing U+2500–257F,
@@ -225,11 +226,11 @@ receive range styles; unsupported substitution snapshots are rejected as a unit.
 Tests cover the emoji-modifier, regional-indicator, adjacent-substitution, and
 positive-width SpacingMark cases that motivated this conservative restriction.
 
-There is intentionally no production provider, user toggle, parser dependency,
-or decoration-aware `Frame.Cache` lifecycle yet. Normal launches remain
-undecorated. A future host must explicitly supply data and address caching and
-no-provider build wiring in milestone 2, rather than silently expanding this API
-into a global service.
+At the milestone 1 handoff there was intentionally no production provider, user
+toggle, parser dependency, or decoration-aware `Frame.Cache` lifecycle. Milestone
+2 adds explicit host/cache/composition wiring rather than silently expanding this
+API into a global service. Normal launches must still remain undecorated unless
+the user opts in.
 
 ### Milestone 1 verification
 
@@ -307,6 +308,96 @@ expressions pretending to parse all Markdown.
 Keep native parser sessions outside editor history and render state. Separate
 source-dependent parse results from view-dependent reveal/render policy so a
 cursor move or resize does not reparse unchanged text.
+
+### Implementation scope decisions
+
+- Opt in through the executable and a session-local generic decoration toggle.
+  Do not expand executable configuration/protocol schemas in this slice.
+- Add generic document style roles for heading levels, emphasis/strong, code,
+  links, quotes and list/check markers. The optional parser emits those roles;
+  the screen/theme infrastructure does not import the Markdown provider.
+- Keep every source character and document row. The current source line and
+  Visual/block-insert modes retain the milestone 1 raw-reveal policy.
+- Native parsing and source-dependent preparation belong to the feature host,
+  outside frame drawing. Reuse results for movement, resize, and theme changes.
+- Prove absent-library builds in an isolated source copy rather than moving or
+  deleting the working checkout's Markdown files.
+
+### Milestone 2 implementation
+
+- `markdown/` contains the standalone `cobalt_markdown` provider, pinned block and
+  inline grammars, required public headers, licenses, tests and a latency probe.
+  No sibling checkout or grammar generator is needed at build/runtime.
+- The installed binding supports included ranges and ABI 15. A feature-local
+  adapter uses the public runtime API for explicit parser deletion and cooperative
+  timeouts, without changing the mandatory OCaml binding. It walks iteratively,
+  excludes quote/list continuation prefixes from inline ranges, and never parses
+  fenced/indented code as Markdown inline syntax.
+- Only Style operations are emitted: heading levels, emphasis/strong, code
+  surfaces, explicit inline-link labels/destinations, quotes and list/check
+  markers. Reference/shortcut links remain conservative. GFM table cells can
+  receive inline styles, but table geometry stays exactly as written.
+- Generic roles travel separately from syntax through
+  `Style.Document.decoration`. Default fonts/colors resolve in the frontend from
+  the existing theme vocabulary. Special cells and interaction colors retain
+  precedence; code surfaces cover real source cells rather than EOL padding.
+- `ui/document_decoration_host.ml` owns injected sessions and one current-source
+  result. It checks visible file ownership, controller identity, revision, exact
+  source object and path. Disabled, unsupported, oversized, closed and hidden
+  directory/view-only surfaces do not initialize a parser. Movement/resize/theme
+  changes reuse data rather than parse unchanged source.
+- Source synchronization runs at transitions, not in frame drawing. Batched
+  inputs clear obsolete results without parsing every intermediate revision.
+  `Frame.Cache` includes the expected key and prepared identity, including removal,
+  and rechecks source freshness before accepting a cached decorated frame.
+- Expected callback `Failure`/`Invalid_argument` failures clear/latch the result
+  and produce bounded feedback. Fatal exceptions, interrupts and unrelated editor
+  exceptions propagate rather than being hidden as optional-feature errors.
+- `bin/cli/` shares CLI behavior between the executables. `bin/composition/`
+  selects the real provider when available or a stub when absent.
+  `bin/cobalt_no_provider.exe` links only the common CLI/UI.
+- Launch with `--markdown`, or use the palette's **Toggle document decorations**.
+  This remains default-off and session-local; no configuration schema or direct
+  key binding was added. `.md`/`.markdown` detection is ASCII-case-insensitive.
+
+The provider and host enforce 256 KiB / 4096 logical-line admission before native
+parser allocation. Native work additionally limits style operations, syntax
+visits/depth, inline calls and included-range fragments, with a shared 100 ms
+native deadline. This is bounded synchronous work, not a hard real-time latency
+guarantee. The [asset record](../../markdown/ASSETS.md) documents exact limits and
+single-run measurements: a representative 6090-byte document took 7.46 ms cold /
+6.31 ms warm with 1 block and 81 inline parses. Unchanged-source reuse belongs to
+the host; the provider itself does not retain previous text/trees/snapshots.
+
+### Milestone 2 verification
+
+- `dune build -j 6 @all` passed.
+- `dune runtest -j 4` passed across the project.
+- Provider tests passed all 13 cases, including native ABI/GFM support, UTF-8 byte
+  offsets, multiline included ranges, budget failures, recovery and idempotent
+  close. Generic style/theme, host lifecycle and frame-cache suites also passed.
+- Synthetic host tests cover zero-create off/unsupported/oversized paths,
+  movement/resize reuse, invalidation, failure latching and fatal-exception
+  propagation without actually exhausting resources.
+- `dune build -j 4 @scripts/smoke-markdown` passed for `.md` and `.markdown`,
+  enabled/default-off behavior, actual terminal SGR/fonts/code backgrounds,
+  palette toggles, cursor reveal, edited/undone save bytes and terminal restoration.
+  It also passed unavailable-provider notice/toggle/edit/save/quit checks.
+- `python3 scripts/smoke_no_markdown.py --jobs 6` passed from a fresh temporary copy
+  of current tracked/untracked sources **without `markdown/`** and without a
+  preexisting build cache. Both executables built, the default selected the stub,
+  and both passed real PTY read/edit/save/toggle/quit checks.
+- No core/application source changes were needed. Input gained only a generic
+  view-command variant, not a provider/library dependency. No personal
+  configuration, Git attribution state or external repositories were changed.
+
+The final full build retains the preexisting LSP-test environment-mutation alerts;
+the absent-provider fresh build retains preexisting libvterm compiler warnings.
+Neither was introduced or suppressed by this feature.
+
+Try the [manual checklist](../testing/markdown_manual.md) and
+[source fixture](../testing/fixtures/markdown_styles.md). Actual aligned tables,
+concealment, wrapping, virtual rows and link activation remain unimplemented.
 
 ## Milestone 3 — explicit display projection
 

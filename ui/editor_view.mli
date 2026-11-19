@@ -57,7 +57,11 @@ val app
         (** Path/error for Open configuration. Defaults to the loader's XDG/HOME
             resolution, once per app, without reading or executing configuration.
             Also installed on explicit picker hosts' initial UI state. *)
-   -> ?smear_enabled:bool
+    -> ?document_decorations:Document_decoration_host.Factory.t
+    -> ?document_decorations_enabled:bool
+         (** Session-only opt-in, applied after startup configuration; false by
+             default. Without an available factory, requests notify once. *)
+    -> ?smear_enabled:bool
    -> ?zen:bool
    -> ?bare:bool
    -> ?theme:Cobalt_theme.Theme.t
@@ -107,7 +111,9 @@ val run
   :  ?configuration:Configuration_host.t
    -> ?startup_configuration:Configuration_host.configuration
    -> ?configuration_path:(string, string) Result.t
-   -> ?smear_enabled:bool (** Disabled by default; Space v s toggles at runtime. *)
+    -> ?document_decorations:Document_decoration_host.Factory.t
+    -> ?document_decorations_enabled:bool
+    -> ?smear_enabled:bool (** Disabled by default; Space v s toggles at runtime. *)
    -> ?zen:bool (** Start in Zen; false by default. [bare] takes precedence. *)
    -> ?bare:bool (** Start in borderless document presentation. *)
    -> ?theme:Cobalt_theme.Theme.t (** Initial theme; Space v T previews and chooses themes. *)

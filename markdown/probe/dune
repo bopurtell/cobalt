@@ -1,0 +1,4 @@
+(executable
+ (name latency)
+ (libraries cobalt_markdown cobalt_decoration core unix)
+ (preprocess (pps ppx_jane)))
