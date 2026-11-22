@@ -17,9 +17,15 @@ let create ?(shortcuts = []) catalog context ~token ~bindings =
   let shortcuts =
     List.map shortcuts ~f:(fun (id, keys) -> id, Shortcut.to_string_hum keys)
     @ List.filter_map (Catalog.entries catalog) ~f:(fun entry ->
-      match Shortcut.sequences bindings (Catalog.Entry.action entry) with
-      | [] -> None
-      | keys :: _ -> Some (Catalog.Entry.id entry, Shortcut.to_string_hum keys))
+      match Catalog.Entry.target entry with
+      | Host _ ->
+        let aliases = Catalog.Entry.keywords entry in
+        if List.is_empty aliases then None
+        else Some (Catalog.Entry.id entry, String.concat ~sep:" / " aliases)
+      | Native action ->
+        (match Shortcut.sequences bindings action with
+         | [] -> None
+         | keys :: _ -> Some (Catalog.Entry.id entry, Shortcut.to_string_hum keys)))
   in
   { palette = Palette.create catalog context ~token; view = Selection.empty; shortcuts }
 ;;

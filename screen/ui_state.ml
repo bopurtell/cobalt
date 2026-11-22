@@ -249,6 +249,8 @@ type t =
   ; terminal_pending_j : (Time_ns.t * int) option
   ; toggle_pending : toggle_pending option
   ; external_terminal_toggles : int option list option (** [Some] delegates toggles to the outer host. *)
+  ; host_commands : Cobalt_palette.Catalog.Host_command.t list
+  ; host_command_requests : string list
   ; terminal_requests : (int * Cobalt_terminal.Model.request) list (** Newest first, stamped at enqueue. *)
   ; terminal_return : View_id.t
   ; terminal_prefix : Key.t list
@@ -461,6 +463,8 @@ let create
   ; terminal_pending_j = None
   ; toggle_pending = None
   ; external_terminal_toggles = None
+  ; host_commands = []
+  ; host_command_requests = []
   ; terminal_requests = []
   ; terminal_return = document_id
   ; terminal_prefix = []
@@ -2094,6 +2098,16 @@ let start_terminal t (layout : Tile_shell.Layout.t) =
 ;;
 
 let with_external_terminal t = { t with external_terminal_toggles = Some [] }
+
+let with_host_commands t host_commands =
+  if phys_equal t.host_commands host_commands then t else { t with host_commands }
+;;
+
+let take_host_command_requests t =
+  match t.host_command_requests with
+  | [] -> t, []
+  | requests -> { t with host_command_requests = [] }, List.rev requests
+;;
 
 let take_external_terminal_toggles t =
   match t.external_terminal_toggles with
@@ -3895,7 +3909,8 @@ let open_palette t ~width ~height =
       Cobalt_palette.Catalog.entries Cobalt_palette.Catalog.default
       |> List.filter ~f:(fun entry ->
         not (List.exists [ View_command.Insert_demo_snippet; Insert_snippet ] ~f:(fun command ->
-          Keymap.Action.equal (Cobalt_palette.Catalog.Entry.action entry) (View command)))
+           Option.exists (Cobalt_palette.Catalog.Entry.action entry) ~f:(fun action ->
+             Keymap.Action.equal action (View command))))
         || (snippet_insertion_available t && View_id.equal current document_id))
       |> Cobalt_palette.Catalog.create |> Or_error.ok_exn
     in
@@ -3903,6 +3918,7 @@ let open_palette t ~width ~height =
       Cobalt_palette.Catalog.create
         (List.map local ~f:fst @ Cobalt_palette.Catalog.entries globals)
       |> Result.ok |> Option.value ~default:globals
+      |> fun catalog -> Cobalt_palette.Catalog.with_host_commands catalog t.host_commands
     in
     let palette =
       Palette_tile.create
@@ -4718,7 +4734,22 @@ let accept_palette t ~width ~height palette =
         ~f:Cobalt_palette.Catalog.Entry.title
     in
     refuse (sprintf "%s is unavailable here; nothing ran" title), Running
-  | Execute { action = View (Run_view_command { view; _ } as command); _ } ->
+   | Execute { target = Host id; _ } ->
+     (* The rows are a snapshot taken on open; a host can withdraw a command
+        before Enter. Only requests, never callbacks, live in the UI state. *)
+     if not (List.exists t.host_commands ~f:(fun command ->
+       String.equal command.id id))
+     then refuse "The host command is no longer available; nothing ran", Running
+     else
+       let origin = t.palette_origin in
+       let t = return_to_document t in
+       let host =
+         match origin with
+         | Some view when available t ~width ~height view -> Host.focus t.host view
+         | _ -> t.host
+       in
+       { t with host; host_command_requests = id :: t.host_command_requests }, Running
+   | Execute { target = Native (View (Run_view_command { view; _ } as command)); _ } ->
     (* A local command runs in the view the palette was opened over, refocused. *)
     let origin = t.palette_origin in
     let t = leave t Palette_tile.id in
@@ -4732,7 +4763,7 @@ let accept_palette t ~width ~height palette =
        in
        apply_view_command t ~width ~height command, Running
      | Some _ | None -> refuse "The palette's view is gone; nothing ran", Running)
-  | Execute { action; _ } ->
+   | Execute { target = Native action; _ } ->
     (* Moving "the focused view" moves the view the palette was opened over. *)
     let action : Keymap.Action.t =
       match action, t.palette_origin with

@@ -426,7 +426,7 @@ let%test_unit "palette exposes Toggle Tile Term with default shortcut" =
       (Cobalt_palette.Catalog.Id.of_string "terminal.toggle") |> Option.value_exn in
   let sequences = Cobalt_palette.Shortcut.sequences
       (Cobalt_input.Bindings.to_list Cobalt_input.Bindings.default)
-      (Cobalt_palette.Catalog.Entry.action entry) in
+      (Option.value_exn (Cobalt_palette.Catalog.Entry.action entry)) in
   [%test_eq: string list] (List.map sequences ~f:Cobalt_palette.Shortcut.to_string_hum) [ "Space /" ]
 ;;
 

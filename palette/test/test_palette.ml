@@ -231,18 +231,58 @@ let%expect_test "accept returns a request for the invoking target" =
     {|
     (Execute
      ((token 1) (id view.toggle-relative-numbers)
-      (action (View Toggle_relative_numbers))))
+      (target (Native (View Toggle_relative_numbers)))))
     |}]
 ;;
 
 let%test_unit "bare mode accepts the stable workspace action" =
   let palette = type_ (create ()) "bare" in
   match Palette.accept palette ~context:(Some normal) with
-  | Execute { token; id; action } ->
+  | Execute { token; id; target = Native action } ->
     [%test_eq: int] token 1;
     assert (Catalog.Id.equal id (Catalog.Id.of_string "workspace.toggle-bare"));
     assert (Cobalt_input.Keymap.Action.equal action (View Toggle_bare))
   | _ -> failwith "Expected bare-mode action"
+;;
+
+let%test_unit "host aliases are additive, exact, and stable" =
+  let catalog =
+    Catalog.create
+      [ Catalog.Entry.create ~id:"native.move" ~title:"Move" ~keywords:[ "w" ] (Editor Undo)
+      ; Catalog.Entry.create ~id:"host.reserved" ~title:"Native reservation" (Editor Redo)
+      ]
+    |> Or_error.ok_exn
+  in
+  let command id title aliases : Catalog.Host_command.t = { id; title; aliases } in
+  let catalog =
+    Catalog.with_host_commands catalog
+      [ command "invalid ID" "Invalid" [ "ov" ]
+      ; command "blank" " " [ "ov" ]
+      ; command "reserved" "Silver: Reserved" [ "ov" ]
+      ; command "overview" "Silver: Overview" [ "ov"; "w" ]
+      ; command "overview" "Silver: Duplicate" [ "duplicate" ]
+      ; command "second" "Silver: Second" [ "ov" ]
+      ]
+  in
+  let entries = Catalog.entries catalog in
+  [%test_eq: string list]
+    (List.map entries ~f:(fun entry -> Catalog.Entry.id entry |> Catalog.Id.to_string))
+    [ "native.move"; "host.reserved"; "host.overview"; "host.second" ];
+  let accept palette = Palette.accept palette ~context:(Some normal) in
+  let expect_host palette id =
+    match accept palette with
+    | Execute { target = Host selected; _ } -> [%test_eq: string] selected id
+    | _ -> failwith "Expected a host command"
+  in
+  (* Move still matches "ov" fuzzily, but it must not hold the selection. *)
+  let overview = type_ (create ~catalog ()) "OV" in
+  expect_host overview "overview";
+  expect_host (Palette.update overview Next) "second";
+  let collision = type_ (create ~catalog ()) "w" in
+  (match accept collision with
+   | Execute { target = Native (Editor Undo); _ } -> ()
+   | _ -> failwith "Expected an exact native command to take precedence");
+  expect_host (Palette.update collision Next) "overview"
 ;;
 
 (* A fake adapter: tokens are view numbers, and [views] is the mode of each view that
@@ -260,7 +300,7 @@ let%expect_test "accept refuses a target that has gone, never using another" =
   accept_in [ 1, Cobalt_core.Mode.Normal; 2, Normal ] palette;
   [%expect
     {|
-    (Execute ((token 1) (id file.save) (action Save)))
+     (Execute ((token 1) (id file.save) (target (Native Save))))
     |}];
   accept_in [ 2, Normal ] palette;
   [%expect {| (Target_gone 1) |}]
@@ -293,7 +333,7 @@ let%expect_test "accept rechecks availability in the target's current context" =
   accept_in [ 1, Normal ] palette;
   [%expect
     {|
-    (Execute ((token 1) (id test.insert-only) (action Undo)))
+    (Execute ((token 1) (id test.insert-only) (target (Native Undo))))
     (Unavailable (token 1) (id test.insert-only))
     |}]
 ;;

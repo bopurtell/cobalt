@@ -50,7 +50,7 @@ let%test_unit "mark commands are discoverable with shortcuts and execute through
     let action = Cobalt_input.Keymap.Action.View Cobalt_input.View_command.Toggle_entry_mark in
     let entry = Cobalt_palette.Catalog.find Cobalt_palette.Catalog.default
       (Cobalt_palette.Catalog.Id.of_string "directory.toggle-mark") |> Option.value_exn in
-    assert (Cobalt_input.Keymap.Action.equal (Cobalt_palette.Catalog.Entry.action entry) action);
+     assert (Cobalt_input.Keymap.Action.equal (Option.value_exn (Cobalt_palette.Catalog.Entry.action entry)) action);
     let shortcuts = Cobalt_palette.Shortcut.sequences (Cobalt_input.Bindings.to_list Cobalt_input.Bindings.default) action in
     assert (List.exists shortcuts ~f:(fun keys -> String.equal (Cobalt_palette.Shortcut.to_string_hum keys) "Space m m"));
     let ui = create root |> fun ui -> run ui " cctoggle directory entry mark<CR>" in

@@ -5,8 +5,8 @@
     by {!Shortcut}, never stored here.
 
     Entries are identified by {!Id.t}, which stays fixed while titles and keywords
-    change; selection and execution use the ID, not a row or a label. The catalog is
-    static: there is no runtime registration. *)
+    change; selection and execution use the ID, not a row or a label. A hosted
+    editor can append mount-local commands to its palette snapshot. *)
 
 open! Core
 open Cobalt_input
@@ -23,6 +23,14 @@ end
 module Context : sig
   (** Where the palette was opened from, against which availability is checked. *)
   type t = { mode : Cobalt_core.Mode.t } [@@deriving sexp_of]
+end
+
+module Host_command : sig
+  type t = { id : string; title : string; aliases : string list } [@@deriving sexp_of]
+end
+
+module Target : sig
+  type t = Native of Keymap.Action.t | Host of string [@@deriving sexp_of]
 end
 
 module Entry : sig
@@ -48,7 +56,8 @@ module Entry : sig
   (** Searchable synonyms and abbreviations, e.g. ["gutter"] and ["rnu"]. *)
   val keywords : t -> string list
 
-  val action : t -> Keymap.Action.t
+  val action : t -> Keymap.Action.t option
+  val target : t -> Target.t
   val is_available : t -> Context.t -> bool
 end
 
@@ -63,6 +72,7 @@ val default : t
 
 val entries : t -> Entry.t list
 val find : t -> Id.t -> Entry.t option
+val with_host_commands : t -> Host_command.t list -> t
 
 (** The searchable fields of an entry. *)
 module Field : sig
@@ -79,6 +89,10 @@ type result = (Entry.t, Field.t) Fuzzy.Match.t
     with {!Fuzzy.rank}, matching each entry's title, then its ID, then each keyword,
     weighted in that order. An empty query lists the available entries in order. *)
 val search : t -> Context.t -> query:string -> result list
+
+(** Also returns the default selection when the query exactly matches a host
+    command: an exact native match wins, otherwise the best exact host match. *)
+val search_with_exact : t -> Context.t -> query:string -> result list * Id.t option
 
 (** The byte offsets of the title's matched code points, for highlighting. Empty when
     only the ID or keywords matched: those offsets do not apply to the title. *)

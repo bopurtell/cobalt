@@ -1,30 +1,27 @@
 # Silver integration: Cobalt-side tickets
 
-**Status:** C1–C5 are implemented. C5 has also passed its live two-window
-handoff; C6 is proposed. Use these as implementation slices, not duplicate feature
+**Status:** C1–C5 are **closed** for their Cobalt-side scope; their handoff
+evidence is linked below. C5 also passed its live two-window check. C6 remains
+**proposed**. Use these as implementation slices, not duplicate feature
 trackers. Silver's `docs/cobalt_editor_roadmap.md` owns the user workflows and
 end-to-end acceptance. “Ready for Silver” here means a Cobalt interface is usable
 and demonstrated against a local harness. It does not mean the two apps have
 been integrated. Keep example requests, replies and harness instructions with
 the module that implements them so Silver can consume the same examples.
 
-## Delivery order
+## Ticket status and handoffs
 
-| Ticket | Start after | Handoff |
+| Ticket | Status | Handoff |
 | --- | --- | --- |
-| [C1: Session open](#c1--open-a-location-in-a-live-session) | Now | Silver WB-087/088: generic location, including test declarations |
-| [C2: Hosted view](#c2--host-the-real-editor-view) | C1 for the demo | WB-087: persistent embedded editing |
-| [C3: Terminal handoff](#c3--expose-toggleterm-as-a-host-action) | Runtime packaging now; C2 for hosted input | WB-089/090: numbered shells and focus |
-| [C4: Main editor destination](#c4--address-an-opted-in-standalone-editor) | C1; independent of C2/C3 | Silver navigation: second destination for the same location |
-| [C5: Companion overview](#c5--optional-silver-module-and-overview-tile) | Now, with a fake peer | Cobalt-first monitoring against a real Silver endpoint |
-| [C6: Companion commands](#c6--run-a-silver-command-from-the-editor) | C5 connection/model contract | Cobalt-first launch and acknowledgement |
+| [C1: Session open](#c1--open-a-location-in-a-live-session) | Closed | Silver WB-087/088: generic location, including test declarations |
+| [C2: Hosted view](#c2--host-the-real-editor-view) | Closed | WB-087: persistent embedded editing |
+| [C3: Terminal handoff](#c3--expose-toggleterm-as-a-host-action) | Closed | WB-089/090: numbered shells and focus |
+| [C4: Main editor destination](#c4--address-an-opted-in-standalone-editor) | Closed | Silver navigation: second destination for the same location |
+| [C5: Companion overview](#c5--optional-silver-module-and-overview-tile) | Closed | Cobalt-first monitoring against a real Silver endpoint |
+| [C6: Companion commands](#c6--run-a-silver-command-from-the-editor) | Proposed | WB-093: test quick launch first, then stage quick launch |
 
-**Suggested first batch:** C1 → C2, then C3. Silver can start the test jump as
-soon as C2 lands; it need not wait for C4–C6. If opening in the main editor
-matters more than shared shells, do C4 immediately after C1. For C5/C6, agree
-one example status response and one launch/result exchange against Silver's
-actual public protocol early. A fixture can unblock Cobalt UI work; it cannot
-establish wire compatibility.
+**Next:** C6 builds on C5's connection model. Use the two delivery slices below;
+Silver WB-093 is the single end-to-end acceptance record.
 
 ## C1 — Open a location in a live session
 
@@ -126,15 +123,45 @@ acceptance check and captured exchanges](../../examples/silver_overview/README.m
 
 ## C6 — Run a Silver command from the editor
 
-**Owner:** the Silver module owns requests/results. Extend palette/command
-routing only enough to invoke an adapter action from a focused code buffer as
-well as from a tile. Start with “run this named catalog test”; capture the
-project and test identity at invocation. Route the typed action to Silver's
-execution service rather than forwarding keys to a Silver window.
+**Status: proposed; design agreed.** One optional Silver module owns the connection,
+selected targets, settings, launch requests and acknowledgements. It may split those
+responsibilities into internal modules. Tiles render module state and emit intents;
+tile `R` and palette commands invoke the same launch operation.
 
-**Ready for Silver:** with code focused, dispatch one request to a fake peer
-and surface accepted/rejected/unavailable results without stealing focus.
-After disconnect, report an unconfirmed launch rather than replaying it on
-reconnect. An acknowledgement is a command result, not a coalescible overview
-snapshot. **Live handoff:** launch once from standalone Cobalt and observe the
-same attempt in Silver; closing Cobalt leaves the attempt running.
+**Connect once.** `Silver: Connect…` lists known or advertised local Silver
+connections and accepts an explicit endpoint. Verify Silver's handshake before
+binding. A project binding suffices before the first attempt exists. Changing
+buffers or hiding a tile neither retargets commands nor drops pending results.
+
+**Slice 1 — test quick launch**
+
+- Render suites and their variants in a compact tile. `R` on a suite launches with
+  configured/catalog defaults; `R` on a variant launches that variant. `Enter`
+  opens a floating field editor. Apply returns to the row **without launching**;
+  cancel leaves its previous values intact.
+- Keep overrides per project/suite/variant for the session, including across tile
+  close/reopen. Exact palette alias `test` uses the configured default target,
+  otherwise the last launched target for that project (not the last browsed row).
+  If neither exists, open the picker. Show the resolved target and non-default
+  values in the result, e.g. `Run test · FIFO / seeded · n=50`.
+- Launch saved project inputs. Capture the selection and discovery digest together;
+  a stale catalog requires a fresh selection rather than a silent substitution.
+
+**Slice 2 — stage quick launch.** `R` on a checklist row runs the active flow
+through that stage using Silver's quick-launch rules and defaults. Exact palette
+aliases `synth`, `timing` and `routing` target their named stages regardless of
+the selected row. For these fundamental aliases and `test`, put the action in
+**row 1, selected** on an exact query. More text resumes normal search. An
+unavailable exact action shows its reason; Enter must not launch another match.
+
+**Focus and results.** Keep focus in the invoking tile after `R`; dismissing the
+palette restores its caller. Show acceptance and the run/attempt identity without
+replacing a watched run. Separate rejection from a lost acknowledgement; never
+resubmit automatically on reconnect. Closing Cobalt leaves Silver's work running.
+
+**Handoff to WB-093:** capture one real catalog/launch/reply exchange and use
+it as a fake-peer fixture. Verify one submission per invocation, focus, and
+unconfirmed delivery. Then run two live checks: (1) change `n=10` to `50`,
+launch via `R`, hide the tile and launch via palette `test` from code; Silver
+must show two distinct attempts for the same target with `n=50`; (2) compare
+a checklist `R` launch with an exact alias launch through the same stage.

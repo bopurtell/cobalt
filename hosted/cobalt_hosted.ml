@@ -5,6 +5,7 @@ module Session = Cobalt_app.Session
 module Location = Session.Open_location
 module Layout = Cobalt_screen.Hosted_layout
 module Theme = Cobalt_theme.Theme
+module Host_command = Cobalt_palette.Catalog.Host_command
 
 type startup = Cobalt_app.Controller.t
 
@@ -51,9 +52,11 @@ type t =
   ; closed : bool
   }
 
-let component ?layout ?set_clipboard ?on_toggle_terminal ?appearance startup ~dimensions ~visible ~focused (local_ graph) =
+let component ?layout ?set_clipboard ?on_toggle_terminal ?appearance
+    ?host_commands ?on_host_command startup ~dimensions ~visible ~focused (local_ graph) =
   let hosted =
-    Cobalt_ui.Editor_view.hosted ?layout ?set_clipboard ?on_toggle_terminal ?appearance startup
+    Cobalt_ui.Editor_view.hosted ?layout ?set_clipboard ?on_toggle_terminal ?appearance
+      ?host_commands ?on_host_command startup
       ~dimensions ~visible ~focused graph
   in
   let%arr { view; cursor; handle_event; open_location; shutdown; closed }

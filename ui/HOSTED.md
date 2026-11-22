@@ -118,6 +118,41 @@ Run `dune runtest -j4 hosted/test` for the hosted API tests, including the
 numbered handoff, literal and pasted input, and a no-handler test that reopens
 the same live shell.
 
+## Hosting commands in the editor palette
+
+While Cobalt has focus, Normal-mode `Space c c` opens its normal command
+palette. To include commands from the outer app, supply both optional inputs:
+
+```ocaml
+let host_commands =
+  Bonsai.return
+    [ { Cobalt_hosted.Host_command.id = "overview"
+      ; title = "Silver: Overview"
+      ; aliases = [ "ov" ]
+      }
+    ]
+in
+Cobalt_hosted.component ~host_commands ~on_host_command startup
+  ~dimensions ~visible ~focused graph
+```
+
+`on_host_command` is a `(string -> unit Effect.t) Bonsai.t`. Typing `ov` and
+pressing Enter chooses the host row and calls it once with `"overview"`,
+after Cobalt closes the palette and restores its focus target. The host can
+then change the outer workspace or open its own prompt. The palette also
+matches the host row by its title (use a prefix like `Silver:` to identify its
+owner). An exact native title, ID or keyword wins over an exact host match.
+Both results stay selectable with Tab or Shift-Tab. Ties within either group
+use the normal fuzzy score and then catalog order.
+
+IDs are stable for a mount; lowercase ASCII letters, digits, dots and
+hyphens are allowed. Malformed IDs and blank titles are ignored and the first
+valid row with a duplicate ID wins. The command list is read when the palette
+opens. If the host withdraws that ID while the palette is open, Enter won't
+dispatch it. There is no process-wide registration, and omitting either input
+leaves the palette native-only. `:` commands and Insert, Visual and paste
+routing are unchanged; a pasted palette query still requires Enter.
+
 ## Session lifecycle
 
 Await `shutdown` before unmounting or exiting the outer TUI. It discards unsaved

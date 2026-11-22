@@ -385,9 +385,10 @@ other operation feedback remain visible until cleared or acknowledged normally.
 
 Entering bare returns input from a supporting view or side directory to the
 active file and releases floating capture and incomplete key sequences. A
-directory-only session keeps its listing usable until a file is opened. The same
-session owns the buffers in every presentation: switching does not reload files,
-discard unsaved text, or reset undo. `Space v B` restores the previous workspace
+directory-only session keeps its listing usable and shows its path and mark count
+in the idle bottom row until a file is opened. The same session owns the buffers
+in every presentation: switching does not reload files, discard unsaved text,
+or reset undo. `Space v B` restores the previous workspace
 or zen presentation and its requested layout; it returns to the file rather than
 reactivating the previously focused supporting view. Other placement controls used
 in bare update the saved workspace preferences while bare's effective geometry

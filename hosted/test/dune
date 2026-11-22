@@ -20,3 +20,10 @@
  (libraries cobalt_hosted core core_unix.filename_unix core_unix async bonsai
    bonsai_test bonsai_term bonsai_term_test notty-community)
  (preprocess (pps ppx_jane)))
+
+(test
+ (name test_hosted_commands)
+ (modules test_hosted_commands)
+ (libraries cobalt_hosted core core_unix.filename_unix core_unix async bonsai
+   bonsai_test bonsai_term bonsai_term_test notty-community)
+ (preprocess (pps ppx_jane)))

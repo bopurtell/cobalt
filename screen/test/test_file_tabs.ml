@@ -171,7 +171,7 @@ let%test_unit "palette accepts tab commands once and derives the exact bindings"
               ; "buffers.top", "Space b t"; "buffers.status-rows", "Space b s" ]
       ~f:(fun (id, expected) ->
         let entry = Cobalt_palette.Catalog.find Cobalt_palette.Catalog.default (Cobalt_palette.Catalog.Id.of_string id) |> Option.value_exn in
-        let shortcuts = Cobalt_palette.Shortcut.sequences (Bindings.to_list Bindings.default) (Cobalt_palette.Catalog.Entry.action entry) in
+        let shortcuts = Cobalt_palette.Shortcut.sequences (Bindings.to_list Bindings.default) (Option.value_exn (Cobalt_palette.Catalog.Entry.action entry)) in
         assert ([%equal: string list] (List.map shortcuts ~f:Cobalt_palette.Shortcut.to_string_hum) [ expected ]));
     Session.dispose (Ui_state.session ui))
 ;;

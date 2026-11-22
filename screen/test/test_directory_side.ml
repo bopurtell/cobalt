@@ -28,6 +28,46 @@ let fixture f =
 let create root = Ui_state.create ~tiles_visible:false
   (Startup.open_path ~cell_width:Cell_map.width root |> Or_error.ok_exn)
 
+let%test_unit "directory path appears once, in the title or a borderless fallback" =
+  fixture (fun root ->
+    let create ?bare ?(tiles_visible = false) () =
+      Ui_state.create ?bare ~tiles_visible
+        (Startup.open_path ~cell_width:Cell_map.width root |> Or_error.ok_exn)
+    in
+    let check ?allocation ~width ~height ~path ~row_prefix ~counts ui =
+      let rendered = Frame.to_string (Frame.render ?allocation ui ~width ~height) in
+      let path_rows = String.split_lines rendered
+        |> List.filter ~f:(String.is_substring ~substring:path) in
+      let pass =
+        match path_rows with
+        | [ row ] -> String.is_prefix (String.strip row) ~prefix:row_prefix
+        | _ -> false
+      in
+      let occurrences = String.substr_index_all rendered ~pattern:path ~may_overlap:false in
+      if not (pass && List.length occurrences = 1 && String.is_substring rendered ~substring:counts) then
+        failwithf "Unexpected directory frame:\n%s" rendered ();
+      Session.dispose (Ui_state.session ui)
+    in
+    (* Use the basename for the bordered and very narrow cases: a long parent
+       path can be clipped (e.g. when tests run with a custom TMPDIR). *)
+    let tail = Filename.basename root in
+    let check_wide ui =
+      check ~width:120 ~height ~path:tail ~row_prefix:"╭─ " ~counts:"Directory: 0 marked" ui
+    in
+    check_wide (create ());
+    check_wide (create ~tiles_visible:true ());
+    check_wide (run (create ()) " vz");
+    check ~width:120 ~height:5 ~path:tail ~row_prefix:"Directory: 1 marked |"
+      ~counts:"1 marked" (run (create ()) " mm");
+    check ~width:23 ~height ~path:(String.suffix tail 8) ~row_prefix:"0 marked |"
+      ~counts:"0 marked" (create ());
+    check ~width:120 ~height ~path:tail ~row_prefix:"Directory: 0 marked |"
+      ~counts:"0 marked" (create ~bare:true ());
+    let allocation = { Geometry.Rect.x = 3; y = 2; width = 100; height = 12 } in
+    check ~allocation ~width:120 ~height ~path:tail ~row_prefix:"╭─ " ~counts:"0 marked"
+      (create ()))
+;;
+
 let%test_unit "animation cache preserves side focus, floats, tabs and size changes" =
   fixture (fun root ->
     let cache = Frame.Cache.create () in

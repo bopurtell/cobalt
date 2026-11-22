@@ -161,6 +161,9 @@ val with_external_terminal : t -> t
 (** Startup-only routing override: recognized toggles emit actions instead of
     opening, closing or focusing a local terminal tile. *)
 val take_external_terminal_toggles : t -> t * int option list
+
+val with_host_commands : t -> Cobalt_palette.Catalog.Host_command.t list -> t
+val take_host_command_requests : t -> t * string list
 (** Drain recognized toggles in recognition order. [None] leaves terminal
     selection to the host. *)
 val terminal_number : t -> int

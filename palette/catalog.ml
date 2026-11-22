@@ -18,6 +18,14 @@ module Context = struct
   type t = { mode : Cobalt_core.Mode.t } [@@deriving sexp_of]
 end
 
+module Host_command = struct
+  type t = { id : string; title : string; aliases : string list } [@@deriving sexp_of]
+end
+
+module Target = struct
+  type t = Native of Keymap.Action.t | Host of string [@@deriving sexp_of]
+end
+
 module Entry = struct
   type t =
     { id : Id.t
@@ -25,7 +33,7 @@ module Entry = struct
     ; description : string option
     ; keywords : string list
     ; available : (Context.t -> bool[@sexp.opaque])
-    ; action : Keymap.Action.t
+    ; target : Target.t
     }
   [@@deriving sexp_of, fields ~getters]
 
@@ -33,9 +41,19 @@ module Entry = struct
     Cobalt_core.Mode.equal context.mode Normal
   ;;
 
-  let create ~id ~title ?description ?(keywords = []) ?(available = normal_mode_only) action
+  let create_target ~id ~title ?description ?(keywords = []) ?(available = normal_mode_only) target
     =
-    { id = Id.of_string id; title; description; keywords; available; action }
+    { id = Id.of_string id; title; description; keywords; available; target }
+  ;;
+
+  let create ~id ~title ?description ?keywords ?available action =
+    create_target ~id ~title ?description ?keywords ?available (Native action)
+  ;;
+
+  let action t =
+    match t.target with
+    | Native action -> Some action
+    | Host _ -> None
   ;;
 
   let is_available t context = t.available context
@@ -472,6 +490,21 @@ let default =
 let entries = Fn.id
 let find t id = List.find t ~f:(fun (entry : Entry.t) -> Id.equal entry.id id)
 
+let with_host_commands t commands =
+  let seen = Hash_set.create (module String) in
+  List.iter t ~f:(fun entry -> Hash_set.add seen (Id.to_string (Entry.id entry)));
+  t
+  @ List.filter_map commands ~f:(fun ({ id; title; aliases } : Host_command.t) ->
+    let catalog_id = "host." ^ id in
+    if not (Id.is_valid id)
+       || String.is_empty (String.strip title)
+       || Hash_set.mem seen catalog_id
+    then None
+    else (
+      Hash_set.add seen catalog_id;
+      Some (Entry.create_target ~id:catalog_id ~title ~keywords:aliases (Host id))))
+;;
+
 module Field = struct
   type t =
     | Title
@@ -488,11 +521,42 @@ let fields (entry : Entry.t) : Field.t Fuzzy.Field.t list =
   :: List.map entry.keywords ~f:(fun text -> { Fuzzy.Field.tag = Field.Keyword; text; weight = 70 })
 ;;
 
-let search t context ~query =
-  List.filter t ~f:(fun entry -> Entry.is_available entry context)
-  |> List.map ~f:(fun entry -> entry, fields entry)
-  |> Fuzzy.rank ~query
+let exact_priority ~query (entry : Entry.t) =
+  let exact candidate = String.Caseless.equal (String.strip candidate) query in
+  if String.is_empty query
+     || not (exact entry.title || exact (Id.to_string entry.id)
+             || List.exists entry.keywords ~f:exact)
+  then 2
+  else
+    match entry.target with
+    | Native _ -> 0
+    | Host _ -> 1
 ;;
+
+let search_with_exact t context ~query =
+  let ranked =
+    List.filter t ~f:(fun entry -> Entry.is_available entry context)
+    |> List.map ~f:(fun entry -> entry, fields entry)
+    |> Fuzzy.rank ~query
+  in
+  let query = String.strip query in
+  let priority (result : result) = exact_priority ~query result.item in
+  let has_host_exact =
+    List.exists ranked ~f:(fun result ->
+      match Entry.target result.item with
+      | Native _ -> false
+      | Host _ -> priority result = 1)
+  in
+  if not has_host_exact
+  then ranked, None
+  else (
+    let native, rest = List.partition_tf ranked ~f:(fun result -> priority result = 0) in
+    let host, fuzzy = List.partition_tf rest ~f:(fun result -> priority result = 1) in
+    let sorted = native @ host @ fuzzy in
+    sorted, Option.map (List.hd sorted) ~f:(fun result -> Entry.id result.item))
+;;
+
+let search t context ~query = fst (search_with_exact t context ~query)
 
 let title_positions (result : result) =
   List.find_map result.positions ~f:(fun ((field : _ Fuzzy.Field.t), offsets) ->

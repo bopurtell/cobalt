@@ -276,24 +276,51 @@ let prepare_document ?highlights ?decorations ?allocation ?reserve_status_row ?f
     geometry
   in
   let fields = Status.fields ui in
+  let title = List.find_map areas ~f:(fun area ->
+    match area.Geometry.Area.layout with
+    | Border_title -> Some (Status.render area fields)
+    | Status_row -> None) in
+  (* A border can still be present when the filename cannot fit in its title. *)
+  let title_has_path = Option.exists title ~f:(List.exists ~f:(fun span ->
+    not (Style.equal span.Span.style Border))) in
   let buffers = Ui_state.tab_items ui in
   let tab_row = Option.map (Ui_state.tab_rect ~buffers_in_status ui ~allocation) ~f:(fun rect ->
     rect, File_tabs.render_items buffers ~width:rect.width) in
   let directory = Session.input_directory (Ui_state.session ui) in
-  let header = Option.map (Ui_state.directory_rect ~buffers_in_status ui ~allocation) ~f:(fun rect ->
-    let d = Option.value_exn directory in
+  let directory_label (d : Cobalt_app.Directory_buffer.t) ~width ~show_path =
     let pending = if not (Cobalt_app.Directory_buffer.is_dirty d) then "" else
       match Cobalt_app.Directory_buffer.plan d with
       | Ok operations -> sprintf "* %d pending | " (List.length operations)
       | Error _ -> "* invalid plan | " in
-    let label = if explicit_allocation then sprintf "%s%d marked | %s" pending (Set.length d.marks) (Directory_identity.encode_name d.path)
-      else sprintf "Directory: %s%d marked | %s" pending (Set.length d.marks) (Directory_identity.encode_name d.path) in
-    let label = String.prefix label rect.width in
-    rect, [ Span.create Hint (label ^ String.make (rect.width - String.length label) ' ') ~width:rect.width ]) in
+    let counts = sprintf "%s%d marked" pending (Set.length d.marks) in
+    let label = if explicit_allocation then counts else "Directory: " ^ counts in
+    let hint text = Span.of_text text ~style:Hint ~special:Hint in
+    let spans =
+      if not show_path then Span.take (hint label) ~n:width
+      else
+        let path = hint (Directory_identity.encode_name d.path) in
+        let prefix = hint (label ^ " | ") in
+        let prefix = if width - Span.total_width prefix >= 4 then prefix
+          else hint (counts ^ " | ") in
+        let prefix = if width - Span.total_width prefix >= 4 then prefix else [] in
+        prefix @ Span.keep_right path ~n:(width - Span.total_width prefix) ~marker_style:Hint
+    in
+    spans @ [ Span.blank Hint (width - Span.total_width spans) ]
+  in
+  let header = Option.map (Ui_state.directory_rect ~buffers_in_status ui ~allocation) ~f:(fun rect ->
+    rect, directory_label (Option.value_exn directory) ~width:rect.width ~show_path:(not title_has_path)) in
+  (* A directory's path belongs in the title or its fallback header, not also in
+     the compact status row or separate Status tile. File status is unchanged. *)
+  let status_fields =
+    if Option.is_some directory && (title_has_path || Option.is_some header)
+    then List.filter fields ~f:(fun field ->
+      not (Status_field.Id.equal field.Status_field.id Filename))
+    else fields
+  in
   (* Status and minor views share the tile shell; adapters fill its content area. *)
   let status_tile = Option.map status_pane ~f:(fun pane ->
     let layout = Tile_shell.layout Tile_shell.Policy.status pane.Workspace.Pane.rect in
-    let body = Status_tile.body ~rect:layout.content fields
+    let body = Status_tile.body ~rect:layout.content status_fields
       (if buffers_in_status then buffers else []) in
     layout.outer,
     Array.of_list (Tile_shell.render layout ~focused:false { title = "Status"; footer = None; body }))
@@ -444,8 +471,8 @@ let prepare_document ?highlights ?decorations ?allocation ?reserve_status_row ?f
     if border && y = tile.y
     then (
       let top =
-        match area_on_row Border_title y with
-        | Some area -> Status.render area fields
+        match title with
+        | Some spans -> spans
         | None -> [ Span.create Border (rule inner) ~width:inner ]
       in
       [ Span.create Border "╭" ~width:1 ] @ top @ [ Span.create Border "╮" ~width:1 ])
@@ -613,14 +640,20 @@ let prepare_document ?highlights ?decorations ?allocation ?reserve_status_row ?f
         | _ -> match tab_row, area_on_row Status_row y with
         | Some (rect, spans), _ when y = rect.y -> [ rect, spans ]
         | _, Some area ->
-          let status_fields =
+          let fields =
             if Ui_state.zen ui then
-              List.filter fields ~f:(fun (field : Status_field.t) ->
+              List.filter status_fields ~f:(fun (field : Status_field.t) ->
                 not (Status_field.Id.equal field.id Mode
                      || Status_field.Id.equal field.id Filename))
-            else fields
+            else status_fields
           in
-          let spans = Status.render area status_fields in
+          let spans =
+            match directory with
+            | Some d when Ui_state.bare ui && List.is_empty fields ->
+              (* Keep the bare listing at the top and leave feedback alone. *)
+              directory_label d ~width:area.rect.width ~show_path:true
+            | _ -> Status.render area fields
+          in
           let spans = if Ui_state.bare ui then List.map spans ~f:(fun span ->
             if Style.equal span.Span.style Status
             then { span with style = Style.document () } else span) else spans in

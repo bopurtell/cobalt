@@ -117,7 +117,7 @@ type open_location_listener =
   -> on_request:(Open_location.request -> (unit, Open_location.failure) Result.t Async.Deferred.t)
   -> (unit -> unit Async.Deferred.t) Async.Deferred.Or_error.t
 
-let component ?layout ?terminal ?snippets ?configuration ?startup_configuration ?configuration_path ?document_decorations ?document_decoration_host ?(document_decorations_enabled = false) ?(smear_enabled = false) ?(zen = false) ?bare ?theme ?appearance ?buffer_presentation ?report ?(silver_overview : Silver_overview_host.t option) ?source ?vcs ?font ?file_picker ?content_picker ?on_toggle_terminal ?on_open_location_ready ~set_clipboard controller ~exit ~blank_on_close ~dimensions ~visible ~focused (local_ graph)
+let component ?layout ?terminal ?snippets ?configuration ?startup_configuration ?configuration_path ?document_decorations ?document_decoration_host ?(document_decorations_enabled = false) ?(smear_enabled = false) ?(zen = false) ?bare ?theme ?appearance ?buffer_presentation ?report ?(silver_overview : Silver_overview_host.t option) ?source ?vcs ?font ?file_picker ?content_picker ?on_toggle_terminal ?host_commands ?on_host_command ?on_open_location_ready ~set_clipboard controller ~exit ~blank_on_close ~dimensions ~visible ~focused (local_ graph)
   =
   let dimensions = let%arr { Dimensions.width; height } = dimensions in
     { Dimensions.width = Int.max 0 width; height = Int.max 0 height } in
@@ -189,6 +189,11 @@ let component ?layout ?terminal ?snippets ?configuration ?startup_configuration 
     then Ui_state.with_external_terminal initial_ui else initial_ui in
   let on_toggle_terminal =
     Option.value on_toggle_terminal ~default:(Bonsai.return (fun _ -> Effect.Ignore)) in
+  let host_commands, on_host_command =
+    match host_commands, on_host_command with
+    | Some commands, Some dispatch -> commands, dispatch
+    | _ -> Bonsai.return [], Bonsai.return (fun _ -> Effect.Ignore)
+  in
   let current_ui = ref initial_ui in
   let navigation_preview = Navigation_preview_host.create ~buffer:(fun request ->
     Ui_state.navigation_preview_buffer !current_ui request) () in
@@ -325,7 +330,7 @@ let component ?layout ?terminal ?snippets ?configuration ?startup_configuration 
          let answer reply result = Async.Ivar.fill_if_empty reply result in
          match input, action with
           | _, `Shutdown when stopped () -> model
-          | Active ({ Dimensions.width; height }, _, _, _), `Shutdown ->
+          | Active ({ Dimensions.width; height }, _, _, _, _, _), `Shutdown ->
            let model, _ = Ui_state.quit_session model ~width ~height ~force:true in
            current_ui := model;
            stop ();
@@ -336,7 +341,8 @@ let component ?layout ?terminal ?snippets ?configuration ?startup_configuration 
          | _, `Open_location (_, reply) when stopped () -> answer reply (Error `Closed); model
          | Inactive, _ -> model
           | _, _ when stopped () -> model
-          | Active ({ Dimensions.width; height }, set_clipboard, on_toggle_terminal, accepts_input), action ->
+           | Active ({ Dimensions.width; height }, set_clipboard, on_toggle_terminal, host_commands, on_host_command, accepts_input), action ->
+               let model = Ui_state.with_host_commands model host_commands in
               let model = match action with
                 | `Lost_input -> cancel_outer_input model
                 | _ when not accepts_input -> cancel_outer_input model
@@ -498,9 +504,13 @@ let component ?layout ?terminal ?snippets ?configuration ?startup_configuration 
                Bonsai.Apply_action_context.schedule_event context
                  (Effect.of_thunk (fun () -> Terminal_host.submit_sessions terminal terminal_requests)));
            let model, toggles = Ui_state.take_external_terminal_toggles model in
-           List.iter toggles ~f:(fun number ->
-             Bonsai.Apply_action_context.schedule_event context
-               (Effect.lazy_ (lazy (on_toggle_terminal number))));
+            List.iter toggles ~f:(fun number ->
+              Bonsai.Apply_action_context.schedule_event context
+                (Effect.lazy_ (lazy (on_toggle_terminal number))));
+            let model, commands = Ui_state.take_host_command_requests model in
+            List.iter commands ~f:(fun id ->
+              Bonsai.Apply_action_context.schedule_event context
+                (Effect.lazy_ (lazy (on_host_command id))));
           Option.iter clipboard ~f:(fun text ->
             Bonsai.Apply_action_context.schedule_event
               context
@@ -563,8 +573,9 @@ let component ?layout ?terminal ?snippets ?configuration ?startup_configuration 
                 Bonsai.Apply_action_context.schedule_event context (exit ())
            | Exit | Running -> ());
            model))
-        (let%arr dimensions and set_clipboard and on_toggle_terminal and accepts_input in
-         dimensions, set_clipboard, on_toggle_terminal, accepts_input)
+         (let%arr dimensions and set_clipboard and on_toggle_terminal and host_commands
+              and on_host_command and accepts_input in
+          dimensions, set_clipboard, on_toggle_terminal, host_commands, on_host_command, accepts_input)
       graph
   in
    let inject = let%arr inject_action in fun inputs -> inject_action (`Inputs inputs) in
@@ -770,6 +781,7 @@ let component ?layout ?terminal ?snippets ?configuration ?startup_configuration 
 let hosted ?layout ?terminal ?snippets ?configuration ?startup_configuration ?configuration_path
     ?document_decorations ?document_decorations_enabled ?smear_enabled ?zen ?bare ?theme ?appearance
     ?buffer_presentation ?report ?source ?vcs ?font ?file_picker ?content_picker ?on_toggle_terminal
+    ?host_commands ?on_host_command
     ?(set_clipboard = Bonsai.return (fun _ -> Effect.Ignore))
     controller ~dimensions ~visible ~focused (local_ graph) =
   let terminal = match terminal, on_toggle_terminal with
@@ -782,7 +794,8 @@ let hosted ?layout ?terminal ?snippets ?configuration ?startup_configuration ?co
     Cobalt_source.Lsp_client.start_workspace ~cell_width:Cell_map.width ()) in
   component ?layout ?terminal ?snippets ?configuration ?startup_configuration ?configuration_path
     ?document_decorations ?document_decorations_enabled ?smear_enabled ?zen ?bare ?theme ?appearance
-    ?buffer_presentation ?report ~source ~vcs ?font ?file_picker ?content_picker ?on_toggle_terminal ~set_clipboard
+     ?buffer_presentation ?report ~source ~vcs ?font ?file_picker ?content_picker ?on_toggle_terminal
+     ?host_commands ?on_host_command ~set_clipboard
     controller ~exit:(fun () -> Effect.Ignore) ~blank_on_close:true ~dimensions ~visible ~focused graph
 ;;
 

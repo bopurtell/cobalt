@@ -84,6 +84,8 @@ val hosted
   -> ?file_picker:File_picker_host.t
   -> ?content_picker:Content_picker_host.t
   -> ?on_toggle_terminal:(int option -> unit Effect.t) Bonsai.t
+  -> ?host_commands:Cobalt_palette.Catalog.Host_command.t list Bonsai.t
+  -> ?on_host_command:(string -> unit Effect.t) Bonsai.t
   -> ?set_clipboard:(string -> unit Effect.t) Bonsai.t
   -> Cobalt_app.Controller.t
   -> dimensions:Dimensions.t Bonsai.t

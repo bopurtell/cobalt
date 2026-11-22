@@ -15,7 +15,7 @@ module Request = struct
   type 'token t =
     { token : 'token
     ; id : Catalog.Id.t
-    ; action : Cobalt_input.Keymap.Action.t
+    ; target : Catalog.Target.t
     }
   [@@deriving sexp_of]
 end
@@ -47,11 +47,15 @@ let result_ids t =
 ;;
 
 let refresh t =
-  let t = { t with results = Catalog.search t.catalog t.context ~query:t.query } in
+  let results, exact = Catalog.search_with_exact t.catalog t.context ~query:t.query in
+  let t = { t with results } in
   let selected =
-    Selection.preserve t.selected t.results
-      ~id:(fun (result : Catalog.result) -> Catalog.Entry.id result.item)
-      ~equal:Catalog.Id.equal
+    match exact with
+    | Some _ -> exact
+    | None ->
+      Selection.preserve t.selected t.results
+        ~id:(fun (result : Catalog.result) -> Catalog.Entry.id result.item)
+        ~equal:Catalog.Id.equal
   in
   { t with selected }
 ;;
@@ -112,6 +116,6 @@ let accept t ~context : _ Accept.t =
   | Some id, Some context ->
     (match Catalog.find t.catalog id with
      | Some entry when Catalog.Entry.is_available entry context ->
-       Execute { token = t.token; id; action = Catalog.Entry.action entry }
+       Execute { token = t.token; id; target = Catalog.Entry.target entry }
      | _ -> Unavailable { token = t.token; id })
 ;;

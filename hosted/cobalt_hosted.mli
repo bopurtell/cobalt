@@ -9,6 +9,10 @@ module Layout = Cobalt_screen.Hosted_layout
     custom theme with [of_base16] and [with_colors]. *)
 module Theme = Cobalt_theme.Theme
 
+module Host_command : sig
+  type t = { id : string; title : string; aliases : string list }
+end
+
 (** Open an existing project directory as the editor's startup surface.
     Prepare once per mounted editor. The root must be absolute and does not
     depend on the host's working directory. *)
@@ -81,12 +85,25 @@ type t =
     [appearance] gives the host ownership of the editor palette, including
     chrome, syntax and overlays. Changes repaint the mounted editor without
     replacing its session. The Cobalt theme picker is unavailable while the
-    host owns appearance. Omit this option for Cobalt-managed appearance. *)
+    host owns appearance. Omit this option for Cobalt-managed appearance.
+
+    Supply both [host_commands] and [on_host_command] to append this mount's
+    commands to Cobalt's Normal-mode [Space c c] palette. Use a visible host
+    prefix in each title (for example, ["Silver: Overview"]). IDs must be stable
+    within the mount and consist of lowercase ASCII letters, digits, dots and
+    hyphens. Invalid entries are skipped; the first row for each ID wins.
+    Exact matches are case-insensitive; exact native matches win over exact
+    host matches, but both rows remain selectable. The list is captured on open;
+    a removed ID won't dispatch from an already-open palette. Accepting a host
+    row closes the palette and invokes the callback once with the ID. Cobalt's
+    [:] prompt is unchanged. *)
 val component
   :  ?layout:Layout.t
   -> ?set_clipboard:(string -> unit Bonsai_term.Effect.t) Bonsai.t
   -> ?on_toggle_terminal:(int option -> unit Bonsai_term.Effect.t) Bonsai.t
   -> ?appearance:Theme.t Bonsai.t
+  -> ?host_commands:Host_command.t list Bonsai.t
+  -> ?on_host_command:(string -> unit Bonsai_term.Effect.t) Bonsai.t
   -> startup
   -> dimensions:Bonsai_term.Dimensions.t Bonsai.t
   -> visible:bool Bonsai.t

@@ -70,7 +70,7 @@ let%expect_test "the default catalog, with shortcuts derived from bindings" =
       "%-30s %-38s %s\n"
       (Catalog.Id.to_string (Catalog.Entry.id entry))
       (Catalog.Entry.title entry)
-      (shortcuts (Catalog.Entry.action entry)));
+      (shortcuts (Option.value_exn (Catalog.Entry.action entry))));
   [%expect
     {|
     file.save                      Save buffer                            Space w
@@ -345,9 +345,9 @@ let%test_unit "bare mode is discoverable and advertises its actual default short
   let id = Catalog.Id.of_string "workspace.toggle-bare" in
   let entry = Catalog.find Catalog.default id |> Option.value_exn in
   [%test_eq: string] (Catalog.Entry.title entry) "Toggle bare mode";
-  assert (Keymap.Action.equal (Catalog.Entry.action entry) (View Toggle_bare));
+  assert (Keymap.Action.equal (Option.value_exn (Catalog.Entry.action entry)) (View Toggle_bare));
   let shortcuts =
-    Shortcut.sequences (Bindings.to_list Bindings.default) (Catalog.Entry.action entry)
+    Shortcut.sequences (Bindings.to_list Bindings.default) (Option.value_exn (Catalog.Entry.action entry))
     |> List.map ~f:Shortcut.to_string_hum
   in
   [%test_eq: string list] shortcuts [ "Space v B" ];
