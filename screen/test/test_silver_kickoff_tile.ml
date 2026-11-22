@@ -43,7 +43,7 @@ let create presentation =
     (Ui_state.controller (Helpers.ui "UNCHANGED\n"))
 ;;
 
-let open_tile ui = run ui " ccReview Silver flow kickoff<CR>"
+let open_tile ui = run ui " ccSilver: Flow Review<CR>"
 
 let expect ui intents =
   let ui, actual = take ui in
@@ -56,6 +56,7 @@ let%test_unit "open, edit/cancel, apply, prepare, and kickoff are distinct actio
   assert (not (Ui_state.view_visible ui Tile.review_id));
   let ui = open_tile ui |> Fn.flip expect [] in
   assert (String.equal "silver-kickoff-review" (focus ui));
+  assert (has ui "Silver: Flow Review");
   let ui = run ui "Kp" |> Fn.flip expect [] in
   assert (has ui "Kickoff disabled");
   let ui = run ui "<CR>" in
@@ -81,10 +82,10 @@ let%test_unit "open, edit/cancel, apply, prepare, and kickoff are distinct actio
   assert (String.equal "silver-kickoff-review" (focus ui))
 ;;
 
-let%test_unit "no kickoff adapter contributes no command or edit interception" =
+let%test_unit "without an adapter only the exact Runner alias is offered" =
   let ui = Helpers.ui "UNCHANGED\n" in
   let palette = run ui " ccSilver flow kickoff" in
-  assert (not (has palette "Focus Silver flow kickoff"));
+  assert (not (has palette "Silver: Flow Runner" || has palette "Silver: Flow Review"));
   let ui = run palette "<Esc>iX<Esc>" in
   let text =
     Cobalt_app.Controller.editor (Ui_state.controller ui)
@@ -100,9 +101,9 @@ let%test_unit "the selected named flow is captured rather than the first row" =
 ;;
 
 let%test_unit "the ordinary selector fits beside the editor and movement alone selects" =
-  let ui = run (create choosing) " ccFocus Silver flow kickoff<CR>" in
+  let ui = run (create choosing) " ccSilver: Flow Runner<CR>" in
   assert (String.equal "silver-kickoff" (focus ui));
-  assert (has ui "UNCHANGED" && has ui "› Fast · active");
+  assert (has ui "Silver: Flow Runner" && has ui "UNCHANGED" && has ui "› Fast · active");
   assert (not (has ui "Kickoff disabled" || has ui "Flow inputs"));
   let _, opened = Tile.take_intents (state ui) in
   assert (List.is_empty opened);
@@ -114,7 +115,7 @@ let%test_unit "the ordinary selector fits beside the editor and movement alone s
   let ui = Ui_state.map_view ui Tile.key ~f:(fun tile ->
     Tile.with_presentation tile { choosing with selected = Some "slow"; active = Some "slow" }) in
   assert (has ui "› Slow · active");
-  let ui = run ui " ccToggle Silver flow kickoff<CR>" in
+  let ui = run ui " ccToggle Silver: Flow Runner<CR>" in
   assert (not (Ui_state.view_visible ui Tile.id));
   assert (String.equal "document" (focus ui));
   assert (has (run ui "iX<Esc>") "XUNCHANGED")
@@ -122,7 +123,7 @@ let%test_unit "the ordinary selector fits beside the editor and movement alone s
 
 let%test_unit "hide and reopen retains status without moving editor focus on late feedback" =
   let ui = open_tile (create choosing) in
-  let ui = run ui " ccToggle Silver flow kickoff review<CR>" in
+  let ui = run ui " ccToggle Silver: Flow Review<CR>" in
   assert (not (Ui_state.view_visible ui Tile.review_id));
   let focus_before = focus ui in
   let ui = present ui { choosing with details = [ "Accepted: flow-run-9" ] } in
@@ -130,6 +131,49 @@ let%test_unit "hide and reopen retains status without moving editor focus on lat
   let ui = open_tile ui |> Fn.flip expect [] in
   assert (has ui "Accepted: flow-run-9");
   assert (String.equal "silver-kickoff-review" (focus ui))
+;;
+
+let%test_unit "exact flow is pinned and idempotent without changing the active choice" =
+  let assert_focused ui =
+    assert (String.equal "silver-kickoff" (focus ui));
+    assert (has ui "› Slow · active");
+    assert (List.is_empty (snd (Tile.take_intents (state ui))));
+    assert (List.is_empty (snd (Tile.take_intents (review_state ui))));
+    assert (List.is_empty (snd (Ui_state.take_host_command_requests ui)))
+  in
+  let ui = create { choosing with selected = Some "slow"; active = Some "slow" } in
+  let ui = Ui_state.with_host_commands ui [ { id = "other"; title = "flow"; aliases = [] } ] in
+  let ui = run ui " ccflow" in
+  let palette = Ui_state.palette ui |> Option.value_exn |> Palette_tile.palette in
+  let module P = Cobalt_palette.Palette in
+  let module C = Cobalt_palette.Catalog in
+  let id = C.Id.of_string Tile.open_command_id in
+  assert (C.Id.equal id (C.Entry.id (List.hd_exn (P.results palette)).item));
+  assert (Option.equal C.Id.equal (P.selected palette) (Some id));
+  let ui = run ui "<Tab><CR>" in
+  assert (not (Ui_state.view_visible ui Tile.review_id));
+  assert_focused ui;
+  let ui = run ui " ccflow<CR>" in
+  assert_focused ui;
+  let ui = run ui " cchide<CR> vz" in
+  assert (Ui_state.zen ui && not (Ui_state.view_visible ui Tile.id));
+  let ui = run ui " ccflow<CR>" in
+  assert (not (Ui_state.zen ui));
+  assert_focused ui;
+  let ui = open_tile ui in
+  let ui = run ui " ccflow<CR>" in
+  assert_focused ui
+;;
+
+let%test_unit "old command searches still open and toggle their corresponding tiles" =
+  let ui = run (create choosing) " ccFocus Silver flow kickoff<CR>" in
+  assert (String.equal "silver-kickoff" (focus ui));
+  let ui = run ui " ccToggle Silver flow kickoff<CR>" in
+  assert (not (Ui_state.view_visible ui Tile.id));
+  let ui = run ui " ccReview Silver flow kickoff<CR>" in
+  assert (String.equal "silver-kickoff-review" (focus ui));
+  let ui = run ui " ccToggle Silver flow kickoff review<CR>" in
+  assert (not (Ui_state.view_visible ui Tile.review_id))
 ;;
 
 let%test_unit "a form with an asynchronous catalog change keeps its original capture" =

@@ -480,7 +480,7 @@ module Testing = struct
   let project_id project = project.project_id
   let supports project capability = List.mem project.capabilities capability ~equal:String.equal
 
-  let send ?deadline connection request =
+  let send ?deadline ?stop:abandon connection request =
     let timeout =
       match deadline with
       | None -> connection.timeout
@@ -489,6 +489,8 @@ module Testing = struct
     in
     if Ivar.is_full connection.closed
     then return (Error "Silver project connection closed")
+    else if Option.exists abandon ~f:Deferred.is_determined
+    then return (Error "Silver request abandoned")
     else if Time_ns.Span.(timeout <= zero)
     then return (Error "Silver catalog discovery timed out")
     else (
@@ -500,12 +502,15 @@ module Testing = struct
       let%map response =
         Clock_ns.with_timeout timeout
           (Deferred.choose
-             [ Deferred.choice (Ivar.read connection.closed)
-                 (fun () -> Error "Silver project connection closed")
+             ([ Deferred.choice (Ivar.read connection.closed)
+                  (fun () -> Error "Silver project connection closed")
              ; Deferred.choice peer (function
                  | Ok (Ok response) -> Ok response
                  | Ok (Error _) | Error _ -> Error "Silver transport failed")
-             ])
+              ]
+              @ Option.to_list
+                  (Option.map abandon ~f:(fun stop ->
+                     Deferred.choice stop (fun () -> Error "Silver request abandoned")))))
       in
       Ivar.fill_if_empty stop ();
       match response with
@@ -526,13 +531,21 @@ module Testing = struct
       Error (sprintf "Silver HTTP %d%s" status reason)
   ;;
 
-  let send_bound project ~path operation =
-    send project.connection
-      (Wire.post ~path
+  let send_bound ?(asic_observation_metadata = false) ?stop project ~path operation =
+    let request =
+      Wire.post ~path
          [ "instance_id", Wire.atom project.instance_id
          ; "project", Wire.atom project.project_id
          ; "operation", operation
-         ])
+         ]
+    in
+    let headers =
+      if asic_observation_metadata && String.equal path "/api/v1/asic"
+      then request.headers @
+           [ "X-Workbench-Execution-Timing", "1"; "X-Workbench-Asic-Timing-Analysis", "2" ]
+      else request.headers
+    in
+    send ?stop project.connection { request with headers }
   ;;
 
   let verify ?(peer = http_peer) ?(timeout = Time_ns.Span.of_int_sec 5)

@@ -370,9 +370,12 @@ type t
 (** Raises on duplicate ids. *)
 val create : Entry.t list -> t
 
-(** Set startup placements in the supplied order, followed by unlisted entries
-    (hidden). Keeps each adapter's normal reopening placement. Only for initial
-    assembly, before focus, questions, or jobs. *)
+(** Replace placements in the supplied order, followed by unlisted entries
+    (hidden). Keeps adapter state and each adapter's normal reopening placement.
+    The caller reconciles focus and any palette/tab state. *)
+val with_placements : t -> (View_id.t * Placement.t) list -> t
+
+(** Alias for startup assembly. *)
 val with_initial_placements : t -> (View_id.t * Placement.t) list -> t
 
 (** Installed views' specs, for {!Cobalt_tile.Host.create}. *)

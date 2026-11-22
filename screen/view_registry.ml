@@ -250,7 +250,7 @@ let create entries =
   | None -> entries
 ;;
 
-let with_initial_placements t placements =
+let with_placements t placements =
   let placement entry placement =
     match entry with
     | Entry.Installed entry -> Entry.Installed { entry with placement }
@@ -265,6 +265,8 @@ let with_initial_placements t placements =
     else Some (placement entry Placement.Hidden)) in
   selected @ rest
 ;;
+
+let with_initial_placements = with_placements
 
 let installed_entries t =
   List.filter t ~f:(function

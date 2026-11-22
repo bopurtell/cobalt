@@ -218,8 +218,14 @@ uses advertised fresh stage endpoints and Silver's `Stage_fresh` /
 `Launch_fresh` operations. The [terminal test](../../bin/test_silver_stage_cli.py)
 exercises the checklist and exact aliases against an offline peer.
 
-**WB-095-companion-flow-launch.** A checklist renders the connected project's
-launchable stages and disabled reasons, not invented run evidence. Focused `R`
+**Owner testing — run progress.** The checklist should show the stage name
+once, Silver's observed execution status, and the flow/variant context. Follow
+the latest applicable ASIC run unless a run is selected. Use muted styling
+when no run or stage evidence is available; don't infer completion from the
+requested endpoint. A stage's observed outcome and whether a fresh launch
+through it is allowed are independent.
+
+**WB-095-companion-flow-launch.** Focused `R`
 launches the active flow through the selected stage, including a supported
 fresh endpoint before any prior run. Preserve applicable flow/profile settings
 and explicit assignments, or use the target's declared defaults if no

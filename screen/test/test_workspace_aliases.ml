@@ -37,7 +37,7 @@ let%test_unit "ed restores editors behind a generically hidden kickoff tab, pres
     let survivor = focused_buffer ui in
     let ui = command ui "hide" in
     assert (List.is_empty (editors ui));
-    let ui = run ui " ccReview Silver flow kickoff<CR>" in
+    let ui = command ui "Silver: Flow Review" in
     assert (String.equal (focus ui) "silver-kickoff-review");
     assert (Option.equal View_registry.Placement.equal
       (View_registry.placement (Ui_state.views ui) Silver_kickoff_tile.review_id) (Some Tab));
@@ -80,7 +80,8 @@ let%test_unit "ed restores a file from a major directory and focuses it from a m
 let%test_unit "ov and st are pinned destinations from other tiles, and never launch" =
   let snapshot = Silver_stage_tile.Snapshot.unavailable "Fixture has no stages" in
   let ui = Ui_state.create
-      ~views:[ Silver_overview_tile.entry [ "OVERVIEW_MARKER" ]; Silver_stage_tile.entry snapshot ]
+      ~views:[ Silver_overview_tile.entry [ Silver_overview_tile.Display_row.message "OVERVIEW_MARKER" ]
+             ; Silver_stage_tile.entry snapshot ]
       (Ui_state.controller (Helpers.ui "FILE_MARKER"))
     |> Fn.flip Ui_state.with_silver_stage snapshot in
   let ui = command ui "OV" in
@@ -106,8 +107,9 @@ let%test_unit "unavailable Silver destinations do not fall through to matching h
   let ui = Helpers.ui "FILE_MARKER" in
   let ui = Ui_state.with_host_commands ui
       [ { id = "competing-ov"; title = "ov"; aliases = [] }
-      ; { id = "competing-st"; title = "st"; aliases = [] }
-      ] in
+       ; { id = "competing-st"; title = "st"; aliases = [] }
+       ; { id = "competing-flow"; title = "Flow provider"; aliases = [ "flow" ] }
+       ] in
   let ui = run ui " ccov" in
   assert_first ui "silver-overview.focus";
   let ui = run ui "<Tab><CR>" in
@@ -116,6 +118,15 @@ let%test_unit "unavailable Silver destinations do not fall through to matching h
   assert_first ui "silver.stage.open";
   let ui = run ui "<Tab><CR>" in
   assert (shown ui "nothing ran");
+  let ui = run ui " cc FLOW " in
+  assert_first ui "silver-kickoff.focus";
+  assert (shown ui "Silver: Flow Runner");
+  let ui = run ui "<Tab>" in
+  assert_first ui "silver-kickoff.focus";
+  let ui = run ui "<S-Tab>" in
+  assert_first ui "silver-kickoff.focus";
+  let ui = run ui "<CR>" in
+  assert (shown ui "Silver: Flow Runner is unavailable here; nothing ran");
   assert (String.equal (focus ui) "document");
   assert (List.is_empty (snd (Ui_state.take_host_command_requests ui)))
 ;;

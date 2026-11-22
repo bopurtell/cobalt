@@ -60,6 +60,13 @@ let run ~root ~enabled =
     Buffer.contents buffer
   in
   let contains substring = String.is_substring (render ()) ~substring in
+  let contains_host_overview () =
+    String.split_lines (render ())
+    |> List.exists ~f:(fun row ->
+      String.is_substring row ~substring:"Silver: Overview"
+      && not (String.is_substring row ~substring:"Focus Silver: Overview")
+      && not (String.is_substring row ~substring:"Toggle Silver: Overview"))
+  in
   let send_event = Bonsai_term_test.send_event handle in
   let send key = send_event (Key_press { key; mods = [] }) in
   let type_ = String.iter ~f:(fun c -> send (ASCII c)) in
@@ -85,7 +92,7 @@ let run ~root ~enabled =
     Bonsai_term_test.do_actions handle [ `Open ];
     let%map () = wait_for "document open" (fun () -> display (); !opened) in
     open_palette "ov";
-    assert (Bool.equal enabled (contains "Silver: Overview"));
+     assert (Bool.equal enabled (contains_host_overview ()));
     send Escape;
     if enabled then (
       (* In Insert the leader is literal, in Visual c retains its existing
@@ -101,7 +108,7 @@ let run ~root ~enabled =
       type_ " ccov";
       send_event (Paste `End);
       expect_calls [];
-      assert (not (contains "Silver: Overview"));
+       assert (not (contains_host_overview ()));
       type_ "iMARK";
       send Escape;
       open_palette "w";
@@ -134,10 +141,10 @@ let run ~root ~enabled =
       Bonsai.Expert.Var.set commands [];
       display ();
       send Enter;
-      assert (not (contains "Silver: Overview"));
+       assert (not (contains_host_overview ()));
       expect_calls [ "overview"; "workspace.save" ];
       open_palette "ov";
-      assert (not (contains "Silver: Overview"));
+       assert (not (contains_host_overview ()));
       send Escape;
       (* An unrelated exact title cannot claim the reserved navigation query.
          A real host declaration can, even with an opaque, generated ID. *)

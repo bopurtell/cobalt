@@ -2,6 +2,7 @@
     rows, captured test selections and opaque share IDs, never Silver protocol
     values. *)
 
+module Display_row = Cobalt_screen.Silver_overview_tile.Display_row
 module Field = Cobalt_screen.Silver_overview_tile.Field
 module Target = Cobalt_screen.Silver_overview_tile.Target
 module Test_action = Cobalt_screen.Silver_overview_tile.Test_action
@@ -15,7 +16,7 @@ type binding =
   }
 
 type t =
-  { rows : unit -> string list
+  { rows : unit -> Display_row.t list
   ; connection_status : unit -> Cobalt_screen.Status_field.Silver.t
     (** Cached verified binding and latest connection attempt; no I/O. *)
   ; targets : unit -> Target.t list
@@ -25,6 +26,8 @@ type t =
   ; launch : Target.t -> (string, string) result Async.Deferred.t
   ; stages : unit -> Stage.Snapshot.t
   ; launch_stage : Stage.Intent.t -> (string, string) result Async.Deferred.t
+  ; set_stage_visible : bool -> unit
+  ; watch_stage : Stage.Watch.t -> (unit, string) result
   ; connections : generation:int -> Connection.lookup Async.Deferred.t
   ; connect : Connection.selection -> (string, string) result option Async.Deferred.t
   ; show : unit -> unit
@@ -38,6 +41,8 @@ type t =
 (** [rows], [connection_status], [targets], [test_action], [stages], and
     [revision] are synchronous cached reads. [launch_stage] is the single revalidating stage dispatch for
     both the checklist and the three exact aliases.
+    [set_stage_visible] controls local ASIC polling, not the test attempt
+    observer. [watch_stage] changes or refreshes observation only.
     [apply_settings] atomically updates session settings without running a test.
     [launch] is the single dispatch for both tile and palette. Both must validate
     the captured digest against the current binding and catalog. Launch results
@@ -54,5 +59,7 @@ val stage_entry : t option -> Cobalt_screen.View_registry.Entry.t
 val synchronize : Cobalt_screen.Ui_state.t -> t -> Cobalt_screen.Ui_state.t
 val take_stage_intents
   : Cobalt_screen.Ui_state.t -> Cobalt_screen.Ui_state.t * Stage.Intent.t list
+val take_stage_watches
+  : Cobalt_screen.Ui_state.t -> Cobalt_screen.Ui_state.t * Stage.Watch.t list
 val take_intents : Cobalt_screen.Ui_state.t
   -> Cobalt_screen.Ui_state.t * Cobalt_screen.Silver_overview_tile.Intent.t list

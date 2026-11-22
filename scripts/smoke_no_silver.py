@@ -47,7 +47,7 @@ def exercise(binary, scratch):
         with editor(binary, document, env, []) as ui:
             ui.see(original.rstrip())
             ui.keys(b" vS")
-            ui.see(b"Silver overview unavailable")
+            ui.see(b"Silver: Overview unavailable")
             ui.keys(b"iX\x1b")
             # Escape is terminal-protocol ambiguous; let its timer flush.
             time.sleep(.2)

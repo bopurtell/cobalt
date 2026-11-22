@@ -407,17 +407,18 @@ let%expect_test "tile hotkey hints default off and toggle from document and mino
     focused list/details toggle; counts, Visual, prefixes and notices preserved
     |}]
 
-let%expect_test "startup shows all installed tiles, keeps editor focus and hides key hints" =
+let%expect_test "startup shows Problems and the optional report, keeps editor focus and hides key hints" =
   let width = 160 and height = 30 in
   let controller = Ui_state.controller (Helpers.ui "startup") in
   let t = Ui_state.create ~report:Report_tile.demo controller in
   let workspace = Ui_state.workspace t ~width ~height in
   assert (Option.is_some workspace.status);
-  List.iter [ Problems_tile.id; Report_tile.id; History_tile.id ] ~f:(fun id ->
+  List.iter [ Problems_tile.id; Report_tile.id ] ~f:(fun id ->
     assert (Option.is_some (Workspace.minor workspace id)));
+  assert (Option.is_none (Workspace.minor workspace History_tile.id));
   assert (String.equal (focused ~width ~height t) "document");
   assert (not (Ui_state.hotkey_hints t));
-  let t = run ~width ~height t " vb vd vm vt" in
+  let t = run ~width ~height t " vb vd vt" in
   assert (not (Ui_state.problems_visible t));
   assert (not (Ui_state.report_visible t));
   assert (not (Ui_state.history_visible t));
@@ -431,6 +432,7 @@ let%expect_test "startup shows all installed tiles, keeps editor focus and hides
   let small = Ui_state.workspace t ~width:15 ~height:4 in
   assert (Option.is_none small.status && List.is_empty small.minors);
   let restored = Ui_state.workspace t ~width ~height in
-  assert (Option.is_some restored.status && List.length restored.minors = 2);
-  print_endline "all installed tiles shown; editor focused; hints hidden; toggles and resize preserved";
-  [%expect {| all installed tiles shown; editor focused; hints hidden; toggles and resize preserved |}]
+  assert (Option.is_some restored.status && List.length restored.minors = 1);
+  assert (Option.is_some (Workspace.minor restored Problems_tile.id));
+  print_endline "History hidden; editor focused; hints hidden; toggles and resize preserved";
+  [%expect {| History hidden; editor focused; hints hidden; toggles and resize preserved |}]

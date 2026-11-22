@@ -200,9 +200,12 @@ def compare_windows(args, terminal_class, evidence, env, silver, project, status
         "--silver-project", str(project), "--silver-run", status["id"],
         str(project / "fixture.txt"),
     ], width=300)
-    cobalt_status = ["Silver overview", "Status: Fresh", "Attempt: " + status["id"],
-                     "Lifecycle: " + status["lifecycle"], "Outcome: " + status["outcome"],
-                     "Suite: " + status["suite"]]
+    def field(key, value):
+        return re.compile(re.escape(key) + r": +" + re.escape(value))
+
+    cobalt_status = ["Silver: Overview", field("Status", "Fresh"), field("Attempt", status["id"]),
+                     field("Lifecycle", status["lifecycle"]), field("Outcome", status["outcome"]),
+                     field("Suite", status["suite"])]
     cobalt.capture("attempt", cobalt_status)
     testing.capture("while-cobalt-open", testing_status)
 
@@ -224,8 +227,8 @@ def compare_windows(args, terminal_class, evidence, env, silver, project, status
     for key in (b" ", b"v", b"S"):
         os.write(cobalt.master, key)
         cobalt.drain(0.12)
-    cobalt.capture("tile-closed", ["c5 fixture editor", "Silver overview hidden"],
-                   absent=["╭─ Silver overview", "Status: Fresh"])
+    cobalt.capture("tile-closed", ["c5 fixture editor", "Silver: Overview hidden"],
+                   absent=["╭─ Silver: Overview", field("Status", "Fresh")])
     testing.capture("while-cobalt-tile-closed", testing_status)
 
     for key in (b" ", b"v", b"S"):

@@ -1,6 +1,7 @@
 open! Core
 open Cobalt_screen
 module Tile = Silver_overview_tile
+module Display_row = Tile.Display_row
 module Field = Tile.Field
 module Target = Tile.Target
 module Test_action = Tile.Test_action
@@ -14,7 +15,7 @@ type binding =
   }
 
 type t =
-  { rows : unit -> string list
+  { rows : unit -> Display_row.t list
   ; connection_status : unit -> Status_field.Silver.t
   ; targets : unit -> Target.t list
   ; status_first : unit -> bool
@@ -23,6 +24,8 @@ type t =
   ; launch : Target.t -> (string, string) result Async.Deferred.t
   ; stages : unit -> Stage.Snapshot.t
   ; launch_stage : Stage.Intent.t -> (string, string) result Async.Deferred.t
+  ; set_stage_visible : bool -> unit
+  ; watch_stage : Stage.Watch.t -> (unit, string) result
   ; connections : generation:int -> Connection.lookup Async.Deferred.t
   ; connect : Connection.selection -> (string, string) result option Async.Deferred.t
   ; show : unit -> unit
@@ -40,7 +43,7 @@ let entry = function
   | Some t -> Tile.entry ~targets:(t.targets ()) ~status_first:(t.status_first ()) (t.rows ())
   | None ->
     View_registry.Entry.unavailable Tile.id ~title:Tile.title
-      ~notice:"Silver overview unavailable; use an adapter-enabled build"
+      ~notice:(Silver_overview_tile.title ^ " unavailable; use an adapter-enabled build")
 ;;
 
 let stage_entry = function
@@ -69,6 +72,15 @@ let take_stage_intents ui =
     let tile, intents = Stage.take_intents tile in
     if List.is_empty intents then ui, []
     else Ui_state.map_view ui Stage.key ~f:(fun _ -> tile), intents
+;;
+
+let take_stage_watches ui =
+  match View_registry.find (Ui_state.views ui) Stage.key with
+  | None -> ui, []
+  | Some tile ->
+    let tile, watches = Stage.take_watches tile in
+    if List.is_empty watches then ui, []
+    else Ui_state.map_view ui Stage.key ~f:(fun _ -> tile), watches
 ;;
 
 let take_intents ui =

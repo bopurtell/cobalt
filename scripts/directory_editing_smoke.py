@@ -44,7 +44,7 @@ def main():
     try:
         pump(1)
         assert b"@cobalt[" not in capture
-        send(b" vt vb")  # Leave history wide enough for actionable feedback.
+        send(b" vt vb vm")  # Show History at full width for actionable feedback.
         send(b" mmA.renamed\x1b")
         assert b"@cobalt[" not in capture  # Active/edited rows never reveal IDs.
         send(b"0iPREFIX")

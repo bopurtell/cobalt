@@ -117,7 +117,7 @@ type open_location_listener =
   -> on_request:(Open_location.request -> (unit, Open_location.failure) Result.t Async.Deferred.t)
   -> (unit -> unit Async.Deferred.t) Async.Deferred.Or_error.t
 
-let component ?layout ?terminal ?snippets ?configuration ?startup_configuration ?configuration_path ?document_decorations ?document_decoration_host ?(document_decorations_enabled = false) ?(smear_enabled = false) ?mouse ?(zen = false) ?bare ?theme ?appearance ?buffer_presentation ?report ?(silver_overview : Silver_overview_host.t option) ?source ?vcs ?font ?file_picker ?content_picker ?on_toggle_terminal ?host_commands ?on_host_command ?on_open_location_ready ?(hosted_silver_navigation = false) ~set_clipboard controller ~exit ~blank_on_close ~dimensions ~visible ~focused (local_ graph)
+let component ?layout ?terminal ?snippets ?configuration ?startup_configuration ?configuration_path ?document_decorations ?document_decoration_host ?(document_decorations_enabled = false) ?(smear_enabled = false) ?mouse ?(zen = false) ?bare ?theme ?appearance ?buffer_presentation ?report ?(silver_overview : Silver_overview_host.t option) ?source ?vcs ?font ?file_picker ?content_picker ?on_toggle_terminal ?host_commands ?on_host_command ?on_open_location_ready ?(hosted_silver_navigation = false) ?(standalone_layouts = false) ~set_clipboard controller ~exit ~blank_on_close ~dimensions ~visible ~focused (local_ graph)
   =
   let dimensions = let%arr { Dimensions.width; height } = dimensions in
     { Dimensions.width = Int.max 0 width; height = Int.max 0 height } in
@@ -154,7 +154,8 @@ let component ?layout ?terminal ?snippets ?configuration ?startup_configuration 
     | Some host, None -> host.Content_picker_host.initial_ui
     | None, Some host -> host.File_picker_host.initial_ui
     | None, None ->
-      let ui = Ui_state.create ?layout ~smear_enabled ?bare ?theme ?buffer_presentation ?report
+       let ui = Ui_state.create ?layout ~standalone_layouts
+         ~smear_enabled ?bare ?theme ?buffer_presentation ?report
         ~source_attached:(Option.is_some source)
         ~views:
            [ Silver_overview_host.entry silver_overview
@@ -277,6 +278,7 @@ let component ?layout ?terminal ?snippets ?configuration ?startup_configuration 
   let stopping = Async.Ivar.create () in
   let finished = Async.Ivar.create () in
   let silver_open = ref false in
+  let silver_stage_open = ref false in
   let stopped () = Async.Ivar.is_full stopping in
   let stop () =
     if not (stopped ()) then (
@@ -438,11 +440,24 @@ let component ?layout ?terminal ?snippets ?configuration ?startup_configuration 
                let shown =
                  not (Ui_state.exited model) && Ui_state.view_visible model Silver_overview_tile.id
                in
-               let changed = not (Bool.equal shown !silver_open) in
-               silver_open := shown;
-               if changed then (if shown then host.show () else host.hide ());
+                let changed = not (Bool.equal shown !silver_open) in
+                silver_open := shown;
+                 if changed then (if shown then host.show () else host.hide ());
+                 let stage_visible =
+                   not (Ui_state.exited model)
+                   && Ui_state.view_available model ~width ~height Silver_stage_tile.id
+                in
+                let stage_changed = not (Bool.equal stage_visible !silver_stage_open) in
+                silver_stage_open := stage_visible;
+                if stage_changed then host.set_stage_visible stage_visible;
                 let model, intents = Silver_overview_host.take_intents model in
-                let model, stage_intents = Silver_overview_host.take_stage_intents model in
+                 let model, stage_intents = Silver_overview_host.take_stage_intents model in
+                 let model, stage_watches = Silver_overview_host.take_stage_watches model in
+                 let model = List.fold stage_watches ~init:model ~f:(fun model watch ->
+                   match host.watch_stage watch with
+                   | Ok () -> model
+                   | Error reason -> Ui_state.with_notice ~source:"Silver" model reason)
+                 in
                 List.iter stage_intents ~f:(fun intent ->
                   let result = host.launch_stage intent in
                   Bonsai.Apply_action_context.schedule_event context
@@ -490,7 +505,8 @@ let component ?layout ?terminal ?snippets ?configuration ?startup_configuration 
                   Option.value_map host.kickoff ~default:model
                      ~f:(Silver_kickoff_host.dispatch model ~stages:host.stages)
                 in
-                if changed || not (List.is_empty intents) || not (List.is_empty stage_intents)
+                 if changed || stage_changed || not (List.is_empty intents)
+                    || not (List.is_empty stage_intents) || not (List.is_empty stage_watches)
                then Silver_overview_host.synchronize model host
                else model
            in
@@ -818,10 +834,25 @@ let component ?layout ?terminal ?snippets ?configuration ?startup_configuration 
          graph;
        Bonsai.return ()
    in
-    let surface =
+     let stage_spinner_visible =
+       (let%arr model and visible and { Dimensions.width; height } = dimensions in
+        visible && Ui_state.silver_stage_spinner_visible model ~width ~height)
+       |> Bonsai.cutoff ~equal:Bool.equal
+     in
+     (* This clock exists only while a spinner can be seen. It feeds rendering,
+        not the input/action path, so it cannot trigger any provider work. *)
+     let stage_spinner =
+       match%sub stage_spinner_visible with
+       | false -> Bonsai.return None
+       | true ->
+         let now = Bonsai.Clock.approx_now ~tick_every:Silver_stage_tile.Spinner.period graph in
+         (let%arr now in Some (Silver_stage_tile.Spinner.at now))
+         |> Bonsai.cutoff ~equal:(Option.equal Silver_stage_tile.Spinner.equal)
+     in
+     let surface =
       let%arr model
       and { Dimensions.width; height } = dimensions
-      and appearance
+       and appearance and stage_spinner
       and visible and focused in
      if (blank_on_close && Ui_state.exited model) || not visible || width = 0 || height = 0
      then View.none, None
@@ -832,7 +863,8 @@ let component ?layout ?terminal ?snippets ?configuration ?startup_configuration 
          Frame.Cache.invalidate render_cache;
          last_drawn_theme := Some theme);
        let frame, base =
-         Frame.Cache.get ?decorations:(Document_decoration_host.decorations ~width ~height document_decorations model)
+          Frame.Cache.get ?stage_spinner
+            ?decorations:(Document_decoration_host.decorations ~width ~height document_decorations model)
            render_cache model ~width ~height ~draw_base:(draw_base ~theme ?font)
        in
        let view = if focused then draw_overlay ~theme ?font ~base frame else base in
@@ -892,7 +924,8 @@ let app_with_terminal ~terminal ?snippets ?configuration ?startup_configuration 
   let surface = component ~terminal ?snippets ?configuration ?startup_configuration ?configuration_path
       ?document_decorations ?document_decoration_host ?document_decorations_enabled ?smear_enabled
       ?mouse ?zen ?bare ?theme ?buffer_presentation ?report ?source ?vcs ?font ?file_picker ?content_picker
-      ?silver_overview ?on_open_location_ready ~set_clipboard controller ~exit ~blank_on_close:false ~dimensions ~visible:(Bonsai.return true)
+       ?silver_overview ?on_open_location_ready ~standalone_layouts:true
+       ~set_clipboard controller ~exit ~blank_on_close:false ~dimensions ~visible:(Bonsai.return true)
       ~focused:(Bonsai.return true) graph in
   let set_cursor = Effect.set_cursor graph in
   Bonsai.Edge.after_display (let%arr surface and set_cursor in set_cursor surface.cursor) graph;

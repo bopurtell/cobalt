@@ -1,5 +1,5 @@
-(* Test-only executable. Verification still uses the normal explicit Silver
-   binding; only the companion launch service is replaced. *)
+(* Test-only executable. Project verification and ASIC observation still use
+   the normal Silver transport; only the companion launch service is replaced. *)
 open! Core
 open Async
 module Flow = Silver_flow
@@ -57,8 +57,10 @@ let fixture project : Flow.service =
           Option.value_map inputs.target ~default:"no-target" ~f:(fun target ->
             target.chip ^ "/" ^ target.variant)
         in
-        let line =
-          String.concat ~sep:" " [ target; inputs.flow; inputs.profile; inputs.endpoint ]
+         let line =
+           String.concat ~sep:" "
+             ([ target; inputs.flow; inputs.profile; inputs.endpoint ]
+              @ List.map inputs.assignments ~f:(fun (key, value) -> key ^ "=" ^ value))
         in
         Writer.with_file ~append:true journal ~f:(fun writer ->
           Writer.write_line writer line;

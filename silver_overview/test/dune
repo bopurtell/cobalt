@@ -33,6 +33,12 @@
  (preprocess (pps ppx_jane)))
 
 (test
+ (name test_stage_observation)
+ (modules test_stage_observation)
+ (libraries cobalt_silver_overview core async)
+ (preprocess (pps ppx_jane)))
+
+(test
  (name test_recorded_flow)
  (modules test_recorded_flow)
  (libraries cobalt_silver_overview core async)

@@ -5,32 +5,52 @@ module Adapter = Silver_overview
 module Testing = Adapter.Testing
 module Quick = Silver_quick_launch
 module Flow = Silver_flow
+module Stage_observation = Silver_stage_observation
+module Stage_watch = Cobalt_screen.Silver_stage_tile.Watch
 module Connection = Silver_connection
 module Tile = Cobalt_screen.Silver_overview_tile
+module Display = Tile.Display_row
 module Connection_status = Cobalt_screen.Status_field.Silver
 
 let attempt_rows ({ id; suite; lifecycle; outcome } : Adapter.attempt) =
-  [ "Lifecycle: " ^ lifecycle
-  ; "Outcome: " ^ Option.value outcome ~default:"Unknown"
-  ; "Suite: " ^ suite
-  ; "Attempt: " ^ id
+  let lifecycle_tone : Display.tone =
+    match lifecycle with
+    | "Queued" | "Running" -> Active
+    | "Finished" -> Positive
+    | "Cancelled" | "Interrupted" -> Caution
+    | _ -> Muted
+  in
+  let outcome_tone : Display.tone =
+    match outcome with
+    | Some "Passed" -> Positive
+    | Some "Failed" -> Negative
+    | Some "Incomplete" -> Caution
+    | None | Some _ -> Muted
+  in
+  [ Display.field ~tone:lifecycle_tone "Lifecycle" lifecycle
+  ; Display.field ~tone:outcome_tone "Outcome" (Option.value outcome ~default:"Unknown")
+  ; Display.field "Suite" suite
+  ; Display.field "Attempt" id
   ]
 ;;
 
+let snapshot_rows (snapshot : Adapter.snapshot) =
+  List.concat_map snapshot.attempts ~f:attempt_rows
+  @ (if snapshot.truncated then [ Display.message "More attempts omitted" ] else [])
+;;
+
 let observation_rows (binding : Host.binding) availability =
-  let status, snapshot, reason =
+  let status, (tone : Display.tone), snapshot, reason =
     match availability with
-    | Adapter.Unavailable reason -> "Unavailable", None, Some reason
-    | Fresh snapshot -> "Fresh", Some snapshot, None
-    | Stale (snapshot, reason) -> "Stale", Some snapshot, Some reason
+    | Adapter.Unavailable reason -> "Unavailable", Muted, None, Some reason
+    | Fresh snapshot -> "Fresh", Positive, Some snapshot, None
+    | Stale (snapshot, reason) -> "Stale", Caution, Some snapshot, Some reason
   in
-  [ "Status: " ^ status; "Project: " ^ binding.project_root ]
-  @ Option.value_map binding.run ~default:[] ~f:(fun run -> [ "Run: " ^ run ])
-  @ Option.value_map snapshot ~default:[] ~f:(fun snapshot ->
-      List.concat_map snapshot.attempts ~f:attempt_rows
-      @ (if snapshot.truncated then [ "More attempts omitted" ] else []))
-  @ [ "Endpoint: " ^ binding.endpoint ]
-  @ Option.value_map reason ~default:[] ~f:(fun reason -> [ reason ])
+  [ Display.field ~tone "Status" status; Display.field "Project" binding.project_root ]
+  @ Option.value_map binding.run ~default:[] ~f:(fun run -> [ Display.field "Run" run ])
+  @ Option.value_map snapshot ~default:[] ~f:snapshot_rows
+  @ [ Display.field "Endpoint" binding.endpoint ]
+  @ Option.value_map reason ~default:[] ~f:(fun reason -> [ Display.message reason ])
 ;;
 
 type connection_attempt = Idle | Connecting | Failed
@@ -42,6 +62,9 @@ type session =
   ; flow : Flow.t
   ; flow_service : Testing.project -> Flow.service
   ; stage_projection : Stage_projection.t
+  ; stage_observation : Stage_observation.t
+  ; mutable stage_scope : Stage_observation.selection option
+  ; mutable stage_pin : (Stage_observation.selection * string) option
   ; mutable pending_flow_projects : Testing.project list
   ; mutable binding : Host.binding option
   ; mutable shown : bool
@@ -55,7 +78,7 @@ type session =
   ; mutable project : Testing.project option
   ; mutable catalog : Testing.catalog option
   ; mutable model : Quick.t
-  ; mutable status : string
+   ; mutable status : string * Display.tone
   ; mutable pending_project : Testing.project option
   ; share_fixture : string option
   ; mutable lookup_request : int
@@ -94,6 +117,69 @@ let model_catalog wire : Quick.catalog =
 
 let current session serial = not session.stopped && session.connection_serial = serial
 
+let current_stage_scope session =
+  Option.map (Stage_projection.active_inputs session.flow) ~f:Stage_projection.scope
+;;
+
+let sync_stage_observation session =
+  let scope = current_stage_scope session in
+  session.stage_scope <- scope;
+  match session.project, scope with
+  | Some project, Some scope ->
+    let subject : Stage_observation.subject =
+      match session.stage_pin with
+      | Some (pinned_scope, id) when Poly.equal pinned_scope scope ->
+        Exact_matching_run (scope, id)
+      | _ ->
+        session.stage_pin <- None;
+        Latest_matching scope
+    in
+    Stage_observation.bind session.stage_observation project subject
+  | _ -> Stage_observation.unbind session.stage_observation
+;;
+
+let watch_stage session (watch : Stage_watch.t) =
+  sync_stage_observation session;
+  let select pin =
+    session.stage_pin <- pin;
+    sync_stage_observation session;
+    touch session;
+    Ok ()
+  in
+  match watch with
+  | Refresh -> Stage_observation.refresh session.stage_observation; Ok ()
+  | Latest -> select None
+  | Older | Newer ->
+    (match session.stage_scope, Stage_observation.latest session.stage_observation with
+     | Some scope, Fresh snapshot ->
+       let ids = snapshot.matching_run_ids in
+       let id = Option.first_some (Option.map session.stage_pin ~f:snd) snapshot.run_id in
+       let index = Option.bind id ~f:(fun id ->
+         List.findi ids ~f:(fun _ item -> String.equal id item) |> Option.map ~f:fst)
+       in
+       let next =
+         match watch, index with
+         | Older, None -> List.hd ids
+         | Older, Some index -> List.nth ids (index + 1)
+         | Newer, Some index when index > 0 -> List.nth ids (index - 1)
+         | Newer, _ | Latest, _ | Refresh, _ -> None
+       in
+       (match next with
+        | Some id -> select (Some (scope, id))
+        | None -> Error (if Poly.equal watch Older then "No older matching ASIC run"
+                         else "No newer matching ASIC run"))
+     | _ -> Error "No current matching ASIC run list")
+;;
+
+let stages session =
+  let pin, observation =
+    if Poly.equal session.stage_scope (current_stage_scope session)
+    then Option.map session.stage_pin ~f:snd, Stage_observation.latest session.stage_observation
+    else None, Stage_observation.Not_available "Silver ASIC selection changed"
+  in
+  Stage_projection.snapshot session.stage_projection session.flow ~observation ~pin
+;;
+
 let invalidate session reason =
   session.catalog <- None;
   session.view_serial <- session.view_serial + 1;
@@ -102,6 +188,9 @@ let invalidate session reason =
 ;;
 
 let stop_project session =
+  Stage_observation.unbind session.stage_observation;
+  session.stage_scope <- None;
+  session.stage_pin <- None;
   Option.iter session.project ~f:(fun project ->
     if not (Option.exists session.pending_project ~f:(phys_equal project))
        && not (List.mem session.pending_flow_projects project ~equal:phys_equal)
@@ -150,7 +239,7 @@ let start_observation session =
 ;;
 
 let discover session serial binding project =
-  session.status <- "Loading Silver test catalog…";
+  session.status <- "Loading Silver test catalog…", Active;
   touch session;
   let on_snapshot =
     Option.some_if session.shared_project (fun snapshot ->
@@ -168,10 +257,10 @@ let discover session serial binding project =
        then session.view_serial <- session.view_serial + 1;
        session.catalog <- Some catalog;
        session.model <- Quick.set_catalog session.model ~project parsed;
-       session.status <- "Silver test catalog ready"
+        session.status <- "Silver test catalog ready", Positive
      | Error reason ->
        invalidate session reason;
-       session.status <- reason);
+        session.status <- reason, Plain);
     touch session)
 ;;
 
@@ -188,7 +277,7 @@ let connect session ~announce ~shared verify =
     match result with
     | Error reason ->
       session.connection_attempt <- Failed;
-      if Option.is_none session.project then session.status <- reason;
+       if Option.is_none session.project then session.status <- reason, Plain;
       touch session;
       return (Some (Error reason))
     | Ok (project, (binding : Host.binding)) ->
@@ -269,14 +358,14 @@ let launch session (launch : Quick.launch) =
 
 let with_catalog session ~f ~unavailable =
   match session.binding with
-  | None -> unavailable session.status
+  | None -> unavailable (fst session.status)
   | Some binding ->
     let project = project_key binding in
     (match Quick.catalog_view session.model ~project with
      | Some view -> f view
      | None ->
        unavailable (Option.value (Quick.catalog_error session.model ~project)
-                      ~default:session.status))
+                       ~default:(fst session.status)))
 ;;
 
 let target_rows view =
@@ -321,7 +410,7 @@ let test_action session : Tile.Test_action.t =
   | _ when Option.is_some session.pending_project ->
     Unavailable "A Silver launch acknowledgement is pending"
   | None -> Unavailable "Connect to a Silver project first"
-  | Some _ when Option.is_none session.project -> Unavailable session.status
+  | Some _ when Option.is_none session.project -> Unavailable (fst session.status)
   | Some binding ->
     let project = project_key binding in
     match Quick.resolve_alias session.model ~project with
@@ -413,29 +502,43 @@ let watch_flow session =
     Flow.await_change session.flow ~after >>= fun () ->
     if session.stopped then return ()
     else (
+      sync_stage_observation session;
       touch session;
       loop (Flow.revision session.flow))
   in
   don't_wait_for (loop (Flow.revision session.flow))
 ;;
 
+let watch_stage_observation session =
+  let rec loop after =
+    Stage_observation.await_change session.stage_observation ~after >>= fun () ->
+    if session.stopped then return ()
+    else (
+      touch session;
+      loop (Stage_observation.revision session.stage_observation))
+  in
+  don't_wait_for (loop (Stage_observation.revision session.stage_observation))
+;;
+
 let rows session =
-  (match session.connection_attempt with Connecting -> [ "Connecting to Silver…" ] | _ -> []) @
+  let status, tone = session.status in
+  let message = Display.message ~tone status in
+  (match session.connection_attempt with
+   | Connecting -> [ Display.message ~tone:Active "Connecting to Silver…" ]
+   | Idle | Failed -> []) @
   match session.binding with
-  | None -> [ session.status ]
+  | None -> [ message ]
   | Some ({ run = Some _; _ } as binding) ->
     observation_rows binding (Adapter.latest session.observation)
   | Some binding ->
-    [ session.status; "Project: " ^ binding.project_root; "Endpoint: " ^ binding.endpoint ]
+    [ message; Display.field "Project" binding.project_root; Display.field "Endpoint" binding.endpoint ]
     @ (match session.shared_project, session.project with
        | true, Some project ->
-         [ "Project ID: " ^ Testing.project_id project
-         ; "Instance: " ^ Testing.instance_id project
+          [ Display.field "Project ID" (Testing.project_id project)
+          ; Display.field "Instance" (Testing.instance_id project)
          ]
         | _ -> [])
-    @ Option.value_map session.shared_snapshot ~default:[] ~f:(fun snapshot ->
-        List.concat_map snapshot.attempts ~f:attempt_rows
-        @ (if snapshot.truncated then [ "More attempts omitted" ] else []))
+    @ Option.value_map session.shared_snapshot ~default:[] ~f:snapshot_rows
 ;;
 
 let connection_status session : Connection_status.t =
@@ -522,6 +625,9 @@ let factory_with_flow_service flow_service : Host.factory =
       ; flow = Flow.create ()
       ; flow_service
       ; stage_projection = Stage_projection.create ()
+      ; stage_observation = Stage_observation.create ()
+      ; stage_scope = None
+      ; stage_pin = None
       ; pending_flow_projects = []
       ; binding
       ; shown = false
@@ -535,7 +641,7 @@ let factory_with_flow_service flow_service : Host.factory =
       ; project = None
       ; catalog = None
       ; model
-      ; status = "Connect to a Silver project first"
+       ; status = "Connect to a Silver project first", Plain
       ; pending_project = None
       ; share_fixture =
           Option.filter (Sys.getenv "COBALT_SILVER_SHARE_FIXTURE") ~f:(Fn.non String.is_empty)
@@ -548,6 +654,7 @@ let factory_with_flow_service flow_service : Host.factory =
     in
     watch_observation session;
     watch_flow session;
+    watch_stage_observation session;
     Option.iter binding ~f:(fun binding ->
       don't_wait_for (connect_explicit session binding ~announce:false >>| ignore));
     let show () =
@@ -565,6 +672,7 @@ let factory_with_flow_service flow_service : Host.factory =
         List.iter session.pending_flow_projects ~f:Testing.close;
         Option.iter session.pending_project ~f:Testing.close;
         stop_project session;
+        Stage_observation.shutdown session.stage_observation;
         Adapter.shutdown session.observation;
         touch session)
     in
@@ -576,8 +684,10 @@ let factory_with_flow_service flow_service : Host.factory =
     ; test_action = (fun () -> test_action session)
     ; apply_settings = apply_settings session
     ; launch = run_row session
-    ; stages = (fun () -> Stage_projection.snapshot session.stage_projection session.flow)
+    ; stages = (fun () -> stages session)
     ; launch_stage = Stage_projection.launch session.stage_projection session.flow
+    ; set_stage_visible = Stage_observation.set_visible session.stage_observation
+    ; watch_stage = watch_stage session
     ; connections = connections session
     ; connect = connect_selected session
     ; show

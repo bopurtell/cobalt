@@ -22,7 +22,7 @@ let handle ?theme ?zen ?bare ?(width = 40) ?(height = 6) ?(document_only = true)
      Select their document-only fixture explicitly, rather than snapshotting a
      different layout or changing production defaults to satisfy old expectations. *)
   if document_only then
-    List.iter (String.to_list " vt vb vm0") ~f:(fun key ->
+    List.iter (String.to_list " vt vb0") ~f:(fun key ->
       Bonsai_term_test.send_event handle (Key_press { key = ASCII key; mods = [] }));
   handle
 ;;
@@ -49,6 +49,7 @@ let%expect_test "frontend Zen opt-in, Workspace default, and Bare startup preced
   let workspace_frame = frame workspace in
   assert (String.equal workspace_frame (frame explicit_workspace));
   assert (String.is_substring workspace_frame ~substring:"Problems");
+  assert (not (String.is_substring workspace_frame ~substring:"History:"));
   let zen_frame = frame zen in
   assert (not (String.is_substring zen_frame ~substring:"Problems"));
   assert (String.is_substring zen_frame ~substring:"╭─ f.txt");
@@ -151,7 +152,7 @@ let%expect_test "frontend Tab and terminal Shift-Tab navigate palette, not focus
     |}]
 ;;
 
-let%expect_test "startup shows the installed workspace companions" =
+let%expect_test "startup shows Status and Problems, with History hidden" =
   let handle = handle ~document_only:false "hello\nworld\n" in
   Handle.show handle;
   [%expect {|
@@ -160,9 +161,9 @@ let%expect_test "startup shows the installed workspace companions" =
     │hello            NORMAL                 │
     │world            f.txt                  │
     │                 1:1                    │
-    │╭─ Problems (wor> ╮ ╭─ History: 0 ent> ╮│
-    ││ No active prob> │ │ No history       ││
-    │╰─────────────────╯ ╰──────────────────╯│
+    │╭─ Problems (workspace): 0/0 ──────────╮│
+    ││ No active problems                   ││
+    │╰──────────────────────────────────────╯│
     └────────────────────────────────────────┘
     |}]
 ;;

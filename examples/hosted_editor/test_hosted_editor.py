@@ -34,7 +34,9 @@ SECOND = "other line\n界SECOND_DOCUMENT\n"
 class Screen:
     """The small subset of ANSI used by Notty's line-diff renderer."""
 
-    def __init__(self):
+    def __init__(self, *, track_foreground=False):
+        self.track_foreground = track_foreground
+        self.foreground = None
         self.resize(132, 34)
         self.row = self.col = 0
         self.cursor_visible = False
@@ -45,6 +47,21 @@ class Screen:
     def resize(self, width, height):
         self.width, self.height = width, height
         self.lines = [[" "] * width for _ in range(height)]
+        if self.track_foreground:
+            self.foregrounds = [[None] * width for _ in range(height)]
+
+    def set_graphics(self, params):
+        values = iter(int(value or 0) for value in params.split(";"))
+        for value in values:
+            if value in (0, 39):
+                self.foreground = None
+            elif value in (38, 48):
+                mode = next(values)
+                color = tuple(next(values) for _ in range({2: 3, 5: 1}[mode]))
+                if value == 38:
+                    self.foreground = color
+            elif 30 <= value <= 37 or 90 <= value <= 97:
+                self.foreground = (value,)
 
     def feed(self, chunk):
         data = self.pending + self.decode.decode(chunk)
@@ -62,6 +79,10 @@ class Screen:
                     self.row, self.col = self.row + 1, 0
                 elif command == "K" and 0 <= self.row < self.height:
                     self.lines[self.row][self.col:] = [" "] * max(0, self.width - self.col)
+                    if self.track_foreground:
+                        self.foregrounds[self.row][self.col:] = [self.foreground] * max(0, self.width - self.col)
+                elif command == "m" and self.track_foreground:
+                    self.set_graphics(params)
                 elif params == "?25" and command in ("h", "l"):
                     self.cursor_visible = command == "h"
                 elif params == "?2026" and command in ("h", "l"):
@@ -76,6 +97,8 @@ class Screen:
                 self.row, self.col = self.row + 1, 0
             elif c >= " " and 0 <= self.row < self.height and self.col < self.width:
                 self.lines[self.row][self.col] = c
+                if self.track_foreground:
+                    self.foregrounds[self.row][self.col] = self.foreground
                 self.col += 1
                 if unicodedata.east_asian_width(c) in ("F", "W") and self.col < self.width:
                     self.lines[self.row][self.col] = ""

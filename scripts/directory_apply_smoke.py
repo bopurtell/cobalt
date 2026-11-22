@@ -45,7 +45,7 @@ def main():
 
     try:
         pump(1)
-        send(b" vt vb")
+        send(b" vt vb vm")
         send(b"\riEDIT\x1b oA.renamed\x1bofresh\rnewdir/\x1b")
         assert (root / "a.txt").read_text() == "original\n"
         assert not (root / "a.txt.renamed").exists()

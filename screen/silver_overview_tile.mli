@@ -5,6 +5,15 @@ open! Core
 val id : Cobalt_tile.View_id.t
 val title : string
 
+module Display_row : sig
+  (** Only projected state gets a tone. Paths, IDs, and prose are plain by default. *)
+  type tone = Plain | Positive | Active | Caution | Negative | Muted
+  type t
+
+  val message : ?tone:tone -> string -> t
+  val field : ?tone:tone -> string -> string -> t
+end
+
 module Field : sig
   type t = { name : string; value : string; default : string } [@@deriving sexp_of, equal]
 end
@@ -55,8 +64,12 @@ end
 type t
 
 val key : t Type_equal.Id.t
-val entry : ?targets:Target.t list -> ?status_first:bool -> string list -> View_registry.Entry.t
-val with_rows : t -> string list -> t
+val entry
+  :  ?targets:Target.t list
+  -> ?status_first:bool
+  -> Display_row.t list
+  -> View_registry.Entry.t
+val with_rows : t -> Display_row.t list -> t
 val with_targets : t -> Target.t list -> t
 val with_status_first : t -> bool -> t
 val targets : t -> Target.t list

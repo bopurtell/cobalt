@@ -385,14 +385,15 @@ let default =
         (Focus_view demo_report)
     ; view
         ~id:"silver-overview.toggle"
-        ~title:"Toggle Silver overview"
+        ~title:"Toggle Silver: Overview"
         ~keywords:[ "companion"; "run"; "status" ]
+        ~priority_aliases:[ "Toggle Silver: Overview"; "Toggle Silver overview" ]
         (Toggle_view silver_overview)
     ; view
         ~id:"silver-overview.focus"
-        ~title:"Focus Silver overview"
+        ~title:"Focus Silver: Overview"
         ~keywords:[ "companion"; "run"; "status" ]
-        ~priority_aliases:[ "ov" ]
+        ~priority_aliases:[ "ov"; "Focus Silver: Overview"; "Focus Silver overview" ]
         (Show_view silver_overview)
     ; view
         ~id:"vcs.open"

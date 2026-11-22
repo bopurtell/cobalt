@@ -1,6 +1,7 @@
 open! Core
 open Cobalt_screen
 module Tile = Silver_overview_tile
+module Display = Tile.Display_row
 
 let width = 160
 let height = 30
@@ -15,11 +16,18 @@ let editor_text ui =
 ;;
 
 let%test_unit "overview renders prepared rows, emits refresh intent, and closes without editing" =
-  let rows = [ "Status: Fresh"; "Project: /selected/project"; "Run: attempt-fixture" ] in
-  let extras = List.init 12 ~f:(sprintf "Detail %02d") in
+  let rows =
+    [ Display.field ~tone:Positive "Status" "Fresh"
+    ; Display.field "Project" "/selected/project"
+    ; Display.field "Run" "attempt-fixture"
+    ]
+  in
+  let extras = List.init 12 ~f:(fun i -> Display.message (sprintf "Detail %02d" i)) in
   let ui = Ui_state.create ~views:[ Tile.entry (rows @ extras) ] (controller ()) in
   assert (String.equal (focus ui) "document");
-  assert (List.for_all rows ~f:(fun substring -> String.is_substring (render ui) ~substring));
+  assert (List.for_all [ "Silver: Overview"; "Status:  Fresh"; "Project: /selected/project"
+                       ; "Run:     attempt-fixture" ]
+    ~f:(fun substring -> String.is_substring (render ui) ~substring));
   let ui = run ui " vUG" in
   assert (String.equal (focus ui) "silver-overview");
   assert (String.is_substring (render ui) ~substring:"Detail 11");
@@ -29,14 +37,15 @@ let%test_unit "overview renders prepared rows, emits refresh intent, and closes 
   let tile, intents = Tile.take_intents (state ui) in
   assert ([%equal: Tile.Intent.t list] intents [ Refresh ]);
   assert (List.is_empty (snd (Tile.take_intents tile)));
-  let ui = Ui_state.map_view ui Tile.key ~f:(fun _ -> Tile.with_rows tile [ "Status: Stale" ]) in
+  let ui = Ui_state.map_view ui Tile.key ~f:(fun _ ->
+    Tile.with_rows tile [ Display.field ~tone:Caution "Status" "Stale" ]) in
   assert (String.is_substring (render ui) ~substring:"Status: Stale");
   let ui = run ui " vS" in
   assert (not (Ui_state.view_visible ui Tile.id));
   assert (not (String.is_substring (render ui) ~substring:"Status: Stale"));
   assert (String.equal (focus ui) "document");
   assert (String.equal (editor_text ui) "EDITABLE_DOCUMENT\n");
-  let ui = run ui " ccToggle Silver overview<CR>" in
+  let ui = run ui " ccToggle Silver: Overview<CR>" in
   assert (String.is_substring (render ui) ~substring:"Status: Stale")
 ;;
 
@@ -58,7 +67,8 @@ let seeded =
 ;;
 
 let test_ui ?(targets = [ suite; seeded ]) action =
-  Ui_state.create ~views:[ Tile.entry ~targets [ "Watching: attempt-original" ] ] (controller ())
+  Ui_state.create ~views:[ Tile.entry ~targets [ Display.message "Watching: attempt-original" ] ]
+    (controller ())
   |> Fn.flip Ui_state.with_silver_test action
 ;;
 
@@ -68,6 +78,73 @@ let take ui =
 ;;
 
 let has ui text = String.is_substring (render ui) ~substring:text
+
+let%test_unit "overview aligns fields by cells and only highlights projected status values" =
+  let ui =
+    Ui_state.create
+      ~views:[ Tile.entry ~targets:[ suite; seeded ]
+        [ Display.field ~tone:Active "Lifecycle" "Running"
+        ; Display.field ~tone:Negative "Outcome" "Failed"
+        ; Display.field "Project" "/opt/Failed"
+        ; Display.message "Outcome: Failed"
+        ] ]
+      (controller ())
+  in
+  let frame = Frame.render ui ~width ~height in
+  let has_style token expected =
+    List.concat frame.rows |> List.exists ~f:(fun span ->
+      Style.equal span.style expected && String.is_substring span.text ~substring:token)
+  in
+  assert (has ui "Suite:     FIFO" && has ui "Variant:   seeded");
+  assert (has ui "Lifecycle: Running" && has ui "Outcome:   Failed");
+  assert (has ui "Project:   /opt/Failed");
+  assert (has_style "Lifecycle:" Status_special);
+  assert (has_style "Running" Pending);
+  assert (has_style "Failed" Error);
+  assert (has_style "/opt/Failed" Status && has_style "Outcome: Failed" Status)
+;;
+
+let%test_unit "column alignment survives Unicode clipping, scrolling and updates to observation" =
+  let first = Display.field "短" "before-scroll" in
+  let later = Display.field "ＷＷＷＷＷ" "after-scroll" in
+  let rows = first :: List.init 16 ~f:(fun i -> Display.message (Int.to_string i)) @ [ later ] in
+  let ui = Ui_state.create ~views:[ Tile.entry ~targets:[ seeded ] rows ] (controller ()) in
+  assert (has ui "短:         before-scroll");
+  let body ui ~width =
+    let content =
+      View_registry.render (Ui_state.views ui) Tile.id (controller ())
+        ~hotkey_hints:false ~focused:true ~notice:None ~pending:None ~width ~rows:3
+      |> Option.value_exn
+    in
+    assert (List.for_all content.body ~f:(fun spans -> Frame.Span.total_width spans = width));
+    content.body
+  in
+  let column ui token =
+    let rows = body ui ~width:20 in
+    List.find_map rows ~f:(fun spans ->
+      let rec find col = function
+        | [] -> None
+        | (span : Frame.Span.t) :: rest ->
+          (match String.substr_index span.text ~pattern:token with
+           | Some offset -> Some (col + offset) (* only the ASCII column padding precedes this value *)
+           | None -> find (col + span.width) rest)
+      in
+      find 0 spans)
+    |> Option.value_or_thunk ~default:(fun () ->
+      raise_s [%message "missing clipped value" token (rows : Frame.Span.t list list)])
+  in
+  let ui = run ui " vU" in
+  let before = column ui "before-s" in
+  List.iter [ 0; 1; 2; 4; 52 ] ~f:(fun width -> ignore (body ui ~width : Frame.Span.t list list));
+  let ui = run ui "G" in
+  assert (column ui "after-sc" = before);
+  let ui = run ui "gg" in
+  assert (column ui "before-s" = before);
+  let ui = Ui_state.map_view ui Tile.key ~f:(fun tile ->
+    Tile.with_rows tile [ Display.field ~tone:Positive "Outcome" "Passed" ]) in
+  let ui = run ui "R" in
+  assert ([%equal: Tile.Intent.t list] (snd (take ui)) [ Launch seeded ])
+;;
 
 let%test_unit "suite R, variant Enter/apply, and cancel restore the row without launching" =
   let ui = test_ui Pick |> Fn.flip run " vUR" in
@@ -130,6 +207,8 @@ let%test_unit "exact test is first and selected, launch dispatch is shared even 
   assert (List.is_empty (snd (take ui)));
   let ui = Ui_state.with_silver_result ui (Ok "Accepted · attempt new-attempt") in
   assert (String.equal (focus ui) "document");
+  assert (not (Ui_state.history_visible ui));
+  let ui = run ui " vm" in
   assert (has ui "Accepted · attempt new-attempt");
   let ui = run ui " vS" in
   assert (has ui "Watching: attempt-original")

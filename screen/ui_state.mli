@@ -248,6 +248,7 @@ val file_picker_visible_stamp : t -> (int * int * int) option
 val create
   :  ?layout:Hosted_layout.t
        (** Overrides initial registered placements and workspace preferences. *)
+  -> ?standalone_layouts:bool (** Enable standalone layout presets; default [false]. *)
   -> ?theme:Cobalt_theme.Theme.t
   -> ?prefs:Geometry.Prefs.t
   -> ?bare_prefs:Presentation.Bare_prefs.t
@@ -256,8 +257,9 @@ val create
   -> ?workspace_prefs:Workspace.Prefs.t
        (** Explicit status layout/visibility overrides [tiles_visible] for status. *)
   -> ?tiles_visible:bool
-       (** Show all installed tiles initially; default [true]. [false] starts with
-           just the document and compact feedback. *)
+        (** Show Problems, Status, and the optional report initially; default [true].
+            History starts hidden unless placed by [layout]. [false] starts with
+            just the document and compact feedback, apart from explicit placements. *)
   -> ?hotkey_hints:bool (** Tile key hints; default [false]. *)
   -> ?buffer_presentation:View_command.Buffer_presentation.t
         (** Default [Top]; [Status_rows] uses passive status rows when available. *)
@@ -482,6 +484,10 @@ val minor_layout
   -> height:int
   -> Cobalt_tile.View_id.t
   -> Tile_shell.Layout.t option
+
+(** Whether the allocated checklist paints an active spinner marker, excluding
+    clipped rows and cells covered by an opaque floating view. *)
+val silver_stage_spinner_visible : t -> width:int -> height:int -> bool
 
 (** Resolve a supporting view's shared shell in either layer. [floating] names
     the transient view and its already computed layout; [None] for that layout

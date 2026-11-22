@@ -227,8 +227,10 @@ def run(smoke):
     s.type(f"stty -g > {before}; {shlex.quote(str(s.binary))} --workspace --buffers top --no-lsp a.txt; "
            f"printf '%s' $? > {code}; stty -g > {after}\n")
     s.wait("cobalt starts", lambda sc: s.display("#{alternate_on}") == "1" and "NORMAL" in sc)
-    # Hide status, problems and history: the checks read the view's rows.
-    s.keys("Space", "v", "t", "Space", "v", "b", "Space", "v", "m")
+    # Hide the visible companion panes: the checks read only the view's rows.
+    if "╭─ Silver: Overview" in s.screen():
+        s.keys("Space", "v", "S")
+    s.keys("Space", "v", "t", "Space", "v", "b")
     s.shows("line 5 changed", absent=("Problems (", "History:", "─ Status"))
 
     s.start("the VCS view")

@@ -124,6 +124,10 @@ val set_stage_inputs : t -> view -> inputs option -> (unit, string) result
 val select_flow : t -> view -> flow:string -> (unit, string) result
 val active_flow : t -> view -> string option
 
+(** Fresh active launch inputs for matching observation only. The endpoint is
+    not an exact selected stage; do not use this to dispatch. *)
+val active_inputs : t -> view -> inputs option
+
 (** The last scoped choice, even if invalidated by a catalog refresh. For
     highlighting only; do not use this to enable launch. *)
 val selected_flow : t -> view -> string option

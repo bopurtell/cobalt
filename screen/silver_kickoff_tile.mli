@@ -6,7 +6,12 @@ val id : Cobalt_tile.View_id.t
 val title : string
 val review_id : Cobalt_tile.View_id.t
 val review_title : string
-val palette_entries : Cobalt_palette.Catalog.Entry.t list
+val open_command_id : string
+
+val palette_entries
+  :  installed:bool
+  -> review_installed:bool
+  -> Cobalt_palette.Catalog.Entry.t list
 
 module Choice : sig
   type t = { id : string; label : string; catalog : int } [@@deriving sexp_of, equal]

@@ -357,9 +357,18 @@ disambiguate filenames and mark modified files with `*` and missing files with `
 (rows also show `[missing]`). A constrained list follows the active file and marks
 hidden neighbors with `^`/`v` where space permits.
 
-All installed tiles are shown at startup: the document, Status, Problems, and
-History, plus the demo report when launched with `--demo-report`. Keyboard focus
-starts in the document. The existing show/hide keys still toggle each tile.
+The standalone workspace starts with the document, Status, and Problems. The
+**Silver: Overview** is also shown in adapter-enabled builds, and the demo report is
+shown when launched with `--demo-report`. History starts hidden but still records
+events. Press `Space v m` to toggle it or `Space v M` to show and focus it.
+Keyboard focus starts in the document.
+
+Open the command palette with **Space c c**. **Layout: Silver** shows Silver
+Overview, Stage Checklist, and Flow Runner together alongside the editor
+when the terminal is wide enough. **Layout: Default** returns to the default
+workspace. Either preset leaves Zen and focuses the editor. These session-local
+presets change the workspace, not your open buffers, edits, or Silver project
+binding. See [Connect to Silver](../bin/SILVER_OVERVIEW.md).
 
 Status can occupy a cell on any side of the document. It shows mode, file/dirty
 state, position, pending keys, and current feedback; it never takes keyboard focus.
@@ -488,13 +497,14 @@ These exact queries put their command first and keep it selected. If the tile
 cannot be hidden or there is nothing to restore, Enter reports why rather than
 running another matching command.
 
-Three more exact queries are pinned to the first row:
+These exact queries are also pinned to the first row:
 
 | Query | Destination |
 | --- | --- |
 | `ed` | Restore and focus the current file editor workspace, including its hidden split panes. This leaves other hidden tiles hidden and keeps file buffers, edits, and tab order. |
-| `ov` | Show and focus Silver overview, if installed. |
-| `st` | Show and focus the Silver stage checklist, if installed. This does not launch a stage. |
+| `ov` | Show and focus **Silver: Overview**, if installed. |
+| `st` | Show and focus **Silver: Stage Checklist**, if installed. This does not launch a stage. |
+| `flow` | Show and focus **Silver: Flow Runner**, even from Zen or if hidden. Repeating it keeps focus there. This does not switch flows, launch, or open **Silver: Flow Review**. |
 
 Use `ed` from another tile or from the empty main area left by hiding a view tab.
 These queries never run a different matching command if the destination is unavailable.
@@ -2244,6 +2254,11 @@ the cursor; they take no count.
   edit: no undo step, no dirty marker.
 
 ### Layout controls
+
+**Layout: Default** and **Layout: Silver** in the command palette are workspace
+presets; they are separate from the document-only controls below.
+The standalone PTY regression for the presets is
+`dune build -j4 @bin/workspace-presets-cli-test` in an adapter-enabled build.
 
 The default layout is a centered tile with a text width of 100 cells, an
 offset of 0, and no line numbers. The text width counts only text cells, not

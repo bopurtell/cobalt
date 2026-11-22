@@ -48,6 +48,10 @@ module Placement : sig
   [@@deriving sexp, equal]
 end
 
+module Layout : sig
+  type t = Default | Silver [@@deriving sexp_of, equal]
+end
+
 type t =
   | Signature_help
   | Toggle_signature_help
@@ -157,6 +161,7 @@ type t =
   | Toggle_zen (** Hide status temporarily, or restore saved workspace intent. *)
   | Toggle_bare (** Borderless document; toggle back to the previous presentation. *)
   | Restore_editor_workspace (** Show the retained file editor workspace and focus it. *)
+  | Apply_layout of Layout.t (** Apply an explicit standalone workspace preset. *)
   | Show_view of View_id.t (** Show and focus a view without toggling it off. *)
   | Hide_focused_tile (** Temporarily hide the focused tile, if it can be hidden. *)
   | Unhide_tile (** Restore the last temporarily hidden tile. *)

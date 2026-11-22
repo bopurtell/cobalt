@@ -118,9 +118,14 @@ module Testing : sig
   val supports : project -> string -> bool
 
   (** Shared bound transport for optional companion adapters. Uses the same
-      peer, lifetime and timeout as the verified project; does not retry. *)
+      peer, lifetime and timeout as the verified project; does not retry.
+      [stop] abandons only this local request. [asic_observation_metadata]
+      negotiates Silver's stage duration and supplementary timing fields on
+      the ASIC route. *)
   val send_bound
-    :  project
+    :  ?asic_observation_metadata:bool
+    -> ?stop:unit Async.Deferred.t
+    -> project
     -> path:string
     -> Core.Sexp.t
     -> (response, string) result Async.Deferred.t

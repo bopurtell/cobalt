@@ -42,7 +42,8 @@ let%expect_test "batched picker activation routes following keys and cancel to t
   let _, requests = Ui_state.take_content_requests cancelled in
   assert (List.is_empty requests);
   let notice = Ui_state.with_notice ~source:"content picker" cancelled "bad\nerror" in
-  let frame = Frame.render notice ~width:100 ~height:30 in
+  (* History collects the picker error even while hidden in the default layout. *)
+  let frame = Frame.render (batch notice " vM") ~width:100 ~height:30 in
   let rendered = String.concat (List.concat_map frame.rows ~f:(List.map ~f:(fun span -> span.Frame.Span.text))) in
   assert (String.is_substring rendered ~substring:"[content picker]");
   let raised = Cobalt_app.Session.open_or_activate ~validate:(fun _ -> failwith "validation exception")

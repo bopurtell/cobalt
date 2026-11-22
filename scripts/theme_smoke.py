@@ -104,8 +104,9 @@ def main():
                            ("╭─ Status", "Problems (", "History:", "Demo report (")), text
 
         def assert_workspace():
-            wait(lambda: "╭─ Status" in screen() and "Problems (workspace)" in screen()
-                 and "History:" in screen(), "workspace support tiles")
+            wait(lambda: "╭─ Status" in screen() and "Problems (workspace)" in screen(),
+                 "workspace support tiles")
+            assert "History:" not in screen(), "History unexpectedly visible in the default workspace"
 
         # No theme or presentation flag: exercise the actual CLI startup defaults.
         launch()

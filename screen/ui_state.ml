@@ -277,6 +277,7 @@ type t =
   ; external_terminal_toggles : int option list option (** [Some] delegates toggles to the outer host. *)
   ; host_commands : Cobalt_palette.Catalog.Host_command.t list
   ; hosted_silver_navigation : bool
+  ; standalone_layouts : bool
   ; host_command_requests : string list
   ; terminal_requests : (int * Cobalt_terminal.Model.request) list (** Newest first, stamped at enqueue. *)
   ; terminal_return : View_id.t
@@ -349,6 +350,7 @@ let demo_report_unavailable = "Demo report unavailable; launch with --demo-repor
 
 let create
   ?layout
+  ?(standalone_layouts = false)
   ?theme
   ?(prefs = Geometry.Prefs.default)
   ?(bare_prefs = Presentation.Bare_prefs.default)
@@ -374,14 +376,16 @@ let create
           | None ->
             View_registry.Entry.unavailable Report_tile.id ~title:Report_tile.spec.title
               ~notice:demo_report_unavailable)
-        ; View_registry.Entry.install ~placement History_tile.adapter History_tile.empty
+         (* Keep History registered for focus, toggle, and explicit layouts,
+            but leave it hidden in the ordinary startup workspace. *)
+         ; View_registry.Entry.install History_tile.adapter History_tile.empty
         ; View_registry.Entry.install ~opens_in:Tab Language_servers_tile.adapter
             (Language_servers_tile.create ~source_attached)
        ]
        @ views)
     |> fun views ->
     Option.value_map layout ~default:views ~f:(fun layout ->
-      View_registry.with_initial_placements views (Hosted_layout.placements layout))
+       View_registry.with_initial_placements views (Hosted_layout.placements layout))
   in
   let workspace_prefs =
     Option.value_map layout
@@ -511,6 +515,7 @@ let create
   ; external_terminal_toggles = None
   ; host_commands = []
   ; hosted_silver_navigation = false
+  ; standalone_layouts
   ; host_command_requests = []
   ; terminal_requests = []
   ; terminal_return = document_id
@@ -1979,6 +1984,25 @@ let minor_layout t ~width ~height id =
   else view_layout_in t (workspace t ~width ~height) id
 ;;
 
+let silver_stage_spinner_visible t ~width ~height =
+  not t.exited && has_document t && view_visible t Silver_stage_tile.id
+  && Option.exists (View_registry.find t.views Silver_stage_tile.key) ~f:(fun stage ->
+    Option.exists (minor_layout t ~width ~height Silver_stage_tile.id) ~f:(fun layout ->
+      let content = layout.content in
+      let floating = effective_floating None t ~width ~height in
+      let focused = View_id.equal (focused_view ?floating t ~width ~height) Silver_stage_tile.id in
+      let covered ~column ~row =
+        Option.exists floating ~f:(fun (_, layout) ->
+          Option.exists layout ~f:(fun layout ->
+            let outer = layout.outer in
+            let x = content.x + column and y = content.y + row in
+            x >= outer.x && x < outer.x + outer.width
+            && y >= outer.y && y < outer.y + outer.height))
+      in
+      Silver_stage_tile.spinner_visible stage ~focused ~rows:content.height
+        ~width:content.width ~covered))
+;;
+
 (* A minor view's content viewport: what it scrolls by and wraps to. *)
 let minor_rows t ~width ~height id =
   Option.value_map (view_layout t ~width ~height id) ~default:1
@@ -2240,12 +2264,35 @@ let silver_test_id = "silver.test"
 let silver_stage_open_id = "silver.stage.open"
 let silver_stage_toggle_id = "silver.stage.toggle"
 
+let silver_layout_band =
+  [ Silver_overview_tile.id; Silver_stage_tile.id; Silver_kickoff_tile.id ]
+;;
+
+let silver_layout_id = "layout.silver"
+let silver_layout_unavailable = "Layout: Silver unavailable; the Silver adapter is not available in this session"
+let silver_layout_available t = List.for_all silver_layout_band ~f:(View_registry.installed t.views)
+
+let layout_entries t =
+  let create ~id ~title ~keywords ?available layout =
+    Cobalt_palette.Catalog.Entry.create ~id ~title ~keywords ?available
+      ~priority_aliases:[ title ] (View (Apply_layout layout))
+  in
+  let silver_available = silver_layout_available t in
+  [ create ~id:silver_layout_id ~title:"Layout: Silver"
+      ~keywords:[ "layout silver"; "workspace preset"; "asic" ]
+      ~available:(fun context -> silver_available && Mode.equal context.mode Normal) Silver
+  ; create ~id:"layout.default" ~title:"Layout: Default"
+      ~keywords:[ "layout default"; "workspace preset"; "reset layout" ] Default
+  ]
+;;
+
 let silver_stage_entries t =
   let installed = View_registry.installed t.views Silver_stage_tile.id in
   let view_entries =
     Cobalt_palette.Catalog.Entry.create ~id:silver_stage_open_id
-      ~title:Silver_stage_tile.title ~priority_aliases:[ "st" ]
-      ~keywords:[ "silver stages"; "open stage checklist"; "synth checklist"
+       ~title:Silver_stage_tile.title
+       ~priority_aliases:(if installed then [ "st"; Silver_stage_tile.title; "silver stage checklist" ] else [ "st" ])
+       ~keywords:[ "silver stages"; "open stage checklist"; "synth checklist"
                 ; "timing checklist"; "routing checklist" ]
       ~available:(fun context -> installed && Mode.equal context.mode Normal)
       (View (Show_view Silver_stage_tile.id))
@@ -3117,7 +3164,7 @@ let apply_view (prefs : Geometry.Prefs.t) (view : View_command.t) : Geometry.Pre
   | Adjust_status_size _
   | Toggle_zen
   | Toggle_bare
-   | Restore_editor_workspace | Show_view _
+    | Restore_editor_workspace | Apply_layout _ | Show_view _
    | Hide_focused_tile | Unhide_tile | Toggle_mouse
    | Open_theme_picker | Open_palette | Open_line_picker | Open_file_picker | Open_content_picker -> prefs
   | Shift cells ->
@@ -3244,7 +3291,7 @@ let view_feedback t ~before ~width ~height (view : View_command.t) : string opti
     Some (if t.hotkey_hints then "Hotkey hints shown" else "Hotkey hints hidden")
   | Toggle_zen -> Some (if zen t then "Zen (status hidden)" else "Workspace restored")
   | Toggle_bare -> Some (if bare t then "Bare" else if zen t then "Zen restored" else "Workspace restored")
-   | Restore_editor_workspace | Show_view _
+    | Restore_editor_workspace | Apply_layout _ | Show_view _
    | Hide_focused_tile | Unhide_tile | Toggle_mouse -> None
   | Toggle_status | Position_status _ | Adjust_status_size _ ->
     let requested = t.workspace_prefs in
@@ -4270,10 +4317,12 @@ let open_palette t ~width ~height =
      let catalog =
       Cobalt_palette.Catalog.create
          (List.map local ~f:fst @ Cobalt_palette.Catalog.entries globals
+            @ (if t.standalone_layouts then layout_entries t else [])
            @ [ silver_test_entry t.silver_test ]
            @ silver_stage_entries t
-           @ (if View_registry.installed t.views Silver_kickoff_tile.id
-              then Silver_kickoff_tile.palette_entries else [])
+            @ Silver_kickoff_tile.palette_entries
+                ~installed:(View_registry.installed t.views Silver_kickoff_tile.id)
+                ~review_installed:(View_registry.installed t.views Silver_kickoff_tile.review_id)
           @ if Option.is_some t.silver_project_root then [ silver_connect_entry ] else [])
       |> Result.ok |> Option.value ~default:globals
        |> fun catalog ->
@@ -4450,6 +4499,56 @@ let restore_editor_workspace t ~width ~height =
           ~width ~height
     in
     focus_workspace t document_id
+;;
+
+let apply_layout t ~width ~height (layout : View_command.Layout.t) =
+  if not t.standalone_layouts then
+    workspace_notice t ~width ~height "Layout presets are only available in standalone Cobalt"
+  else if View_command.Layout.equal layout Silver && not (silver_layout_available t) then
+    workspace_notice t ~width ~height silver_layout_unavailable
+  else (
+    let band =
+      match layout with
+      | Silver -> silver_layout_band
+      | Default -> [ Problems_tile.id; Report_tile.id; Silver_overview_tile.id ]
+    in
+    let layout_views =
+      silver_layout_band
+      @ [ Problems_tile.id; Report_tile.id; History_tile.id; Silver_kickoff_tile.review_id ]
+    in
+    (* A preset replaces the band and view tabs, not a retained two-file split or
+       a split occupied by an unrelated view. Entries and their state stay live. *)
+    let extra_split =
+      Option.filter (View_registry.split t.views) ~f:(fun id ->
+        not (List.mem layout_views id ~equal:View_id.equal))
+    in
+    let placements =
+      List.map band ~f:(fun id -> id, View_registry.Placement.Band)
+      @ Option.to_list (Option.map extra_split ~f:(fun id -> id, View_registry.Placement.Split))
+    in
+    let t =
+      if Option.is_some (Session.active_id (session t)) then restore_editor_workspace t ~width ~height
+      else focus_workspace (file_tab (leave t (focused_view t ~width ~height))) document_id
+    in
+    let hidden_tiles =
+      List.filter t.hidden_tiles ~f:(function
+        | View id -> Option.equal View_id.equal (Some id) extra_split
+        | Directory _ | Editor _ | Terminal _ -> true)
+    in
+    let t =
+      { t with
+        views = View_registry.with_placements t.views placements
+      ; workspace_prefs = { Workspace.Prefs.default with status_visible = true }
+      ; other_status_size = 6
+      ; presentation = Workspace
+      ; bare_return = Workspace
+      ; hide_tabs = false
+      ; hidden_tiles
+      ; rows = None
+      }
+    in
+    workspace_notice t ~width ~height
+      (match layout with Silver -> "Layout: Silver" | Default -> "Layout: Default"))
 ;;
 
 let fallback_workspace t ~width ~height ?preferred () =
@@ -4793,7 +4892,7 @@ let focus_view t ~width ~height id =
 ;;
 
 (* Unlike the focus hotkey, palette destinations never toggle away from their
-   target. Stage/overview can be band views, so leave Zen/Bare as needed. *)
+   target. They can be band views, so leave Zen/Bare as needed. *)
 let show_and_focus_view t ~width ~height id =
   if not (View_registry.installed t.views id)
   then workspace_notice t ~width ~height (view_unavailable t id ^ "; nothing ran")
@@ -4802,6 +4901,7 @@ let show_and_focus_view t ~width ~height id =
     if View_id.equal current id then t
     else (
       let show t =
+        let t = leave_bare t in
         let t = if view_visible t id then t else show_hidden t ~width ~height id in
         match View_registry.placement t.views id with
         | Some Tab -> { t with tabs = Tab_strip.activate t.tabs (Some id); rows = None }
@@ -4811,6 +4911,15 @@ let show_and_focus_view t ~width ~height id =
       let shown =
         if suppress_workspace shown && not (available shown ~width ~height id)
         then show { t with presentation = Workspace; rows = None }
+        else shown
+      in
+      let shown =
+        if View_id.equal id Silver_kickoff_tile.id && not (available shown ~width ~height id)
+        then
+          (* A narrow window can clip the Runner behind the other band tiles.
+             Use the same compact selector in a tab instead of opening Review
+             or changing any other view's placement. *)
+          place_view (reveal_tile shown (View id)) ~width ~height id Tab
         else shown
       in
       if available shown ~width ~height id
@@ -4940,6 +5049,7 @@ let apply_view_command t ~width ~height (view : View_command.t) =
   | Adjust_terminal_size steps -> adjust_terminal_size t steps ~width ~height
   | Reset_terminal_size -> reset_terminal_size t
   | Restore_editor_workspace -> restore_editor_workspace t ~width ~height
+  | Apply_layout layout -> apply_layout t ~width ~height layout
   | Show_view id -> show_and_focus_view t ~width ~height id
   | Hide_focused_tile | Unhide_tile ->
     let t =
@@ -5486,7 +5596,15 @@ let accept_palette t ~width ~height palette =
   | Some t, _ -> t, Controller.Status.Running
   | None, No_selection -> { t with host = Host.with_notice t.host "No matching command" }, Running
   | None, Target_gone _ -> refuse "The palette's document is gone; nothing ran", Running
-  | None, Unavailable { id; _ } ->
+   | None, Unavailable { id; _ }
+     when String.equal (Cobalt_palette.Catalog.Id.to_string id) silver_layout_id ->
+     refuse silver_layout_unavailable, Running
+    | None, Unavailable { id; _ }
+      when String.equal (Cobalt_palette.Catalog.Id.to_string id) Silver_kickoff_tile.open_command_id ->
+      let notice = View_registry.unavailable_notice t.views Silver_kickoff_tile.id
+        |> Option.value ~default:(Silver_kickoff_tile.title ^ " is unavailable here") in
+      refuse (notice ^ "; nothing ran"), Running
+    | None, Unavailable { id; _ } ->
     let title =
       Option.value_map
          (Cobalt_palette.Catalog.find Cobalt_palette.Catalog.default id)
@@ -5549,7 +5667,7 @@ let accept_palette t ~width ~height palette =
    | None, Execute { target = Native (View ((Hide_focused_tile | Unhide_tile) as command)); _ } ->
      (* These commands close the float themselves, after consuming its captured tile. *)
      apply_view_command t ~width ~height command, Running
-    | None, Execute { target = Native (View ((Restore_editor_workspace | Show_view _) as command)); _ } ->
+     | None, Execute { target = Native (View ((Restore_editor_workspace | Apply_layout _ | Show_view _) as command)); _ } ->
       apply_view_command (close_palette ~restore_workspace_caller:true t ~width ~height)
         ~width ~height command, Running
     | None, Execute { target = Native (View Toggle_mouse); _ } ->

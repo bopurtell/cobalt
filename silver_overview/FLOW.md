@@ -72,6 +72,33 @@ old action. Superseded plans and submissions cannot update a new project.
 Neither accepted work nor any local view change retargets a watched attempt.
 Silver reads saved project inputs; neither action saves editor buffers.
 
+## ASIC checklist observation
+
+[`Silver_stage_observation`](silver_stage_observation.mli) independently watches
+the verified project while the checklist is visible. Its bind target is an
+exact ASIC run/workflow, an explicitly requested latest match for the active
+chip/variant, flow and profile, or no selection. Native Silver resolves the
+checklist's workspace selection or pin exactly; a missing pin never means the
+latest run. Cobalt's latest-match mode is its own policy, not a read or write of
+that workspace selection. The native registry orders runs by update, so the
+companion compares producer start times and workflow reservation times instead.
+The simulation attempt configured for the status tile is not an ASIC identity.
+
+Observation uses plain project ASIC `Get`, exact `Observe` for eligible
+unowned runs, and bounded `Load_summary` for eligible evidence. It never
+registers or launches a run, changes a launch context, or reads from rendering.
+Exact workflow linkage can show elaboration before physical allocation.
+The captured endpoint is unconfirmed until there is explicit stage evidence;
+neither overall run completion nor a current catalog implies any historical
+stage result. Historical post-PNR STA remains distinct from a physical Timing
+stage. A physical row may report an explicit native action mapping; only its
+scope and endpoint are exposed, for comparison with the fresh launch catalog.
+Historical action assignments are never replayed. Reader errors, missing
+summary sources, stale transport snapshots, and
+no matching run have distinct representations. A verified project/selection
+change drops old evidence and abandons local requests, without cancelling
+anything in Silver.
+
 ## Verification and remaining limits
 
 `dune runtest -j4 silver_overview` includes `test_flow.ml`, which drives the
@@ -87,6 +114,9 @@ fixtures preserve the actual request variants and reply fields used by the
 adapter, including the opaque plan, but omit unrelated snapshots/polls and
 replace each generated submission key at runtime. Silver's WB-095 ticket records
 the independent live two-PTY evidence; replay is not itself a live check.
+`test_stage_observation.ml` exercises a fake bound peer for progression while
+visible, exact pins, scope matching, reader negotiation, stale status, and
+late-reply fences without routing requests through the launch service.
 
 No Silver extension is required for the supported paths above. A small
 optional enhancement for tighter parity would be a **read-only, target-scoped

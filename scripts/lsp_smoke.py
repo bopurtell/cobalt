@@ -125,9 +125,11 @@ def main():
                               "bash", "--norc", "--noprofile"])
         t("new-session", "-d", "-s", "lsp", "-x", "220", "-y", "55", "-c", str(root), command)
         t("set-option", "-t", "lsp", "status", "off")
-        send("stty -g > before; " + shlex.join([str(binary), "a.ml"]) +
+        send("stty -g > before; " + shlex.join([str(binary), "--workspace", "a.ml"]) +
              "; printf '%s' $? > exit-code; stty -g > after\n")
-        wait(lambda s: "let value = 1" in s and "NORMAL" in s, "startup")
+        wait(lambda s: "let value = 1" in s and "Problems (workspace)" in s, "workspace startup")
+        send(" vz")
+        wait(lambda s: "let value = 1" in s and "Problems (workspace)" not in s, "enter Zen")
         open_file("rtl/b.sv")
         send(" cclsp")
         wait(lambda s: "> Language servers" in s and "Space l i" in s, "palette discovery")
@@ -144,7 +146,7 @@ def main():
         # Reveal workspace, hide its default companions, and keep the report in a
         # split while changing the file pane. No inspection command after closes:
         # these assertions require automatic inventory updates.
-        send(" vz vt vb vm ss sf")
+        send(" vz vt vb ss sf")
         wait(lambda s: "module c; endmodule" in s and "Language servers (live)" in s, "split inspection")
         send(" bc")
         inventory(rtl / "b.sv", both, "04-live-close-one-attachment")

@@ -181,6 +181,50 @@ let copied t =
   t
 ;;
 
+let%test_unit "standalone History records while hidden and opens by toggle, focus, or named placement" =
+  let open Cobalt_input in
+  let binding =
+    let keys = [ Key.char ' '; Key.char 'z'; Key.char 'H' ] in
+    let command = View_command.Place_view { view = Some History_tile.id; placement = Split } in
+    keys, Bindings.Target.View command
+  in
+  let normal = Bindings.create (binding :: Bindings.to_list Bindings.default) |> Or_error.ok_exn in
+  let controller = Controller.create ~keymap_config:{ Keymap.Config.default with normal }
+      (editor (Helpers.ui ~path:"a" "first\nsecond")) in
+  let t = Ui_state.create controller in
+  let placement t = View_registry.placement (Ui_state.views t) History_tile.id in
+  let shown t = Option.is_some (Ui_state.minor_layout t ~width ~height History_tile.id) in
+  let has t text =
+    let frame = Frame.to_string (Frame.render t ~width ~height) in
+    String.is_substring frame ~substring:text
+  in
+  let assert_hidden t =
+    assert (Option.equal View_registry.Placement.equal (placement t) (Some Hidden));
+    assert (not (shown t))
+  in
+  assert_hidden t;
+  let t = Ui_state.update_feedback t ~width ~height (note "hidden event") in
+  assert_hidden (run t " vz vz");
+  assert_hidden (run t " vB vB");
+  assert (List.length (entries (feedback t)) = 1);
+  let toggled = run t " vm" in
+  assert (shown toggled && String.equal (focused toggled) "document");
+  assert (has toggled "hidden event");
+  assert (shown (run toggled " vz vz"));
+  assert (shown (run toggled " vB vB"));
+  let t = run toggled " vm" in
+  assert_hidden t;
+  let opened = run t " vM" in
+  assert (shown opened && String.equal (focused opened) "history");
+  let t = run opened " sh" in
+  assert_hidden t;
+  let split = run t " zH" in
+  assert (Option.equal View_registry.Placement.equal (placement split) (Some Split));
+  assert (shown split && String.equal (focused split) "history");
+  let _, copied = Ui_state.take_clipboard (run split "yy") in
+  assert (Option.exists copied ~f:(String.is_substring ~substring:"hidden event"))
+;;
+
 let%expect_test "history tile: follow, select, details, copy, rejection, clear" =
   let t = create () |> fun t -> run t " vb vm" in
   band t;

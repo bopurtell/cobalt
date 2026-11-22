@@ -4,8 +4,29 @@ module Navigation = Cobalt_tile.Navigation
 module Selection = Navigation.Selection
 
 let id = Cobalt_tile.View_id.of_string "silver-overview"
-let title = "Silver overview"
+let title = "Silver: Overview"
 let spec = Cobalt_tile.Spec.read_only id ~title
+
+module Display_row = struct
+  type tone = Plain | Positive | Active | Caution | Negative | Muted [@@deriving sexp_of]
+
+  type t =
+    | Message of string * tone
+    | Field of { key : string; value : string; tone : tone }
+  [@@deriving sexp_of]
+
+  let message ?(tone = Plain) text = Message (text, tone)
+  let field ?(tone = Plain) key value = Field { key; value; tone }
+
+  let style : tone -> Style.t = function
+    | Plain -> Status
+    | Positive -> Diff_added
+    | Active -> Pending
+    | Caution -> Warning
+    | Negative -> Error
+    | Muted -> Stale
+  ;;
+end
 
 module Field = struct
   type t = { name : string; value : string; default : string } [@@deriving sexp_of, equal]
@@ -74,7 +95,7 @@ module Row = struct
 end
 
 type t =
-  { lines : string list
+  { display_rows : Display_row.t list
   ; targets : Target.t list
   ; status_first : bool
   ; view : Row.t Selection.t
@@ -83,7 +104,7 @@ type t =
   }
 [@@deriving sexp_of]
 
-let with_rows t lines = { t with lines }
+let with_rows t display_rows = { t with display_rows }
 let with_status_first t status_first = { t with status_first }
 let targets t = t.targets
 let take_intents t = { t with intents = [] }, List.rev t.intents
@@ -93,7 +114,7 @@ let row_key (target : Target.t) = Row.Target (target.suite, target.variant)
 
 let items t =
   let targets = List.map t.targets ~f:(fun target -> row_key target, `Target target) in
-  let status = List.mapi t.lines ~f:(fun i line -> Row.Status i, `Status line) in
+  let status = List.mapi t.display_rows ~f:(fun i row -> Row.Status i, `Status row) in
   if t.status_first then status @ targets else targets @ status
 ;;
 
@@ -136,6 +157,51 @@ let interpret _ = function
   | keys -> Cobalt_tile.Content_key.map (Navigation.interpret keys) ~f:(fun move -> Move move)
 ;;
 
+let display_row = function
+  | `Status row -> row
+  | `Target (target : Target.t) ->
+    (match target.variant with
+     | None -> Display_row.field "Suite" target.suite
+     | Some variant -> Display_row.field "Variant" variant)
+;;
+
+let cells text = Cell_map.total_width (Cell_map.glyphs text)
+
+let column_width items ~width =
+  let preferred =
+    List.fold items ~init:0 ~f:(fun longest (_, row) ->
+      match display_row row with
+      | Message _ -> longest
+      | Field { key; _ } -> Int.max longest (cells key))
+  in
+  (* Budget a colon and a gap, and give values at least half the space in a
+     narrow tile. If only a few cells remain, show the value alone. *)
+  Int.min preferred (Int.max 0 (width - 2 - Int.min 10 (width / 2)))
+;;
+
+let render_row row ~selected ~width ~marker_width ~key_width =
+  let marker = Tile_text.row Pending (if selected then "›" else "") ~width:marker_width in
+  let width = width - marker_width in
+  let body =
+    match display_row row with
+    | Message (text, tone) -> Tile_text.row (Display_row.style tone) text ~width
+    | Field { key; value; tone } ->
+      let value_style =
+        match row with
+        | `Target _ when selected -> Style.Pending
+        | _ -> Display_row.style tone
+      in
+      if key_width = 0
+      then Tile_text.row value_style value ~width
+      else (
+        let key_cells = Int.min key_width (cells key) in
+        Tile_text.row Status_special key ~width:key_cells
+        @ Tile_text.row Status_special ":" ~width:(key_width - key_cells + 2)
+        @ Tile_text.row value_style value ~width:(width - key_width - 2))
+  in
+  Span.merge (marker @ body)
+;;
+
 let adapter : (t, action) View_registry.Adapter.t =
   { spec
   ; key
@@ -144,7 +210,7 @@ let adapter : (t, action) View_registry.Adapter.t =
   ; text_view = (fun _ -> None)
   ; interpret
   ; escape = (fun _ -> None)
-  ; hint = "Silver overview: j/k select, R runs, Enter edits settings, r refreshes, Escape returns"
+   ; hint = "Silver: Overview — j/k select, R runs, Enter edits settings, r refreshes, Escape returns"
   ; perform = (fun t controller ~context:_ ~rows ~width:_ action ->
       let t = fit t ~rows in
       let done_ t = t, View_registry.Outcome.create controller in
@@ -176,7 +242,7 @@ let adapter : (t, action) View_registry.Adapter.t =
            t, View_registry.Outcome.create controller ~ask)
       | Apply_settings (target, fields) -> done_ (enqueue t (Intent.Apply_settings (target, fields))))
   ; commands = (fun t ->
-      let refresh = Cobalt_tile.Local_command.create "refresh" ~keys:[ refresh ] "Refresh Silver overview" in
+       let refresh = Cobalt_tile.Local_command.create "refresh" ~keys:[ refresh ] "Refresh Silver: Overview" in
       let target_commands =
         if List.is_empty t.targets then []
         else
@@ -188,23 +254,18 @@ let adapter : (t, action) View_registry.Adapter.t =
   ; signal = (fun _ _ -> None)
   ; label = (fun _ -> None)
   ; text_area = (fun _ ~rows:_ ~width:_ -> None)
-  ; render = (fun t _ ~hotkey_hints ~focused ~notice ~pending ~width ~rows ->
-      let view = (fit t ~rows).view in
-      let top = if focused then view.top else 0 in
-      let body =
-        List.take (List.drop (items t) top) (Int.max 0 rows)
-        |> List.map ~f:(fun (key, row) ->
-          let selected = focused && Option.exists view.selected ~f:(Row.equal key) in
-          match row with
-          | `Status line -> Tile_text.row (if selected then Pending else Status) line ~width
-          | `Target target ->
-            let label =
-              match target.variant with
-              | None -> target.suite
-              | Some variant -> "  " ^ variant
-            in
-            let prefix = if selected then "› " else "  " in
-            Tile_text.row (if selected then Pending else Status) (prefix ^ label) ~width)
+   ; render = (fun t _ ~hotkey_hints ~focused ~notice ~pending ~width ~rows ->
+       let view = (fit t ~rows).view in
+       let top = if focused then view.top else 0 in
+       let items = items t in
+       let width = Int.max 0 width in
+       let marker_width = Int.clamp_exn (width - 1) ~min:0 ~max:2 in
+       let key_width = column_width items ~width:(width - marker_width) in
+       let body =
+         List.take (List.drop items top) (Int.max 0 rows)
+         |> List.map ~f:(fun (key, row) ->
+           let selected = focused && Option.exists view.selected ~f:(Row.equal key) in
+           render_row row ~selected ~width ~marker_width ~key_width)
       in
       let default =
         if not hotkey_hints && (List.is_empty t.targets || not focused) then ""
@@ -216,7 +277,8 @@ let adapter : (t, action) View_registry.Adapter.t =
   }
 ;;
 
-let entry ?(targets = []) ?(status_first = false) lines =
+let entry ?(targets = []) ?(status_first = false) display_rows =
   View_registry.Entry.install ~placement:Band adapter
-    { lines; targets; status_first; view = Selection.empty; intents = []; selection_stale = false }
+    { display_rows; targets; status_first; view = Selection.empty
+    ; intents = []; selection_stale = false }
 ;;

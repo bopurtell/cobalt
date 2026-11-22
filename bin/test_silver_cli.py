@@ -176,7 +176,7 @@ def test(binary, stub):
                 with editor(stub, file, env, []) as ui:
                     ui.see(b"UNRELATED_EDITOR_FILE")
                     ui.keys(b" vS")
-                    ui.see(b"Silver overview unavailable")
+                    ui.see(b"Silver: Overview unavailable")
                     ui.keys(b"iX\x1b")
                     time.sleep(.2)
                     ui.keys(b" w")
@@ -186,11 +186,11 @@ def test(binary, stub):
                 assert requests == []
 
                 with editor(binary, file, env, flags) as ui:
-                    ui.see(b"Silver overview")
-                    ui.see(b"Status: Fresh")
-                    ui.see(b"Run: attempt-explicit")
-                    ui.see(b"Lifecycle: Running")
-                    ui.see(b"Outcome: Unknown")
+                    ui.see(b"Silver: Overview")
+                    # Labels and semantic values render in different ANSI styles.
+                    for marker in (b"Status:", b"Fresh", b"Run:", b"attempt-explicit",
+                                   b"Lifecycle:", b"Running", b"Outcome:", b"Unknown"):
+                        ui.see(marker)
                     finished.set()
                     # The absolute redraw may diff away the unchanged label.
                     ui.see(b"Finished")

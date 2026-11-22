@@ -11,14 +11,14 @@ let entry = function
   | Some host -> Tile.entry (host.presentation ())
   | None ->
     View_registry.Entry.unavailable Tile.id ~title:Tile.title
-      ~notice:"Silver flow kickoff unavailable; use an adapter-enabled build"
+      ~notice:(Tile.title ^ " unavailable; use an adapter-enabled build")
 ;;
 
 let review_entry = function
   | Some host -> Tile.review_entry (host.presentation ())
   | None ->
     View_registry.Entry.unavailable Tile.review_id ~title:Tile.review_title
-      ~notice:"Silver flow kickoff unavailable; use an adapter-enabled build"
+      ~notice:(Tile.review_title ^ " unavailable; use an adapter-enabled build")
 ;;
 
 let synchronize ui host =

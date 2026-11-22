@@ -107,7 +107,7 @@ def test(binary, wire):
                     ui.keys(b"\r")
                     new_output(ui, start, b"Test settings")
                     send(ui, [b"\x1b", b"\x1b", b" vS"])
-                    ui.see(b"Silver overview hidden")
+                    ui.see(b"Silver: Overview hidden")
                     release.set()
                     send(ui, [b" vM", b" st"])
                     ui.see(attempt.encode())

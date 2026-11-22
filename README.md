@@ -48,6 +48,12 @@ below. Hide the supporting views without leaving your file, then bring them back
 when you need the directory browser, problems, or notification history. For an
 even smaller interface, **`Space v B`** toggles borderless Bare mode.
 
+In the command palette (`Space c c`), **Layout: Silver** shows **Silver: Overview**,
+**Silver: Stage Checklist**, and **Silver: Flow Runner** alongside the editor.
+Type `flow` to focus Flow Runner without switching or running a flow.
+**Layout: Default** returns to the ordinary workspace. History stays available
+on demand (`Space v M`).
+
 ![Cobalt in Zen mode editing an OCaml scrambler implementation, with relative line numbers and a bottom status line.](docs/images/daily-zen.png)
 
 ## Completion in context

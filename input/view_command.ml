@@ -39,6 +39,10 @@ module Placement = struct
   [@@deriving sexp, equal]
 end
 
+module Layout = struct
+  type t = Default | Silver [@@deriving sexp_of, equal]
+end
+
 type t =
   | Signature_help
   | Toggle_signature_help
@@ -121,6 +125,7 @@ type t =
   | Toggle_zen
   | Toggle_bare
   | Restore_editor_workspace
+  | Apply_layout of Layout.t
   | Show_view of View_id.t
   | Hide_focused_tile
   | Unhide_tile
@@ -200,6 +205,7 @@ let scale t ~count =
   | Toggle_zen
   | Toggle_bare
   | Restore_editor_workspace
+  | Apply_layout _
   | Show_view _
   | Hide_focused_tile
   | Unhide_tile

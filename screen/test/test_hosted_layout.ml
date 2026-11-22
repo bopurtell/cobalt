@@ -34,7 +34,7 @@ let%test_unit "the hosted layout codec validates the workspace's constraints" =
 let%test_unit "Problems fills the bottom band without default History or Status" =
   let default = workspace (create ()) in
   assert (Option.is_some default.status);
-  assert (Option.is_some (Workspace.minor default History_tile.id));
+  assert (Option.is_none (Workspace.minor default History_tile.id));
   let t = create ~layout:(parse "((views ((Problems Band))))") () in
   let w = workspace t in
   let problems = Workspace.minor w Problems_tile.id |> Option.value_exn in

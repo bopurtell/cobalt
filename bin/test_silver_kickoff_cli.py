@@ -77,16 +77,16 @@ def test(binary):
                 send(ui, [b" cc", text.encode(), b"\r"])
 
             def open_tile(ui):
-                command(ui, "Focus Silver flow kickoff")
+                command(ui, "flow")
 
             def hide_tile(ui):
-                command(ui, "Toggle Silver flow kickoff")
+                command(ui, "Toggle Silver: Flow Runner")
 
             def open_review(ui):
-                command(ui, "Review Silver flow kickoff")
+                command(ui, "Silver: Flow Review")
 
             def hide_review(ui):
-                command(ui, "Toggle Silver flow kickoff review")
+                command(ui, "Toggle Silver: Flow Review")
 
             def observe(ui, action, marker):
                 start = len(ui.output)
@@ -102,7 +102,8 @@ def test(binary):
                 with editor(binary, file, env, flags, width=300) as ui:
                     ui.see(b"SAVED_PROJECT_TEXT")
                     command(ui, "st")
-                    ui.see(b"endpoint default-delay")
+                    ui.see(b"implement/debug")
+                    ui.see(b"Timing:")
                     send(ui, [b"j"])
                     open_tile(ui)
                     ui.see(b"Implement first")
@@ -220,7 +221,8 @@ def test(binary):
                 flags = ["--silver-endpoint", endpoint, "--silver-project", str(second),
                          "--silver-run", "fixture-watched"]
                 with editor(binary, file, env, flags, width=300) as ui:
-                    ui.see(b"Attempt: fixture-watched")
+                    ui.see(b"Attempt:")
+                    ui.see(b"fixture-watched")
                     before = len(watched)
                     open_review(ui)
                     ui.see(b"Flow choice: Implement second")

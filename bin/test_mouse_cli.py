@@ -304,9 +304,13 @@ def test_workspace_focus(binary, root, env):
     entry = "info [snippets]"
     with editor(binary, file, env, "--workspace") as (tty, before):
         tty.wait(lambda: tty.screen.cursor_on("first history line")
-                 and history + ":" in tty.screen.text and entry in tty.screen.text
                  and problems + " (workspace)" in tty.screen.text,
-                 "editor focused with History and Problems visible")
+                 "editor focused with Problems visible")
+        assert history not in tty.screen.text, "History unexpectedly visible at startup"
+        tty.keys(b" vm")
+        tty.wait(lambda: tty.screen.cursor_on("first history line")
+                 and history + ":" in tty.screen.text and entry in tty.screen.text,
+                 "History opened without taking focus and shows the startup event")
         assert {1000, 1006} <= tty.modes(), "workspace mouse reporting not enabled by default"
 
         tty.keys(tty.report(0, entry))

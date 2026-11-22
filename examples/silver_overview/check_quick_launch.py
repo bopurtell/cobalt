@@ -73,7 +73,7 @@ def cobalt_launch(args, fixture, evidence):
             os.write(cobalt.master, key)
             cobalt.drain(.12, allow_exit=allow_exit)
 
-    cobalt.capture("catalog", ["Silver overview", "FIFO", "seeded", "smoke"])
+    cobalt.capture("catalog", ["Silver: Overview", "FIFO", "seeded", "smoke"])
     testing = None
     if args.silver_client is not None:
         testing = open_pty("silver-testing", [str(args.silver_client), "--connect",
@@ -87,7 +87,7 @@ def cobalt_launch(args, fixture, evidence):
     send(b"\t")
     cobalt.capture("parameter-before", ["n (2/2)", "10"])
     send(b"\x15", b"50", b"\r")
-    cobalt.capture("applied", ["Silver overview", "seeded", "Saved test settings"],
+    cobalt.capture("applied", ["Silver: Overview", "seeded", "Saved test settings"],
                    absent=["╭─ Test settings"])
     require(silver.simulation("Get")["attempts"] == [], "Apply started a simulation")
     send(b"R")
@@ -96,7 +96,7 @@ def cobalt_launch(args, fixture, evidence):
     send(b"\r")
     cobalt.capture("focus-after-launch", ["Test settings", "FIFO / seeded"])
     send(b"\x1b", b"\x1b", b" vS")
-    cobalt.capture("tile-hidden", ["c6 fixture editor"], absent=["╭─ Silver overview"])
+    cobalt.capture("tile-hidden", ["c6 fixture editor"], absent=["╭─ Silver: Overview"])
     send(b" cc", b"test")
     cobalt.capture("exact-test", ["Run test", "FIFO / seeded", "n=50"])
     send(b"\r")
@@ -106,7 +106,7 @@ def cobalt_launch(args, fixture, evidence):
     require(len(set(ids)) == 2 and first in ids, f"Expected two distinct attempts: {ids!r}")
     second = one([id_ for id_ in ids if id_ != first], "palette-launched attempt")
     send(b" vM", b" st")
-    cobalt.capture("second-result", ["Accepted", second], absent=["╭─ Silver overview"])
+    cobalt.capture("second-result", ["Accepted", second], absent=["╭─ Silver: Overview"])
     send(b" sb", b"\x1b", b" q", allow_exit=True)
     require(cobalt.process.wait(timeout=10) == 0, "Cobalt did not exit cleanly")
 

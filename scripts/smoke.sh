@@ -184,7 +184,8 @@ launch() {
     # Most editing checks use a document-only fixture. Test the startup workspace
     # separately, then explicitly hide companions for those existing scenarios.
     if [ "$keep_startup_tiles" = false ]; then
-      keys Space v t Space v b Space v m
+      if screen_has '╭─ Silver: Overview'; then keys Space v S; fi
+      keys Space v t Space v b
       case " $* " in
         *" --demo-report "*) keys Space v d ;;
       esac
@@ -362,6 +363,8 @@ type_text 'bare'
 keys Enter
 expect_screen '╭─ Status ─'
 expect_screen 'Problems (workspace): 0/0'
+expect_no_screen 'History:'
+keys Space v m
 expect_screen 'History:'
 keys Space v p h Space v n
 expect_screen 'Line numbers: absolute'
@@ -513,7 +516,7 @@ fi
 if [ "$palette_only" = false ] || [ "$lsp_only" = true ]; then
 if [ "$lsp_only" = false ]; then
 # ---------------------------------------------------------------------------
-section "explicit workspace shows all installed tiles at startup"
+section "explicit workspace shows Problems and the report with History hidden at startup"
 printf 'startup workspace\n' > "$work/startup.txt"
 resize 160 30
 keep_startup_tiles=true
@@ -521,7 +524,7 @@ launch --demo-report startup.txt
 expect_screen "╭─ Status ─"
 expect_screen "Problems (workspace): 0/0"
 expect_screen "Demo report (static): 10 items"
-expect_screen "History:"
+expect_no_screen "History:"
 expect_no_screen "Space v o: focus"
 expect_no_screen "Space v D: focus"
 expect_no_screen "Space v M: focus"
@@ -2209,6 +2212,8 @@ section "floating palette with all tiles, zen, resize and interrupted paste"
 resize 120 40
 keep_startup_tiles=true
 launch --demo-report palette.txt
+if screen_has '╭─ Silver: Overview'; then keys Space v S; fi
+keys Space v m
 expect_screen "Problems (workspace): 0/0"
 expect_screen "Demo report (static): 10 items"
 expect_screen "History:"

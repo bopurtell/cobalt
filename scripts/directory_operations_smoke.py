@@ -44,7 +44,7 @@ def main():
 
     try:
         pump(1)
-        send(b" vt vb\riEDIT\x1b o")
+        send(b" vt vb vm\riEDIT\x1b o")
         send(b"ggyypVc@copy copy\x1b")  # Protected copied row; no ID needs exposing.
         assert not (root / "copy").exists()
         send(b" w")

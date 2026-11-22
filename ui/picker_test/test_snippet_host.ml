@@ -141,6 +141,8 @@ let%expect_test "runtime startup and palette reload stay asynchronous while edit
     | `Result () -> ()
     | `Timeout -> failwith (stage ^ "\n" ^ !last) in
   let%bind () = wait "startup request" (fun _ -> !calls = 1) in
+  (* Observe the asynchronous reload notices in the History band. *)
+  type_text " vm";
   type_text "iEDITING";
   assert (String.is_substring (view ()) ~substring:"EDITING");
   assert (!calls = 1);

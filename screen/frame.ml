@@ -938,7 +938,14 @@ let rec prepare_document ?highlights ?decorations ?allocation ?reserve_status_ro
     { width; height; rows; cursor; smear }
 ;;
 
-let prepare ?highlights ?decorations ?allocation ?reserve_status_row ?floating ui ~width ~height =
+let prepare ?highlights ?decorations ?allocation ?reserve_status_row ?floating ?stage_spinner
+    ui ~width ~height =
+  let ui = match stage_spinner with
+    | None -> ui
+    | Some frame ->
+      Ui_state.map_view ui Silver_stage_tile.key ~f:(fun stage ->
+        Silver_stage_tile.with_spinner stage frame)
+  in
   if Ui_state.has_document ui then
     match allocation, Ui_state.side_layout ui ~width ~height with
     | None, Some layout ->
@@ -1001,6 +1008,7 @@ module Cache = struct
     ; file_stamp : (int * int * int) option
     ; theme : Cobalt_theme.Theme.t
     ; decorations : (Cobalt_decoration.Snapshot.Key.t * Decoration.t) option
+    ; stage_spinner : Silver_stage_tile.Spinner.t option
     }
 
   type 'a t = { mutable entry : 'a entry option }
@@ -1021,7 +1029,7 @@ module Cache = struct
     next, status
   ;;
 
-  let get ?decorations t ui ~width ~height ~draw_base =
+  let get ?decorations ?stage_spinner t ui ~width ~height ~draw_base =
     (* Re-check before cache lookup, not only on a prepare miss: a retained
        decorated row must never bypass the current source/key freshness gates. *)
     let decorations = Option.bind decorations ~f:(fun (key, prepared) ->
@@ -1046,12 +1054,13 @@ module Cache = struct
         | Some entry when entry.width = width && entry.height = height
             && Cobalt_theme.Theme.equal entry.theme (Ui_state.theme ui)
             && same_decorations entry.decorations decorations
+            && Option.equal Silver_stage_tile.Spinner.equal entry.stage_spinner stage_spinner
           && Option.equal [%equal: int * int * int] entry.file_stamp (Ui_state.file_picker_visible_stamp ui) -> entry
       | _ ->
-        let overlay = prepare ?decorations ui ~width ~height in
+        let overlay = prepare ?decorations ?stage_spinner ui ~width ~height in
         let base = draw_base (overlay (Animation.create ~enabled:false)) in
          let entry = { width; height; overlay; base; file_stamp = Ui_state.file_picker_visible_stamp ui
-            ; theme = Ui_state.theme ui; decorations } in
+            ; theme = Ui_state.theme ui; decorations; stage_spinner } in
         t.entry <- Some entry;
         entry in
     entry.overlay (Ui_state.animation ui), entry.base

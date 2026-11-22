@@ -65,7 +65,7 @@ def main():
         send(b" df dm ds")  # Move the marked browser to major and back.
         assert b"1 marked" in capture
         send(b" dh ds mo")  # Hide/restore mark, open clears it, focus file.
-        send(b" vt vb")  # Wider history feedback: hide status and problems.
+        send(b" vt vb vS vm")  # Show History alone in the band for actionable feedback.
         send(b" dfggV4j ms\x1b mo")
         assert b"bad.txt: Cannot open" in capture
         assert b"Batch skipped: child" in capture

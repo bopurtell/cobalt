@@ -145,8 +145,8 @@ let%expect_test "the default catalog, with shortcuts derived from bindings" =
     history.focus                  Focus notification history
     report.toggle                  Toggle demo report
     report.focus                   Focus demo report
-    silver-overview.toggle         Toggle Silver overview
-    silver-overview.focus          Focus Silver overview
+    silver-overview.toggle         Toggle Silver: Overview
+    silver-overview.focus          Focus Silver: Overview
     vcs.open                       VCS: open or focus
     vcs.to-tab                     VCS: move to a tab
     vcs.to-split                   VCS: move to the split

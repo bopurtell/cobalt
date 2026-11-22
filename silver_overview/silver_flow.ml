@@ -256,6 +256,10 @@ let active_flow t view =
   Result.ok (stage_selection t view) |> Option.map ~f:(fun (inputs, _) -> inputs.flow)
 ;;
 
+let active_inputs t view =
+  Result.ok (stage_selection t view) |> Option.map ~f:fst
+;;
+
 let stage_selection_error t view =
   match stage_selection t view with Ok _ -> None | Error reason -> Some reason
 ;;

@@ -104,7 +104,9 @@ val render
     called once per miss, allowing the frontend to retain its base terminal image.
     Hits only rasterize smear and select the already computed settled cursor.
     Decoration identity includes the key and physical prepared payload; replacing
-    or removing it invalidates independently of animation/file-work stamps. *)
+    or removing it invalidates independently of animation/file-work stamps.
+    A changed checklist spinner frame also invalidates the base image; it is
+    supplied only for a visible active marker. *)
 module Cache : sig
   type frame = t
   type 'a t
@@ -116,6 +118,7 @@ module Cache : sig
   val apply_inputs : ?after_step:(Ui_state.t -> Ui_state.t) -> 'a t -> Ui_state.t
     -> width:int -> height:int -> Ui_state.Input.t list -> Ui_state.t * Cobalt_app.Controller.Status.t
   val get : ?decorations:(Cobalt_decoration.Snapshot.Key.t * Decoration.t)
+    -> ?stage_spinner:Silver_stage_tile.Spinner.t
     -> 'a t -> Ui_state.t -> width:int -> height:int
     -> draw_base:(frame -> 'a) -> frame * 'a
 end

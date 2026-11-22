@@ -4,25 +4,42 @@ module Navigation = Cobalt_tile.Navigation
 module Selection = Navigation.Selection
 
 let id = Cobalt_tile.View_id.of_string "silver-kickoff"
-let title = "Silver flow kickoff"
+let title = "Silver: Flow Runner"
 let spec = Cobalt_tile.Spec.read_only id ~title
 let review_id = Cobalt_tile.View_id.of_string "silver-kickoff-review"
-let review_title = "Silver flow kickoff review"
+let review_title = "Silver: Flow Review"
 let review_spec = Cobalt_tile.Spec.read_only review_id ~title:review_title
 
-let palette_entries =
-  let create name title action =
+let open_command_id = "silver-kickoff.focus"
+
+let palette_entries ~installed ~review_installed =
+  let create ~id ~title ?available ~priority_aliases action =
     Cobalt_palette.Catalog.Entry.create
-      ~id:("silver-kickoff." ^ name)
-      ~title
-      ~keywords:[ "companion"; "named flow" ]
+      ~id ~title ~keywords:[ "companion"; "named flow" ]
+      ?available ~priority_aliases
       (View action)
   in
-  [ create "focus" ("Focus " ^ title) (Focus_view id)
-  ; create "toggle" ("Toggle " ^ title) (Toggle_view id)
-  ; create "review" ("Review " ^ title) (Focus_view review_id)
-  ; create "toggle-review" ("Toggle " ^ review_title) (Toggle_view review_id)
-  ]
+  let command ~id ~title ~legacy action =
+    create ~id ~title ~priority_aliases:[ title; legacy ] action
+  in
+  (* Keep the native destination in the catalog even without an adapter. Its exact
+     alias is reserved and must not invoke a similarly named host or review command. *)
+  create ~id:open_command_id ~title
+    ~available:(fun context -> installed && Cobalt_core.Mode.equal context.mode Normal)
+    ~priority_aliases:(if installed then [ "flow"; title; "Focus Silver flow kickoff" ] else [ "flow" ])
+    (Show_view id)
+  :: ((if installed
+       then [ command ~id:"silver-kickoff.toggle" ~title:("Toggle " ^ title)
+                ~legacy:"Toggle Silver flow kickoff" (Toggle_view id) ]
+       else [])
+      @ if review_installed
+        then
+          [ command ~id:"silver-kickoff.review" ~title:review_title
+              ~legacy:"Review Silver flow kickoff" (Show_view review_id)
+          ; command ~id:"silver-kickoff.toggle-review" ~title:("Toggle " ^ review_title)
+              ~legacy:"Toggle Silver flow kickoff review" (Toggle_view review_id)
+          ]
+        else [])
 ;;
 
 module Choice = struct

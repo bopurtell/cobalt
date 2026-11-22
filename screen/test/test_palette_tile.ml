@@ -56,7 +56,7 @@ let%test_unit "floating open/filter/cancel preserves all tiled rectangles, docum
   List.iter [ false; true ] ~f:(fun zen ->
     let initial = Ui_state.create ~report:Report_tile.demo
         (Ui_state.controller (Helpers.ui contents)) in
-    let initial = run ~width ~height initial (if zen then " vzG" else "G") in
+    let initial = run ~width ~height initial (if zen then " vm vzG" else " vmG") in
     let workspace = Ui_state.workspace initial ~width ~height in
     let geometry = Ui_state.geometry initial ~width ~height in
     let scroll = Ui_state.scroll initial in
