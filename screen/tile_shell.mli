@@ -51,6 +51,10 @@ end
     the normalized allocation; origins are preserved. *)
 val layout : Policy.t -> Geometry.Rect.t -> Layout.t
 
+(** The bare heading row, or just the visible title text in a framed heading
+    (not the border glyphs or the space around the label). *)
+val heading : Layout.t -> title:string -> Geometry.Rect.t
+
 (** A footer or other label: its text and style. *)
 module Label : sig
   type t =

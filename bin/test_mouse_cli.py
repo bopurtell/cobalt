@@ -102,6 +102,16 @@ class Editor:
             self.wait(lambda: not self.modes() & MOUSE_MODES, "mouse reporting off")
         assert {1049, 2004} <= self.modes(), "toggle disturbed screen or paste mode"
 
+    def palette_command(self, query, title):
+        # Enter only after the exact query has selected the intended first result.
+        selected_first = re.compile(rf"│ > {re.escape(query)} +│[^\n]*\n"
+                                    rf"[^\n]*│ > {re.escape(title)} +")
+        self.keys(b" cc" + query.encode("ascii"))
+        self.wait(lambda: "╭─ Commands" in self.screen.text
+                  and selected_first.search(self.screen.text),
+                  f"{title!r} first and selected for {query!r}")
+        self.keys(b"\r")
+
 
 @contextmanager
 def editor(binary, file, env, *flags):
@@ -284,6 +294,51 @@ def test_two_editors(binary, root, env):
     assert second.read_text() == right.replace("right:abcd", "right:aRbcd")
 
 
+def test_workspace_focus(binary, root, env):
+    file = root / "history.txt"
+    original = "first history line\nclick:abcd\n"
+    file.write_text(original)
+    history = "╭─ History"
+    problems = "╭─ Problems"
+    # Snippet initialization records a History entry even with a fresh HOME.
+    entry = "info [snippets]"
+    with editor(binary, file, env, "--workspace") as (tty, before):
+        tty.wait(lambda: tty.screen.cursor_on("first history line")
+                 and history + ":" in tty.screen.text and entry in tty.screen.text
+                 and problems + " (workspace)" in tty.screen.text,
+                 "editor focused with History and Problems visible")
+        assert {1000, 1006} <= tty.modes(), "workspace mouse reporting not enabled by default"
+
+        tty.keys(tty.report(0, entry))
+        tty.wait(lambda: history + "*:" in tty.screen.text and not tty.screen.cursor_visible,
+                 "History gains focus and the editor cursor disappears")
+        tty.palette_command("hide", "Hide focused tile")
+        tty.wait(lambda: history not in tty.screen.text and "╭─ Commands" not in tty.screen.text
+                 and problems + " (workspace)" in tty.screen.text
+                 and tty.screen.cursor_on("first history line"),
+                 "only History is hidden and editor focus is restored")
+
+        tty.palette_command("unhide", "Unhide tile")
+        tty.see(history + "*:")
+        tty.keys(tty.report(0, "No active problems"))
+        tty.wait(lambda: problems + "*" in tty.screen.text and history + ":" in tty.screen.text,
+                 "click switches from History to Problems")
+        tty.keys(tty.report(0, "click:abcd", 7))
+        tty.wait(lambda: tty.screen.cursor_on("click:abcd")
+                 and problems + " (workspace)" in tty.screen.text,
+                 "click switches from Problems back to the editor")
+
+        tty.toggle_mouse(enabled=False)
+        # A late report over History must not redirect the queued edit.
+        tty.keys(tty.report(0, entry) + b"iN\x1b")
+        tty.wait(lambda: tty.screen.cursor_on("click:aNbcd") and history + ":" in tty.screen.text,
+                 "late History click is ignored while mouse reporting is off")
+        assert not tty.modes() & MOUSE_MODES
+        tty.keys(b" w q")
+        tty.finish(before)
+    assert file.read_text() == original.replace("click:abcd", "click:aNbcd")
+
+
 if __name__ == "__main__":
     binary = str(Path(sys.argv[1]).resolve())
     with tempfile.TemporaryDirectory(prefix="cobalt-mouse-cli-") as temporary:
@@ -294,5 +349,7 @@ if __name__ == "__main__":
         test_toggle(binary, root, env)
         test_directory(binary, root, env)
         test_two_editors(binary, root, env)
+        test_workspace_focus(binary, root, env)
     print("Mouse CLI: default, startup override, runtime toggle, click/keyboard edit,"
-          " wheel, directories, tabs, two editors, bracketed paste, quit and signal cleanup")
+          " wheel, directories, tabs, two editors, workspace focus, bracketed paste,"
+          " quit and signal cleanup")

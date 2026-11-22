@@ -44,6 +44,9 @@ the host owns terminal mouse reporting.
   anything on disk. Press `Enter` to open the entry.
 - Left-click a visible file tab to activate it just as with the keyboard. If
   the file is already visible in the other editor pane, that pane gains focus.
+- Click a workspace tile such as **History** or **Problems** to give it keyboard
+  focus. The click doesn't run the action on a row. To hide History, for example,
+  click it, open the palette (`Space c c`), type `hide`, and press Enter.
 - Use the wheel over file text or a directory listing to scroll that pane
   without changing focus, cursor position, or selection. If the cursor scrolls
   out of view, the next keyboard edit or cursor movement brings it back.

@@ -3784,15 +3784,11 @@ let run_view_command t ~width ~height id command =
     | Ok (views, outcome) -> apply_outcome { t with views } ~width ~height ~source:id outcome)
 ;;
 
-(* Focus a minor view, showing it first, or return when it is already focused. Entry
-   cancels pending editor input; an incomplete editor command keeps precedence because
-   it never reaches here. *)
-let toggle_focus t ~width ~height id ~show =
+(* Enter a view through the same capture transition for keyboard and pointer. *)
+let enter_view t ~width ~height id ~show =
   let title = (Host.spec t.host id).title in
   let current = focused_view t ~width ~height in
-  if View_id.equal current id
-  then return_to_document t
-  else if not (Mode.equal (Editor.mode (Controller.editor t.controller)) Normal)
+  if not (Mode.equal (Editor.mode (Controller.editor t.controller)) Normal)
   then
     { t with
       host =
@@ -3805,7 +3801,14 @@ let toggle_focus t ~width ~height id ~show =
     then { t with host = Host.with_notice t.host (title ^ " cannot fit in compact/zen layout") }
     else (
       let t = leave t current in
-      { t with host = Host.focus t.host id }))
+       { t with host = Host.focus t.host id }))
+;;
+
+(* Keyboard focus commands toggle; clicking an already focused view does not. *)
+let toggle_focus t ~width ~height id ~show =
+  if View_id.equal (focused_view t ~width ~height) id
+  then return_to_document t
+  else enter_view t ~width ~height id ~show
 ;;
 
 (* The palette entries for [origin]'s local commands, first in the palette, with
@@ -6057,6 +6060,38 @@ let pointer_pane t ~file_ui ~width ~height ~side ~x ~y =
           })
 ;;
 
+let pointer_focusable t id =
+  View_registry.installed t.views id && (Host.spec t.host id).focusable && not (view_hidden t id)
+;;
+
+let pointer_view t (w : Workspace.t) ~width ~height ~x ~y =
+  (* Match the tiled layers in Frame.prepare_document, not the registry's requested
+     placements. The title label is a target, but its surrounding border isn't. *)
+  let is_heading id (layout : Tile_shell.Layout.t) =
+    contains layout.title ~x ~y
+    && (not layout.framed ||
+      let focused = View_id.equal (focused_view t ~width ~height) id in
+      let notice, pending =
+        if focused then capture_notice t, capture_pending t else None, None in
+      let title =
+        View_registry.render t.views id t.controller ~hotkey_hints:t.hotkey_hints
+          ~focused ~notice ~pending ~width:layout.content.width ~rows:layout.content.height
+        |> Option.value_map ~default:(View_id.to_string id) ~f:(fun content -> content.title)
+      in
+      contains (Tile_shell.heading layout ~title) ~x ~y)
+  in
+  let hits id =
+    not (View_id.equal id directory_id) && pointer_focusable t id
+    && Option.exists (view_layout_in t w id) ~f:(fun layout ->
+      contains layout.content ~x ~y || is_heading id layout)
+  in
+  match Option.filter (active_tab_view t) ~f:hits with
+  | Some _ as target -> target
+  | None ->
+    List.find_map w.minors ~f:(fun pane ->
+      match pane.id with Minor id when hits id -> Some id | _ -> None)
+;;
+
 let apply_pointer t ~width ~height ~x ~y ~action =
   if x < 0 || x >= width || y < 0 || y >= height
      || not (has_document t) || pasting t
@@ -6068,25 +6103,49 @@ let apply_pointer t ~width ~height ~x ~y ~action =
     (* Like Frame.prepare, lay out the underlying file surface independently
        of the directory input owner when the side shell is drawn over it. *)
     let file_ui = if Option.is_some side then surface t ~directory:false else t in
-    let tab = match action with
-      | `Wheel_up | `Wheel_down -> None
-      | `Left_click ->
-        let covered = Option.exists side ~f:(fun layout -> contains layout.outer ~x ~y) in
-        if covered then None else
-        Option.bind (workspace_tab_rect file_ui (workspace file_ui ~width ~height))
-          ~f:(fun rect ->
-            if not (contains rect ~x ~y) then None
-            else
-              let entries = tab_item_entries file_ui in
-              Option.bind (File_tabs.hit (List.map entries ~f:snd) ~width:rect.width ~column:(x - rect.x))
-                ~f:(fun i -> Option.map (List.nth entries i) ~f:fst)) in
+    let covered = Option.exists side ~f:(fun layout -> contains layout.outer ~x ~y) in
+    let target = match action with
+      | `Left_click when not covered ->
+        let w = workspace file_ui ~width ~height in
+        let tab = Option.bind (workspace_tab_rect file_ui w) ~f:(fun rect ->
+          if not (contains rect ~x ~y) then None
+          else
+            let entries = tab_item_entries file_ui in
+            Option.bind (File_tabs.hit (List.map entries ~f:snd) ~width:rect.width ~column:(x - rect.x))
+              ~f:(fun i -> Option.map (List.nth entries i) ~f:fst)) in
+        (match tab with
+         | Some tab -> Some (`Tab tab)
+         | None ->
+           Option.map (pointer_view file_ui w ~width ~height ~x ~y) ~f:(fun id -> `View id))
+      | _ -> None in
     let settle t = release_held t ~width ~height |> refit ~width ~height in
-    match action, tab with
-    | `Left_click, Some (File id) ->
+    let focus id ~show =
+      if View_id.equal (focused_view t ~width ~height) id
+      then t
+      else (
+        let t = enter_view t ~width ~height id ~show:(fun t -> show (dismiss_completion t)) in
+        if View_id.equal (focused_view t ~width ~height) id
+        then
+          settle
+            { t with snippet = None
+            ; animation = Animation.create ~enabled:(Animation.enabled t.animation) }
+          |> signal_views ~width ~height
+        else t)
+    in
+    match target with
+    | Some (`Tab (File id)) ->
       let t = select_file_tab (dismiss_completion t) ~width ~height id in
       settle { t with controller = Controller.cancel_pending t.controller; toggle_pending = None }
-    | `Left_click, Some (View _) -> t
-    | _ ->
+    | Some (`Tab (View id)) ->
+      let show t = { t with tabs = Tab_strip.activate t.tabs (Some id); rows = None } in
+      (* A hidden view can still have a title in the strip. Do not select it, or
+         move focus to a tab whose shell would disappear on activation. *)
+      if pointer_focusable t id && available (show t) ~width ~height id
+      then focus id ~show
+      else t
+    | Some (`View id) ->
+      if available t ~width ~height id then focus id ~show:Fn.id else t
+    | None ->
       match pointer_pane t ~file_ui ~width ~height ~side ~x ~y with
       | None -> t
       | Some pane ->

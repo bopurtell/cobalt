@@ -92,7 +92,9 @@ Use **Toggle Silver flow kickoff** to hide the tab; a pending reply remains
 available on reopening. A changed project or catalog invalidates the draft and
 preview. If delivery is unconfirmed, check Silver before preparing another
 Kickoff: Cobalt does not retry. The UI requires Silver to advertise compatible
-flow capabilities. Automated Cobalt coverage uses fixtures, not a live daemon.
+flow capabilities. Cobalt's regression tests replay captured exchanges; Silver's
+`scripts/test-companion-flow-launch.py --slice c9` checks the same interaction
+with both terminal clients and a private daemon.
 
 ## Watch an attempt
 

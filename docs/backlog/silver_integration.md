@@ -1,8 +1,8 @@
 # Silver integration: Cobalt-side tickets
 
-**Status:** C1–C6 are **closed** for their Cobalt-side scope. C5 and C6 passed
+**Status:** C1–C7 are **closed** for their Cobalt-side scope. C5 and C6 passed
 live two-window checks for simulation observation and test quick launch,
-respectively. C7–C9 are active implementation slices, not duplicate feature
+respectively. C8–C9 are live-verified implementation slices, not duplicate feature
 trackers. Silver's `docs/cobalt_editor_roadmap.md` and the named WB tickets own
 the user workflows and end-to-end acceptance. “Ready for Silver” means the
 Cobalt interface works against a local harness, not that the two apps have been
@@ -19,17 +19,16 @@ Keep fixture exchanges and harness instructions with their adapter.
 | [C4: Main editor destination](#c4--address-an-opted-in-standalone-editor) | Closed | Silver navigation: second destination for the same location |
 | [C5: Companion overview](#c5--optional-silver-module-and-overview-tile) | Closed | Cobalt-first monitoring against a real Silver endpoint |
 | [C6: Test quick launch](#c6--run-a-silver-test-from-the-editor) | Closed | WB-093: tile `R` and exact `test`; no stage launch |
-| [C7: Discover/connect wizard](#c7--discover-and-connect-to-a-shared-silver-project) | Live embedded + attached verified | WB-094: two-app acceptance passed |
+| [C7: Discover/connect wizard](#c7--discover-and-connect-to-a-shared-silver-project) | Closed | WB-094: owner-accepted after live embedded and attached verification |
 | [C8: Stage checklist and aliases](#c8--stage-checklist-and-palette-aliases) | Live parity verified | WB-095: checklist and exact aliases matched native Silver across seven runs |
 | [C9: Flow kickoff tile](#c9--flow-kickoff-tile) | Live parity verified | WB-095: exact nondefault preview reserved once; stale previews did not submit |
 
-**Parallel order:** start C7's picker against fixture advertisements while
-C8 and C9 start against a fake launch service with an explicit project binding.
-C8 and C9 should first agree on a small shared launch interface (cached catalog,
-captured intent, typed result); then build their surfaces in parallel. Neither
-needs the other's UI, C7's real share publisher, or Silver's embedded editor.
-Integrate and test the shared WB-095 wire adapter once Silver supplies the
-contract and fixtures below. C7 live acceptance has its own publisher gate.
+**Verification:** C7 reads Silver's locked share registry; C8 and C9 share
+one flow adapter and can also use an explicit project binding. To rerun the
+two-app checks, use Silver's `scripts/test-editor-project-sharing.py` (C7)
+and `scripts/test-companion-flow-launch.py --slice c8|c9` (one slice per run).
+Point `--cobalt` at the binary under test. Both harnesses create private projects
+and state; WB-094 and WB-095 record the commands and expected results.
 
 ## C1 — Open a location in a live session
 
@@ -252,18 +251,10 @@ for stale/unsupported targets, matching captured inputs for equivalent `R`
 and alias actions, and no replay after an unconfirmed reply. Surface accepted
 identity without replacing the watched attempt.
 
-**Handoff / live blocker:** Silver's `terminal/stage_action.ml`,
-`terminal/stage_launch_commands.ml` and `protocol/asic.ml` are references, not
-a Cobalt launch contract. The current Cobalt handshake checks `simulation`,
-not flow readiness. Silver must pin the capability check and public resolution source
-(target, flow/profile/defaults, stage-to-endpoint mappings including timing)
-and confirm the native submission sequence and response identities, including
-`Stage_fresh` / `Launch_fresh` if that is the agreed path. Capture a real
-catalog/resolve/stage/submit exchange and stale/unsupported cases. Compare
-checklist `R` and each alias with Silver's native resolution through the same
-stage using an explicit project binding. Compare target, flow, profile and
-endpoint and verify distinct acknowledged runs; do not claim live parity
-before that.
+**Handoff:** WB-095 records the seven-run comparison against native Silver.
+The [captured C8 fixture](../../silver_overview/test/wb095-c8.sexp) replays the
+wire contract in Cobalt. The live comparison covers default configuration;
+explicit nondefault stage settings also have adapter tests.
 
 ## C9 — Flow kickoff tile
 
@@ -271,7 +262,8 @@ before that.
 the [adapter's plan/submit contract](../../silver_overview/FLOW.md), and the
 [terminal regression test](../../bin/test_silver_kickoff_cli.py). The latter
 checks project switching during preparation, exact reviewed values, and
-acknowledgement while hidden. A live Silver comparison remains outstanding.
+acknowledgement while hidden. WB-095 also verified a nondefault preview against
+Silver's native plan and observed one accepted workflow for two quick Kickoff presses.
 
 **WB-095-companion-flow-launch.** Add a dedicated tile for selecting a named
 flow and its declared inputs, reviewing the resolved preview, and explicitly
@@ -300,11 +292,8 @@ submission with the reviewed values, switching project during planning, delayed
 acknowledgements, and no automatic replay. Test with an explicit project
 binding and keep no-Silver editing unaffected.
 
-**Handoff / live blocker:** in addition to C8's shared wire contract, Silver
-must identify the authoritative flow input schema and the exact plan/preview
-or intent identity required to launch the reviewed inputs, with real native
-catalog, preparation, submission and acceptance fixtures. Compare a non-default
-Cobalt preview with Silver's native plan, verify preview alone creates no run,
-then Kickoff once and identify the accepted run in Silver with those exact
-inputs. A stale or unavailable preview must create no run. This needs the real
-flow service, not C7 project sharing or completion of the C8 UI.
+**Handoff:** the [captured C9 fixture](../../silver_overview/test/wb095-c9.sexp)
+preserves the real preparation and submission exchanges. The WB-095 two-window
+check verifies preview alone creates no run and a superseded preview cannot
+start a workflow. It exercises the real service with deterministic producers,
+not a physical EDA flow.

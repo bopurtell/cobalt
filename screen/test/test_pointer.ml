@@ -205,16 +205,18 @@ let%test_unit "wheel over focused and unfocused side panes leaves editor and dir
     Session.dispose (Ui_state.session ui))
 ;;
 
-let tab_position ui ~width target =
+let tab_position_for ?(height = height) ui ~width target =
   let w = Ui_state.workspace ui ~width ~height in
   let rect = Ui_state.workspace_tab_rect ui w |> Option.value_exn in
   let items = Ui_state.tab_items ui in
   let entries = Ui_state.tab_entries ui in
   List.find_map (List.range 0 rect.width) ~f:(fun column ->
     match Option.bind (File_tabs.hit items ~width:rect.width ~column) ~f:(List.nth entries) with
-    | Some (File id) when Buffer_id.equal id target -> Some (rect.x + column, rect.y)
+    | Some entry when Tab_strip.Entry.equal entry target -> Some (rect.x + column, rect.y)
     | _ -> None)
 ;;
+
+let tab_position ui ~width id = tab_position_for ui ~width (File id)
 
 let%test_unit "tab overflow, padding, live resize and modal captures are not stale targets" =
   with_files (fun _ paths ->
@@ -286,4 +288,133 @@ let%test_unit "C10 visible split click, independent wheel, divider, tab focus an
     let ui = pointer ~width:narrow_width ui `Left_click ~x:b_rect.x ~y:b_rect.y in
     assert (active_is ui a);
     Session.dispose (Ui_state.session ui))
+;;
+
+let focused ui id = Cobalt_tile.View_id.equal (Ui_state.focused_view ui ~width ~height) id
+let view_layout ui id = Ui_state.minor_layout ui ~width ~height id |> Option.value_exn
+let click_body ui id =
+  let rect = (view_layout ui id).content in
+  click ui ~x:rect.x ~y:rect.y
+;;
+
+let%test_unit "clicking History and Problems captures keys, not rows; leaving clears capture state" =
+  let ui = Test_problem_navigation.create () |> fun ui -> run ui " vm vb" in
+  let before = editor ui in
+  let history_selection ui = (History_tile.selection (Ui_state.history_tile ui)).selected in
+  let problems_selection ui = (Ui_state.problem_navigation ui ~width ~height).selected in
+  let history = history_selection ui and problem = problems_selection ui in
+  assert (Option.is_some history && Option.is_some problem);
+  let ui = run ui "d" |> fun ui -> click_body ui History_tile.id in
+  assert (focused ui History_tile.id && Option.is_none (redraw ui).cursor);
+  assert (Option.equal Int.equal history (history_selection ui));
+  assert (not (History_tile.details (Ui_state.history_tile ui)));
+  let ui = run ui "<CR>" in
+  assert (History_tile.details (Ui_state.history_tile ui));
+  assert (phys_equal ui (click_body ui History_tile.id));
+  let ui = run ui "g" in
+  assert (Option.equal String.equal (Ui_state.capture_pending ui) (Some "g"));
+  let ui = click_body ui Problems_tile.id in
+  assert (focused ui Problems_tile.id);
+  assert (Option.is_none (Ui_state.capture_pending ui));
+  assert (not (History_tile.details (Ui_state.history_tile ui)));
+  assert (not (Ui_state.problem_details ui));
+  assert (Option.equal Problems.Key.equal problem (problems_selection ui));
+  let ui = run ui "je" in
+  assert (Ui_state.problem_details ui);
+  assert (not (Option.equal Problems.Key.equal problem (problems_selection ui)));
+  let ui = run ui "<Esc><Esc>" in
+  assert (focused ui Ui_state.document_id);
+  let ui = run ui "j" in
+  assert (Editor.revision (editor ui) = Editor.revision before && line ui = 1)
+;;
+
+let%test_unit "split and tab hits follow their live placements without revealing a hidden view" =
+  let initial = Test_problem_navigation.create () |> fun ui -> run ui " vM ss sf" in
+  assert (focused initial Ui_state.document_id);
+  let split = (view_layout initial History_tile.id).content in
+  let w = Ui_state.workspace initial ~width ~height in
+  let gap = List.last_exn w.gaps in
+  assert (phys_equal initial (click initial ~x:gap.x ~y:split.y));
+  let ui = click_body initial History_tile.id in
+  assert (focused ui History_tile.id);
+  let ui = run ui " st vb" in
+  let file = active ui in
+  let fx, fy = tab_position ui ~width file |> Option.value_exn in
+  let ui = click ui ~x:fx ~y:fy in
+  assert (focused ui Ui_state.document_id);
+  let hx, hy = tab_position_for ui ~width (View History_tile.id) |> Option.value_exn in
+  let ui = click ui ~x:hx ~y:hy in
+  assert (focused ui History_tile.id && active_is ui file);
+  assert (not (History_tile.details (Ui_state.history_tile ui)));
+  assert (phys_equal ui (click ui ~x:hx ~y:hy));
+  let ui = click_body ui Problems_tile.id in
+  assert (focused ui Problems_tile.id);
+  let ui = click_body ui History_tile.id in
+  assert (focused ui History_tile.id);
+  let ui = run ui " cchide<CR>" |> fun ui -> run ui " bn" in
+  assert (focused ui Ui_state.document_id && Ui_state.has_hidden_tile ui);
+  let hx, hy = tab_position_for ui ~width (View History_tile.id) |> Option.value_exn in
+  assert (phys_equal ui (click ui ~x:hx ~y:hy));
+  assert (Option.is_none (Ui_state.minor_layout ui ~width ~height History_tile.id))
+;;
+
+let%test_unit "status, borders, padding, compact omissions and modal overlays do not focus tiles" =
+  let ui = Helpers.ui ordinary |> fun ui -> run ui " vm vb vt" in
+  let history = view_layout ui History_tile.id in
+  assert history.framed;
+  let status = (Ui_state.workspace ui ~width ~height).status |> Option.value_exn in
+  let inert x y = assert (phys_equal ui (click ui ~x ~y)) in
+  inert status.rect.x status.rect.y;
+  inert history.outer.x history.content.y;
+  inert (history.content.x - 1) history.content.y;
+  inert history.title.x history.title.y;
+  inert (history.title.x + history.title.width - 1) history.title.y;
+  inert history.footer.x history.footer.y;
+  assert (focused (click ui ~x:(history.title.x + 2) ~y:history.title.y) History_tile.id);
+  assert (phys_equal ui
+    (pointer ui `Wheel_down ~x:history.content.x ~y:history.content.y));
+  assert (Option.is_none (Ui_state.minor_layout ui ~width ~height:2 History_tile.id));
+  assert (phys_equal ui (pointer ~height:2 ui `Left_click ~x:0 ~y:1));
+  List.iter [ " cc"; "/"; " /" ] ~f:(fun keys ->
+    let modal = run ui keys in
+    assert (phys_equal modal (click_body modal History_tile.id)));
+  let visual = run ui "v" in
+  let visual = click_body visual History_tile.id in
+  assert (focused visual Ui_state.document_id);
+  assert (Mode.equal (mode visual) (Visual `Characterwise));
+  assert (Option.is_some (Editor.selection (editor visual)))
+;;
+
+let%test_unit "registered observers stay inert and generic focusable adapters capture keys" =
+  let module Counter = Test_view_registry.Counter in
+  let controller = Ui_state.controller (Helpers.ui ordinary) in
+  let observer =
+    { Counter.adapter with spec = Cobalt_tile.Spec.companion Counter.id ~title:"Counter" } in
+  let create adapter =
+    Ui_state.create ~tiles_visible:false ~views:[
+      View_registry.Entry.install ~placement:Band adapter { Counter.count = 0 } ] controller in
+  let ui = create observer in
+  assert (phys_equal ui (click_body ui Counter.id));
+  let ui = click_body (create Counter.adapter) Counter.id in
+  assert (focused ui Counter.id && Test_view_registry.count ui = 0);
+  assert (Test_view_registry.count (run ui "+") = 1)
+;;
+
+let%test_unit "a rendered bare heading or a minor without a visible major can take focus" =
+  let ui = Helpers.ui ordinary |> fun ui -> run ui " vm vb cchide<CR>" in
+  assert ((Ui_state.workspace ui ~width ~height).document.rect.width = 0);
+  let target = List.find_exn [ History_tile.id; Problems_tile.id ] ~f:(fun id -> not (focused ui id)) in
+  assert (focused (click_body ui target) target);
+  let ui = Helpers.ui ordinary |> fun ui -> run ui " vM st vo ss" in
+  assert (focused ui Problems_tile.id);
+  let height = 3 in
+  let shell = Ui_state.minor_layout ui ~width ~height History_tile.id |> Option.value_exn in
+  assert (not shell.framed && shell.title.height = 1 && shell.content.height = 0);
+  let ui = pointer ~height ui `Left_click ~x:shell.title.x ~y:shell.title.y in
+  assert (Cobalt_tile.View_id.equal (Ui_state.focused_view ui ~width ~height) History_tile.id);
+  let x, y = tab_position_for ~height ui ~width (File (active ui)) |> Option.value_exn in
+  let ui = pointer ~height ui `Left_click ~x ~y in
+  let hx, hy = tab_position_for ~height ui ~width (View History_tile.id) |> Option.value_exn in
+  let ui = pointer ~height ui `Left_click ~x:hx ~y:hy in
+  assert (Cobalt_tile.View_id.equal (Ui_state.focused_view ui ~width ~height) History_tile.id)
 ;;

@@ -108,16 +108,23 @@ let fit_row row ~width =
   row @ [ Span.blank Status (width - Span.total_width row) ]
 ;;
 
+let border_label_text (label : Label.t) ~width =
+  if width < 4 then [] else
+    Span.of_text label.text ~style:label.style ~special:Title_special
+    |> Span.keep_left ~n:(width - 3) ~marker_style:Title_special
+;;
+
+let heading (layout : Layout.t) ~title =
+  let rect = layout.title in
+  if not layout.framed then rect else
+    let text = border_label_text { text = title; style = Title } ~width:rect.width in
+    { rect with x = rect.x + 2; width = Span.total_width text }
+;;
+
 (* [─ text ─────] across [width] cells of border, or an unbroken rule. *)
 let border_label ~border (label : Label.t option) ~width =
   let rule n = Span.create border (String.concat (List.init n ~f:(fun _ -> "─"))) ~width:n in
-  let text =
-    match label with
-    | Some label when width >= 4 ->
-      Span.of_text label.text ~style:label.style ~special:Title_special
-      |> Span.keep_left ~n:(width - 3) ~marker_style:Title_special
-    | Some _ | None -> []
-  in
+  let text = Option.value_map label ~default:[] ~f:(border_label_text ~width) in
   match label, text with
   | None, _ | _, [] -> [ rule width ]
   | Some label, text ->
