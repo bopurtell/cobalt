@@ -9,7 +9,24 @@ module Id = struct
     | Position
     | Message
     | Instance
+    | Silver_connection
+    | Silver_target
   [@@deriving sexp_of, equal, enumerate]
+end
+
+module Silver = struct
+  type binding =
+    { project_root : string
+    ; endpoint : string
+    }
+  [@@deriving equal]
+
+  type t =
+    | Disconnected
+    | Connecting of binding option
+    | Connected of binding
+    | Failed of binding option
+  [@@deriving equal]
 end
 
 type fit =

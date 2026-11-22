@@ -368,6 +368,13 @@ size is remembered separately. Small windows fall back to the bottom status row;
 expanding restores the requested layout automatically. Wider windows never turn
 status on by themselves.
 
+With the Silver adapter available, the Status tile shows whether Silver is
+disconnected, connecting, connected, or the last connection attempt failed.
+When space permits, it shows the verified project's name and backend address.
+A pending or failed switch keeps the previous verified connection active. This
+field is not a live health check and does not report catalog, attempt, or
+workflow state.
+
 Zen keeps the bottom row for essential feedback without changing document placement
 or saved workspace requests. Status controls used in zen update the saved layout;
 toggle zen off to see it. `Space v r` still resets only document placement.
@@ -480,6 +487,17 @@ not the palette itself. Enter `unhide` to restore the most recently hidden tile.
 These exact queries put their command first and keep it selected. If the tile
 cannot be hidden or there is nothing to restore, Enter reports why rather than
 running another matching command.
+
+Three more exact queries are pinned to the first row:
+
+| Query | Destination |
+| --- | --- |
+| `ed` | Restore and focus the current file editor workspace, including its hidden split panes. This leaves other hidden tiles hidden and keeps file buffers, edits, and tab order. |
+| `ov` | Show and focus Silver overview, if installed. |
+| `st` | Show and focus the Silver stage checklist, if installed. This does not launch a stage. |
+
+Use `ed` from another tile or from the empty main area left by hiding a view tab.
+These queries never run a different matching command if the destination is unavailable.
 
 To add a command, add an entry (ID, title, keywords, and the existing editor or view
 action) to `Catalog.default` in `palette/catalog.ml`. Its shortcut is derived from the

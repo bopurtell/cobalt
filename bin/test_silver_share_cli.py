@@ -130,13 +130,18 @@ def test(binary, *, live=False):
 
             try:
                 publish("alpha", "beta")
-                with editor(binary, file, env, [], width=260) as ui:
+                with editor(binary, file, env, ["--workspace"], width=260) as ui:
                     ui.see(b"EDITOR_STARTS_IN_ALPHA")
+                    ui.see(b"Silver disconnected")
+                    # Use a wide Status tile so the backend and feedback both fit.
+                    send(ui, [b" vpk", b" vp+", b" vp+"])
                     assert requests == []
                     open_picker(ui)
                     assert requests == []
                     send(ui, [b"\t", b"\r"])
                     wait_for_beta(ui, 1)
+                    ui.see(b"Silver connected")
+                    ui.see(f"beta @ 127.0.0.1:{server.server_port}".encode())
                     send(ui, [b"iX\x1b", b" w"])
                     wait(lambda: file.read_text() == "XEDITOR_STARTS_IN_ALPHA\n")
 
@@ -144,6 +149,7 @@ def test(binary, *, live=False):
                     open_picker(ui)
                     send(ui, [b"\r"])
                     assert delayed.wait(4)
+                    ui.see(b"Silver connected; trying")
                     open_picker(ui)
                     send(ui, [b"\t", b"\r"])
                     wait_for_beta(ui, 2)
@@ -156,8 +162,9 @@ def test(binary, *, live=False):
                     count = len(requests)
                     send(ui, [b"\r"])
                     ui.see(b"Silver share was withdrawn")
+                    ui.see(b"Silver connected; failed")
                     assert len(requests) == count, requests
-                    send(ui, [b" vz", b" vUr"])
+                    send(ui, [b" vUr"])
                     wait_for_beta(ui, 3)
                     send(ui, [b"\x1b", b" q"])
                     assert ui.process.wait(timeout=4) == 0

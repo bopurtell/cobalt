@@ -1,7 +1,7 @@
 open! Core
 
 (** Status tile composition is separate from both status fields and buffer data.
-    Keep up to three metadata rows (mode / pending / urgent feedback by priority)
+    Keep up to three metadata rows (mode / pending / feedback / Silver by priority)
     and devote the remainder to buffers. Even the smallest tile retains a buffer
     row; both renderers do their own bounded fitting. *)
 let body ~rect fields (buffers : Tab_strip.Item.t list) =

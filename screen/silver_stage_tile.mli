@@ -44,6 +44,6 @@ type t
 
 val key : t Core.Type_equal.Id.t
 val entry : Snapshot.t -> View_registry.Entry.t
-val with_snapshot : t -> Snapshot.t -> t
+val with_snapshot : ?flow_selected:bool -> t -> Snapshot.t -> t
 val enqueue : t -> Intent.t -> t
 val take_intents : t -> t * Intent.t list

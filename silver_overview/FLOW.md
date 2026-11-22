@@ -44,9 +44,11 @@ This also applies to `Stage_fresh`, `Launch_fresh` and `Run`. Ordinary
 record payloads such as the selection in `(Plan ((flow ...) ...))` retain
 their own list.
 
-The C8/C9 bridge is deliberate: applying an explicit kickoff draft also makes
-those flow/profile/assignment settings active for subsequent checklist/alias
-resolution; it does not launch either feature. Unchanged displayed defaults
+The `j`/`k` kickoff selector writes only local active-flow settings, not a
+preview or execution request. It uses the current catalog's scoped target and
+the flow's declared profile unless explicit settings for that flow were applied
+in the same catalog. Applying a draft in the separate review view also makes
+those settings active for checklist/alias resolution. Unchanged displayed defaults
 remain implicit, avoiding an override of native recipe/project preferences.
 For parameters whose declared defaults differ by profile, the form leaves the
 value unspecified until the service resolves it. Cobalt does not present a

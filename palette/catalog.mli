@@ -81,7 +81,15 @@ val default : t
 
 val entries : t -> Entry.t list
 val find : t -> Id.t -> Entry.t option
-val with_host_commands : t -> Host_command.t list -> t
+(** For each [(fallback_id, alias)] in [delegate_aliases], the first valid
+    host command that explicitly declares the alias replaces the fallback
+    entry and inherits its pinned query. Fuzzy, title and ID matches do not
+    count as declarations. Without a replacement, keep the fallback. *)
+val with_host_commands
+  :  ?delegate_aliases:(Id.t * string) list
+  -> t
+  -> Host_command.t list
+  -> t
 
 (** The searchable fields of an entry. *)
 module Field : sig
@@ -99,11 +107,11 @@ type result = (Entry.t, Field.t) Fuzzy.Match.t
     weighted in that order. An empty query lists the available entries in order. *)
 val search : t -> Context.t -> query:string -> result list
 
-(** The native command reserved for a case-insensitive, trimmed exact alias. *)
+(** The command reserved for a case-insensitive, trimmed exact alias. *)
 val pinned_alias : t -> query:string -> Id.t option
 
-(** Also returns the default selection when the query exactly matches a native
-    priority alias or a host command. A pinned native alias wins, then a host
+(** Also returns the default selection when the query exactly matches a pinned
+    alias or a host command. A pinned alias wins, then a host
     priority alias, then an exact native match, then an exact host match. *)
 val search_with_exact : t -> Context.t -> query:string -> result list * Id.t option
 

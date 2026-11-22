@@ -23,6 +23,7 @@ type t =
   ; mutable draft : draft option
   ; mutable ready : (int * Flow.ready) option
   ; mutable problem : string option
+  ; mutable selection_problem : string option
   ; mutable delivery : delivery
   }
 
@@ -33,7 +34,8 @@ let live_catalog t =
     if Option.is_some t.draft || Option.is_some t.ready then
       t.problem <- Some "Flow catalog changed; apply the inputs and prepare a new preview";
     t.draft <- None;
-    t.ready <- None
+    t.ready <- None;
+    t.selection_problem <- None
   in
   match Flow.catalog_view t.flow with
   | Error reason ->
@@ -76,20 +78,13 @@ let fields flow (schema : Flow.schema) (i : Flow.inputs) =
     parameter_name parameter, value)
 ;;
 
-let draft_for t view ~flow =
-  match t.draft with
-  | Some draft when String.equal (Flow.draft_inputs draft.value).flow flow ->
-    Ok draft.value
-  | _ -> Flow.draft t.flow view ~flow
-;;
-
 let choices t token view =
   List.partition_map (Flow.catalog view).flows ~f:(fun (flow : Flow.flow) ->
     let unavailable reason = Second (sprintf "%s unavailable: %s" flow.label reason) in
     match flow.kickoff with
     | Unavailable reason -> unavailable reason
     | Available schema ->
-      (match draft_for t view ~flow:flow.id with
+      (match Flow.draft t.flow view ~flow:flow.id with
        | Error reason -> unavailable reason
        | Ok draft ->
          First
@@ -153,6 +148,18 @@ let presentation t =
     { initial with details = delivery @ project @ Option.to_list t.problem @ safe }
   | Ok (token, view) ->
     let targets, unavailable = choices t token view in
+    let choices =
+      List.map (Flow.catalog view).flows ~f:(fun (flow : Flow.flow) ->
+        { Tile.Choice.id = flow.id; label = flow.label; catalog = token })
+    in
+    let selected = Flow.selected_flow t.flow view in
+    let active = Flow.active_flow t.flow view in
+    let notice =
+      match t.selection_problem, selected, active with
+      | Some reason, _, _ -> Some reason
+      | None, Some _, None -> Some "Silver flow inputs changed; select a named flow again"
+      | _ -> None
+    in
     let problem = Option.to_list t.problem in
     let draft =
       match t.draft with
@@ -182,7 +189,11 @@ let presentation t =
       | Some draft, [] -> "Applied draft (not a preview)" :: input_rows (Flow.draft_inputs draft.value)
       | _ -> []
     in
-    { Tile.Presentation.targets
+    { Tile.Presentation.choices
+    ; selected
+    ; active
+    ; notice
+    ; targets
     ; draft
     ; kickoff
     ; details = problem @ project @ preview @ delivery @ draft_details @ unavailable @ safe
@@ -204,7 +215,7 @@ let apply t (target : Tile.Target.t) values =
   let%bind schema =
     match flow.kickoff with Available schema -> Ok schema | Unavailable reason -> Error reason
   in
-  let%bind draft = draft_for t view ~flow:flow.id in
+  let%bind draft = Flow.draft t.flow view ~flow:flow.id in
   let prior = Flow.draft_inputs draft in
   let%bind () =
     if [%equal: (string * string) list] (fields flow schema prior) target.fields
@@ -234,23 +245,52 @@ let apply t (target : Tile.Target.t) values =
 let dispatch t intent =
   let fail reason =
     t.problem <- Some reason;
-    t.changed ()
+    t.changed ();
+    false
   in
   match (intent : Tile.Intent.t) with
+  | Select choice ->
+    let before = Flow.revision t.flow in
+    let result =
+      let open Result.Let_syntax in
+      let%bind token, view = live_catalog t in
+      let%bind () =
+        if token = choice.catalog then Ok ()
+        else Error "Silver flow catalog changed; select the flow again"
+      in
+      Flow.select_flow t.flow view ~flow:choice.id
+    in
+    let selected = before <> Flow.revision t.flow in
+    if selected then (
+      t.draft <- None;
+      t.ready <- None);
+    (match result with
+     | Ok () ->
+       t.selection_problem <- None;
+       if selected then t.problem <- None;
+       t.changed ();
+       selected
+     | Error reason ->
+       t.selection_problem <- Some reason;
+       t.changed ();
+       false)
   | Apply (target, values) ->
     (match apply t target values with
      | Error reason -> fail reason
      | Ok () ->
        t.problem <- None;
-       t.changed ())
+       t.selection_problem <- None;
+       t.changed ();
+       false)
   | Prepare token ->
     let shown = presentation t in
     (match shown.draft with
      | Ok current when current = token ->
        t.problem <- None;
-       t.ready <- None;
-       don't_wait_for (Flow.prepare t.flow >>| t.changed);
-       t.changed ()
+        t.ready <- None;
+        don't_wait_for (Flow.prepare t.flow >>| t.changed);
+        t.changed ();
+        false
      | Error reason -> fail reason
      | Ok _ -> fail "Flow draft changed; apply the inputs again")
   | Kickoff token ->
@@ -268,10 +308,11 @@ let dispatch t intent =
        (* The pending reply lives here, not in the tile placement. The shared
           session revalidates and consumes the exact ready value before sending. *)
        don't_wait_for
-         (Flow.kickoff t.flow value >>| fun outcome ->
-          t.delivery <- Finished (label, outcome);
-          t.changed ());
-       t.changed ()
+          (Flow.kickoff t.flow value >>| fun outcome ->
+           t.delivery <- Finished (label, outcome);
+           t.changed ());
+        t.changed ();
+        false
      | Error reason, _ -> fail reason
      | Ok _, _ -> fail "Reviewed preview changed; review the new preview before Kickoff")
 ;;
@@ -281,7 +322,7 @@ let create ~flow ~changed ~project_root : Host.t =
   let fresh_token () = incr serial; !serial in
   let t =
     { flow; changed; project_root; fresh_token; catalog = None; draft = None
-    ; ready = None; problem = None; delivery = Idle
+    ; ready = None; problem = None; selection_problem = None; delivery = Idle
     }
   in
   { presentation = (fun () -> presentation t); dispatch = dispatch t }

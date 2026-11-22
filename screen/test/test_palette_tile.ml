@@ -236,7 +236,7 @@ let%expect_test "Space c c opens a centered floating palette, with a bar cursor"
     ││ >                                                                          ││|
     ││ > Save buffer                                                      Space w ││|
     ││   Quick-Harness: New SV scratch                                            ││|
-    ╰╰─ 1/116 ────────────────────────────────────────────────────────────────────╯╯|
+    ╰╰─ 1/117 ────────────────────────────────────────────────────────────────────╯╯|
     cursor: 5,2 Bar
     |}]
 ;;
@@ -472,7 +472,7 @@ let%expect_test "resizing keeps the query and selected command" =
     ││ > tile                                       ││|
     ││   Move document tile left by 2 columns       ││|
     ││   Move document tile right by 2 columns      ││|
-    ╰╰─ 4/31 ───────────────────────────────────────╯╯|
+    ╰╰─ 4/32 ───────────────────────────────────────╯╯|
     cursor: 9,2 Bar
     |}]
 ;;

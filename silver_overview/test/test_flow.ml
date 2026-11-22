@@ -28,6 +28,66 @@ let ready session = match preparation session with Ready ready -> ready | _ -> f
 let blocked = function Stale _ | Rejected _ -> true | _ -> false
 let string_equal = [%equal: string]
 
+let selector () =
+  let t = create () in
+  let explore =
+    { flow with id = "explore"; label = "Explore"; profiles = [ "review" ]
+    ; default_profile = "review"
+    ; stages = [ { id = "timing-row"; label = "Timing"; alias = Some Timing
+                 ; endpoint = Available "explore-delay" } ]
+    }
+  in
+  let invalid = { explore with id = "invalid"; default_profile = "missing" } in
+  let catalog = ref { catalog with flows = [ flow; explore; invalid ] } in
+  let prepared = Queue.create () and submitted = Queue.create () in
+  let inputs = function Kickoff inputs | Stage inputs -> inputs in
+  bind t
+    { binding = binding "selector"
+    ; catalog = (fun () -> return (Ok !catalog))
+    ; prepare = (fun request ->
+        Queue.enqueue prepared request;
+        let inputs = inputs request in
+        return (Ok { preview = { identity = "captured"; inputs }
+                   ; submit = (fun ~still_current ->
+                       assert (still_current ());
+                       Queue.enqueue submitted inputs;
+                       return (Accepted (Run "selected-run")))
+                   }))
+    };
+  let%bind () = refresh t in
+  let v = view t in
+  let on_default = timings t in
+  check (select_flow t v ~flow:"explore");
+  assert (Option.equal String.equal (active_flow t v) (Some "explore"));
+  assert (Queue.is_empty prepared && Queue.is_empty submitted);
+  let%bind on_default = launch_stage t on_default in
+  assert (blocked on_default && Queue.is_empty prepared);
+  let stage = check (resolve_stage t v ~id:"timing-row") in
+  let expected = { target = Some target; flow = "explore"; profile = "review"
+                 ; endpoint = "explore-delay"; assignments = [] } in
+  assert (Poly.equal (stage_inputs stage) expected);
+  let%bind outcome = launch_stage t stage in
+  assert (match outcome with Accepted (Run "selected-run") -> true | _ -> false);
+  let%bind replay = launch_stage t stage in
+  assert (blocked replay && Queue.length submitted = 1);
+  let d = check (Silver_flow.draft t v ~flow:"explore") in
+  check (apply t (edit d { (draft_inputs d) with assignments = [ "area", "high" ] }));
+  check (select_flow t v ~flow:"main");
+  check (select_flow t v ~flow:"explore");
+  assert (Poly.equal (stage_inputs (timings t)) { expected with assignments = [ "area", "high" ] });
+  assert (Result.is_error (select_flow t v ~flow:"invalid"));
+  assert (Result.is_error (resolve_stage t v ~id:"timing-row"));
+  assert (Option.equal String.equal (selected_flow t v) (Some "invalid"));
+  check (select_flow t v ~flow:"explore");
+  let before_refresh = timings t in
+  catalog := { !catalog with flows = [ flow ] };
+  let%bind () = refresh t in
+  assert (Result.is_error (select_flow t v ~flow:"main"));
+  assert (Result.is_error (resolve_stage t (view t) ~id:"timing-row"));
+  let%map stale = launch_stage t before_refresh in
+  assert (blocked stale && Queue.length prepared = 1 && Queue.length submitted = 1)
+;;
+
 let model () =
   let t = create () in
   let staging = Queue.create () in
@@ -316,7 +376,7 @@ let wire () =
 
 let () =
   don't_wait_for
-    (match%map Clock.with_timeout (Time_float.Span.of_sec 10.) (model () >>= wire) with
+    (match%map Clock.with_timeout (Time_float.Span.of_sec 10.) (selector () >>= model >>= wire) with
      | `Result () -> Shutdown.shutdown 0
      | `Timeout -> failwith "Silver flow fixtures timed out");
   never_returns (Scheduler.go ())

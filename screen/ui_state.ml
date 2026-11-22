@@ -257,6 +257,7 @@ type t =
   ; silver_connecting : int option
   ; silver_connection_generation : int
   ; silver_project_root : string option
+  ; silver_status : Status_field.Silver.t option
   ; silver_test : Silver_overview_tile.Test_action.t
   ; palette_silver_test : Silver_overview_tile.Test_action.t option
   ; silver_stage : Silver_stage_tile.Snapshot.t
@@ -275,6 +276,7 @@ type t =
   ; toggle_pending : toggle_pending option
   ; external_terminal_toggles : int option list option (** [Some] delegates toggles to the outer host. *)
   ; host_commands : Cobalt_palette.Catalog.Host_command.t list
+  ; hosted_silver_navigation : bool
   ; host_command_requests : string list
   ; terminal_requests : (int * Cobalt_terminal.Model.request) list (** Newest first, stamped at enqueue. *)
   ; terminal_return : View_id.t
@@ -489,6 +491,7 @@ let create
    ; silver_connecting = None
    ; silver_connection_generation = 0
    ; silver_project_root = None
+   ; silver_status = None
    ; silver_test = Unavailable "No Silver project is bound"
    ; palette_silver_test = None
    ; silver_stage = Silver_stage_tile.Snapshot.unavailable Silver_stage_tile.adapter_unavailable
@@ -507,6 +510,7 @@ let create
   ; toggle_pending = None
   ; external_terminal_toggles = None
   ; host_commands = []
+  ; hosted_silver_navigation = false
   ; host_command_requests = []
   ; terminal_requests = []
   ; terminal_return = document_id
@@ -2230,21 +2234,25 @@ let with_host_commands t host_commands =
   if phys_equal t.host_commands host_commands then t else { t with host_commands }
 ;;
 
+let with_hosted_silver_navigation t = { t with hosted_silver_navigation = true }
+
 let silver_test_id = "silver.test"
 let silver_stage_open_id = "silver.stage.open"
 let silver_stage_toggle_id = "silver.stage.toggle"
 
 let silver_stage_entries t =
+  let installed = View_registry.installed t.views Silver_stage_tile.id in
   let view_entries =
-    if not (View_registry.installed t.views Silver_stage_tile.id) then []
-    else
-      [ Cobalt_palette.Catalog.Entry.create_host ~id:silver_stage_open_id
-           ~title:Silver_stage_tile.title
-           ~aliases:[ "silver stages"; "open stage checklist"; "synth checklist"
-                    ; "timing checklist"; "routing checklist" ] ()
-      ; Cobalt_palette.Catalog.Entry.create_host ~id:silver_stage_toggle_id
-          ~title:("Toggle " ^ Silver_stage_tile.title) ()
-      ]
+    Cobalt_palette.Catalog.Entry.create ~id:silver_stage_open_id
+      ~title:Silver_stage_tile.title ~priority_aliases:[ "st" ]
+      ~keywords:[ "silver stages"; "open stage checklist"; "synth checklist"
+                ; "timing checklist"; "routing checklist" ]
+      ~available:(fun context -> installed && Mode.equal context.mode Normal)
+      (View (Show_view Silver_stage_tile.id))
+    :: (if installed then
+          [ Cobalt_palette.Catalog.Entry.create_host ~id:silver_stage_toggle_id
+              ~title:("Toggle " ^ Silver_stage_tile.title) () ]
+        else [])
   in
   view_entries @ List.map Silver_stage_tile.Alias.all ~f:(fun alias ->
     let action = Silver_stage_tile.Snapshot.alias t.silver_stage alias in
@@ -2253,12 +2261,15 @@ let silver_stage_entries t =
       ~priority_alias:(Silver_stage_tile.Alias.query alias) ~exact_only:true ())
 ;;
 
-let with_silver_stage t snapshot =
+let update_silver_stage ~flow_selected t snapshot =
   let t = map_view t Silver_stage_tile.key ~f:(fun tile ->
-    Silver_stage_tile.with_snapshot tile snapshot)
+    Silver_stage_tile.with_snapshot ~flow_selected tile snapshot)
   in
   { t with silver_stage = snapshot }
 ;;
+
+let with_silver_stage = update_silver_stage ~flow_selected:false
+let with_selected_silver_flow = update_silver_stage ~flow_selected:true
 
 let silver_stage_alias ~matches =
   List.find Silver_stage_tile.Alias.all ~f:matches
@@ -2281,6 +2292,13 @@ let silver_connect_entry =
 ;;
 
 let with_silver_connection t ~project_root = { t with silver_project_root = Some project_root }
+
+let silver_status t = t.silver_status
+
+let with_silver_status t status =
+  if Option.equal Status_field.Silver.equal t.silver_status status then t
+  else { t with silver_status = status }
+;;
 
 let with_silver_test t action =
   if Silver_overview_tile.Test_action.equal t.silver_test action then t
@@ -3099,7 +3117,8 @@ let apply_view (prefs : Geometry.Prefs.t) (view : View_command.t) : Geometry.Pre
   | Adjust_status_size _
   | Toggle_zen
   | Toggle_bare
-  | Hide_focused_tile | Unhide_tile | Toggle_mouse
+   | Restore_editor_workspace | Show_view _
+   | Hide_focused_tile | Unhide_tile | Toggle_mouse
    | Open_theme_picker | Open_palette | Open_line_picker | Open_file_picker | Open_content_picker -> prefs
   | Shift cells ->
     { prefs with
@@ -3225,7 +3244,8 @@ let view_feedback t ~before ~width ~height (view : View_command.t) : string opti
     Some (if t.hotkey_hints then "Hotkey hints shown" else "Hotkey hints hidden")
   | Toggle_zen -> Some (if zen t then "Zen (status hidden)" else "Workspace restored")
   | Toggle_bare -> Some (if bare t then "Bare" else if zen t then "Zen restored" else "Workspace restored")
-  | Hide_focused_tile | Unhide_tile | Toggle_mouse -> None
+   | Restore_editor_workspace | Show_view _
+   | Hide_focused_tile | Unhide_tile | Toggle_mouse -> None
   | Toggle_status | Position_status _ | Adjust_status_size _ ->
     let requested = t.workspace_prefs in
     let location =
@@ -4247,7 +4267,7 @@ let open_palette t ~width ~height =
         || (snippet_insertion_available t && View_id.equal current document_id))
       |> Cobalt_palette.Catalog.create |> Or_error.ok_exn
     in
-    let catalog =
+     let catalog =
       Cobalt_palette.Catalog.create
          (List.map local ~f:fst @ Cobalt_palette.Catalog.entries globals
            @ [ silver_test_entry t.silver_test ]
@@ -4256,7 +4276,20 @@ let open_palette t ~width ~height =
               then Silver_kickoff_tile.palette_entries else [])
           @ if Option.is_some t.silver_project_root then [ silver_connect_entry ] else [])
       |> Result.ok |> Option.value ~default:globals
-      |> fun catalog -> Cobalt_palette.Catalog.with_host_commands catalog t.host_commands
+       |> fun catalog ->
+       (* A hosted Silver workspace declares its exact navigation aliases.
+          Delegate only when this screen has no local destination. *)
+       let delegate_aliases =
+         if not t.hosted_silver_navigation then []
+         else List.filter_map
+           [ Silver_overview_tile.id, "silver-overview.focus", "ov"
+           ; Silver_stage_tile.id, silver_stage_open_id, "st"
+           ]
+           ~f:(fun (view, id, alias) ->
+             Option.some_if (not (View_registry.installed t.views view))
+               (Cobalt_palette.Catalog.Id.of_string id, alias))
+       in
+       Cobalt_palette.Catalog.with_host_commands ~delegate_aliases catalog t.host_commands
     in
     let palette =
       Palette_tile.create
@@ -4389,6 +4422,34 @@ let focus_workspace t id =
   { t with host = Host.focus (Host.return t.host) id
   ; controller = Controller.cancel_pending t.controller
   ; animation = Animation.create ~enabled:(Animation.enabled t.animation) }
+;;
+
+let restore_editor_workspace t ~width ~height =
+  let session = session t in
+  match Session.active_id session with
+  | None -> workspace_notice t ~width ~height "No file editor to restore; nothing ran"
+  | Some _ ->
+    let current = focused_view t ~width ~height in
+    (* A generic hide keeps the major tab selected. Clear its selection even
+       when the host already reports document focus on the empty surface. *)
+    let t = leave t current |> file_tab in
+    let t =
+      { t with
+        hidden_tiles = List.filter t.hidden_tiles ~f:(function
+          | Editor _ -> false
+          | Directory _ | View _ | Terminal _ -> true)
+      ; presentation =
+          if suppress_workspace t && Option.is_some (Session.editor_split session)
+          then Workspace else t.presentation
+      ; rows = None
+      }
+    in
+    let t =
+      if Option.is_none (Session.input_directory session) then t
+      else adopt_session_state ~keep_focus:true t (Session.focus_directory session false)
+          ~width ~height
+    in
+    focus_workspace t document_id
 ;;
 
 let fallback_workspace t ~width ~height ?preferred () =
@@ -4731,6 +4792,33 @@ let focus_view t ~width ~height id =
       if view_visible t id then t else show_hidden t ~width ~height id)
 ;;
 
+(* Unlike the focus hotkey, palette destinations never toggle away from their
+   target. Stage/overview can be band views, so leave Zen/Bare as needed. *)
+let show_and_focus_view t ~width ~height id =
+  if not (View_registry.installed t.views id)
+  then workspace_notice t ~width ~height (view_unavailable t id ^ "; nothing ran")
+  else (
+    let current = focused_view t ~width ~height in
+    if View_id.equal current id then t
+    else (
+      let show t =
+        let t = if view_visible t id then t else show_hidden t ~width ~height id in
+        match View_registry.placement t.views id with
+        | Some Tab -> { t with tabs = Tab_strip.activate t.tabs (Some id); rows = None }
+        | _ -> t
+      in
+      let shown = show t in
+      let shown =
+        if suppress_workspace shown && not (available shown ~width ~height id)
+        then show { t with presentation = Workspace; rows = None }
+        else shown
+      in
+      if available shown ~width ~height id
+      then focus_workspace (leave shown current) id
+      else workspace_notice t ~width ~height
+          (view_title t id ^ " cannot fit in this layout; nothing ran")))
+;;
+
 (* [Request_view]: a named request to view [id], focused or not, as a signal. An
    outcome's [show] then shows and focuses the view as [Focus_view] does, unless it is
    focused already (a hidden view is signalled [Shown] after the input, as any newly
@@ -4851,6 +4939,8 @@ let apply_view_command t ~width ~height (view : View_command.t) =
   | Select_terminal number -> select_terminal t number ~width ~height
   | Adjust_terminal_size steps -> adjust_terminal_size t steps ~width ~height
   | Reset_terminal_size -> reset_terminal_size t
+  | Restore_editor_workspace -> restore_editor_workspace t ~width ~height
+  | Show_view id -> show_and_focus_view t ~width ~height id
   | Hide_focused_tile | Unhide_tile ->
     let t =
       if View_command.equal view Hide_focused_tile
@@ -5367,13 +5457,6 @@ let accept_palette t ~width ~height palette =
       let t = close_palette t ~width ~height in
       map_view t Silver_stage_tile.key ~f:(fun tile -> Silver_stage_tile.enqueue tile intent)
     in
-    let open_stage t =
-      let t = close_palette t ~width ~height in
-      let t = if zen t then apply_view_command t ~width ~height Toggle_zen else t in
-      if View_id.equal (focused_view t ~width ~height) Silver_stage_tile.id
-      then t
-      else apply_view_command t ~width ~height (Focus_view Silver_stage_tile.id)
-    in
   let selected = Cobalt_palette.Palette.accept palette ~context in
   let connect =
     Option.map (Option.both t.silver_connections t.silver_project_root)
@@ -5406,8 +5489,9 @@ let accept_palette t ~width ~height palette =
   | None, Unavailable { id; _ } ->
     let title =
       Option.value_map
-        (Cobalt_palette.Catalog.find Cobalt_palette.Catalog.default id)
-        ~default:(Cobalt_palette.Catalog.Id.to_string id)
+         (Cobalt_palette.Catalog.find Cobalt_palette.Catalog.default id)
+         ~default:(let id = Cobalt_palette.Catalog.Id.to_string id in
+           if String.equal id silver_stage_open_id then Silver_stage_tile.title else id)
         ~f:Cobalt_palette.Catalog.Entry.title
     in
     refuse (sprintf "%s is unavailable here; nothing ran" title), Running
@@ -5421,12 +5505,11 @@ let accept_palette t ~width ~height palette =
      | Some Pick -> open_silver_picker t ~width ~height, Running
      | Some (Unavailable reason) -> refuse (sprintf "Run test: %s; nothing ran" reason), Running
       | None -> refuse "Run test is unavailable; nothing ran", Running)
-     | None, Execute { target = Host id; _ } when String.equal id silver_stage_open_id ->
-       open_stage t, Running
-     | None, Execute { target = Host id; _ } when String.equal id silver_stage_toggle_id ->
-       if view_visible t Silver_stage_tile.id
-       then place_view (close_palette t ~width ~height) ~width ~height Silver_stage_tile.id Hidden, Running
-       else open_stage t, Running
+      | None, Execute { target = Host id; _ } when String.equal id silver_stage_toggle_id ->
+        if view_visible t Silver_stage_tile.id
+        then place_view (close_palette t ~width ~height) ~width ~height Silver_stage_tile.id Hidden, Running
+        else apply_view_command (close_palette t ~width ~height) ~width ~height
+            (Show_view Silver_stage_tile.id), Running
    | None, Execute { target = Host id; _ }
      when Option.is_some (silver_stage_alias ~matches:(fun alias ->
        String.equal id (Silver_stage_tile.Alias.command_id alias))) ->
@@ -5466,8 +5549,11 @@ let accept_palette t ~width ~height palette =
    | None, Execute { target = Native (View ((Hide_focused_tile | Unhide_tile) as command)); _ } ->
      (* These commands close the float themselves, after consuming its captured tile. *)
      apply_view_command t ~width ~height command, Running
-   | None, Execute { target = Native (View Toggle_mouse); _ } ->
-     apply_view_command (close_palette t ~width ~height) ~width ~height Toggle_mouse, Running
+    | None, Execute { target = Native (View ((Restore_editor_workspace | Show_view _) as command)); _ } ->
+      apply_view_command (close_palette ~restore_workspace_caller:true t ~width ~height)
+        ~width ~height command, Running
+    | None, Execute { target = Native (View Toggle_mouse); _ } ->
+      apply_view_command (close_palette t ~width ~height) ~width ~height Toggle_mouse, Running
    | None, Execute { target = Native action; _ } ->
     (* Moving "the focused view" moves the view the palette was opened over. *)
     let action : Keymap.Action.t =

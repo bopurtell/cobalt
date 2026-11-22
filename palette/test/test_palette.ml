@@ -40,7 +40,7 @@ let%expect_test "opening lists available commands and selects the first" =
       harness.new-sv
       harness.new-hardcaml
       harness.new-ocaml
-      ... 112 more
+      ... 113 more
     |}]
 ;;
 
@@ -152,7 +152,7 @@ let%expect_test "no matches: no selection, navigation and accept do nothing" =
     {|
     query: ""
     > file.save
-      ... 115 more
+      ... 116 more
     |}]
 ;;
 
@@ -290,7 +290,9 @@ let%test_unit "native exact aliases pin row one even against another priority al
     [ " hide ", "workspace.hide-tile", Cobalt_input.View_command.Hide_focused_tile
     ; "HIDE TILE", "workspace.hide-tile", Hide_focused_tile
     ; "Unhide", "workspace.unhide-tile", Unhide_tile
-    ; "Mouse", "workspace.toggle-mouse", Toggle_mouse
+     ; "Mouse", "workspace.toggle-mouse", Toggle_mouse
+     ; " eD ", "workspace.editor", Restore_editor_workspace
+     ; "OV", "silver-overview.focus", Show_view (Cobalt_input.View_id.of_string "silver-overview")
     ]
   in
   List.iter aliases ~f:(fun (query, expected, command) ->

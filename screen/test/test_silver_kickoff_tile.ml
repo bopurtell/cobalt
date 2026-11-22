@@ -11,14 +11,15 @@ let has ui text =
 ;;
 
 let state ui = View_registry.find (Ui_state.views ui) Tile.key |> Option.value_exn
+let review_state ui = View_registry.find (Ui_state.views ui) Tile.review_key |> Option.value_exn
 
 let take ui =
-  let tile, intents = Tile.take_intents (state ui) in
-  Ui_state.map_view ui Tile.key ~f:(fun _ -> tile), intents
+  let tile, intents = Tile.take_intents (review_state ui) in
+  Ui_state.map_view ui Tile.review_key ~f:(fun _ -> tile), intents
 ;;
 
 let present ui presentation =
-  Ui_state.map_view ui Tile.key ~f:(fun tile -> Tile.with_presentation tile presentation)
+  Ui_state.map_view ui Tile.review_key ~f:(fun tile -> Tile.with_review_presentation tile presentation)
 ;;
 
 let target : Tile.Target.t =
@@ -26,7 +27,11 @@ let target : Tile.Target.t =
 ;;
 
 let choosing : Tile.Presentation.t =
-  { targets = [ target ]
+  { choices = [ { id = "fast"; label = "Fast"; catalog = 3 }; { id = "slow"; label = "Slow"; catalog = 3 } ]
+  ; selected = Some "fast"
+  ; active = Some "fast"
+  ; notice = None
+  ; targets = [ target ]
   ; draft = Error "Apply a named flow"
   ; kickoff = Error "Prepare a preview first"
   ; details = []
@@ -34,11 +39,11 @@ let choosing : Tile.Presentation.t =
 ;;
 
 let create presentation =
-  Ui_state.create ~views:[ Tile.entry presentation ]
+  Ui_state.create ~views:[ Tile.entry presentation; Tile.review_entry presentation ]
     (Ui_state.controller (Helpers.ui "UNCHANGED\n"))
 ;;
 
-let open_tile ui = run ui " ccFocus Silver flow kickoff<CR>"
+let open_tile ui = run ui " ccReview Silver flow kickoff<CR>"
 
 let expect ui intents =
   let ui, actual = take ui in
@@ -48,19 +53,19 @@ let expect ui intents =
 
 let%test_unit "open, edit/cancel, apply, prepare, and kickoff are distinct actions" =
   let ui = create choosing in
-  assert (not (Ui_state.view_visible ui Tile.id));
+  assert (not (Ui_state.view_visible ui Tile.review_id));
   let ui = open_tile ui |> Fn.flip expect [] in
-  assert (String.equal "silver-kickoff" (focus ui));
+  assert (String.equal "silver-kickoff-review" (focus ui));
   let ui = run ui "Kp" |> Fn.flip expect [] in
   assert (has ui "Kickoff disabled");
   let ui = run ui "<CR>" in
   assert (String.equal "prompt" (focus ui));
   assert (has ui "Flow inputs · Fast");
   let ui = run ui "<Tab><C-u>99<Esc>" |> Fn.flip expect [] in
-  assert (String.equal "silver-kickoff" (focus ui));
+  assert (String.equal "silver-kickoff-review" (focus ui));
   let ui = run ui "<CR><Tab><C-u>50<CR>" in
   let ui = expect ui [ Apply (target, [ "Profile", "release"; "n", "50" ]) ] in
-  assert (String.equal "silver-kickoff" (focus ui));
+  assert (String.equal "silver-kickoff-review" (focus ui));
   let applied = { choosing with draft = Ok 17; details = [ "Draft: Fast" ] } in
   let ui = present ui applied in
   let ui = run ui "p" |> Fn.flip expect [ Prepare 17 ] in
@@ -73,7 +78,7 @@ let%test_unit "open, edit/cancel, apply, prepare, and kickoff are distinct actio
   assert (has ui "Preview: plan-23" && has ui "n = 50");
   let ui = run ui "<CR>" |> Fn.flip expect [] in
   let ui = run ui "K" |> Fn.flip expect [ Kickoff 23 ] in
-  assert (String.equal "silver-kickoff" (focus ui))
+  assert (String.equal "silver-kickoff-review" (focus ui))
 ;;
 
 let%test_unit "no kickoff adapter contributes no command or edit interception" =
@@ -94,16 +99,37 @@ let%test_unit "the selected named flow is captured rather than the first row" =
   ignore (run ui "j<CR>" |> Fn.flip expect [ Apply (alternate, []) ] : Ui_state.t)
 ;;
 
-let%test_unit "hide and reopen retains status without moving editor focus on late feedback" =
-  let ui = open_tile (create choosing) in
+let%test_unit "the ordinary selector fits beside the editor and movement alone selects" =
+  let ui = run (create choosing) " ccFocus Silver flow kickoff<CR>" in
+  assert (String.equal "silver-kickoff" (focus ui));
+  assert (has ui "UNCHANGED" && has ui "› Fast · active");
+  assert (not (has ui "Kickoff disabled" || has ui "Flow inputs"));
+  let _, opened = Tile.take_intents (state ui) in
+  assert (List.is_empty opened);
+  let ui = run ui "j<CR>Kp" in
+  let tile, moved = Tile.take_intents (state ui) in
+  let slow = List.last_exn choosing.choices in
+  assert ([%equal: Tile.Intent.t list] moved [ Select slow ]);
+  let ui = Ui_state.map_view ui Tile.key ~f:(fun _ -> tile) in
+  let ui = Ui_state.map_view ui Tile.key ~f:(fun tile ->
+    Tile.with_presentation tile { choosing with selected = Some "slow"; active = Some "slow" }) in
+  assert (has ui "› Slow · active");
   let ui = run ui " ccToggle Silver flow kickoff<CR>" in
   assert (not (Ui_state.view_visible ui Tile.id));
+  assert (String.equal "document" (focus ui));
+  assert (has (run ui "iX<Esc>") "XUNCHANGED")
+;;
+
+let%test_unit "hide and reopen retains status without moving editor focus on late feedback" =
+  let ui = open_tile (create choosing) in
+  let ui = run ui " ccToggle Silver flow kickoff review<CR>" in
+  assert (not (Ui_state.view_visible ui Tile.review_id));
   let focus_before = focus ui in
   let ui = present ui { choosing with details = [ "Accepted: flow-run-9" ] } in
   assert (String.equal focus_before (focus ui));
   let ui = open_tile ui |> Fn.flip expect [] in
   assert (has ui "Accepted: flow-run-9");
-  assert (String.equal "silver-kickoff" (focus ui))
+  assert (String.equal "silver-kickoff-review" (focus ui))
 ;;
 
 let%test_unit "a form with an asynchronous catalog change keeps its original capture" =
@@ -111,8 +137,8 @@ let%test_unit "a form with an asynchronous catalog change keeps its original cap
   let newer = { target with catalog = 4; fields = [ "Profile", "debug"; "n", "20" ] } in
   let ui = present ui { choosing with targets = [ newer ] } in
   let ui = run ui "<CR>" |> Fn.flip expect [ Apply (target, [ "Profile", "release"; "n", "80" ]) ] in
-  assert (String.equal "silver-kickoff" (focus ui));
+  assert (String.equal "silver-kickoff-review" (focus ui));
   let ui = run ui "<CR>" in
   let ui = run ui "<CR>" |> Fn.flip expect [ Apply (newer, newer.fields) ] in
-  assert (String.equal "silver-kickoff" (focus ui))
+  assert (String.equal "silver-kickoff-review" (focus ui))
 ;;

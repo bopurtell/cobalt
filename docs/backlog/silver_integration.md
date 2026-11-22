@@ -20,8 +20,8 @@ Keep fixture exchanges and harness instructions with their adapter.
 | [C5: Companion overview](#c5--optional-silver-module-and-overview-tile) | Closed | Cobalt-first monitoring against a real Silver endpoint |
 | [C6: Test quick launch](#c6--run-a-silver-test-from-the-editor) | Closed | WB-093: tile `R` and exact `test`; no stage launch |
 | [C7: Discover/connect wizard](#c7--discover-and-connect-to-a-shared-silver-project) | Closed | WB-094: owner-accepted after live embedded and attached verification |
-| [C8: Stage checklist and aliases](#c8--stage-checklist-and-palette-aliases) | Live parity verified | WB-095: checklist and exact aliases matched native Silver across seven runs |
-| [C9: Flow kickoff tile](#c9--flow-kickoff-tile) | Live parity verified | WB-095: exact nondefault preview reserved once; stale previews did not submit |
+| [C8: Stage checklist and aliases](#c8--stage-checklist-and-palette-aliases) | Open — owner testing | WB-095: native launch parity verified; verify aligned, colored rows and flow-selector handoff |
+| [C9: Flow kickoff tile](#c9--flow-kickoff-tile) | Open — owner testing | WB-095: reviewed launch verified; compact flow selection is the primary interaction |
 
 **Verification:** C7 reads Silver's locked share registry; C8 and C9 share
 one flow adapter and can also use an explicit project binding. To rerun the
@@ -258,16 +258,24 @@ explicit nondefault stage settings also have adapter tests.
 
 ## C9 — Flow kickoff tile
 
+**Owner testing workflow:** Keep the editor visible beside a small flow selector.
+`j`/`k` chooses the active flow without submitting. Open the command palette
+and enter `st` to focus the stage checklist; `R` should launch the chosen flow
+through the highlighted stage, with no intermediate Apply or Kickoff step.
+`ed` should restore the editor even if a Silver tile was previously hidden.
+
 **Implemented:** see [kickoff controls](../../bin/SILVER_OVERVIEW.md#kick-off-a-named-flow),
 the [adapter's plan/submit contract](../../silver_overview/FLOW.md), and the
 [terminal regression test](../../bin/test_silver_kickoff_cli.py). The latter
-checks project switching during preparation, exact reviewed values, and
-acknowledgement while hidden. WB-095 also verified a nondefault preview against
-Silver's native plan and observed one accepted workflow for two quick Kickoff presses.
+checks direct flow selection into checklist `R`, plus project switching during
+preparation, exact reviewed values, and acknowledgement while the separate
+review tab is hidden. WB-095 verifies the nondefault selector-driven stage
+reservation and separately compares a reviewed preview against Silver's native
+plan, observing one accepted workflow for two quick Kickoff presses.
 
-**WB-095-companion-flow-launch.** Add a dedicated tile for selecting a named
-flow and its declared inputs, reviewing the resolved preview, and explicitly
-choosing **Kickoff**. Show the resolved chip/variant, flow, profile, endpoint
+**WB-095-companion-flow-launch.** Keep the default selector small and use
+the optional review tab for editing inputs, reviewing the resolved preview
+and explicitly choosing **Kickoff**. Show the resolved chip/variant, flow, profile, endpoint
 and parameter values supplied by Silver. Disable Kickoff with a reason for
 missing, pending, failed or stale preparation; submit only the exact ready
 preview. Opening the tile, editing/applying inputs and preparing a preview

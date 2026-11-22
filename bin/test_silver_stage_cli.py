@@ -81,8 +81,14 @@ def test(fixture, binary, stub):
 
                 with editor(fixture, file, env, flags, width=300) as ui:
                     ui.see(b"XUNRELATED_EDITOR_FILE")
-                    send(ui, [b" cc", b"silver stage checklist", b"\r"])
+                    send(ui, [b" cc", b"ov", b"\t", b"\r",
+                              b" cc", b"st", b"\t", b"\r"])
                     ui.see(b"mapped-post-cts")
+                    ui.see(b"CTS")
+                    ui.see(b"Signoff")
+                    ui.see(b"endpoint cts")
+                    ui.see(b"endpoint mapped-final-report")
+                    assert b"Clock tree synthesis" not in ui.output
                     ui.see(b"Routing endpoint not published")
                     send(ui, [b"G", b"R", b" cc", b"routing", b"\t", b"\r"])
                     assert not lines(), lines()
@@ -104,13 +110,22 @@ def test(fixture, binary, stub):
                     assert lines() == [
                         "fixture-chip/fixture-variant fixture-flow fixture-profile mapped-post-cts"
                     ] * 2
+                    send(ui, [b" cc", b"silver stage checklist", b"\r", b"gg", b"j", b"j", b"R"])
+                    wait(lambda: len(lines()) == 3)
+                    send(ui, [b"j", b"R"])
+                    wait(lambda: len(lines()) == 4)
+                    assert lines()[2:] == [
+                        "fixture-chip/fixture-variant fixture-flow fixture-profile cts",
+                        "fixture-chip/fixture-variant fixture-flow fixture-profile mapped-final-report",
+                    ]
+                    send(ui, [b"\x1b"])
                     # Refresh reads only, and does not replay the unconfirmed
                     # launch. One explicit action corresponds to one submit.
                     count = len(requests)
                     send(ui, [b" vU", b"r"])
                     wait(lambda: len(requests) > count)
                     time.sleep(.25)
-                    assert len(lines()) == 2, lines()
+                    assert len(lines()) == 4, lines()
                     send(ui, [b"\x1b", b" q"])
                     assert ui.process.wait(timeout=4) == 0
             finally:

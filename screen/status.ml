@@ -86,12 +86,39 @@ let fields ui : Status_field.t list =
       ~side:Right
       [ Span.create Status s ~width:(String.length s) ]
   in
+  let silver_connection, silver_target =
+    match Ui_state.silver_status ui with
+    | None -> None, None
+    | Some connection ->
+      let label, style, active =
+        match connection with
+        | Disconnected -> "Silver disconnected", Style.Status, None
+        | Connecting None -> "Silver connecting", Pending, None
+        | Connecting (Some binding) -> "Silver connected; trying", Pending, Some binding
+        | Connected binding -> "Silver connected", Status, Some binding
+        | Failed None -> "Silver connect failed", Warning, None
+        | Failed (Some binding) -> "Silver connected; failed", Warning, Some binding
+      in
+      let silver_target =
+        Option.bind active ~f:(fun ({ project_root; endpoint } : Status_field.Silver.binding) ->
+          (* Use the verified project's basename and omit the fixed HTTP scheme
+             so a typical split can show both the project and the backend. *)
+          let backend = Option.value (String.chop_prefix endpoint ~prefix:"http://")
+            ~default:endpoint in
+          let text = Filename.basename project_root ^ " @ " ^ backend in
+          field Silver_target ~priority:4 ~fit:Cut_right
+            (Span.of_text text ~style:Status ~special:Status_special))
+      in
+      field Silver_connection ~priority:3 ~fit:Cut_right
+        (Span.of_text label ~style ~special:Status_special), silver_target
+  in
   if Ui_state.bare ui then
     List.filter_opt
       [ message
       ; Option.map pending ~f:(fun field -> { field with priority = 0; side = Left })
       ]
-  else List.filter_opt [ mode; filename; dirty; instance; message; pending; position ]
+  else List.filter_opt
+    [ mode; filename; dirty; instance; message; pending; position; silver_connection; silver_target ]
 ;;
 
 (* Fields that are shown cut must keep at least this many cells. *)
@@ -209,6 +236,8 @@ let vertical ~(rect : Geometry.Rect.t) (fields : Status_field.t list) : Tile.t =
   and dirty = find Dirty
   and position = find Position
   and pending = find Pending
+  and silver_connection = find Silver_connection
+  and silver_target = find Silver_target
   and message = find Message in
   let fit ?(marker_style = Style.Status_special) spans =
     Span.keep_left spans ~n:rect.width ~marker_style
@@ -257,7 +286,8 @@ let vertical ~(rect : Geometry.Rect.t) (fields : Status_field.t list) : Tile.t =
   in
   let candidates =
     List.filter_opt
-      [ mode; file; row 5 position; row ~marker_style:Pending 2 pending; message ]
+      [ mode; file; row 5 position; row 3 silver_connection; row 4 silver_target
+      ; row ~marker_style:Pending 2 pending; message ]
   in
   let chosen =
     List.mapi candidates ~f:(fun order (priority, spans) -> order, priority, spans)

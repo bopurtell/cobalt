@@ -62,39 +62,45 @@ catalog, choose the target again from the refreshed catalog.
 Open **Silver: Stage checklist** in the command palette (**Space c c**).
 Use `j`/`k` to select a stage and `R` to run the active flow through it.
 Escape returns to the editor; **Toggle Silver: Stage checklist** hides it.
-The checklist shows declared launch targets and unavailable reasons, not run
-progress. It does not require a prior run. Exact palette queries `synth`,
-`timing`, and `routing` resolve their named stages, independent of the checklist
-selection, even while the checklist is hidden. An unavailable exact query
-reports why and launches nothing. The aliases use Silver's declared mappings,
-not inferred endpoint names.
+The checklist shows launch availability for the active flow, not run progress.
+`›` marks the selected row; `+` means available, `-` means unavailable, and `!`
+means the selection changed and must be chosen again. The detail column shows
+the exact endpoint for available rows or the reason a row is unavailable, as
+space permits. **CTS** is clock tree synthesis; the display label does not
+change the endpoint Silver receives. No prior run is required.
+
+Exact palette queries `synth`, `timing`, and `routing` resolve their named
+stages, independent of the checklist selection, even while the checklist is
+hidden. An unavailable exact query reports why and launches nothing. The aliases
+use Silver's declared mappings, not inferred endpoint names.
 
 Opening or browsing the checklist starts no runs. A stage launch preserves
 applicable settings, uses saved project inputs, and leaves any watched attempt
-unchanged. Applied flow kickoff inputs also supply the stage flow/profile and
-explicit assignments; the checklist changes only the endpoint. An
+unchanged. The flow selector supplies the flow/profile and any applied
+assignments; the checklist changes only the endpoint. An
 acknowledgement includes the accepted run or workflow identity;
 an unconfirmed acknowledgement is not retried. A stale selection must be
 selected again. See [companion flow capability requirements](../silver_overview/FLOW.md).
 
 ## Kick off a named flow
 
-Open **Focus Silver flow kickoff** from the command palette (**Space c c**).
-Choose a declared flow with `j`/`k` and press Enter to edit its profile,
-endpoint and parameters. Tab switches fields, Ctrl-U clears the current field,
-Enter applies, and Escape cancels. Leave an unspecified parameter blank to use
-Silver's project/profile settings. Use `p` to ask Silver for a preview. Check the
-resolved chip/variant, flow, profile, endpoint and parameter values before pressing
-`K` (**Kickoff**). Neither applying inputs nor previewing starts a run. Kickoff
-uses saved project inputs; it never saves open buffers.
+Open **Focus Silver flow kickoff** from the command palette (**Space c c**) for
+a flow selector beside the editor. `j`/`k` immediately makes the highlighted
+flow active using Silver's declared profile and defaults (or previously applied
+overrides for that flow). Selecting a flow starts no jobs and needs no Enter.
+Open the stage checklist (`st` in the palette) and press `R` to run through
+the highlighted stage. **Toggle Silver flow kickoff** hides the selector and
+returns focus to the editor; Escape returns without hiding it.
 
-Use **Toggle Silver flow kickoff** to hide the tab; a pending reply remains
-available on reopening. A changed project or catalog invalidates the draft and
-preview. If delivery is unconfirmed, check Silver before preparing another
-Kickoff: Cobalt does not retry. The UI requires Silver to advertise compatible
-flow capabilities. Cobalt's regression tests replay captured exchanges; Silver's
-`scripts/test-companion-flow-launch.py --slice c9` checks the same interaction
-with both terminal clients and a private daemon.
+For explicit inputs and plan review, open **Review Silver flow kickoff**.
+Pick a flow and press Enter to edit; Tab switches fields, Ctrl-U clears a field,
+Enter applies, and Escape cancels. Leave an unspecified parameter blank to use
+Silver's settings. Press `p` for a preview, check the resolved target, flow,
+profile, endpoint and parameters, then press `K` to submit that exact preview.
+Applying and previewing start no physical run and never save open buffers.
+**Toggle Silver flow kickoff review** closes the review tab. A changed catalog
+invalidates the preview; if delivery is unconfirmed, check Silver before
+trying again. Cobalt does not retry.
 
 ## Watch an attempt
 

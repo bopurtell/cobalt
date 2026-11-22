@@ -63,7 +63,8 @@ let snapshot t flow =
        | Error reason -> Stage.Snapshot.unavailable reason
        | Ok view ->
          let rows = List.map (Flow.stages flow view) ~f:(fun (stage, result) : Stage.Row.t ->
-           { id = stage.id; label = stage.label; action = action result })
+           let label = if String.equal stage.id "cts" then "CTS" else stage.label in
+           { id = stage.id; label; action = action result })
          in
          let aliases =
            List.map [ Stage.Alias.Synth, Flow.Synth; Timing, Timing; Routing, Routing ]
@@ -73,9 +74,8 @@ let snapshot t flow =
            match (Flow.catalog view).stage_launch with
            | Unavailable reason -> reason
            | Available () ->
-             (match (Flow.catalog view).default_flow with
-              | None -> "No declared Silver default flow/profile; choose explicit inputs"
-              | Some _ -> "Silver declared no stages for the active flow")
+              Option.value (Flow.stage_selection_error flow view)
+                ~default:"Silver declared no stages for the active flow"
          in
          { rows; aliases; empty });
     t.intents <- !intents;

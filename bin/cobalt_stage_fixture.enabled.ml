@@ -28,6 +28,10 @@ let fixture project : Flow.service =
                 ; endpoint = Available "mapped-synthesis" }
               ; { id = "timing-stage"; label = "Timing"; alias = Some Timing
                 ; endpoint = Available "mapped-post-cts" }
+              ; { id = "cts"; label = "Clock tree synthesis"; alias = None
+                ; endpoint = Available "cts" }
+              ; { id = "signoff"; label = "Signoff"; alias = None
+                ; endpoint = Available "mapped-final-report" }
               ; { id = "routing-stage"; label = "Routing"; alias = Some Routing
                 ; endpoint = Unavailable "Routing endpoint not published" }
               ]

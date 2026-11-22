@@ -16,6 +16,11 @@ let fixture project : Flow.service =
   in
   let project = Filename.basename binding.project_root in
   let target : Flow.target = { chip = project ^ "-chip"; variant = "variant-1" } in
+  let stages ~timing =
+    [ { Flow.id = "build"; label = "Build"; alias = None; endpoint = Available "build" }
+    ; { Flow.id = "timing"; label = "Timing"; alias = Some Timing; endpoint = Available timing }
+    ]
+  in
   let catalog : Flow.catalog =
     { target = Some target
     ; flows =
@@ -23,7 +28,7 @@ let fixture project : Flow.service =
           ; label = "Implement " ^ project
           ; profiles = [ "debug"; "release" ]
           ; default_profile = "debug"
-          ; stages = []
+          ; stages = stages ~timing:"default-delay"
           ; kickoff =
               Available
                 { endpoints = [ "place"; "signoff" ]
@@ -35,9 +40,23 @@ let fixture project : Flow.service =
                     ]
                 }
           }
+        ; { id = "explore"
+          ; label = "Explore " ^ project
+          ; profiles = [ "review" ]
+          ; default_profile = "review"
+          ; stages = stages ~timing:"explore-delay"
+          ; kickoff = Unavailable "This flow has no review descriptors"
+          }
+        ; { id = "invalid"
+          ; label = "Invalid " ^ project
+          ; profiles = [ "configured-profile" ]
+          ; default_profile = "missing-profile"
+          ; stages = stages ~timing:"invalid-delay"
+          ; kickoff = Unavailable "This flow has no review descriptors"
+          }
         ]
     ; default_flow = Some ("implement", "debug")
-    ; stage_launch = Unavailable "Not supported by the kickoff fixture"
+    ; stage_launch = Available ()
     }
   in
   let save name line =
@@ -61,7 +80,15 @@ let fixture project : Flow.service =
   let preparations = ref 0 in
   let submissions = ref 0 in
   let prepare = function
-    | Flow.Stage _ -> return (Error "Not supported by the kickoff fixture")
+    | Flow.Stage inputs ->
+      let%map () = save "stage-prepared" (summary inputs) in
+      let submit ~still_current =
+        if not (still_current ()) then return (Flow.Stale "Fixture capture changed")
+        else (
+          let%map () = save "stage-submitted" (summary inputs) in
+          Flow.Accepted (Run "fixture-selected-flow"))
+      in
+      Ok ({ preview = { identity = "fixture-selected-intent"; inputs }; submit } : Flow.prepared)
     | Kickoff inputs ->
       incr preparations;
       let identity = sprintf "%s-plan-%d" project !preparations in

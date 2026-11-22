@@ -117,7 +117,7 @@ type open_location_listener =
   -> on_request:(Open_location.request -> (unit, Open_location.failure) Result.t Async.Deferred.t)
   -> (unit -> unit Async.Deferred.t) Async.Deferred.Or_error.t
 
-let component ?layout ?terminal ?snippets ?configuration ?startup_configuration ?configuration_path ?document_decorations ?document_decoration_host ?(document_decorations_enabled = false) ?(smear_enabled = false) ?mouse ?(zen = false) ?bare ?theme ?appearance ?buffer_presentation ?report ?(silver_overview : Silver_overview_host.t option) ?source ?vcs ?font ?file_picker ?content_picker ?on_toggle_terminal ?host_commands ?on_host_command ?on_open_location_ready ~set_clipboard controller ~exit ~blank_on_close ~dimensions ~visible ~focused (local_ graph)
+let component ?layout ?terminal ?snippets ?configuration ?startup_configuration ?configuration_path ?document_decorations ?document_decoration_host ?(document_decorations_enabled = false) ?(smear_enabled = false) ?mouse ?(zen = false) ?bare ?theme ?appearance ?buffer_presentation ?report ?(silver_overview : Silver_overview_host.t option) ?source ?vcs ?font ?file_picker ?content_picker ?on_toggle_terminal ?host_commands ?on_host_command ?on_open_location_ready ?(hosted_silver_navigation = false) ~set_clipboard controller ~exit ~blank_on_close ~dimensions ~visible ~focused (local_ graph)
   =
   let dimensions = let%arr { Dimensions.width; height } = dimensions in
     { Dimensions.width = Int.max 0 width; height = Int.max 0 height } in
@@ -160,6 +160,7 @@ let component ?layout ?terminal ?snippets ?configuration ?startup_configuration 
            [ Silver_overview_host.entry silver_overview
            ; Silver_overview_host.stage_entry silver_overview
           ; Silver_kickoff_host.entry (Option.bind silver_overview ~f:(fun host -> host.kickoff))
+          ; Silver_kickoff_host.review_entry (Option.bind silver_overview ~f:(fun host -> host.kickoff))
           ; vcs_entry
           ] controller in
       (* Headless assembly retains Workspace. Enter Zen through the normal command
@@ -200,6 +201,8 @@ let component ?layout ?terminal ?snippets ?configuration ?startup_configuration 
     then Ui_state.with_external_terminal initial_ui else initial_ui in
   let initial_ui = Option.value_map mouse ~default:initial_ui
     ~f:(fun enabled -> Ui_state.with_mouse_reporting initial_ui ~enabled) in
+  let initial_ui = if hosted_silver_navigation
+    then Ui_state.with_hosted_silver_navigation initial_ui else initial_ui in
   let on_toggle_terminal =
     Option.value on_toggle_terminal ~default:(Bonsai.return (fun _ -> Effect.Ignore)) in
   let host_commands, on_host_command =
@@ -485,7 +488,7 @@ let component ?layout ?terminal ?snippets ?configuration ?startup_configuration 
                in
                 let model =
                   Option.value_map host.kickoff ~default:model
-                    ~f:(Silver_kickoff_host.dispatch model)
+                     ~f:(Silver_kickoff_host.dispatch model ~stages:host.stages)
                 in
                 if changed || not (List.is_empty intents) || not (List.is_empty stage_intents)
                then Silver_overview_host.synchronize model host
@@ -874,7 +877,7 @@ let hosted ?layout ?terminal ?snippets ?configuration ?startup_configuration ?co
   component ?layout ?terminal ?snippets ?configuration ?startup_configuration ?configuration_path
     ?document_decorations ?document_decorations_enabled ?smear_enabled ?zen ?bare ?theme ?appearance
      ?buffer_presentation ?report ~source ~vcs ?font ?file_picker ?content_picker ?on_toggle_terminal
-     ?host_commands ?on_host_command ~set_clipboard
+      ?host_commands ?on_host_command ~hosted_silver_navigation:true ~set_clipboard
     controller ~exit:(fun () -> Effect.Ignore) ~blank_on_close:true ~dimensions ~visible ~focused graph
 ;;
 

@@ -138,7 +138,25 @@ let run ~root ~enabled =
       expect_calls [ "overview"; "workspace.save" ];
       open_palette "ov";
       assert (not (contains "Silver: Overview"));
-      send Escape)
+      send Escape;
+      (* An unrelated exact title cannot claim the reserved navigation query.
+         A real host declaration can, even with an opaque, generated ID. *)
+      let unrelated : Cobalt_hosted.Host_command.t = { id = "unrelated"; title = "st"; aliases = [] } in
+      Bonsai.Expert.Var.set commands [ unrelated ];
+      display ();
+      open_palette "st";
+      send Tab;
+      send Enter;
+      expect_calls [ "overview"; "workspace.save" ];
+      let stage : Cobalt_hosted.Host_command.t =
+        { id = "silver.42"; title = "Silver: Pipeline"; aliases = [ "st" ] } in
+      Bonsai.Expert.Var.set commands [ unrelated; stage ];
+      display ();
+      open_palette "ST";
+      assert (contains "Silver: Pipeline");
+      send Tab;
+      send Enter;
+      expect_calls [ "silver.42"; "overview"; "workspace.save" ])
     else expect_calls [])
 ;;
 

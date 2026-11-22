@@ -15,6 +15,7 @@ type binding =
 
 type t =
   { rows : unit -> string list
+  ; connection_status : unit -> Status_field.Silver.t
   ; targets : unit -> Target.t list
   ; status_first : unit -> bool
   ; test_action : unit -> Test_action.t
@@ -49,6 +50,7 @@ let stage_entry = function
 ;;
 
 let synchronize ui (t : t) =
+  let ui = Ui_state.with_silver_status ui (Some (t.connection_status ())) in
   let ui = Ui_state.with_silver_stage ui (t.stages ()) in
   let ui = Ui_state.with_silver_test
      (Ui_state.map_view ui Tile.key ~f:(fun tile ->

@@ -6,17 +6,28 @@ module Selection = Navigation.Selection
 let id = Cobalt_tile.View_id.of_string "silver-kickoff"
 let title = "Silver flow kickoff"
 let spec = Cobalt_tile.Spec.read_only id ~title
+let review_id = Cobalt_tile.View_id.of_string "silver-kickoff-review"
+let review_title = "Silver flow kickoff review"
+let review_spec = Cobalt_tile.Spec.read_only review_id ~title:review_title
 
 let palette_entries =
-  let create name verb action =
+  let create name title action =
     Cobalt_palette.Catalog.Entry.create
       ~id:("silver-kickoff." ^ name)
-      ~title:(verb ^ " " ^ title)
-      ~keywords:[ "companion"; "named flow"; "preview" ]
+      ~title
+      ~keywords:[ "companion"; "named flow" ]
       (View action)
   in
-  [ create "focus" "Focus" (Focus_view id); create "toggle" "Toggle" (Toggle_view id) ]
+  [ create "focus" ("Focus " ^ title) (Focus_view id)
+  ; create "toggle" ("Toggle " ^ title) (Toggle_view id)
+  ; create "review" ("Review " ^ title) (Focus_view review_id)
+  ; create "toggle-review" ("Toggle " ^ review_title) (Toggle_view review_id)
+  ]
 ;;
+
+module Choice = struct
+  type t = { id : string; label : string; catalog : int } [@@deriving sexp_of, equal]
+end
 
 module Target = struct
   type t =
@@ -30,6 +41,7 @@ end
 
 module Intent = struct
   type t =
+    | Select of Choice.t
     | Apply of Target.t * (string * string) list
     | Prepare of int
     | Kickoff of int
@@ -38,7 +50,11 @@ end
 
 module Presentation = struct
   type t =
-    { targets : Target.t list
+    { choices : Choice.t list
+    ; selected : string option
+    ; active : string option
+    ; notice : string option
+    ; targets : Target.t list
     ; draft : (int, string) result
     ; kickoff : (int, string) result
     ; details : string list
@@ -46,7 +62,9 @@ module Presentation = struct
   [@@deriving sexp_of, equal]
 
   let unavailable reason =
-    { targets = []; draft = Error reason; kickoff = Error reason; details = [] }
+    { choices = []; selected = None; active = None; notice = Some reason
+    ; targets = []; draft = Error reason; kickoff = Error reason; details = []
+    }
   ;;
 end
 
@@ -62,10 +80,22 @@ type t =
 [@@deriving sexp_of]
 
 let key = Type_equal.Id.create ~name:"silver-kickoff" sexp_of_t
+let review_key = Type_equal.Id.create ~name:"silver-kickoff-review" sexp_of_t
 let take_intents t = { t with intents = [] }, List.rev t.intents
 let enqueue t intent = { t with intents = intent :: t.intents }
 
-let with_presentation t presentation =
+let target_row (target : Target.t) = Row.Flow (target.catalog, target.id)
+
+let review_selection (presentation : Presentation.t) =
+  let selected =
+    List.find presentation.targets ~f:(fun target ->
+      Option.equal String.equal presentation.selected (Some target.id))
+    |> Option.map ~f:target_row
+  in
+  { Selection.empty with selected }
+;;
+
+let with_review_presentation t presentation =
   let generation (p : Presentation.t) =
     List.hd p.targets |> Option.map ~f:(fun target -> target.catalog)
   in
@@ -73,12 +103,12 @@ let with_presentation t presentation =
   else if Result.is_ok presentation.kickoff
           && not (Result.equal Int.equal String.equal t.presentation.kickoff presentation.kickoff)
   then { t with presentation; view = Selection.empty }
+  else if not (Option.equal String.equal t.presentation.selected presentation.selected)
+  then { t with presentation; view = review_selection presentation }
   else if Option.equal Int.equal (generation t.presentation) (generation presentation)
   then { t with presentation }
-  else { t with presentation; view = Selection.empty }
+  else { t with presentation; view = review_selection presentation }
 ;;
-
-let target_row (target : Target.t) = Row.Flow (target.catalog, target.id)
 
 let items t =
   let { Presentation.targets; kickoff; details; _ } = t.presentation in
@@ -118,9 +148,9 @@ let interpret _ = function
 
 let hint = "j/k: choose or scroll | Enter: edit/apply | p: preview | K: Kickoff | Esc"
 
-let adapter : (t, action) View_registry.Adapter.t =
-  { spec
-  ; key
+let review_adapter : (t, action) View_registry.Adapter.t =
+  { spec = review_spec
+  ; key = review_key
   ; fit = (fun t _ ~rows ~width:_ -> fit t ~rows)
   ; leave = Fn.id
   ; text_view = (fun _ -> None)
@@ -188,11 +218,85 @@ let adapter : (t, action) View_registry.Adapter.t =
             ((if selected then "› " else "  ") ^ text) ~width)
       in
       let default = if focused || hotkey_hints then hint else "" in
+       { title = review_title; body; footer = Some (Tile_shell.Label.footer ~notice ~pending ~default) })
+  }
+;;
+
+let review_entry presentation =
+  View_registry.Entry.install ~opens_in:Tab review_adapter
+    { presentation; view = review_selection presentation; intents = [] }
+;;
+
+let choices t = t.presentation.choices
+let choice_row (choice : Choice.t) = Row.Flow (choice.catalog, choice.id)
+let choice_ids t = List.map (choices t) ~f:choice_row
+
+let with_presentation t presentation =
+  if Presentation.equal t.presentation presentation then t
+  else (
+    let view =
+      List.find presentation.choices ~f:(fun choice ->
+        Option.equal String.equal (Some choice.id) presentation.selected)
+      |> Option.value_map ~default:Selection.empty ~f:(fun choice ->
+        { t.view with selected = Some (choice_row choice) })
+    in
+    { t with presentation; view })
+;;
+
+let fit_choices t ~rows =
+  { t with view = Selection.fit t.view (choice_ids t) ~equal:Row.equal ~rows }
+;;
+
+let selector_hint = "j/k: select flow | Esc: editor"
+
+let adapter : (t, Navigation.Motion.t) View_registry.Adapter.t =
+  { spec
+  ; key
+  ; fit = (fun t _ ~rows ~width:_ -> fit_choices t ~rows)
+  ; leave = Fn.id
+  ; text_view = (fun _ -> None)
+  ; interpret = (fun _ -> Navigation.interpret)
+  ; escape = (fun _ -> None)
+  ; hint = selector_hint
+  ; perform = (fun t controller ~context:_ ~rows ~width:_ motion ->
+      let view = Selection.move t.view (choice_ids t) ~equal:Row.equal ~rows motion in
+      let choice =
+        List.find (choices t) ~f:(fun choice ->
+          Option.exists view.selected ~f:(Row.equal (choice_row choice)))
+      in
+      let t = { t with view } in
+      let t = Option.value_map choice ~default:t ~f:(fun choice -> enqueue t (Select choice)) in
+      t, View_registry.Outcome.create controller)
+  ; commands = (fun _ -> Navigation.commands)
+  ; signal = (fun _ _ -> None)
+  ; label = (fun _ -> None)
+  ; text_area = (fun _ ~rows:_ ~width:_ -> None)
+  ; render = (fun t _ ~hotkey_hints ~focused ~notice ~pending ~width ~rows ->
+      let view = (fit_choices t ~rows).view in
+      let body =
+        if List.is_empty (choices t) && rows > 0
+        then
+          [ Tile_text.row Status
+              (Option.value t.presentation.notice ~default:"Silver advertises no named flows") ~width
+          ]
+        else
+          List.take (List.drop (choices t) view.top) (Int.max 0 rows)
+          |> List.map ~f:(fun choice ->
+            let pointer = Option.exists view.selected ~f:(Row.equal (choice_row choice)) in
+            let active = Option.equal String.equal t.presentation.active (Some choice.id) in
+            let prefix = if pointer && (focused || active) then "› " else "  " in
+            Tile_text.row (if active then Pending else Status)
+              (prefix ^ choice.label ^ (if active then " · active" else "")) ~width)
+      in
+      let default =
+        Option.value t.presentation.notice
+          ~default:(if focused || hotkey_hints then selector_hint else "")
+      in
       { title; body; footer = Some (Tile_shell.Label.footer ~notice ~pending ~default) })
   }
 ;;
 
 let entry presentation =
-  View_registry.Entry.install ~opens_in:Tab adapter
-    { presentation; view = Selection.empty; intents = [] }
+  View_registry.Entry.install ~opens_in:Band adapter
+    (with_presentation { presentation = Presentation.unavailable ""; view = Selection.empty; intents = [] } presentation)
 ;;

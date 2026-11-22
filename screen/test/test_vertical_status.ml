@@ -229,6 +229,42 @@ let%expect_test "empty and negative allocations normalize safely without losing 
     |}]
 ;;
 
+let%test_unit "Silver Status follows the cached binding, independently of test and tile visibility" =
+  let binding : Status_field.Silver.binding =
+    { project_root = "/verified/alpha"; endpoint = "http://127.0.0.1:1234" }
+  in
+  let initial = ui ~path:"/editor/not-alpha.txt" "hello" in
+  let shown = run ~width:90 ~height:14 initial (keys " vt") in
+  let render ?(width = 90) ui = Frame.to_string (Frame.render ui ~width ~height:14) in
+  let contains text pattern = String.is_substring text ~substring:pattern in
+  let with_status ui status = Ui_state.with_silver_status ui (Some status) in
+  assert (not (contains (render shown) "Silver"));
+  List.iter
+    [ Status_field.Silver.Disconnected, "Silver disconnected", false
+    ; Connecting None, "Silver connecting", false
+    ; Failed None, "Silver connect failed", false
+    ; Connected binding, "Silver connected", true
+    ; Connecting (Some binding), "Silver connected; trying", true
+    ; Failed (Some binding), "Silver connected; failed", true
+    ]
+    ~f:(fun (status, label, has_binding) ->
+      let shown = with_status shown status
+        |> fun ui -> Ui_state.with_silver_test ui (Unavailable "Catalog unavailable")
+      in
+      assert (Option.equal Status_field.Silver.equal (Ui_state.silver_status shown) (Some status));
+      let frame = render shown in
+      assert (contains frame label);
+      assert (Bool.equal has_binding (contains frame "alpha @ 127.0.0.1:1234"));
+      assert (not (contains frame "Catalog unavailable"));
+      assert (not (contains (render ~width:20 shown) "Silver"));
+      assert (contains (render shown) label));
+  let retained = with_status initial (Failed (Some binding)) in
+  assert (not (contains (render retained) "Silver"));
+  let reopened = run ~width:90 ~height:14 retained (keys " vt") in
+  assert (contains (render reopened) "Silver connected; failed");
+  assert (contains (render reopened) "alpha @ 127.0.0.1:1234")
+;;
+
 let%expect_test "every vertical row has its allocation's Unicode display width" =
   let unicode =
     [ field Filename "目录/\t中é\027.ml"

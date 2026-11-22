@@ -74,17 +74,18 @@ let fit t ~rows = { t with view = Selection.fit t.view (ids t) ~equal:String.equ
 let row t id = List.find t.snapshot.rows ~f:(fun row -> String.equal row.id id)
 let selected_row t = Option.bind t.view.selected ~f:(row t)
 
-let with_snapshot t snapshot =
+let with_snapshot ?(flow_selected = false) t snapshot =
   let next = { t with snapshot } in
   let selection_stale =
     t.selection_stale
     || Option.exists (selected_row t) ~f:(fun previous ->
       match previous.action, row next previous.id with
-       (* New dispatch tokens for the same selection do not move or stale it. *)
+       (* A new one-shot token or deliberate flow choice may keep the same stage
+          row. A withdrawn or previously stale stage is never accepted here. *)
        | Ready before, Some { action = Ready after; _ } ->
-         not (String.equal before.selection after.selection)
-      | Ready _, _ -> true
-      | Blocked _, _ -> false)
+         not (flow_selected || String.equal before.selection after.selection)
+       | Ready _, _ | Blocked _, None -> true
+       | Blocked _, Some _ -> false)
   in
   { next with selection_stale }
 ;;
@@ -96,6 +97,46 @@ let run_key = Key.char 'R'
 let interpret _ = function
   | [ key ] when Key.equal key run_key -> Cobalt_tile.Content_key.Action Run
   | keys -> Cobalt_tile.Content_key.map (Navigation.interpret keys) ~f:(fun move -> Move move)
+;;
+
+let selection_width = 2
+let marker_width = 2
+let gap = 2
+let status_width = String.length "Unavailable"
+
+let label_width rows ~width =
+  let preferred =
+    List.fold rows ~init:0 ~f:(fun longest (row : Row.t) ->
+      Int.max longest (Cell_map.total_width (Cell_map.glyphs row.label)))
+  in
+  (* Keep the complete status when possible. Leave at least room for "CTS"
+     on tiny views, and cap long labels so detail can appear on wider views. *)
+  let available = width - selection_width - marker_width - gap - status_width in
+  Int.min preferred (Int.clamp_exn available ~min:3 ~max:24)
+;;
+
+let render_row (row : Row.t) ~selected ~stale ~width ~label_width =
+  let style, marker, status, detail_style, detail =
+    match row.action with
+    | Blocked reason -> Style.Stale, "-", "Unavailable", Style.Stale, reason
+    | Ready _ when selected && stale ->
+      Warning, "!", "Reselect", Status, "Stage selection changed"
+    | Ready intent -> Diff_added, "+", "Available", Status, intent.summary
+  in
+  let remaining = ref (Int.max 0 width) in
+  let field style text width =
+    let width = Int.min width !remaining in
+    remaining := !remaining - width;
+    Tile_text.row style text ~width
+  in
+  let selection = field Pending (if selected then "›" else "") selection_width in
+  let marker = field style marker marker_width in
+  let label = field (if selected then Pending else Status) row.label label_width in
+  let before_status = field Status "" gap in
+  let status = field style status status_width in
+  let before_detail = field Status "" gap in
+  let detail = field detail_style detail !remaining in
+  Span.merge (selection @ marker @ label @ before_status @ status @ before_detail @ detail)
 ;;
 
 let adapter : (t, action) View_registry.Adapter.t =
@@ -137,22 +178,16 @@ let adapter : (t, action) View_registry.Adapter.t =
   ; render = (fun t _ ~hotkey_hints ~focused ~notice ~pending ~width ~rows ->
       let body =
         match t.snapshot.rows with
-        | [] when rows > 0 -> [ Tile_text.row Status t.snapshot.empty ~width ]
+        | [] when rows > 0 -> [ Tile_text.row Stale t.snapshot.empty ~width ]
         | rows_data ->
           let view = (fit t ~rows).view in
           let top = if focused then view.top else 0 in
+          (* Scrolling changes the visible rows, not the column positions. *)
+          let label_width = label_width rows_data ~width in
           List.take (List.drop rows_data top) (Int.max 0 rows)
           |> List.map ~f:(fun row ->
             let selected = focused && Option.exists view.selected ~f:(String.equal row.id) in
-            let prefix = if selected then "› " else "  " in
-            let detail =
-              match row.action with
-              | Ready _ when selected && t.selection_stale -> "Reselect stage"
-              | Ready intent -> "Ready: " ^ intent.summary
-              | Blocked reason -> "Unavailable: " ^ reason
-            in
-            Tile_text.row (if selected then Pending else Status)
-              (prefix ^ row.label ^ " · " ^ detail) ~width)
+            render_row row ~selected ~stale:t.selection_stale ~width ~label_width)
       in
       let default = if focused || hotkey_hints then "j/k select | R run through stage | Esc" else "" in
       { title; body; footer = Some (Tile_shell.Label.footer ~notice ~pending ~default) })

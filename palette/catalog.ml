@@ -35,6 +35,7 @@ module Entry = struct
     ; available : (Context.t -> bool[@sexp.opaque])
     ; target : Target.t
     ; priority_aliases : string list
+    ; locks_priority_aliases : bool
     ; exact_only : bool
     }
   [@@deriving sexp_of, fields ~getters]
@@ -47,7 +48,9 @@ module Entry = struct
       ?(priority_aliases = []) target
     =
     { id = Id.of_string id; title; description; keywords = priority_aliases @ keywords
-    ; available; target; priority_aliases; exact_only = false }
+    ; available; target; priority_aliases
+    ; locks_priority_aliases = (match target with Native _ -> true | Host _ -> false)
+    ; exact_only = false }
   ;;
 
   let create ~id ~title ?description ?keywords ?available ?priority_aliases action =
@@ -389,7 +392,8 @@ let default =
         ~id:"silver-overview.focus"
         ~title:"Focus Silver overview"
         ~keywords:[ "companion"; "run"; "status" ]
-        (Focus_view silver_overview)
+        ~priority_aliases:[ "ov" ]
+        (Show_view silver_overview)
     ; view
         ~id:"vcs.open"
         ~title:"VCS: open or focus"
@@ -503,6 +507,8 @@ let default =
     ; view ~id:"development.insert-demo-snippet" ~title:"Insert demo snippet"
         ~description:"Development utility: linked snippet fields in the current file (no server required)"
         ~keywords:[ "development"; "test"; "placeholders"; "linked fields" ] Insert_demo_snippet
+    ; view ~id:"workspace.editor" ~title:"Restore and focus file editor workspace"
+        ~priority_aliases:[ "ed" ] Restore_editor_workspace
     ; view ~id:"workspace.hide-tile" ~title:"Hide focused tile"
         ~priority_aliases:[ "hide"; "hide tile" ] Hide_focused_tile
     ; view ~id:"workspace.unhide-tile" ~title:"Unhide tile"
@@ -516,19 +522,37 @@ let default =
 let entries = Fn.id
 let find t id = List.find t ~f:(fun (entry : Entry.t) -> Id.equal entry.id id)
 
-let with_host_commands t commands =
+let with_host_commands ?(delegate_aliases = []) t commands =
   let seen = Hash_set.create (module String) in
   List.iter t ~f:(fun entry -> Hash_set.add seen (Id.to_string (Entry.id entry)));
-  t
-  @ List.filter_map commands ~f:(fun ({ id; title; aliases } : Host_command.t) ->
-    let catalog_id = "host." ^ id in
-    if not (Id.is_valid id)
-       || String.is_empty (String.strip title)
-       || Hash_set.mem seen catalog_id
-    then None
-    else (
-      Hash_set.add seen catalog_id;
-       Some (Entry.create_host ~id ~title ~aliases ())))
+  let host_entries =
+    List.filter_map commands ~f:(fun ({ id; title; aliases } : Host_command.t) ->
+      let catalog_id = "host." ^ id in
+      if not (Id.is_valid id)
+         || String.is_empty (String.strip title)
+         || Hash_set.mem seen catalog_id
+      then None
+      else (
+        Hash_set.add seen catalog_id;
+        Some (Entry.create_host ~id ~title ~aliases ())))
+  in
+  let delegated =
+    List.filter_map delegate_aliases ~f:(fun (fallback, alias) ->
+      Option.filter (find t fallback)
+        ~f:(fun entry -> List.mem entry.priority_aliases alias ~equal:String.Caseless.equal)
+      |> Option.bind ~f:(fun _ ->
+        List.find host_entries ~f:(fun entry ->
+          List.exists entry.keywords ~f:(fun keyword ->
+            String.Caseless.equal (String.strip keyword) alias)))
+      |> Option.map ~f:(fun entry -> fallback, Entry.id entry, alias))
+  in
+  List.filter t ~f:(fun entry ->
+    not (List.exists delegated ~f:(fun (fallback, _, _) -> Id.equal (Entry.id entry) fallback)))
+  @ List.map host_entries ~f:(fun entry ->
+    let aliases = List.filter_map delegated ~f:(fun (_, host, alias) ->
+      Option.some_if (Id.equal (Entry.id entry) host) alias) in
+    if List.is_empty aliases then entry
+    else { entry with priority_aliases = aliases; locks_priority_aliases = true })
 ;;
 
 module Field = struct
@@ -566,10 +590,8 @@ let exact_alias ~query (entry : Entry.t) =
 
 let pinned_alias t ~query =
   let query = String.strip query in
-  List.find_map t ~f:(fun entry ->
-    match Entry.target entry with
-    | Native _ when exact_alias ~query entry -> Some (Entry.id entry)
-    | Native _ | Host _ -> None)
+  List.find_map t ~f:(fun (entry : Entry.t) ->
+    Option.some_if (entry.locks_priority_aliases && exact_alias ~query entry) (Entry.id entry))
 ;;
 
 let search_with_exact t context ~query =

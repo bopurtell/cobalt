@@ -156,6 +156,8 @@ type t =
   | Kill_source (** Crash the synthetic diagnostic source, to test the stopped state. *)
   | Toggle_zen (** Hide status temporarily, or restore saved workspace intent. *)
   | Toggle_bare (** Borderless document; toggle back to the previous presentation. *)
+  | Restore_editor_workspace (** Show the retained file editor workspace and focus it. *)
+  | Show_view of View_id.t (** Show and focus a view without toggling it off. *)
   | Hide_focused_tile (** Temporarily hide the focused tile, if it can be hidden. *)
   | Unhide_tile (** Restore the last temporarily hidden tile. *)
   | Toggle_mouse (** Toggle mouse handling for this editor session. *)

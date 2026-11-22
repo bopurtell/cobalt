@@ -120,6 +120,8 @@ type t =
   | Kill_source
   | Toggle_zen
   | Toggle_bare
+  | Restore_editor_workspace
+  | Show_view of View_id.t
   | Hide_focused_tile
   | Unhide_tile
   | Toggle_mouse
@@ -197,6 +199,8 @@ let scale t ~count =
   | Kill_source
   | Toggle_zen
   | Toggle_bare
+  | Restore_editor_workspace
+  | Show_view _
   | Hide_focused_tile
   | Unhide_tile
   | Toggle_mouse

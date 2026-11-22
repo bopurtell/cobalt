@@ -59,7 +59,7 @@ let%test_unit "checklist and all three aliases dispatch captured actions with fo
   assert (Ui_state.zen initial);
   let ui = open_stage initial in
   assert (String.equal (focus ui) "silver-stage");
-  assert (has ui "Synthesis · Ready");
+  assert (has ui "+ Synthesis  Available");
   let ui = run ui "jR" in
   assert (String.equal (focus ui) "silver-stage");
   let ui, row = take ui in
@@ -88,7 +88,7 @@ let%test_unit "disabled named stage locks exact Enter and disabled checklist doe
   let ui = Ui_state.with_host_commands ui
     [ { id = "fixture.routing-more"; title = "Routing more"; aliases = [] } ] in
   let ui = run ui "GR" in
-  assert (has ui "Routing · Unavailable");
+  assert (has ui "› - Routing    Unavailable");
   assert (has ui (routing_reason ^ "; nothing ran"));
   let ui, intents = take ui in
   assert (List.is_empty intents);
@@ -121,6 +121,7 @@ let%test_unit "catalog changes do not replace a selected intent or an open palet
   assert ([%equal: Tile.Intent.t list] captured [ timing ]);
   let ui = run ui "R" in
   assert (has ui "select a stage again");
+  assert (has ui "› ! Timing     Reselect");
   assert (List.is_empty (snd (take ui)));
   assert ([%equal: Tile.Intent.t list] (snd (take (run ui "kjR"))) [ next ])
 ;;
@@ -134,6 +135,88 @@ let%test_unit "a new dispatch token for the same inputs keeps the selected row a
   let ui, second = take (run ui "R") in
   assert (String.equal (focus ui) "silver-stage");
   assert ([%equal: Tile.Intent.t list] second [ refreshed ])
+;;
+
+let%test_unit "an explicit flow change preserves the stage ID but never replaces a withdrawn stage" =
+  let original = snapshot () in
+  let ui = ui original |> open_stage |> Fn.flip run "j" in
+  let new_timing = intent "timing-in-explore-flow" in
+  let switched =
+    { original with rows = List.map original.rows ~f:(fun row ->
+        if String.equal row.id "t" then { row with action = Ready new_timing } else row) }
+  in
+  let ui = Ui_state.with_selected_silver_flow ui switched in
+  let ui, captured = take (run ui "R") in
+  assert ([%equal: Tile.Intent.t list] captured [ new_timing ]);
+  let dropped = { switched with rows = List.filter switched.rows ~f:(fun row -> not (String.equal row.id "t")) } in
+  let ui = Ui_state.with_selected_silver_flow ui dropped in
+  let ui = run ui "R" in
+  assert (has ui "select a stage again");
+  assert (List.is_empty (snd (take ui)))
+;;
+
+let%test_unit "stage columns stay aligned after CTS and across scrolling, clipping by cells" =
+  let ready id label : Tile.Row.t = { id; label; action = Ready (intent id) } in
+  let stages : Tile.Snapshot.t =
+    { empty = "No stages"
+    ; aliases = []
+    ; rows =
+        [ ready "synthesis" "Synthesis"
+        ; ready "floorplan" "Floorplan"
+        ; ready "placement" "Placement"
+        ; ready "cts" "CTS"
+        ; { id = "routing"; label = "Routing"; action = Blocked routing_reason }
+        ; ready "timing" "Timing"
+        ; ready "signoff" "Signoff"
+        ; ready "custom" "Custom 界界界界界界界界界界界界 stage"
+        ]
+    }
+  in
+  let ui = ui stages |> open_stage in
+  let body ui ~width ~rows ~focused =
+    (View_registry.render (Ui_state.views ui) Tile.id (Ui_state.controller ui)
+       ~hotkey_hints:false ~focused ~notice:None ~pending:None ~width ~rows
+     |> Option.value_exn).body
+  in
+  let field row ~left ~cols =
+    Span.of_glyphs (Cell_map.glyphs (Test_span.text row)) ~left ~cols
+      ~text:Status ~special:Status_special
+    |> Test_span.text
+  in
+  let check text expected = [%test_eq: string] text expected in
+  List.iter [ 27, 16; 54, 30; 90, 30 ] ~f:(fun (width, status_col) ->
+    let rows = body ui ~width ~rows:8 ~focused:true in
+    let status row = field row ~left:status_col ~cols:11 in
+    List.iteri rows ~f:(fun i row ->
+      [%test_eq: int] (Span.total_width row) width;
+      check (status row) (if i = 4 then "Unavailable" else "Available  "));
+    let cts = List.nth_exn rows 3 in
+    let routing = List.nth_exn rows 4 in
+    check (field (List.hd_exn rows) ~left:0 ~cols:4) "› + ";
+    check (field cts ~left:0 ~cols:7) "  + CTS";
+    check (field routing ~left:0 ~cols:11) "  - Routing";
+    check (field (List.nth_exn rows 5) ~left:0 ~cols:10) "  + Timing";
+    check (field (List.nth_exn rows 6) ~left:0 ~cols:11) "  + Signoff";
+    [%test_eq: bool] (Style.equal (Test_span.style_at cts status_col) Diff_added) true;
+    [%test_eq: bool] (Style.equal (Test_span.style_at routing status_col) Stale) true;
+    let selected_routing = run ui "jjjj" in
+    let selected = List.last_exn (body selected_routing ~width ~rows:2 ~focused:true) in
+    check (field selected ~left:0 ~cols:11) "› - Routing";
+    check (status selected) "Unavailable";
+    [%test_eq: bool] (Style.equal (Test_span.style_at selected 0) Pending) true;
+    [%test_eq: bool] (Style.equal (Test_span.style_at selected status_col) Stale) true;
+    let unfocused = List.hd_exn (body selected_routing ~width ~rows:2 ~focused:false) in
+    check (field unfocused ~left:0 ~cols:4) "  + ";
+    let custom = List.last_exn rows in
+    check (field custom ~left:(status_col - 5) ~cols:3) "界>";
+    if width = 54 then check (field cts ~left:43 ~cols:11) "chip/v1 · >";
+    if width = 90 then (
+      assert (String.is_substring (Test_span.text cts) ~substring:"endpoint cts");
+      assert (String.is_substring (Test_span.text routing) ~substring:routing_reason)));
+  let tiny = body (run ui "jjj") ~width:3 ~rows:1 ~focused:true |> List.hd_exn in
+  check (Test_span.text tiny) "› +";
+  assert (List.is_empty (snd (take (run ui "jjjjR"))));
+  assert ([%equal: Tile.Intent.t list] (snd (take (run ui "jjjR"))) [ intent "cts" ])
 ;;
 
 let%test_unit "no adapter gives an exact reason and returns to ordinary editing" =

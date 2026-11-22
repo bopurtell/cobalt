@@ -7,6 +7,7 @@ module Quick = Silver_quick_launch
 module Flow = Silver_flow
 module Connection = Silver_connection
 module Tile = Cobalt_screen.Silver_overview_tile
+module Connection_status = Cobalt_screen.Status_field.Silver
 
 let attempt_rows ({ id; suite; lifecycle; outcome } : Adapter.attempt) =
   [ "Lifecycle: " ^ lifecycle
@@ -32,6 +33,8 @@ let observation_rows (binding : Host.binding) availability =
   @ Option.value_map reason ~default:[] ~f:(fun reason -> [ reason ])
 ;;
 
+type connection_attempt = Idle | Connecting | Failed
+
 type session =
   (* Observation is disposable; project/model/acknowledgement are editor-session
      state. Rebinding the observation can never retarget a submitted test. *)
@@ -44,7 +47,7 @@ type session =
   ; mutable shown : bool
   ; mutable stopped : bool
   ; mutable connect_request : int
-  ; mutable connecting : bool
+  ; mutable connection_attempt : connection_attempt
   ; mutable shared_project : bool
   ; mutable shared_snapshot : Adapter.snapshot option
   ; mutable connection_serial : int
@@ -175,20 +178,21 @@ let discover session serial binding project =
 let connect session ~announce ~shared verify =
   session.connect_request <- session.connect_request + 1;
   let request = session.connect_request in
-  session.connecting <- true;
+  session.connection_attempt <- Connecting;
   touch session;
   verify () >>= fun result ->
   if session.stopped || request <> session.connect_request then (
     Result.iter result ~f:(fun (project, _) -> Testing.close project);
     return None)
   else (
-    session.connecting <- false;
     match result with
     | Error reason ->
+      session.connection_attempt <- Failed;
       if Option.is_none session.project then session.status <- reason;
       touch session;
       return (Some (Error reason))
     | Ok (project, (binding : Host.binding)) ->
+      session.connection_attempt <- Idle;
       session.connection_serial <- session.connection_serial + 1;
       let serial = session.connection_serial in
       let binding = { binding with project_root = Testing.project_root project } in
@@ -382,13 +386,13 @@ let apply_settings session row fields =
 
 let refresh session =
   start_observation session;
-  match session.binding, session.project with
-  | Some binding, Some project ->
+  match session.binding, session.project, session.connection_attempt with
+  | Some binding, Some project, _ ->
     don't_wait_for (Flow.refresh session.flow);
     session.connection_serial <- session.connection_serial + 1;
     let serial = session.connection_serial in
     don't_wait_for (discover session serial binding project)
-  | Some binding, None when not session.connecting ->
+  | Some binding, None, (Idle | Failed) ->
     don't_wait_for (connect_explicit session binding ~announce:false >>| ignore)
   | _ -> ()
 ;;
@@ -416,7 +420,7 @@ let watch_flow session =
 ;;
 
 let rows session =
-  (if session.connecting then [ "Connecting to Silver…" ] else []) @
+  (match session.connection_attempt with Connecting -> [ "Connecting to Silver…" ] | _ -> []) @
   match session.binding with
   | None -> [ session.status ]
   | Some ({ run = Some _; _ } as binding) ->
@@ -432,6 +436,18 @@ let rows session =
     @ Option.value_map session.shared_snapshot ~default:[] ~f:(fun snapshot ->
         List.concat_map snapshot.attempts ~f:attempt_rows
         @ (if snapshot.truncated then [ "More attempts omitted" ] else []))
+;;
+
+let connection_status session : Connection_status.t =
+  let active =
+    Option.map session.project ~f:(fun project : Connection_status.binding ->
+      { project_root = Testing.project_root project; endpoint = Testing.endpoint project })
+  in
+  match session.connection_attempt, active with
+  | Idle, None -> Disconnected
+  | Idle, Some binding -> Connected binding
+  | Connecting, binding -> Connecting binding
+  | Failed, binding -> Failed binding
 ;;
 
 let connections session ~generation =
@@ -511,7 +527,7 @@ let factory_with_flow_service flow_service : Host.factory =
       ; shown = false
       ; stopped = false
       ; connect_request = 0
-      ; connecting = false
+       ; connection_attempt = Idle
        ; shared_project = false
        ; shared_snapshot = None
       ; connection_serial = 0
@@ -553,6 +569,7 @@ let factory_with_flow_service flow_service : Host.factory =
         touch session)
     in
     { Host.rows = (fun () -> rows session)
+    ; connection_status = (fun () -> connection_status session)
     ; targets = (fun () -> targets session)
     ; status_first = (fun () ->
       Option.exists session.binding ~f:(fun binding -> Option.is_some binding.run))

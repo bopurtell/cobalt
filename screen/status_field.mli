@@ -14,7 +14,25 @@ module Id : sig
     | Position (** One-based line and code-point column. *)
     | Message
     | Instance
+    | Silver_connection
+    | Silver_target
   [@@deriving sexp_of, equal, enumerate]
+end
+
+module Silver : sig
+  (** The last verified, still active binding, not a candidate being checked. *)
+  type binding =
+    { project_root : string
+    ; endpoint : string
+    }
+  [@@deriving equal]
+
+  type t =
+    | Disconnected
+    | Connecting of binding option
+    | Connected of binding
+    | Failed of binding option
+  [@@deriving equal]
 end
 
 (** How a field may be shortened when it does not fit. *)

@@ -80,6 +80,7 @@ type t =
   ; mutable settings : int
   ; mutable stage_settings : (view * inputs) option
   ; mutable catalog_view : (view, string) result
+  ; mutable applied : draft String.Map.t
   ; mutable draft : draft option
   ; mutable plan_serial : int
   ; mutable preparation : preparation
@@ -95,7 +96,8 @@ let pending = "A Silver flow launch acknowledgement is pending"
 
 let create () =
   { owner = ref (); service = None; binding_serial = 0; generation = 0
-  ; settings = 0; stage_settings = None; catalog_view = Error no_binding; draft = None
+   ; settings = 0; stage_settings = None; catalog_view = Error no_binding
+   ; applied = String.Map.empty; draft = None
   ; plan_serial = 0; preparation = Not_prepared no_binding; submission = Idle
   ; revision = 0; changed = Ivar.create ()
   }
@@ -132,6 +134,7 @@ let reset_plan t reason =
 let invalidate t reason =
   t.generation <- t.generation + 1;
   t.catalog_view <- Error reason;
+  t.applied <- String.Map.empty;
   t.draft <- None;
   reset_plan t reason
 ;;
@@ -159,7 +162,11 @@ let refresh t =
       let message = "Could not load Silver flow catalog" in
       t.catalog_view <-
         (match result with
-         | Ok (Ok catalog) -> Ok { owner = t.owner; generation; catalog }
+         | Ok (Ok catalog) ->
+           if List.contains_dup (List.map catalog.flows ~f:(fun flow -> flow.id))
+                ~compare:String.compare
+           then Error "Silver advertised ambiguous named flows"
+           else Ok { owner = t.owner; generation; catalog }
          | Ok (Error reason) -> Error reason
          | Error _ -> Error message);
       reset_plan t (match t.catalog_view with Ok _ -> "Choose flow inputs" | Error reason -> reason);
@@ -172,8 +179,10 @@ let available = function Available value -> Ok value | Unavailable reason -> Err
 let current (t : t) (view : view) = phys_equal t.owner view.owner && t.generation = view.generation
 let check_view t view = require (current t view) stale_catalog
 let find_flow (catalog : catalog) id =
-  some (List.find catalog.flows ~f:(fun f -> String.equal f.id id))
-    ("Silver flow is unavailable: " ^ id)
+  match List.filter catalog.flows ~f:(fun f -> String.equal f.id id) with
+  | [ flow ] -> Ok flow
+  | [] -> Error ("Silver flow is unavailable: " ^ id)
+  | _ -> Error ("Silver advertised an ambiguous flow: " ^ id)
 ;;
 
 let check_assignments ~parameters assignments =
@@ -219,6 +228,12 @@ let set_stage_inputs t view inputs =
     touch t)
 ;;
 
+let selected_flow t view =
+  match t.stage_settings with
+  | Some (_, inputs) -> Some inputs.flow
+  | None -> Option.map view.catalog.default_flow ~f:fst
+;;
+
 let stage_selection t view =
   let open Result.Let_syntax in
   let%bind () = check_view t view in
@@ -235,6 +250,14 @@ let stage_selection t view =
   in
   let%map flow = check_selection view.catalog inputs in
   inputs, flow
+;;
+
+let active_flow t view =
+  Result.ok (stage_selection t view) |> Option.map ~f:(fun (inputs, _) -> inputs.flow)
+;;
+
+let stage_selection_error t view =
+  match stage_selection t view with Ok _ -> None | Error reason -> Some reason
 ;;
 
 let resolve t view (inputs : inputs) (stage : stage) =
@@ -282,18 +305,21 @@ let resolve_alias t view alias =
 let draft t view ~flow =
   let open Result.Let_syntax in
   let%bind () = check_view t view in
-  let%bind entry = find_flow view.catalog flow in
-  let%map schema = available entry.kickoff in
-  let inputs : inputs =
-    { target = view.catalog.target
-    ; flow
-    ; profile = entry.default_profile
-    ; endpoint = Option.value schema.default_endpoint ~default:""
-    ; assignments = List.filter_map schema.parameters ~f:(fun p ->
-        Option.map p.default ~f:(fun value -> p.key, value))
-    }
-  in
-  { view; flow; inputs; defaults = inputs.assignments }
+  match Map.find t.applied flow with
+  | Some draft -> Ok draft
+  | None ->
+    let%bind entry = find_flow view.catalog flow in
+    let%map schema = available entry.kickoff in
+    let inputs : inputs =
+      { target = view.catalog.target
+      ; flow
+      ; profile = entry.default_profile
+      ; endpoint = Option.value schema.default_endpoint ~default:""
+      ; assignments = List.filter_map schema.parameters ~f:(fun p ->
+          Option.map p.default ~f:(fun value -> p.key, value))
+      }
+    in
+    { view; flow; inputs; defaults = inputs.assignments }
 ;;
 
 let edit (draft : draft) inputs = { draft with inputs }
@@ -302,6 +328,39 @@ let explicit_inputs (draft : draft) =
     assignments = List.filter draft.inputs.assignments ~f:(fun (key, value) ->
       not (Option.equal String.equal (List.Assoc.find draft.defaults key ~equal:String.equal) (Some value)))
   }
+;;
+
+let select_flow t view ~flow =
+  let open Result.Let_syntax in
+  let%bind () = check_view t view in
+  let%bind entry = find_flow view.catalog flow in
+  match t.stage_settings with
+  | Some (original, inputs) when current t original && String.equal inputs.flow flow ->
+    Result.map (stage_selection t view) ~f:ignore
+  | previous ->
+    let inputs =
+      match Map.find t.applied flow, previous with
+      | Some draft, _ -> explicit_inputs draft
+      | None, Some (_, previous) when String.equal previous.flow flow ->
+        if Option.equal equal_target view.catalog.target previous.target
+        then previous
+        else { previous with target = view.catalog.target; profile = entry.default_profile
+                           ; endpoint = ""; assignments = [] }
+      | None, _ ->
+        let profile =
+          match view.catalog.default_flow with
+          | Some (id, profile) when String.equal id flow -> profile
+          | _ -> entry.default_profile
+        in
+        { target = view.catalog.target; flow; profile
+        ; endpoint = ""; assignments = [] }
+    in
+    (* Capture the explicit choice even when its advertised inputs are invalid:
+       it must not inherit the previous flow or a catalog default. *)
+    t.draft <- Map.find t.applied flow;
+    reset_plan t "Prepare the selected inputs before Kickoff";
+    let%bind () = set_stage_inputs t view (Some inputs) in
+    Result.map (stage_selection t view) ~f:ignore
 ;;
 
 let apply t (draft : draft) =
@@ -315,6 +374,7 @@ let apply t (draft : draft) =
     require (List.mem schema.endpoints inputs.endpoint ~equal:String.equal)
       "Choose an advertised Silver flow endpoint"
   in
+  t.applied <- Map.set t.applied ~key:draft.flow ~data:draft;
   t.draft <- Some draft;
   t.settings <- t.settings + 1;
   t.stage_settings <- Some (view, explicit_inputs draft);
@@ -412,7 +472,8 @@ let kickoff t (ready : ready) =
     touch t;
     let still_current () = current t ready.draft.view && serial = t.plan_serial in
     let%map outcome = send ready.prepared ~still_current in
-    finish t ~binding_serial ~generation:ready.draft.view.generation inputs outcome)
+    let generation = if still_current () then ready.draft.view.generation else -1 in
+    finish t ~binding_serial ~generation inputs outcome)
 ;;
 
 (* Public Silver RPC projections. The service above stays useful without a daemon,

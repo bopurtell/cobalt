@@ -16,6 +16,8 @@ type binding =
 
 type t =
   { rows : unit -> string list
+  ; connection_status : unit -> Cobalt_screen.Status_field.Silver.t
+    (** Cached verified binding and latest connection attempt; no I/O. *)
   ; targets : unit -> Target.t list
   ; status_first : unit -> bool
   ; test_action : unit -> Test_action.t
@@ -33,8 +35,8 @@ type t =
   ; shutdown : unit -> unit
   ; kickoff : Silver_kickoff_host.t option
   }
-(** [rows], [targets], [test_action], [stages], and [revision] are synchronous
-    cached reads. [launch_stage] is the single revalidating stage dispatch for
+(** [rows], [connection_status], [targets], [test_action], [stages], and
+    [revision] are synchronous cached reads. [launch_stage] is the single revalidating stage dispatch for
     both the checklist and the three exact aliases.
     [apply_settings] atomically updates session settings without running a test.
     [launch] is the single dispatch for both tile and palette. Both must validate

@@ -117,6 +117,20 @@ val catalog : view -> catalog
     settings block stage resolution rather than silently selecting defaults.
     [None] explicitly clears them. No planning or submission. *)
 val set_stage_inputs : t -> view -> inputs option -> (unit, string) result
+
+(** Select a flow within the captured chip/variant and catalog, keeping that
+    flow's applied overrides if present. Otherwise use its native profile and
+    no explicit assignments. Does not require a kickoff preview or start work. *)
+val select_flow : t -> view -> flow:string -> (unit, string) result
+val active_flow : t -> view -> string option
+
+(** The last scoped choice, even if invalidated by a catalog refresh. For
+    highlighting only; do not use this to enable launch. *)
+val selected_flow : t -> view -> string option
+
+(** Why the selected flow cannot supply fresh stage inputs, if applicable. *)
+val stage_selection_error : t -> view -> string option
+
 val stages : t -> view -> (stage * (stage_intent, string) result) list
 val resolve_stage : t -> view -> id:string -> (stage_intent, string) result
 val resolve_alias : t -> view -> alias -> (stage_intent, string) result

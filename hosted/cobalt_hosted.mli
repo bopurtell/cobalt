@@ -93,7 +93,9 @@ type t =
     within the mount and consist of lowercase ASCII letters, digits, dots and
     hyphens. Invalid entries are skipped; the first row for each ID wins.
     Exact matches are case-insensitive; exact native matches win over exact
-    host matches, but both rows remain selectable. The list is captured on open;
+     host matches, but both rows remain selectable. If the local Silver
+     destinations are absent, explicitly declared host aliases [ov] and [st]
+     take the place of the corresponding unavailable native aliases. The list is captured on open;
     a removed ID won't dispatch from an already-open palette. Accepting a host
     row closes the palette and invokes the callback once with the ID. Cobalt's
     [:] prompt is unchanged. *)

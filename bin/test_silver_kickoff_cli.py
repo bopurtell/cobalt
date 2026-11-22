@@ -1,4 +1,4 @@
-"""Drive the real named-flow tab/command host against an in-process fake."""
+"""Drive the real named-flow selector, checklist and optional review against a fake."""
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import os
@@ -82,6 +82,12 @@ def test(binary):
             def hide_tile(ui):
                 command(ui, "Toggle Silver flow kickoff")
 
+            def open_review(ui):
+                command(ui, "Review Silver flow kickoff")
+
+            def hide_review(ui):
+                command(ui, "Toggle Silver flow kickoff review")
+
             def observe(ui, action, marker):
                 start = len(ui.output)
                 action()
@@ -95,9 +101,50 @@ def test(binary):
             try:
                 with editor(binary, file, env, flags, width=300) as ui:
                     ui.see(b"SAVED_PROJECT_TEXT")
-                    send(ui, [b"iX\x1b"])
+                    command(ui, "st")
+                    ui.see(b"endpoint default-delay")
+                    send(ui, [b"j"])
                     open_tile(ui)
+                    ui.see(b"Implement first")
+                    assert b"Flow choice:" not in ui.output
+                    send(ui, [b"j", b"k", b"j"])
+                    ui.see("Explore first · active".encode())
+                    assert not lines("stage-prepared") and not lines("prepared") and not lines("submitted")
+                    hide_tile(ui)
+                    send(ui, [b"iZ\x1b"])
+                    ui.see(b"ZSAVED_PROJECT_TEXT")
+                    command(ui, "st")
+                    ui.see(b"explore/review")
+                    send(ui, [b"R"])
+                    wait(lambda: len(lines("stage-submitted")) == 1)
+                    expected = ["first-chip/variant-1 explore review explore-delay"]
+                    assert lines("stage-prepared") == lines("stage-submitted") == expected
+                    open_tile(ui)
+                    send(ui, [b"j"])
+                    ui.see(b"Silver profile is unavailable: missing-profile")
+                    command(ui, "st")
+                    send(ui, [b"R"])
+                    assert lines("stage-prepared") == lines("stage-submitted") == expected
+                    assert file.read_text() == "SAVED_PROJECT_TEXT\n"
+                opened.clear()
+
+                with editor(binary, file, env, flags, width=300) as ui:
+                    ui.see(b"SAVED_PROJECT_TEXT")
+                    send(ui, [b"iX\x1b"])
+                    open_review(ui)
                     ui.see(b"Flow choice: Implement first")
+                    # Navigate from a major tab into another tile, then back to
+                    # the retained editor without closing the kickoff tab.
+                    command(ui, "ov")
+                    observe(ui, lambda: command(ui, "ed"), b"XSAVED_PROJECT_TEXT")
+                    open_review(ui)
+                    # A generic hide leaves the major slot selected but blank.
+                    # ed must select the file, not merely assign editor focus.
+                    command(ui, "hide")
+                    observe(ui, lambda: command(ui, "ed"), b"XSAVED_PROJECT_TEXT")
+                    observe(ui, lambda: send(ui, [b"iY\x1b"]), b"YXSAVED_PROJECT_TEXT")
+                    send(ui, [b"u"])
+                    open_review(ui)
                     assert not lines("prepared") and not lines("submitted")
                     send(ui, [b"\r"])
                     ui.see(b"Flow inputs")
@@ -146,12 +193,12 @@ def test(binary):
                     )
                     assert lines("submitted") == [first_submit]
                     ui.see(b"Submission pending")
-                    observe(ui, lambda: hide_tile(ui), b"XSAVED_PROJECT_TEXT")
+                    observe(ui, lambda: hide_review(ui), b"XSAVED_PROJECT_TEXT")
                     (root / "release-ack").touch()
                     wait(lambda: lines("acknowledged") == ["second-plan-1"])
                     send(ui, [b"iY\x1b"])
                     ui.see(b"YXSAVED_PROJECT_TEXT")
-                    open_tile(ui)
+                    open_review(ui)
                     ui.see(b"Accepted")
                     ui.see(b"fixture-workflow")
                     ui.see(b"fixture-run")
@@ -163,8 +210,8 @@ def test(binary):
                     send(ui, [b"K"])
                     ui.see(b"Delivery unconfirmed")
                     assert lines("submitted") == [first_submit, first_submit.replace("plan-1", "plan-2")]
-                    hide_tile(ui)
-                    open_tile(ui)
+                    hide_review(ui)
+                    open_review(ui)
                     send(ui, [b"K"])
                     time.sleep(.3)
                     assert len(lines("submitted")) == 2
@@ -175,14 +222,14 @@ def test(binary):
                 with editor(binary, file, env, flags, width=300) as ui:
                     ui.see(b"Attempt: fixture-watched")
                     before = len(watched)
-                    open_tile(ui)
+                    open_review(ui)
                     ui.see(b"Flow choice: Implement second")
                     send(ui, [b"\r", b"\r", b"p"])
                     ui.see(b"Reviewed preview: second-plan-1")
                     send(ui, [b"K"])
                     ui.see(b"fixture-workflow")
                     assert len(lines("submitted")) == 3
-                    hide_tile(ui)
+                    hide_review(ui)
                     complete_watch.set()
                     ui.see(b"Passed")
                     wait(lambda: len(watched) > before)
@@ -190,7 +237,7 @@ def test(binary):
                 (root / "release-plan").touch()
                 (root / "release-ack").touch()
                 server.shutdown()
-    print("Silver flow kickoff PTY: stale plan isolation, exact inputs, hidden acknowledgement, no replay")
+    print("Silver flow kickoff PTY: exact stage selection, stale plan isolation, hidden acknowledgement, no replay")
 
 
 if __name__ == "__main__":
