@@ -116,18 +116,22 @@ let%test_unit "layout presets retain dirty files, two-file splits, and a queued 
     let controller = Controller.open_file a ~cell_width:Cell_map.width |> Or_error.ok_exn in
     let ui = Ui_state.create ~standalone_layouts:true ~views:(silver_views ()) controller in
     let ui, _ = Ui_state.open_file ui ~width ~height b |> Or_error.ok_exn in
+    let ui = command ui "Layout: Default" in
     let ui = run ui " sniX<Esc> sf" in
     let files = Session.buffers (Ui_state.session ui) in
     let editors = Session.editor_split (Ui_state.session ui) in
     let ui = run ui " sx s+" in
-    let split = Ui_state.split ui in
+    let split_geometry ui =
+      Ui_state.editor_panes ui ~width ~height
+      |> List.map ~f:(fun pane -> pane.buffer, pane.allocation.width) in
+    let split = split_geometry ui in
     assert (Option.is_some editors);
     assert (List.exists files ~f:(fun (_, controller) ->
       Cobalt_core.Editor.is_dirty (Controller.editor controller)));
     let ui = command ui "Quick-Harness: New SV scratch" in
     let ui = command (command ui "Layout: Silver") "Layout: Default" in
     assert (Poly.equal (Session.editor_split (Ui_state.session ui)) editors);
-    assert (Workspace.Major_split.equal split (Ui_state.split ui));
+    assert (Poly.equal split (split_geometry ui));
     let signature files = List.map files ~f:(fun (id, controller) ->
       let editor = Controller.editor controller in
       id, Cobalt_core.Editor.is_dirty editor) in

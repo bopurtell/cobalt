@@ -1416,14 +1416,14 @@ let%expect_test "a count repeats a resize step; other view commands refuse it" =
     (View(Adjust_width 30))
     NORMAL 0:0
     |}];
-  let t = run t (keys "2 v-4 v=2 s+3 s-10 s=5 vp+2 vp-3 vp=2 d+6 d-") in
+  let t = run t (keys "2 v-4 v=2 s+3 s- s=5 vp+2 vp-3 vp=2 d+6 d-") in
   show_position t;
   [%expect {|
     (View(Adjust_width -20))
     (View(Adjust_width 40))
     (View(Adjust_split 20))
     (View(Adjust_split -30))
-    (View(Adjust_split 100))
+    (View Equalize_split)
     (View(Adjust_status_size 10))
     (View(Adjust_status_size -4))
     (View(Adjust_status_size 6))
@@ -1471,9 +1471,12 @@ let%expect_test "a count repeats a resize step; other view commands refuse it" =
   let t = run t (keys "3 sc") in
   show_position t;
   [%expect {| NORMAL 0:0 notice="Space s c does not take a count" |}];
-  let t = run t (keys "2 sx") in
+   let t = run t (keys "2 sx") in
+   show_position t;
+   [%expect {| NORMAL 0:0 notice="Space s x does not take a count" |}];
+  let t = run t (keys "2 s=") in
   show_position t;
-  [%expect {| NORMAL 0:0 notice="Space s x does not take a count" |}];
+  [%expect {| NORMAL 0:0 notice="Space s = does not take a count" |}];
   let t = run t (keys "1000000") in
   show_position t;
   [%expect {| NORMAL 0:0 notice="Count is too large: the maximum is 999999" |}];

@@ -110,6 +110,7 @@ type t =
   | Split_file_picker
   | Swap_split
   | Adjust_split of int
+  | Equalize_split
   | Close_split
   | Run_view_command of
       { view : View_id.t
@@ -198,6 +199,7 @@ let scale t ~count =
   | Split_next_file
   | Split_file_picker
   | Swap_split
+  | Equalize_split
   | Close_split
   | Run_view_command _
   | Request_view _

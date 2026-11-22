@@ -9,6 +9,18 @@ module Snippet = Cobalt_completion.Snippet
 module Query = Cobalt_error.Language_query
 module Navigation_preview = Cobalt_navigation_preview_model.Model
 
+module Pane_buffer = struct
+  module T = struct type t = Buffer_id.t * bool [@@deriving sexp_of, compare, equal] end
+  include T
+  include Comparator.Make (T)
+end
+
+let viewport_owner session =
+  let secondary = Option.is_none (Session.input_directory session)
+    && Session.active_editor_secondary session in
+  Option.map (Session.context_id session) ~f:(fun id -> id, secondary)
+;;
+
 type navigation_origin =
   { request : Query.request
   ; owner : Buffer_id.t option
@@ -116,7 +128,11 @@ module Input = struct
     | Terminal_tick of Time_ns.t
     | Paste_start
     | Paste_end
-    | Pointer of { action : [ `Left_click | `Wheel_up | `Wheel_down ]; x : int; y : int }
+    | Pointer of
+        { action : [ `Left_click | `Drag | `Release | `Cancel | `Wheel_up | `Wheel_down ]
+        ; x : int
+        ; y : int
+        }
     | Animation_tick of Time_ns.t
     | Resize
     | Source of Cobalt_error.Source_event.t
@@ -169,7 +185,7 @@ type toggle_pending =
 
 type hidden_tile =
   | View of View_id.t
-  | Editor of Buffer_id.t
+  | Editor of Pane_buffer.t
   | Directory of Buffer_id.t
   | Terminal of int
 [@@deriving sexp_of, equal]
@@ -229,10 +245,10 @@ type t =
   ; config_reload_requests : int list
   ; config_loading : bool
   ; session : Session.t
-  ; scrolls : (Scroll.t * int option) Buffer_id.Map.t
+  ; scrolls : (Scroll.t * int option) Map.M(Pane_buffer).t
   (* Detached viewports take precedence over cursor fitting, even for a pane
      that is not receiving key input. Buffer IDs are stable across placement. *)
-  ; wheel_scrolls : Scroll.t Buffer_id.Map.t
+  ; wheel_scrolls : Scroll.t Map.M(Pane_buffer).t
   ; paste_buffer : Buffer_id.t option
   ; prefs : Geometry.Prefs.t
   ; bare_prefs : Presentation.Bare_prefs.t
@@ -240,6 +256,7 @@ type t =
   ; other_status_size : int (** Requested size for the inactive split axis. *)
   ; hotkey_hints : bool
   ; mouse_reporting : bool option (** [None] leaves terminal reporting to the host. *)
+  ; editor_divider_drag : (Pane_buffer.t * Pane_buffer.t) option (** The visible pair, left to right. *)
   ; buffer_presentation : View_command.Buffer_presentation.t
   ; presentation : Presentation.t
   ; bare_return : Presentation.t
@@ -252,6 +269,8 @@ type t =
   ; tabs : Tab_strip.t (** View tabs' order among the file tabs, and the active one. *)
   ; hidden_tiles : hidden_tile list (** Newest first; independent of placement and lifetime. *)
   ; split : Workspace.Major_split.t (** Requested side and share of the split view. *)
+  ; editor_split_side : Workspace.Major_split.Side.t
+  ; editor_split_share : Workspace.Editor_split.t
   ; palette : Palette_tile.t option (** Open, and then focused, or closed. *)
   ; palette_caller : View_id.t option (** Underlying workspace focus for [hide]. *)
   ; palette_return : View_id.t option (** Focus restored by ordinary dismissal. *)
@@ -401,6 +420,7 @@ let create
   let session = if bare && Option.is_some (Session.active_id session)
     then Session.focus_directory session false else session in
   let controller = Option.value_exn (Session.active_controller session) in
+  let split = Option.value_map layout ~default:Workspace.Major_split.default ~f:Hosted_layout.split in
   { controller
   ; navigation = None
   ; navigation_serial = 0
@@ -445,8 +465,9 @@ let create
   ; config_reload_requests = []
   ; config_loading = false
   ; session
-  ; scrolls = Buffer_id.Map.empty
-  ; wheel_scrolls = Buffer_id.Map.empty
+  ; scrolls = Map.empty (module Pane_buffer)
+  ; wheel_scrolls = Map.empty (module Pane_buffer)
+  ; editor_divider_drag = None
   ; paste_buffer = None
   ; prefs
   ; bare_prefs
@@ -487,10 +508,12 @@ let create
            ; Popup_tile.spec
            ; Cobalt_tile.Spec.read_only_text directory_id ~title:"Directory"
            ])
-  ; views
-  ; tabs = Tab_strip.empty
-  ; hidden_tiles = []
-   ; split = Option.value_map layout ~default:Workspace.Major_split.default ~f:Hosted_layout.split
+   ; views
+   ; tabs = Tab_strip.empty
+   ; hidden_tiles = []
+    ; split
+    ; editor_split_side = split.view_side
+    ; editor_split_share = Workspace.Editor_split.of_major split
    ; palette = None
    ; palette_caller = None
    ; palette_return = None
@@ -1389,7 +1412,16 @@ let bare_prefs t = t.bare_prefs
 let workspace_prefs t = t.workspace_prefs
 let hotkey_hints t = t.hotkey_hints
 let mouse_reporting t = t.mouse_reporting
-let with_mouse_reporting t ~enabled = { t with mouse_reporting = Some enabled }
+let cancel_editor_divider_drag t =
+  if Option.is_none t.editor_divider_drag then t else { t with editor_divider_drag = None }
+;;
+
+let with_mouse_reporting t ~enabled =
+  { t with
+    mouse_reporting = Some enabled
+  ; editor_divider_drag = (if enabled then t.editor_divider_drag else None)
+  }
+;;
 let toggle_mouse t =
   match mouse_reporting t with
   | None -> t
@@ -1417,7 +1449,7 @@ let context_files t =
 
 let tile_hidden t tile = List.mem t.hidden_tiles tile ~equal:equal_hidden_tile
 let view_hidden t id = tile_hidden t (View id)
-let editor_hidden t id = tile_hidden t (Editor id)
+let editor_hidden t id ~secondary = tile_hidden t (Editor (id, secondary))
 let reveal_tile t tile =
   { t with hidden_tiles = List.filter t.hidden_tiles ~f:(fun hidden ->
       not (equal_hidden_tile tile hidden)) }
@@ -1459,7 +1491,8 @@ let major_visible t =
            || Option.exists (Session.directory_presentation t.session) ~f:(fun p ->
                 Poly.equal p.placement Major))
     then not (directory_hidden t)
-    else Option.exists (Session.active_id t.session) ~f:(fun id -> not (editor_hidden t id))
+    else Option.exists (Session.active_id t.session) ~f:(fun id ->
+      not (editor_hidden t id ~secondary:(Session.active_editor_secondary t.session)))
 ;;
 
 let active_tab t : Tab_strip.Entry.t option =
@@ -1517,7 +1550,7 @@ let take_file_requests t = { t with file_requests = [] }, List.rev t.file_reques
 let take_vcs_jobs t = { t with jobs = [] }, List.rev t.jobs
 ;;
 let wheel_scroll t =
-  Option.bind (Session.context_id t.session) ~f:(Map.find t.wheel_scrolls)
+  Option.bind (viewport_owner t.session) ~f:(Map.find t.wheel_scrolls)
 ;;
 
 let scroll t = Option.value (wheel_scroll t) ~default:t.scroll
@@ -1685,8 +1718,9 @@ let workspace t ~width ~height =
     ?editors:(if suppress_workspace t || Option.is_some (active_tab_view t)
                   || Option.exists (Session.directory_presentation t.session) ~f:(fun p ->
                        Poly.equal p.placement Major && Option.is_some (Session.input_directory t.session))
-      then None else Option.bind (Session.editor_split t.session) ~f:(fun split ->
-        Option.some_if (not (editor_hidden t split.other)) (split.active_secondary, t.split)))
+       then None else Option.bind (Session.editor_split t.session) ~f:(fun split ->
+          Option.some_if (not (editor_hidden t split.other ~secondary:(not split.active_secondary)))
+           (split.active_secondary, t.editor_split_side, t.editor_split_share)))
     ?side:(match companion with
       | Some id -> Some (id, Int.clamp_exn (width * 2 / 5) ~min:30 ~max:60)
       | None -> Option.bind (Session.directory_presentation t.session) ~f:(fun p ->
@@ -1695,6 +1729,32 @@ let workspace t ~width ~height =
           (directory_id, t.directory_size)))
     { prefs with status_visible }
     ~allocation:{ Geometry.Rect.x = 0; y = 0; width; height }
+;;
+
+let visible_editor_pair t ~width ~height =
+  let w = workspace t ~width ~height in
+  Option.bind w.second_editor ~f:(fun other ->
+    let active = w.document.rect in
+    if active.width = 0 then None
+    else if active.x < other.x then Some (active, other) else Some (other, active))
+;;
+
+let resize_editor_pair t ~(left : Geometry.Rect.t) ~(right : Geometry.Rect.t) ~column =
+  let available = left.width + right.width in
+  let minimum = Workspace.min_document_width in
+  let left_width = Int.clamp_exn column ~min:(left.x + minimum)
+    ~max:(left.x + available - minimum) - left.x in
+  if left_width = left.width then t
+  else
+    let secondary = match t.editor_split_side with
+      | Left -> left_width
+      | Right -> available - left_width in
+    { t with editor_split_share = Workspace.Editor_split.share ~secondary ~available; rows = None }
+;;
+
+let resize_editor_divider t ~width ~height ~column =
+  Option.value_map (visible_editor_pair t ~width ~height) ~default:t
+    ~f:(fun (left, right) -> resize_editor_pair t ~left ~right ~column)
 ;;
 
 let buffers_in_status_in t (workspace : Workspace.t) =
@@ -1963,8 +2023,8 @@ let saved_viewport scrolls id =
 
 let surface t ~directory =
   let session = Session.surface (session t) ~directory in
-  let id = Session.context_id session in
-  let scroll, rows = if Option.equal Buffer_id.equal id (Session.context_id t.session)
+  let id = viewport_owner session in
+  let scroll, rows = if Option.equal Pane_buffer.equal id (viewport_owner t.session)
     then t.scroll, t.rows else saved_viewport t.scrolls id in
   { t with session; controller = Option.value (Session.active_controller session) ~default:t.controller
     ; scroll; rows; hide_tabs = directory
@@ -1972,11 +2032,10 @@ let surface t ~directory =
     ; prefs = (if directory then { t.prefs with centered = false; left_padding = 0 } else t.prefs) }
 ;;
 
-let file_editor_surface t id =
-  let session = Session.editor_surface t.session id in
-  let current = Option.equal Buffer_id.equal (Some id) (Session.context_id t.session) in
-  let scroll, rows = if current then t.scroll, t.rows else saved_viewport t.scrolls (Some id) in
-  let controller = if current then t.controller else Option.value_exn (Session.active_controller session) in
+let other_editor_surface t =
+  let session = Session.other_editor_surface (session t) in
+  let scroll, rows = saved_viewport t.scrolls (viewport_owner session) in
+  let controller = Option.value_exn (Session.active_controller session) in
   { t with session; controller; scroll; rows }
 ;;
 
@@ -2816,10 +2875,10 @@ let synchronize t ~width ~height =
        && not (directory_hidden t)
       && Option.is_none (side_layout t ~width ~height)
     then
-      let old = Session.context_id t.session in
+       let old = viewport_owner t.session in
       let scrolls = Option.value_map old ~default:t.scrolls ~f:(fun id -> Map.set t.scrolls ~key:id ~data:(t.scroll, t.rows)) in
       let session = Session.focus_directory (session t) false in
-      let scroll, rows = saved_viewport scrolls (Session.context_id session) in
+       let scroll, rows = saved_viewport scrolls (viewport_owner session) in
       { (return_to_document t) with session; controller = Option.value_exn (Session.active_controller session)
         ; scrolls; scroll; rows; paste_buffer = None }
     else t in
@@ -2923,8 +2982,9 @@ let adopt_session_state ?(keep_view_tab = false) ?(keep_focus = false) t session
     not (List.mem retired (Session.normalize t.session resource) ~equal:String.equal))
     ; views = View_registry.map t.views Problems_tile.key ~f:(fun problems ->
         List.fold retired ~init:problems ~f:Problems_tile.forget_resource) } in
-  let previous = Session.context_id t.session in
-  let changed = not (Option.equal Buffer_id.equal previous (Session.context_id session)) in
+   let previous = viewport_owner t.session in
+   let next = viewport_owner session in
+   let changed = not (Option.equal Pane_buffer.equal previous next) in
   let t = if changed then { t with toggle_pending = None } else t in
   let placement_changed = not (Option.equal Poly.equal
     (Option.map (Session.directory_presentation t.session) ~f:(fun p -> p.placement))
@@ -2932,18 +2992,47 @@ let adopt_session_state ?(keep_view_tab = false) ?(keep_focus = false) t session
   let tabs_changed = not (Bool.equal
     (Session.buffer_count t.session > 1)
     (Session.buffer_count session > 1)) in
-  let scrolls = match previous with
-    | None -> t.scrolls
-    | Some id -> Map.set t.scrolls ~key:id ~data:(t.scroll, t.rows) in
-  let same_membership = Session.same_buffer_membership t.session session in
-  let scrolls = if same_membership then scrolls else
-    Map.filter_keys scrolls ~f:(Session.has_buffer session) in
-  let wheel_scrolls = if same_membership then t.wheel_scrolls else
-    Map.filter_keys t.wheel_scrolls ~f:(Session.has_buffer session) in
-  let hidden_tiles = if same_membership then t.hidden_tiles else
-    List.filter t.hidden_tiles ~f:(function
-      | Editor id | Directory id -> Session.has_buffer session id
-      | View _ | Terminal _ -> true) in
+   let scrolls = match previous with
+     | None -> t.scrolls
+     | Some id -> Map.set t.scrolls ~key:id ~data:(t.scroll, t.rows) in
+   let collapsed = Option.is_some (Session.editor_split t.session)
+     && Option.is_none (Session.editor_split session) in
+   let opened = Option.is_none (Session.editor_split t.session)
+     && Option.is_some (Session.editor_split session) in
+   let promoted_editor =
+     if not collapsed then None else
+     Option.filter (Session.active_id session) ~f:(fun id ->
+       Option.equal Buffer_id.equal (Session.editor_id t.session ~secondary:true) (Some id)
+       && (Session.active_editor_secondary t.session
+           || not (Option.equal Buffer_id.equal (Session.active_id t.session) (Some id)))) in
+   let reassign_viewports map =
+     if opened then
+       Option.value_map (Session.editor_id session ~secondary:true) ~default:map ~f:(fun id ->
+         Option.value_map (Map.find map (id, false)) ~default:map
+           ~f:(fun data -> Map.set map ~key:(id, true) ~data))
+     else if not collapsed then map else
+     let map = match promoted_editor with
+       | Some id ->
+         Option.value_map (Map.find map (id, true)) ~default:(Map.remove map (id, false))
+           ~f:(fun data -> Map.set map ~key:(id, false) ~data)
+       | _ -> map in
+     Map.filter_keys map ~f:(fun (_, secondary) -> not secondary) in
+   let same_membership = Session.same_buffer_membership t.session session in
+   let scrolls = reassign_viewports scrolls in
+   let scrolls = if same_membership then scrolls else
+     Map.filter_keys scrolls ~f:(fun (id, _) -> Session.has_buffer session id) in
+   let wheel_scrolls = reassign_viewports t.wheel_scrolls in
+   let wheel_scrolls = if same_membership then wheel_scrolls else
+     Map.filter_keys wheel_scrolls ~f:(fun (id, _) -> Session.has_buffer session id) in
+   let hidden_tiles = if same_membership && not collapsed then t.hidden_tiles else
+     List.filter_map t.hidden_tiles ~f:(function
+       | Editor (id, true) when collapsed ->
+         Option.some_if (Option.equal Buffer_id.equal promoted_editor (Some id)) (Editor (id, false))
+       | Editor (id, _) as tile ->
+         Option.some_if (not (Option.equal Buffer_id.equal promoted_editor (Some id))
+           && Session.has_buffer session id) tile
+       | Directory id as tile -> Option.some_if (Session.has_buffer session id) tile
+       | (View _ | Terminal _) as tile -> Some tile) in
   let controller = Option.value (Session.active_controller session)
     ~default:(Controller.with_feedback t.controller (Session.feedback session)) in
   let t = { t with session; controller; scrolls; wheel_scrolls; hidden_tiles; exited = Session.exited session
@@ -2955,7 +3044,7 @@ let adopt_session_state ?(keep_view_tab = false) ?(keep_focus = false) t session
     (if not tabs_changed then t else
        { t with rows = None; animation = Animation.create ~enabled:(Animation.enabled t.animation) }))
     else
-    let scroll, rows = saved_viewport scrolls (Session.context_id session) in
+     let scroll, rows = saved_viewport scrolls next in
     { (if keep_focus then t else return_to_document t) with scroll; rows; paste_buffer = None
       ; animation = Animation.create ~enabled:(Animation.enabled t.animation) } in
   let t = synchronize t ~width ~height in
@@ -3078,7 +3167,7 @@ let fitted_scroll_in ?(buffers_in_status = false) ?split_tabs t ~allocation ~res
 ;;
 
 let follow_cursor t =
-  match Session.context_id t.session with
+  match viewport_owner t.session with
   | None -> t
   | Some id ->
     (match Map.find t.wheel_scrolls id with
@@ -3120,6 +3209,7 @@ let cursor_position t ~width ~height =
 
 type editor_pane =
   { buffer : Buffer_id.t
+  ; secondary : bool
   ; allocation : Geometry.Rect.t
   ; geometry : Geometry.t
   ; scroll : Scroll.t
@@ -3138,15 +3228,18 @@ let editor_panes t ~width ~height =
     let split_tabs = split_tabs t workspace in
     let reserve_status_row = workspace.reserve_status_row in
     let input = input_buffer t ~width ~height in
-    let pane buffer allocation =
-      let ui = file_editor_surface t buffer in
-      { buffer; allocation
+     let secondary = Session.active_editor_secondary t.session in
+     let pane ui buffer ~secondary ~focused allocation =
+       { buffer; secondary; allocation
       ; geometry = geometry_in ~buffers_in_status ?split_tabs ui ~allocation ~reserve_status_row
       ; scroll = fitted_scroll_in ~buffers_in_status ?split_tabs ui ~allocation ~reserve_status_row
-      ; focused = Option.equal Buffer_id.equal input (Some buffer) } in
-    let other = Option.map2 workspace.second_editor (Session.editor_split t.session)
-      ~f:(fun rect split -> pane split.other rect) in
-    let front = if major_visible t then [ pane active workspace.document.rect ] else [] in
+       ; focused } in
+     let other = Option.map2 workspace.second_editor (Session.editor_split t.session)
+       ~f:(fun rect split -> pane (other_editor_surface t) split.other ~secondary:(not secondary) ~focused:false rect) in
+     let active_ui = if Option.is_some (Session.input_directory t.session) then surface t ~directory:false else t in
+     let front = if major_visible t then
+       [ pane active_ui active ~secondary ~focused:(Option.equal Buffer_id.equal input (Some active)) workspace.document.rect ]
+       else [] in
     List.sort (front @ Option.to_list other)
       ~compare:(fun a b -> Int.compare a.allocation.x b.allocation.x)
 ;;
@@ -3191,6 +3284,7 @@ let apply_view (prefs : Geometry.Prefs.t) (view : View_command.t) : Geometry.Pre
   | Split_file_picker
   | Swap_split
   | Adjust_split _
+  | Equalize_split
   | Close_split
   | Run_view_command _
   | Request_view _
@@ -3268,7 +3362,11 @@ let view_feedback t ~before ~width ~height (view : View_command.t) : string opti
   | Close_split when Option.is_some (Session.editor_split before.session) -> None
   | Split_next_file | Split_file_picker -> None
   | Place_view _ | Close_split -> Host.notice t.host
-  | Swap_split | Adjust_split _ ->
+   | (Swap_split | Adjust_split _ | Equalize_split) when Option.is_some (Session.editor_split t.session) ->
+     Some (match visible_editor_pair t ~width ~height with
+       | None -> "Editor split not visible"
+       | Some (left, right) -> sprintf "Editor split: %d / %d columns" left.width right.width)
+   | Swap_split | Adjust_split _ | Equalize_split ->
     let split = t.split in
     let side =
       match split.view_side with
@@ -3276,14 +3374,10 @@ let view_feedback t ~before ~width ~height (view : View_command.t) : string opti
       | Right -> "right"
     in
     let w = workspace t ~width ~height in
-    let name, rect =
-      match Session.editor_split t.session with
-      | Some split -> "Second editor", (if split.active_secondary && Option.is_some w.second_editor
-          then Some w.document.rect else w.second_editor)
-      | None -> "Split view", Option.bind (View_registry.split t.views) ~f:(fun id ->
-          Option.map (Workspace.minor w id) ~f:(fun pane -> pane.rect)) in
+     let rect = Option.bind (View_registry.split t.views) ~f:(fun id ->
+       Option.map (Workspace.minor w id) ~f:(fun pane -> pane.rect)) in
     let columns = Option.value_map rect ~default:"not shown" ~f:(fun rect -> sprintf "%d columns" rect.width) in
-    Some (sprintf "%s %s %d%% (%s)" name side split.percent columns)
+     Some (sprintf "Split view %s %d%% (%s)" side split.percent columns)
   | Toggle_view id ->
     Some
       (if not (View_registry.installed t.views id)
@@ -4332,7 +4426,8 @@ let workspace_target t ~width ~height id =
     | _ ->
       if Option.is_some (Session.input_directory t.session) && Option.is_none (side_layout t ~width ~height)
       then Option.map (Session.input_directory t.session) ~f:(fun d -> Directory d.id)
-      else Option.map (Session.active_id t.session) ~f:(fun id -> Editor id)
+       else Option.map (Session.active_id t.session) ~f:(fun id ->
+         Editor (id, Session.active_editor_secondary t.session))
   else if View_id.equal id directory_id then
     Option.bind (side_layout t ~width ~height) ~f:(fun _ ->
       Option.map (Session.directory_buffer t.session) ~f:(fun d -> Directory d.id))
@@ -4658,11 +4753,10 @@ let hide_focused_tile t ~width ~height =
        fallback_workspace (leave t Terminal_tile.id) ~width ~height ~preferred:previous ()
      | Editor _ ->
        let t =
-         if Option.is_some (workspace t ~width ~height).second_editor then
-           Option.value_map (Session.editor_split t.session) ~default:t ~f:(fun split ->
-             Result.ok (Session.activate (session t) split.other)
-             |> Option.value_map ~default:t ~f:(fun session ->
-               adopt_session_state ~keep_view_tab:true ~keep_focus:true t session ~width ~height))
+          if Option.is_some (workspace t ~width ~height).second_editor then
+            Result.ok (Session.focus_other_editor (session t))
+            |> Option.value_map ~default:t ~f:(fun session ->
+              adopt_session_state ~keep_view_tab:true ~keep_focus:true t session ~width ~height)
          else t in
        fallback_workspace t ~width ~height ()
      | Directory _ when View_id.equal caller directory_id ->
@@ -4677,7 +4771,7 @@ let hidden_tile_exists t = function
   | View id when View_id.equal id status_id -> t.workspace_prefs.status_visible
   | View id -> Option.exists (View_registry.placement t.views id) ~f:(fun placement ->
       not (View_registry.Placement.equal placement Hidden))
-  | Editor id | Directory id -> Session.has_buffer t.session id
+  | Editor (id, _) | Directory id -> Session.has_buffer t.session id
   | Terminal number -> number = t.terminal_number || Map.mem t.terminal_sessions number
 ;;
 
@@ -4708,11 +4802,14 @@ let unhide_tile t ~width ~height =
        if available t ~width ~height id then focus_workspace t id else release_focus t
      | View id when available t ~width ~height id && (Host.spec t.host id).focusable ->
        focus_workspace t id
-     | Editor id ->
-       (* Restoring a file tab explicitly selects the original buffer, even if a
-          different tile took its place while hidden. Session activation also
-          selects the original side when the buffer is still in the split. *)
-       (match Session.activate (session t) id with
+      | Editor (id, secondary) ->
+        (* Restore the original pane when it is still present. In a single
+           editor, a hidden tab is restored by selecting its buffer. *)
+        let session = session t in
+        let restored = if Bool.equal secondary (Session.active_editor_secondary session)
+            || Option.is_none (Session.editor_split session)
+          then Ok session else Session.focus_other_editor session in
+        (match Or_error.bind restored ~f:(fun session -> Session.activate session id) with
         | Error _ -> release_focus t
         | Ok session -> focus_workspace
             (adopt_session_state ~keep_view_tab:true ~keep_focus:true (file_tab t) session ~width ~height)
@@ -5013,8 +5110,8 @@ let request_view t ~width ~height id request =
 (* In the major split, focus the split view or return to the active tab. *)
 let focus_other_pane t ~width ~height =
   match Session.editor_split t.session, View_registry.split t.views with
-  | Some split, _ when Option.is_some (workspace t ~width ~height).second_editor ->
-    let session = Session.activate (session t) split.other |> Or_error.ok_exn in
+  | Some _, _ when Option.is_some (workspace t ~width ~height).second_editor ->
+    let session = Session.focus_other_editor (session t) |> Or_error.ok_exn in
     let t = adopt_session_state t session ~width ~height in
     workspace_notice t ~width ~height "Other editor focused"
   | Some _, _ ->
@@ -5034,7 +5131,7 @@ let close_split t ~width ~height =
   | Some _, _ ->
     let t = adopt_session_state { t with rows = None }
       (Session.close_editor_split (session t)) ~width ~height in
-    workspace_notice t ~width ~height "Editor split closed; both file tabs kept"
+    workspace_notice t ~width ~height "Editor split closed; no file tabs closed"
   | None, Some id -> place_view t ~width ~height id Hidden
   | None, None -> { t with host = Host.with_notice t.host "No split view" }
 ;;
@@ -5061,6 +5158,22 @@ let split_next_file t ~width ~height =
       (match Session.split_with session id with
        | Ok session -> show_editor_split t session ~width ~height
        | Error error -> workspace_notice t ~width ~height (Error.to_string_hum error))
+;;
+
+let adjust_split t ~width ~height points =
+  match Session.editor_split t.session with
+  | None -> { t with split = Workspace.Major_split.adjust t.split points; rows = None }
+  | Some split ->
+    Option.value_map (visible_editor_pair t ~width ~height) ~default:t
+      ~f:(fun (left, right) ->
+        let available = left.width + right.width in
+        let points = Int.clamp_exn points ~min:(-100) ~max:100 in
+        let cells = ((available * Int.abs points) + 50) / 100 in
+        let focused_left = match t.editor_split_side with
+          | Left -> split.active_secondary
+          | Right -> not split.active_secondary in
+        let shift = if Bool.equal focused_left (points > 0) then cells else -cells in
+        resize_editor_pair t ~left ~right ~column:(left.x + left.width + shift))
 ;;
 
 let apply_view_command t ~width ~height (view : View_command.t) =
@@ -5189,9 +5302,18 @@ let apply_view_command t ~width ~height (view : View_command.t) =
     else show_hidden t ~width ~height id
   | Place_view { view; placement } -> place_named t ~width ~height view placement
   | Focus_other_pane -> focus_other_pane t ~width ~height
-  | Swap_split -> { t with split = Workspace.Major_split.swap t.split; rows = None }
-  | Adjust_split points ->
-    { t with split = Workspace.Major_split.adjust t.split points; rows = None }
+   | Swap_split ->
+     if Option.is_none (Session.editor_split t.session)
+     then { t with split = Workspace.Major_split.swap t.split; rows = None }
+     else
+       let editor_split_side = match t.editor_split_side with Left -> Workspace.Major_split.Side.Right | Right -> Left in
+       { t with editor_split_side; rows = None }
+   | Adjust_split points -> adjust_split t ~width ~height points
+   | Equalize_split ->
+     if Option.is_none (Session.editor_split t.session)
+     then { t with split = { t.split with percent = 50 }; rows = None }
+     else if Option.is_none (visible_editor_pair t ~width ~height) then t
+     else { t with editor_split_share = Workspace.Editor_split.equalized; rows = None }
   | Close_split -> close_split t ~width ~height
   | Run_view_command { view; command } -> run_view_command t ~width ~height view command
   | Request_view { view; request } when String.equal (View_id.to_string view) "quick-harness" ->
@@ -6292,7 +6414,7 @@ let release_held t ~width ~height =
 ;;
 
 type pointer_pane =
-  { target_buffer : Buffer_id.t
+  { target_owner : Pane_buffer.t
   ; target_text : Text_buffer.t
   ; text_rect : Geometry.Rect.t
   ; target_scroll : Scroll.t
@@ -6307,7 +6429,7 @@ let directory_pointer_pane t ~width ~height ~(side : Tile_shell.Layout.t option)
   Option.bind (Session.directory_buffer (session t)) ~f:(fun directory ->
     let pane (ui : t) ~allocation ~reserve_status_row ~buffers_in_status =
       Some
-        { target_buffer = directory.id
+        { target_owner = directory.id, false
         ; target_text = Editor.text (Controller.editor ui.controller)
         ; text_rect = (geometry_in ui ~allocation ~reserve_status_row ~buffers_in_status).text
         ; target_scroll = fitted_scroll_in ui ~allocation ~reserve_status_row ~buffers_in_status
@@ -6324,7 +6446,7 @@ let directory_pointer_pane t ~width ~height ~(side : Tile_shell.Layout.t option)
     | None -> None)
 ;;
 
-let pointer_pane t ~file_ui ~width ~height ~side ~x ~y =
+let pointer_pane t ~file_ui ~width ~height ~side ~x ~y ~text_only =
   match side with
   | Some layout when contains layout.Tile_shell.Layout.outer ~x ~y ->
     Option.filter (directory_pointer_pane t ~width ~height ~side)
@@ -6333,15 +6455,25 @@ let pointer_pane t ~file_ui ~width ~height ~side ~x ~y =
     match if Option.is_none side then directory_pointer_pane t ~width ~height ~side else None with
     | Some pane -> Option.some_if (contains pane.text_rect ~x ~y) pane
     | None ->
-      List.find_map (editor_panes file_ui ~width ~height) ~f:(fun pane ->
-        if not (contains pane.geometry.text ~x ~y) then None
-        else Some
-          { target_buffer = pane.buffer
-          ; target_text = Editor.text (Controller.editor (file_editor_surface file_ui pane.buffer).controller)
+      let panes = editor_panes file_ui ~width ~height in
+      (* Split chrome can take focus, but only a text cell places the cursor.
+         The shared tab and feedback rows are not owned by either pane. *)
+      let split_body_is_focusable = not text_only && List.length panes = 2
+        && not (Option.exists (workspace_tab_rect file_ui (workspace file_ui ~width ~height))
+          ~f:(contains ~x ~y)) in
+      List.find_map panes ~f:(fun pane ->
+        let in_split_body =
+          split_body_is_focusable && contains pane.allocation ~x ~y
+          && not (contains pane.geometry.status ~x ~y)
+        in
+        if not (in_split_body || contains pane.geometry.text ~x ~y) then None
+        else Option.map (Session.find (session file_ui) pane.buffer) ~f:(fun controller ->
+          { target_owner = pane.buffer, pane.secondary
+          ; target_text = Editor.text (Controller.editor controller)
           ; text_rect = pane.geometry.text
           ; target_scroll = pane.scroll
           ; target_directory = None
-          })
+          }))
 ;;
 
 let pointer_focusable t id =
@@ -6376,17 +6508,48 @@ let pointer_view t (w : Workspace.t) ~width ~height ~x ~y =
       match pane.id with Minor id when hits id -> Some id | _ -> None)
 ;;
 
-let apply_pointer t ~width ~height ~x ~y ~action =
-  if x < 0 || x >= width || y < 0 || y >= height
-     || not (has_document t) || pasting t
-     || Option.is_some (effective_floating None t ~width ~height)
-     || Option.is_some (Keymap.search_preview (Controller.keymap t.controller))
-  then t
+let pointer_blocked t ~width ~height =
+  not (has_document t) || pasting t
+  || Option.is_some (effective_floating None t ~width ~height)
+  || Option.is_some (Keymap.search_preview (Controller.keymap t.controller))
+;;
+
+(* Like Frame.prepare, lay out the file surface independently of the directory
+   input owner when the side shell is drawn alongside it. *)
+let pointer_file_surface t side =
+  if Option.is_some side then surface t ~directory:false else t
+;;
+
+let pointer_editor_divider t ~width ~height =
+  let side = side_layout t ~width ~height in
+  let file_ui = pointer_file_surface t side in
+  let w = workspace file_ui ~width ~height in
+  match Session.active_id file_ui.session, Session.editor_split file_ui.session, w.second_editor with
+  | Some active, Some split, Some other when w.document.rect.width > 0 ->
+    let active, other =
+      ((active, split.active_secondary), w.document.rect),
+      ((split.other, not split.active_secondary), other) in
+    let left, right = if (snd active).x < (snd other).x then active, other else other, active in
+    let left_owner, left = left and right_owner, right = right in
+    let x = left.x + left.width in
+    let y = left.y + Bool.to_int (Option.is_some (workspace_tab_rect file_ui w)) in
+    let rect =
+      { Geometry.Rect.x
+      ; y
+      ; width = right.x - x
+      ; height = left.y + left.height - Bool.to_int w.reserve_status_row - y
+      }
+    in
+    Option.some_if (rect.width = Workspace.gap && rect.height > 0)
+      ((left_owner, right_owner), rect)
+  | _ -> None
+;;
+
+let apply_pointer_click_or_wheel t ~width ~height ~x ~y ~action =
+  if x < 0 || x >= width || y < 0 || y >= height then t
   else
     let side = side_layout t ~width ~height in
-    (* Like Frame.prepare, lay out the underlying file surface independently
-       of the directory input owner when the side shell is drawn over it. *)
-    let file_ui = if Option.is_some side then surface t ~directory:false else t in
+    let file_ui = pointer_file_surface t side in
     let covered = Option.exists side ~f:(fun layout -> contains layout.outer ~x ~y) in
     let target = match action with
       | `Left_click when not covered ->
@@ -6430,7 +6593,7 @@ let apply_pointer t ~width ~height ~x ~y ~action =
     | Some (`View id) ->
       if available t ~width ~height id then focus id ~show:Fn.id else t
     | None ->
-      match pointer_pane t ~file_ui ~width ~height ~side ~x ~y with
+       match pointer_pane t ~file_ui ~width ~height ~side ~x ~y ~text_only:(not (Poly.equal action `Left_click)) with
       | None -> t
       | Some pane ->
         let text = pane.target_text in
@@ -6446,46 +6609,86 @@ let apply_pointer t ~width ~height ~x ~y ~action =
           let top = Int.clamp_exn (scroll.top + step) ~min:0 ~max:limit in
           if top = scroll.top then t
           else
-            { t with wheel_scrolls = Map.set t.wheel_scrolls ~key:pane.target_buffer
-                ~data:{ scroll with top }
-            ; animation = (if Option.equal Buffer_id.equal (Session.context_id t.session) (Some pane.target_buffer)
+             { t with wheel_scrolls = Map.set t.wheel_scrolls ~key:pane.target_owner
+                 ~data:{ scroll with top }
+             ; animation = (if Option.equal Pane_buffer.equal (viewport_owner t.session) (Some pane.target_owner)
                 then Animation.create ~enabled:(Animation.enabled t.animation)
                 else t.animation) }
-        | `Left_click ->
-          let line = scroll.top + (y - pane.text_rect.y) in
-          let placeholder = Option.exists pane.target_directory ~f:(fun d ->
-            List.is_empty d.entries && not (Cobalt_app.Directory_buffer.is_dirty d)) in
-          if line >= line_count || placeholder then t
-          else
-            let start = Text_buffer.line_start text line in
-            let offset = if Option.is_some pane.target_directory then start else
-              let layout = Text_buffer.line_layout text ~width:Cell_map.width line in
-              let column = scroll.left + (x - pane.text_rect.x) in
-              start + Option.value (Cell_layout.Index.pos_of_column layout column)
-                ~default:(Cell_layout.Index.length layout) in
-            let t = dismiss_completion t in
-            let focus = if Option.is_some pane.target_directory && Option.is_some side
-              then directory_id else document_id in
-            let t = if View_id.equal focus (focused_view t ~width ~height)
-              then t else return_to_document t in
-            let session = session t in
-            let session =
-              if Option.equal Buffer_id.equal (Session.context_id session) (Some pane.target_buffer)
-              then session
-              else if Option.is_some pane.target_directory then Session.focus_directory session true
-              else Session.activate session pane.target_buffer |> Or_error.ok_exn in
-            let controller = Option.value_exn (Session.active_controller session) in
-            match Controller.place_cursor controller offset with
-            | Error _ -> t
-            | Ok controller ->
-              let t = adopt_session_state t (Session.replace_active session controller) ~width ~height in
-              settle
-                { t with scroll
-                ; wheel_scrolls = Map.remove t.wheel_scrolls pane.target_buffer
-                ; toggle_pending = None
-                ; snippet = None
-                ; animation = Animation.create ~enabled:(Animation.enabled t.animation)
-                }
+         | `Left_click ->
+           let line = scroll.top + (y - pane.text_rect.y) in
+           let placeholder = Option.exists pane.target_directory ~f:(fun d ->
+             List.is_empty d.entries && not (Cobalt_app.Directory_buffer.is_dirty d)) in
+           let place = contains pane.text_rect ~x ~y && line < line_count && not placeholder in
+           let focus = if Option.is_some pane.target_directory && Option.is_some side
+             then directory_id else document_id in
+           let already_focused =
+             View_id.equal focus (focused_view t ~width ~height)
+             && Option.equal Pane_buffer.equal (viewport_owner t.session) (Some pane.target_owner) in
+           if not place && (already_focused || Option.is_some pane.target_directory) then t
+           else
+             let t = dismiss_completion t in
+             let t = if View_id.equal focus (focused_view t ~width ~height)
+               then t else return_to_document t in
+             let session = session t in
+             let id, secondary = pane.target_owner in
+             let focused =
+               if Option.equal Pane_buffer.equal (viewport_owner session) (Some pane.target_owner)
+               then Ok session
+               else if Option.is_some pane.target_directory then Ok (Session.focus_directory session true)
+               else if Bool.equal secondary (Session.active_editor_secondary session)
+               then Session.activate session id
+               else Session.focus_other_editor session in
+             let positioned = Result.bind focused ~f:(fun session ->
+               if not place then Ok session
+               else
+                 let start = Text_buffer.line_start text line in
+                 let offset = if Option.is_some pane.target_directory then start else
+                   let layout = Text_buffer.line_layout text ~width:Cell_map.width line in
+                   let column = scroll.left + (x - pane.text_rect.x) in
+                   start + Option.value (Cell_layout.Index.pos_of_column layout column)
+                     ~default:(Cell_layout.Index.length layout) in
+                 let controller = Option.value_exn (Session.active_controller session) in
+                 Result.map (Controller.place_cursor controller offset) ~f:(Session.replace_active session))
+             in
+             match positioned with
+             | Error _ -> t
+             | Ok session ->
+               let t = adopt_session_state t session ~width ~height in
+               let t = if not place then follow_cursor t else
+                 { t with scroll; rows = Some pane.text_rect.height
+                 ; wheel_scrolls = Map.remove t.wheel_scrolls pane.target_owner } in
+               settle
+                 { t with toggle_pending = None
+                 ; snippet = None
+                 ; animation = Animation.create ~enabled:(Animation.enabled t.animation)
+                 }
+;;
+
+let apply_pointer t ~width ~height ~x ~y
+    ~(action : [ `Left_click | `Drag | `Release | `Cancel | `Wheel_up | `Wheel_down ]) =
+  match action with
+  | `Cancel -> cancel_editor_divider_drag t
+  | (`Drag | `Release) when Option.is_none t.editor_divider_drag -> t
+  | _ when pointer_blocked t ~width ~height -> cancel_editor_divider_drag t
+  | `Drag | `Release ->
+    (* Once grabbed, the pointer may leave the divider or the workspace
+       entirely. Check that the same pane pair still owns the divider. *)
+    (match t.editor_divider_drag, pointer_editor_divider t ~width ~height with
+     | Some (left, right), Some ((live_left, live_right), _)
+       when Pane_buffer.equal left live_left && Pane_buffer.equal right live_right ->
+       let resized = resize_editor_divider t ~width ~height ~column:x in
+       let t = if phys_equal t resized then t else
+         { resized with animation = Animation.create ~enabled:(Animation.enabled t.animation) } in
+       if Poly.equal action `Release then cancel_editor_divider_drag t else t
+     | _ -> cancel_editor_divider_drag t)
+  | `Left_click ->
+    let t = cancel_editor_divider_drag t in
+    (match pointer_editor_divider t ~width ~height with
+     | Some (owners, divider) when contains divider ~x ~y ->
+       { t with editor_divider_drag = Some owners }
+     | _ -> apply_pointer_click_or_wheel t ~width ~height ~x ~y ~action:`Left_click)
+  | (`Wheel_up | `Wheel_down) as action ->
+    apply_pointer_click_or_wheel t ~width ~height ~x ~y ~action
 ;;
 
 let toggle_owner t ~width ~height =
@@ -6537,7 +6740,11 @@ let rec apply t ~width ~height (input : Input.t) =
   | Pointer _ when Option.equal Bool.equal t.mouse_reporting (Some false) -> t, Running
   | Pointer { x; y; action } -> apply_pointer t ~width ~height ~x ~y ~action |> validate_bsc, Running
   | _ ->
-  let t = match input with
+   let t = match input with
+     | Key _ | Key_at _ | Terminal_key _ | Terminal_key_at _ | Paste_start | Resize ->
+       cancel_editor_divider_drag t
+     | _ -> t in
+   let t = match input with
     | Key (Escape | Ctrl 'c') | Key_at { key = (Escape | Ctrl 'c'); _ } | Paste_start -> dismiss_signature t
     | _ -> t in
   let t = match input with
@@ -6880,7 +7087,7 @@ and apply_regular_inner t ~width ~height (input : Input.t) =
     and before_focus = focused_view t ~width ~height
     and before_placements = View_registry.placements t.views
     and before_presentation = t.presentation in
-    let before_buffer = Session.context_id t.session in
+     let before_buffer = viewport_owner t.session in
     let before_controller = t.controller in
     let t, status =
       match input with
@@ -6906,7 +7113,7 @@ and apply_regular_inner t ~width ~height (input : Input.t) =
     in
     let t =
       let before = Controller.editor before_controller and after = Controller.editor t.controller in
-      if Option.equal Buffer_id.equal before_buffer (Session.context_id t.session)
+       if Option.equal Pane_buffer.equal before_buffer (viewport_owner t.session)
          && (Controller.motion_serial before_controller <> Controller.motion_serial t.controller
              || Editor.cursor before <> Editor.cursor after
              || Editor.revision before <> Editor.revision after
@@ -6920,7 +7127,7 @@ and apply_regular_inner t ~width ~height (input : Input.t) =
     let was_active = Animation.active t.animation in
     let animation =
       if bare t || (not (Workspace.Prefs.equal before_workspace t.workspace_prefs))
-          || not (Option.equal Buffer_id.equal before_buffer (Session.context_id t.session))
+           || not (Option.equal Pane_buffer.equal before_buffer (viewport_owner t.session))
          || not
               ([%equal: (View_id.t * View_registry.Placement.t) list]
                  before_placements (View_registry.placements t.views))

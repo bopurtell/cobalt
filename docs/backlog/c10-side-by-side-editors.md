@@ -2,6 +2,9 @@
 
 **Status:** Closed — verified and accepted by the owner. **Tracker:** [GitHub #7](https://github.com/bopurtell/cobalt/issues/7).
 
+The first-release rules below are historical. For current tab targeting,
+same-file views, and resizing controls, see [Side-by-side file editors](../editor_reference.md#side-by-side-file-editors).
+
 ## Why
 
 Cobalt can put a VCS view or directory browser beside a file editor, but

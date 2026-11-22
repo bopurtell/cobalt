@@ -21,6 +21,11 @@ MOUSE_MODES = {1000, 1002, 1003, 1005, 1006, 1015}
 DEC_MODES = re.compile(rb"\x1b\[\?([\d;]+)([hl])")
 
 
+def sgr_mouse(button, x, y, *, suffix="M"):
+    # Terminal cells in the report are one-based.
+    return f"\x1b[<{button};{x + 1};{y + 1}{suffix}".encode()
+
+
 class Editor:
     def __init__(self, master, slave, process):
         self.master, self.slave, self.process = master, slave, process
@@ -64,7 +69,7 @@ class Editor:
         [(x, y)] = matches
         # Wire coordinates are one-based. Picking an exact column and row in
         # the resulting edit checks that UI input doesn't subtract again.
-        return f"\x1b[<{button};{x + 1};{y + 1}{suffix}".encode()
+        return sgr_mouse(button, x, y, suffix=suffix)
 
     def finish(self, before, status=0):
         # Keep draining so shutdown writes cannot block on a full PTY.
@@ -93,11 +98,25 @@ class Editor:
         return [match[0] for match in DEC_MODES.finditer(self.output)
                 if {int(mode) for mode in match[1].split(b";")} & MOUSE_MODES]
 
+    def assert_button_motion(self):
+        # xterm's tracking modes are mutually exclusive: the last selected
+        # mode must be 1002, not merely present somewhere in the output.
+        tracking = None
+        for match in DEC_MODES.finditer(self.output):
+            for mode in map(int, match[1].split(b";")):
+                if mode in (9, 1000, 1001, 1002, 1003):
+                    if match[2] == b"h":
+                        tracking = mode
+                    elif mode == tracking:
+                        tracking = None
+        assert tracking == 1002, (tracking, self.mouse_mode_writes())
+        assert 1006 in self.modes(), "SGR mouse coordinates are not enabled"
+
     def toggle_mouse(self, *, enabled):
         self.keys(b" ccToggle mouse\r")
         if enabled:
-            self.wait(lambda: {1000, 1006} <= self.modes(), "mouse reporting on")
-            assert 1003 not in self.modes(), "unexpected hover reporting"
+            self.wait(lambda: {1002, 1006} <= self.modes(), "button-motion reporting on")
+            self.assert_button_motion()
         else:
             self.wait(lambda: not self.modes() & MOUSE_MODES, "mouse reporting off")
         assert {1049, 2004} <= self.modes(), "toggle disturbed screen or paste mode"
@@ -150,8 +169,8 @@ def test(binary, root, env):
     file.write_text(original)
     with editor(binary, file, env, "--bare") as (tty, before):
         tty.see("paste:abcd")
-        assert {1000, 1006, 2004} <= tty.modes(), "mouse or paste reporting not enabled"
-        assert 1003 not in tty.modes(), "unexpected hover reporting"
+        tty.assert_button_motion()
+        assert 2004 in tty.modes(), "bracketed paste not enabled"
         # Press on b; release and drag on a different row must not move again.
         tty.keys(tty.report(0, "click:abcd", 7) + tty.report(32, "first line")
                  + tty.report(0, "first line", suffix="m")
@@ -180,7 +199,7 @@ def test(binary, root, env):
 
     with editor(binary, file, env, "--mouse") as (tty, before):
         tty.see("paste:aPjkbcd")
-        assert 1006 in tty.modes()
+        tty.assert_button_motion()
         tty.process.terminate()
         tty.finish(before, status=1)
         assert file.read_text() == expected
@@ -191,7 +210,7 @@ def test_toggle(binary, root, env):
     file.write_text("first:abcd\nsecond:abcd\nthird:abcd\n")
     with editor(binary, file, env, "--bare") as (tty, before):
         tty.see("third:abcd")
-        assert {1000, 1006} <= tty.modes()
+        tty.assert_button_motion()
         writes = tty.mouse_mode_writes()
         assert len(set(writes)) == len(writes), "startup rewrote mouse modes"
         tty.keys(tty.report(0, "second:abcd", 8) + b"iA\x1b")
@@ -272,10 +291,44 @@ def test_two_editors(binary, root, env):
         tty.see("right:abcd")
         tty.keys(b" dh bp sn")
         tty.wait(lambda: "left:abcd" in tty.screen.text and "right:abcd" in tty.screen.text,
-                 "both editor panes")
+                  "both editor panes")
+        tty.assert_button_motion()
 
-        tty.keys(tty.report(0, "left:abcd", 6) + b"iL\x1b")
+        def pane_borders():
+            # The file frames' top borders share a line and have one gap
+            # between them. Use cell indices, not offsets in the UTF-8 stream.
+            for y, cells in enumerate(tty.screen.lines):
+                if "╭" not in cells:
+                    continue
+                l0 = cells.index("╭")
+                if "╮" not in cells[l0 + 1:]:
+                    continue
+                l1 = cells.index("╮", l0 + 1)
+                r0 = l1 + 2
+                if r0 < len(cells) and cells[r0] == "╭" and "╮" in cells[r0 + 1:]:
+                    return y, l0, l1, r0, cells.index("╮", r0 + 1)
+            return None
+
+        tty.wait(lambda: pane_borders() is not None, "two adjacent file frames")
+        y, l0, l1, r0, r1 = pane_borders()
+        divider = l1 + 1
+
+        def moved_by(delta):
+            return pane_borders() == (y, l0, l1 + delta, r0 + delta, r1)
+
+        tty.keys(sgr_mouse(0, divider, y + 1) + sgr_mouse(32, divider + 9, y + 2))
+        tty.wait(lambda: moved_by(9), "SGR motion widens the left pane by nine cells")
+        tty.keys(sgr_mouse(0, divider + 12, y + 2, suffix="m"))
+        tty.wait(lambda: moved_by(12), "SGR release finishes at its reported column")
+
+        # A terminal doesn't normally send a motion report after release in
+        # mode 1002. Inject a late one, followed by a click/edit, to prove the
+        # capture is gone without using a timing-based negative assertion.
+        tty.keys(sgr_mouse(32, divider - 8, y + 2)
+                 + tty.report(0, "left:abcd", 6) + b"iL\x1b")
         tty.see("left:aLbcd")
+        assert moved_by(12), "motion after release still changed the split"
+
         tty.keys(tty.report(65, "right:abcd") * 48)
         tty.wait(lambda: "right-047" in tty.screen.text and "right:abcd" not in tty.screen.text,
                  "wheel over the other editor scrolls only that editor")
@@ -288,6 +341,27 @@ def test_two_editors(binary, root, env):
         tty.keys(tty.report(0, "right:abcd", 7) + b"iR\x1b w")
         tty.see("right:aRbcd")
         assert "left:aFLbcd" in tty.screen.text
+
+        # Selecting a file tab changes the content of the focused pane in
+        # place. Both panes now render the same file; the cursor must still
+        # follow the clicked physical slot, including on the same row.
+        tty.keys(tty.report(0, "1:a.txt", 3, on_row_with="b.txt"))
+
+        def copies():
+            marker = "left:aFLbcd"
+            return [(x, row) for row, cells in enumerate(tty.screen.lines)
+                    for x in range(len(cells) - len(marker) + 1)
+                    if "".join(cells[x:x + len(marker)]) == marker]
+
+        tty.wait(lambda: len(copies()) == 2, "the same file in both panes")
+        for x, row in sorted(copies()):
+            col = x + 2
+            tty.keys(sgr_mouse(0, col, row) + sgr_mouse(0, col, row, suffix="m"))
+            tty.wait(lambda: tty.screen.cursor_visible
+                     and (tty.screen.col, tty.screen.row) == (col, row),
+                     f"same-file pane cursor at {col},{row}")
+            assert moved_by(12)
+
         tty.keys(b" q")
         tty.finish(before)
     assert first.read_text() == left.replace("left:abcd", "left:aFLbcd")
@@ -311,7 +385,7 @@ def test_workspace_focus(binary, root, env):
         tty.wait(lambda: tty.screen.cursor_on("first history line")
                  and history + ":" in tty.screen.text and entry in tty.screen.text,
                  "History opened without taking focus and shows the startup event")
-        assert {1000, 1006} <= tty.modes(), "workspace mouse reporting not enabled by default"
+        tty.assert_button_motion()
 
         tty.keys(tty.report(0, entry))
         tty.wait(lambda: history + "*:" in tty.screen.text and not tty.screen.cursor_visible,
@@ -355,5 +429,5 @@ if __name__ == "__main__":
         test_two_editors(binary, root, env)
         test_workspace_focus(binary, root, env)
     print("Mouse CLI: default, startup override, runtime toggle, click/keyboard edit,"
-          " wheel, directories, tabs, two editors, workspace focus, bracketed paste,"
+           " wheel, directories, tabs, editor divider drag, same-file panes, workspace focus, bracketed paste,"
           " quit and signal cleanup")

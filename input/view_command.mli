@@ -134,9 +134,12 @@ type t =
   (** Open the next retained file tab in a second editor. *)
   | Split_file_picker
   (** Open a second editor with a path from the file picker. *)
-  | Swap_split (** Put the split view on the other side of the editor area. *)
+  | Swap_split (** Swap the two panes. *)
   | Adjust_split of int
-  (** Change the split view's requested share of the editor area, in percent. *)
+  (** Grow or shrink the focused file editor (or the registered split view), in
+      percentage points of the usable split width. *)
+  | Equalize_split
+  (** Restore an even split. *)
   | Close_split
   (** Close the split even when it is hidden by zen or insufficient space.
       With two file editors, keep the focused file visible and both tabs open. *)

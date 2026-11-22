@@ -169,6 +169,7 @@ val feedback : t -> Cobalt_error.Error.t
 val update_feedback : t -> Cobalt_error.Error.update -> t
 
 val cancel_pending : t -> t
+val with_pane_view : ?copy:bool -> t -> Editor.Pane_view.t -> t
 val with_feedback : t -> Cobalt_error.Error.t -> t
 val with_path : t -> string -> t
 val with_register : t -> Register.t option -> t

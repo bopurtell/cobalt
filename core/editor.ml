@@ -235,6 +235,48 @@ let go_to_display_position t ~line ~column =
       else Ok (set_cursor t (B.line_end t.text line))
 ;;
 
+module Pane_view = struct
+  type t =
+    { revision : int
+    ; cursor : int
+    ; line : int
+    ; column : int
+    ; preferred_column : int
+    ; mode : Mode.t
+    ; selection : Selection.t option
+    }
+end
+
+let pane_view t : Pane_view.t =
+  { revision = t.revision
+  ; cursor = t.cursor
+  ; line = cursor_line t
+  ; column = display_column t t.cursor ~tab_end:false
+  ; preferred_column = t.preferred_column
+  ; mode = t.mode
+  ; selection = t.selection
+  }
+;;
+
+let with_pane_view ?(copy = false) t (view : Pane_view.t) =
+  (* Only the focused pane can own an Insert transaction. If the source has
+     changed, restore the closest position and clear any stale Visual range. *)
+  let t = { t with mode = Normal; selection = None; block_insert = None } in
+  if t.revision = view.revision then
+    match view.mode with
+    | (Normal | Visual _) when not copy ->
+      { t with cursor = view.cursor; preferred_column = view.preferred_column
+        ; mode = view.mode; selection = view.selection }
+    | _ -> set_cursor t view.cursor
+  else
+    let line = Int.min view.line (B.line_count t.text - 1) in
+    let layout = B.line_layout t.text ~width:t.cell_width line in
+    let offset = match Cell_layout.Index.pos_of_column layout view.column with
+      | Some pos -> B.line_start t.text line + pos
+      | None -> B.line_end t.text line in
+    set_cursor t offset
+;;
+
 let commit t = { t with history = History.commit t.history ~after:(snapshot t) }
 
 (* [text] must differ from [t.text]. Joins the active transaction, starting one if

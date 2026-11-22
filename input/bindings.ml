@@ -274,7 +274,7 @@ let default =
     ; split 'c' Close_split
     ; split '-' (Adjust_split (-10))
     ; split '+' (Adjust_split 10)
-    ; split '=' (Adjust_split 10)
+    ; split '=' Equalize_split
     ; git 'g' (Focus_view vcs)
     ; git 'f' (Focus_view vcs)
     ; place_vcs 't' Tab

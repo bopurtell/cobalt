@@ -26,6 +26,11 @@ type editor_split = { other : Buffer_id.t; active_secondary : bool }
 (** The other buffer and whether the active file occupies the secondary slot.
     The requested split is independent of screen visibility. *)
 val editor_split : t -> editor_split option
+(** Stable slot identity. Both slots may show the same buffer. *)
+val active_editor_secondary : t -> bool
+val editor_id : t -> secondary:bool -> Buffer_id.t option
+(** Move input to the other slot without changing either slot's buffer. *)
+val focus_other_editor : t -> t Or_error.t
 (** Split the active file with a distinct retained tab, or open a second file
     transactionally. The secondary slot becomes active. *)
 val split_with : t -> Buffer_id.t -> t Or_error.t
@@ -33,7 +38,7 @@ val split_open_file : t -> string -> (t * Buffer_id.t) Or_error.t
 (** Keep the active file visible; neither tab is closed. *)
 val close_editor_split : t -> t
 (** Read-only drawing snapshot; do not adopt or dispatch it. *)
-val editor_surface : t -> Buffer_id.t -> t
+val other_editor_surface : t -> t
 (** Visible input owner, not necessarily the active file tab. *)
 val context_id : t -> Buffer_id.t option
 val has_buffer : t -> Buffer_id.t -> bool
@@ -106,6 +111,8 @@ end
     uses the returned ID to present the active buffer. *)
 val open_location : t -> Open_location.request -> (t * Buffer_id.t, Open_location.failure) Result.t
 
+(** Select the retained buffer in the focused editor slot, even when the
+    other slot also displays it. *)
 val activate : t -> Buffer_id.t -> t Or_error.t
 val close_buffer : t -> Buffer_id.t -> force:bool -> t * bool
 val close_current : t -> force:bool -> t * bool

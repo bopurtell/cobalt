@@ -259,6 +259,16 @@ val go_to_offset : t -> int -> t Or_error.t
     history are unchanged. *)
 val place_cursor : t -> int -> t Or_error.t
 
+module Pane_view : sig
+  type t
+end
+
+(** Cursor and selection only; text, history and save state remain in the editor.
+    A copy starts in Normal mode. An intervening edit restores the nearest valid
+    line and column instead of reviving a stale selection. *)
+val pane_view : t -> Pane_view.t
+val with_pane_view : ?copy:bool -> t -> Pane_view.t -> t
+
 (** Convert an absolute UTF-8 byte boundary using this editor's width table to
     one-based line/display-cell coordinates. Zero-width scalars map to the
     preceding visible glyph (or cell 1), as in [Cell_layout.cursor_span]; display

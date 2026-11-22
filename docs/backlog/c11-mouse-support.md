@@ -2,6 +2,9 @@
 
 **Status:** Closed — verified and accepted by the owner.
 
+This ticket records the initial mouse behavior. For current split focus and
+divider gestures, see [Mouse input](../editor_reference.md#mouse-input).
+
 ## Why
 
 Let the user point at a pane, cursor position, or file tab and scroll the

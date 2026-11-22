@@ -330,14 +330,19 @@ let default =
         Swap_split
     ; view
         ~id:"split.grow-view"
-        ~title:"Grow split view by 10%"
-        ~keywords:[ "pane"; "ratio"; "size"; "wider" ]
+        ~title:"Grow split pane by 10%"
+        ~keywords:[ "focus"; "editor"; "view"; "resize"; "ratio"; "size"; "wider" ]
         (Adjust_split 10)
     ; view
         ~id:"split.shrink-view"
-        ~title:"Shrink split view by 10%"
-        ~keywords:[ "pane"; "ratio"; "size"; "narrower" ]
+        ~title:"Shrink split pane by 10%"
+        ~keywords:[ "focus"; "editor"; "view"; "resize"; "ratio"; "size"; "narrower" ]
         (Adjust_split (-10))
+    ; view
+        ~id:"split.equalize"
+        ~title:"Equalize split panes"
+        ~keywords:[ "editor"; "view"; "resize"; "ratio"; "size"; "balance"; "reset" ]
+        Equalize_split
     ; view
         ~id:"split.close"
         ~title:"Close split"

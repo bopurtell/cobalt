@@ -134,8 +134,9 @@ let%expect_test "the default catalog, with shortcuts derived from bindings" =
     split.open-file                Split editor and pick a file
     split.focus-other              Focus other split pane
     split.swap                     Swap split sides
-    split.grow-view                Grow split view by 10%
-    split.shrink-view              Shrink split view by 10%
+    split.grow-view                Grow split pane by 10%
+    split.shrink-view              Shrink split pane by 10%
+    split.equalize                 Equalize split panes
     split.close                    Close split
     problems.toggle                Toggle problems tile
     problems.focus                 Focus problems
@@ -361,6 +362,21 @@ let%test_unit "bare mode is discoverable and advertises its actual default short
   [%test_eq: string list] shortcuts [ "Space v B" ];
   let found = Catalog.search Catalog.default normal ~query:"bare" in
   assert (List.exists found ~f:(fun result -> Catalog.Id.equal (Catalog.Entry.id result.item) id))
+;;
+
+let%test_unit "split sizing commands advertise the actual default shortcuts" =
+  List.iter
+    [ "split.grow-view", "Space s +"
+    ; "split.shrink-view", "Space s -"
+    ; "split.equalize", "Space s ="
+    ]
+    ~f:(fun (id, key) ->
+      let entry = Catalog.find Catalog.default (Catalog.Id.of_string id) |> Option.value_exn in
+      let action = Catalog.Entry.action entry |> Option.value_exn in
+      let keys =
+        Shortcut.sequences (Bindings.to_list Bindings.default) action
+        |> List.map ~f:Shortcut.to_string_hum in
+      [%test_eq: string list] keys [ key ])
 ;;
 
 let%expect_test "create rejects malformed and duplicate IDs and empty titles" =

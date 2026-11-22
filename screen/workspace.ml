@@ -58,6 +58,26 @@ module Major_split = struct
   ;;
 end
 
+module Editor_split = struct
+  type t = { numerator : int; denominator : int }
+
+  let share ~secondary ~available =
+    { numerator = secondary; denominator = available }
+  ;;
+
+  let of_major (request : Major_split.t) =
+    share ~secondary:request.percent ~available:100
+  ;;
+
+  let equalized = share ~secondary:1 ~available:2
+
+  let width t available =
+    (* Round to the nearest cell, leaving the spare cell with the primary editor
+       when the requested share lands exactly between two cells. *)
+    ((available * t.numerator) + ((t.denominator - 1) / 2)) / t.denominator
+  ;;
+end
+
 module Prefs = struct
   type t =
     { status_visible : bool
@@ -213,18 +233,18 @@ let allocate_band ?(minors = []) ?(major = true) prefs ~(allocation : Geometry.R
     { workspace with minors; gaps = workspace.gaps @ gaps })
 ;;
 
-let divide (area : Geometry.Rect.t) (request : Major_split.t) ~min_width ~min_height =
+let divide (area : Geometry.Rect.t) ~(side : Major_split.Side.t) ~width ~min_width ~min_height =
   let available = area.width - gap in
   if available < min_document_width + min_width || area.height < min_height
   then None
   else (
     let size =
-      Int.clamp_exn (available * request.percent / 100) ~min:min_width
+      Int.clamp_exn (width available) ~min:min_width
         ~max:(available - min_document_width)
     in
     let document_width = available - size in
     let view_x, document_x, gap_x =
-      match request.view_side with
+      match side with
       | Right -> area.x + document_width + gap, area.x, area.x + document_width
       | Left -> area.x, area.x + size + gap, area.x + size
     in
@@ -233,8 +253,10 @@ let divide (area : Geometry.Rect.t) (request : Major_split.t) ~min_width ~min_he
 ;;
 
 (* Divide the document's allocation between the active tab and the split view. *)
-let allocate_split t (id, request) =
-  match divide t.document.rect request ~min_width:min_split_width ~min_height:min_band_height with
+let allocate_split t (id, (request : Major_split.t)) =
+  match divide t.document.rect ~side:request.view_side
+          ~width:(fun available -> available * request.percent / 100)
+          ~min_width:min_split_width ~min_height:min_band_height with
   | None -> t
   | Some (document, view, gap) ->
     { t with document = { t.document with rect = document }
@@ -242,9 +264,10 @@ let allocate_split t (id, request) =
     ; gaps = t.gaps @ [ gap ] }
 ;;
 
-let allocate_editors t ~secondary_focused request =
+let allocate_editors t ~secondary_focused ~secondary_side request =
   (* Shared tabs, a pane title, a text row, and potentially a feedback row. *)
-  match divide t.document.rect request ~min_width:min_document_width ~min_height:4 with
+  match divide t.document.rect ~side:secondary_side ~width:(Editor_split.width request)
+          ~min_width:min_document_width ~min_height:4 with
   | None -> t
   | Some (primary, secondary, gap) ->
     let focused, other = if secondary_focused then secondary, primary else primary, secondary in
@@ -276,7 +299,8 @@ let allocate ?(minors = []) ?side ?split ?editors ?(document_visible = true)
   if document_visible then (
     match split, editors with
     | Some split, _ -> allocate_split base split
-    | None, Some (secondary_focused, request) -> allocate_editors base ~secondary_focused request
+     | None, Some (secondary_focused, secondary_side, request) ->
+       allocate_editors base ~secondary_focused ~secondary_side request
     | None, None -> base)
   else (
     let rect = base.document.rect in

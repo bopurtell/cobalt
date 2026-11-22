@@ -104,6 +104,9 @@ let yank t register =
 let feedback t = t.feedback
 let update_feedback t update = { t with feedback = Feedback.apply t.feedback update }
 let cancel_pending t = { t with keymap = Keymap.reset t.keymap; dispatched = false }
+let with_pane_view ?copy t view =
+  { (cancel_pending t) with editor = Editor.with_pane_view ?copy t.editor view }
+;;
 let with_feedback t feedback = { t with feedback }
 let with_path t path =
   if Option.equal String.equal (Editor.path t.editor) (Some path) then t

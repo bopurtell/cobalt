@@ -58,12 +58,15 @@ let terminal_key (key : Event.Key.t) (mods : Event.Modifier.t list)
 
 let pointer (kind : Event.mouse_kind) ~x ~y : Cobalt_screen.Ui_state.Input.t list =
   (* Notty has already converted the report's one-based coordinates to cells. *)
-  if x < 0 || y < 0 then [] else
   match kind with
+  | Drag -> [ Pointer { action = `Drag; x; y } ]
+  | Release -> [ Pointer { action = `Release; x; y } ]
+  | Middle | Right -> [ Pointer { action = `Cancel; x; y } ]
+  | _ when x < 0 || y < 0 -> []
   | Left -> [ Pointer { action = `Left_click; x; y } ]
   | Scroll `Up -> [ Pointer { action = `Wheel_up; x; y } ]
   | Scroll `Down -> [ Pointer { action = `Wheel_down; x; y } ]
-  | Middle | Right | Drag | Hover | Release -> []
+  | Hover -> []
 ;;
 
 let inputs ?(terminal = false) ?(mouse = false) (event : Event.t)
@@ -72,6 +75,10 @@ let inputs ?(terminal = false) ?(mouse = false) (event : Event.t)
   | Paste `Start -> [ Paste_start ]
   | Paste `End -> [ Paste_end ]
   | Mouse { kind; position = { x; y }; mods = [] } when mouse -> pointer kind ~x ~y
+  | Mouse { kind = (Left | Middle | Right | Drag | Release); position = { x; y }; _ } when mouse ->
+    (* A modified button gesture cannot interact with the editor, but must end
+       any unmodified divider drag already in progress. *)
+    [ Pointer { action = `Cancel; x; y } ]
   | Mouse _ -> []
   | Key_press { key; mods } when terminal ->
     [ Terminal_key (terminal_key key mods) ]

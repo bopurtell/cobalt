@@ -236,7 +236,7 @@ let%expect_test "Space c c opens a centered floating palette, with a bar cursor"
     ││ >                                                                          ││|
     ││ > Save buffer                                                      Space w ││|
     ││   Quick-Harness: New SV scratch                                            ││|
-    ╰╰─ 1/119 ────────────────────────────────────────────────────────────────────╯╯|
+    ╰╰─ 1/120 ────────────────────────────────────────────────────────────────────╯╯|
     cursor: 5,2 Bar
     |}]
 ;;

@@ -340,6 +340,7 @@ let component ?layout ?terminal ?snippets ?configuration ?startup_configuration 
   in
   let cancel_outer_input model =
     let model = Ui_state.cancel_toggle_prefix model in
+    let model = Ui_state.cancel_editor_divider_drag model in
     if Ui_state.pasting model then Ui_state.cancel_paste model else model
   in
   let model, inject_action =

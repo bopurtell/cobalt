@@ -121,13 +121,16 @@ let%test_unit "enabled mouse preserves pointer coordinates and drops unsupported
         raise_s [%message "pointer input mismatch" (actual : Cobalt_screen.Ui_state.Input.t list)])
   in
   check (mouse Left) `Left_click;
+  check (mouse Drag) `Drag;
+  check (mouse Release) `Release;
   check (mouse (Scroll `Up)) `Wheel_up;
   check (mouse (Scroll `Down)) `Wheel_down;
   List.iter
-    [ mouse Middle; mouse Right; mouse Drag; mouse Hover; mouse Release
-    ; mouse ~mods:[ Ctrl ] Left; mouse ~mods:[ Meta ] (Scroll `Down)
-    ; mouse ~mods:[ Shift ] Left; mouse ~x:(-1) Left
-    ]
+    [ mouse Middle; mouse Right; mouse ~mods:[ Ctrl ] Left
+    ; mouse ~mods:[ Shift ] Left; mouse ~mods:[ Shift ] Release ]
+    ~f:(fun event -> check event `Cancel);
+  List.iter
+    [ mouse Hover; mouse ~mods:[ Meta ] (Scroll `Down); mouse ~x:(-1) Left ]
     ~f:(fun event -> assert (List.is_empty (Terminal_input.inputs ~mouse:true event)))
 ;;
 

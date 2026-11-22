@@ -36,8 +36,8 @@ module Split : sig
   val default : t
 end
 
-(** The major split: the editor area shared side by side by two files, or
-    between the active tab and one registered view. *)
+(** The side and requested percentage of a registered split view. This also
+    provides the initial side and share for a two-file split. *)
 module Major_split : sig
   module Side : sig
     type t =
@@ -64,6 +64,19 @@ module Major_split : sig
 
   (** Adjust [percent] by [points], kept within {!min_percent}..{!max_percent}. *)
   val adjust : t -> int -> t
+end
+
+module Editor_split : sig
+  (** Requested share for the secondary editor, independent of the current terminal
+      width. Temporary layout constraints do not change it. *)
+  type t
+
+  val of_major : Major_split.t -> t
+  val equalized : t
+
+  (** Exact share specified in cells, excluding the gap. [available] must be
+      positive and [secondary] between zero and [available]. *)
+  val share : secondary:int -> available:int -> t
 end
 
 module Prefs : sig
@@ -142,7 +155,8 @@ val preferred_band_height : int
     left out (the document keeps the whole area) when the area is narrower than
     {!min_document_width} plus the gap plus {!min_split_width}, or lower than
     {!min_band_height}. [editors] instead requests two file allocations, with
-    a Boolean identifying whether the focused file is in the secondary slot.
+     a Boolean identifying whether the focused file is in the secondary slot,
+     the secondary slot's side, and its requested share.
      Both need {!min_document_width} cells and at least four rows. If
      [document_visible] is false, the document gets a zero-sized allocation;
      its split partner, if any, uses the full major area. *)
@@ -150,7 +164,7 @@ val allocate
   :  ?minors:Cobalt_tile.View_id.t list
   -> ?side:(Cobalt_tile.View_id.t * int)
   -> ?split:(Cobalt_tile.View_id.t * Major_split.t)
-  -> ?editors:(bool * Major_split.t)
+  -> ?editors:(bool * Major_split.Side.t * Editor_split.t)
   -> ?document_visible:bool
   -> Prefs.t
   -> allocation:Geometry.Rect.t

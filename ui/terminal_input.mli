@@ -11,10 +11,11 @@
     - A terminal sends Alt-x as Escape followed by x, and an Escape typed quickly
       before another key arrives the same way, so a Meta key becomes [Escape] and then
       the key without Meta. Dropping it would lose the Escape.
-    - Bracketed paste markers become [Paste_start] and [Paste_end].
-    - With [mouse=true], left presses and vertical wheel reports without decoded
-      modifiers become [Pointer] events in zero-based terminal cells. Other
-      mouse reports are dropped, and none are forwarded as child terminal input.
+     - Bracketed paste markers become [Paste_start] and [Paste_end].
+     - With [mouse=true], unmodified left presses, drags, releases and vertical
+       wheel reports become [Pointer] events in zero-based terminal cells.
+       Modified button gestures and non-left presses only cancel active drags.
+       Other mouse reports are dropped, and none are forwarded as child terminal input.
     - Everything else (Up/Down, modified navigation, function keys, other Ctrl
       combinations) is dropped. *)
 

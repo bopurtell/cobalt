@@ -351,7 +351,9 @@ let rec prepare_document ?highlights ?decorations ?allocation ?reserve_status_ro
     let spans = Span.create style marker ~width:2 ::
       Span.keep_right (Span.of_text (label ^ suffix) ~style ~special:Title_special)
         ~n:(rect.width - 2) ~marker_style:Title_special in
-    rect, spans @ [ Span.blank Status (rect.width - Span.total_width spans) ]) in
+    let remaining = rect.width - Span.total_width spans in
+    let padding = if editor_focused && remaining > 0 then 1 else 0 in
+    rect, spans @ [ Span.blank style padding; Span.blank Status (remaining - padding) ]) in
   let hotkey_hints = Ui_state.hotkey_hints ui in
   let view_tile id (layout : Tile_shell.Layout.t) =
     let width = layout.content.width and rows = layout.content.height in
@@ -378,11 +380,11 @@ let rec prepare_document ?highlights ?decorations ?allocation ?reserve_status_ro
     | Minor id -> Some (view_tile id (Option.value_exn (Ui_state.minor_layout ui ~width ~height id)))) in
   let second_editor =
     if explicit_allocation then None else
-    Option.map2 workspace.second_editor (Session.editor_split (Ui_state.session ui)) ~f:(fun rect split ->
+     Option.map workspace.second_editor ~f:(fun rect ->
       let width = rect.width and height = rect.height in
       let local = { rect with x = 0; y = 0 } in
       let render = prepare_document ~inactive_editor:true ?split_tabs ~allocation:local
-        ~reserve_status_row (Ui_state.file_editor_surface ui split.other) ~width ~height in
+         ~reserve_status_row (Ui_state.other_editor_surface ui) ~width ~height in
       let frame = render (Animation.create ~enabled:false) in
       rect, Array.of_list frame.rows) in
   let search =

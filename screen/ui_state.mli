@@ -55,7 +55,11 @@ module Input : sig
         of cursor animation. *)
     | Paste_start
     | Paste_end
-    | Pointer of { action : [ `Left_click | `Wheel_up | `Wheel_down ]; x : int; y : int }
+    | Pointer of
+        { action : [ `Left_click | `Drag | `Release | `Cancel | `Wheel_up | `Wheel_down ]
+        ; x : int
+        ; y : int
+        }
     (** Zero-based terminal cells of the surface receiving this event. *)
     | Animation_tick of Time_ns.t
      (** A timestamped frontend animation-clock pulse; never reaches the editor. *)
@@ -147,6 +151,9 @@ val terminal_capturing : t -> bool
 val mouse_reporting : t -> bool option
 (** Standalone reporting preference; [None] means Cobalt does not control the terminal. *)
 val with_mouse_reporting : t -> enabled:bool -> t
+
+(** Drop a captured divider gesture when the outer component loses input. *)
+val cancel_editor_divider_drag : t -> t
 (** Declare ownership and set the initial preference for a standalone terminal. *)
 val toggle_mouse : t -> t
 (** Toggle standalone mouse reporting; leave a host-owned terminal untouched. *)
@@ -292,9 +299,9 @@ val directory_id : Cobalt_tile.View_id.t
 val side_layout : t -> width:int -> height:int -> Tile_shell.Layout.t option
 (** Rendering-only snapshot of a retained surface; never adopt or dispatch it. *)
 val surface : t -> directory:bool -> t
-(** Rendering-only snapshot of a retained file. The ID must belong to a file
-    buffer. Do not adopt or dispatch the snapshot. *)
-val file_editor_surface : t -> Cobalt_app.Buffer_id.t -> t
+(** Rendering-only snapshot of the unfocused split editor. Do not adopt or
+    dispatch the snapshot. *)
+val other_editor_surface : t -> t
 
 val status_id : Cobalt_tile.View_id.t
 
@@ -317,6 +324,7 @@ val open_file : t -> width:int -> height:int -> string -> (t * Cobalt_app.Buffer
 val open_location
   : t -> width:int -> height:int -> Cobalt_app.Session.Open_location.request
   -> (t * Cobalt_app.Buffer_id.t, Cobalt_app.Session.Open_location.failure) Result.t
+(** Show the buffer in the focused editor slot, without moving to the other slot. *)
 val activate_buffer : t -> width:int -> height:int -> Cobalt_app.Buffer_id.t -> t Or_error.t
 val close_current : t -> width:int -> height:int -> force:bool -> t * bool
 val close_buffer : t -> width:int -> height:int -> Cobalt_app.Buffer_id.t -> force:bool -> t * bool
@@ -540,11 +548,18 @@ val update_feedback
     Status remains non-focusable. Problems focus is effective only while its
     allocation exists. Resize events persistently restore document focus when hidden. *)
 val workspace : t -> width:int -> height:int -> Workspace.t
+
+(** Move the divider between two visible file editors to the absolute, zero-based
+    screen [column], clamped to leave both editors usable. Keep the resulting
+    share as the workspace changes size. No-op when either editor is hidden. *)
+val resize_editor_divider : t -> width:int -> height:int -> column:int -> t
+
 val workspace_tab_rect : t -> Workspace.t -> Geometry.Rect.t option
 val split_tabs : t -> Workspace.t -> bool option
 
 type editor_pane =
   { buffer : Cobalt_app.Buffer_id.t
+  ; secondary : bool
   ; allocation : Geometry.Rect.t
   ; geometry : Geometry.t
   ; scroll : Scroll.t
@@ -553,7 +568,8 @@ type editor_pane =
 
 (** Visible file surfaces, in left-to-right order, with their rendered text
     geometry and scroll. Floats may occlude them; directory and view tabs are not
-    file surfaces. Use {!activate_buffer} to focus a pane by its buffer ID. *)
+    file surfaces. [secondary] identifies the slot even when both panes show
+    the same buffer or when the split is swapped. *)
 val editor_panes : t -> width:int -> height:int -> editor_pane list
 
 val scroll : t -> Scroll.t

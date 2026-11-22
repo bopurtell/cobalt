@@ -247,7 +247,7 @@ let%test_unit "tab overflow, padding, live resize and modal captures are not sta
     Session.dispose (Ui_state.session ui))
 ;;
 
-let%test_unit "C10 visible split click, independent wheel, divider, tab focus and hidden resize" =
+let%test_unit "C10 visible split click, independent wheel, divider and hidden resize" =
   with_files (fun _ paths ->
     let other_path = List.nth_exn paths 1 in
     Out_channel.write_all other_path
@@ -273,13 +273,14 @@ let%test_unit "C10 visible split click, independent wheel, divider, tab focus an
     assert (String.is_substring top ~substring:"other-row-03");
     let left = List.hd_exn (Ui_state.editor_panes ui ~width ~height) in
     let gap = left.allocation.x + left.allocation.width in
-    assert (phys_equal ui (click ui ~x:gap ~y:a_rect.y));
+    let pressed = click ui ~x:gap ~y:a_rect.y in
+    assert (active_is pressed a && phys_equal (editor pressed) a_before);
+    assert (Geometry.Rect.equal (find pressed a).allocation (find ui a).allocation);
     let ui = click ui ~x:b_rect.x ~y:(b_rect.y + 1) in
     assert (active_is ui b && line ui = 4);
     assert (Option.is_some (Editor.selection (Controller.editor
       (Session.find (Ui_state.session ui) a |> Option.value_exn))));
-    let x, y = tab_position ui ~width a |> Option.value_exn in
-    let ui = click ui ~x ~y in
+    let ui = click ui ~x:a_rect.x ~y:(a_rect.y - 1) in
     assert (active_is ui a && line ui = 2 && Mode.equal (mode ui) (Visual `Characterwise));
     let narrow_width = 20 in
     assert (List.length (Ui_state.editor_panes ui ~width:narrow_width ~height) = 1);
@@ -287,6 +288,150 @@ let%test_unit "C10 visible split click, independent wheel, divider, tab focus an
     assert (not (String.is_substring narrow ~substring:"other-row"));
     let ui = pointer ~width:narrow_width ui `Left_click ~x:b_rect.x ~y:b_rect.y in
     assert (active_is ui a);
+    Session.dispose (Ui_state.session ui))
+;;
+
+let%test_unit "both file panes focus in place, including titles and blank rows" =
+  with_files (fun _ paths ->
+    let ui = load (List.hd_exn paths) in
+    let a = active ui and b_path = List.nth_exn paths 1 in
+    Out_channel.write_all b_path ~data:"short";
+    let ui, b = open_ ui b_path in
+    let ui = run ui " sn" in
+    let pane ui id =
+      List.find_exn (Ui_state.editor_panes ui ~width ~height) ~f:(fun p -> Buffer_id.equal p.buffer id) in
+    let a_pane = pane ui a and b_pane = pane ui b in
+    let a_rect = a_pane.geometry.text and b_rect = b_pane.geometry.text in
+    let assert_focus ui expected rect =
+      assert (active_is ui expected && (pane ui expected).focused);
+      let cursor = (redraw ui).cursor |> Option.value_exn in
+      assert (cursor.x >= rect.Geometry.Rect.x && cursor.x < rect.x + rect.width);
+      assert (cursor.y >= rect.y && cursor.y < rect.y + rect.height);
+      assert (Geometry.Rect.equal (pane ui a).allocation a_pane.allocation);
+      assert (Geometry.Rect.equal (pane ui b).allocation b_pane.allocation)
+    in
+    let ui = click ui ~x:(b_rect.x + 3) ~y:(b_rect.y + 2) in
+    assert_focus ui b b_rect;
+    assert (cursor ui = 0);
+    let ui = click ui ~x:(a_rect.x + 5) ~y:(a_rect.y + 2) in
+    assert_focus ui a a_rect;
+    assert (line ui = 2 && Editor.cursor_column (editor ui) = 5);
+    let w = Ui_state.workspace ui ~width ~height in
+    let header_y = b_pane.allocation.y + Bool.to_int (Option.is_some (Ui_state.workspace_tab_rect ui w)) in
+    let ui = click ui ~x:(b_pane.allocation.x + 2) ~y:header_y in
+    assert_focus ui b b_rect;
+    let ui = run ui "i!<Esc>" in
+    assert (String.equal (Text_buffer.to_string (Editor.text (editor ui))) "!short");
+    assert (String.equal ordinary (Session.find (Ui_state.session ui) a
+      |> Option.value_exn |> Controller.editor |> Editor.text |> Text_buffer.to_string));
+    Session.dispose (Ui_state.session ui))
+;;
+
+let%test_unit "same-file split pointer targets the clicked slot, not just the buffer ID" =
+  with_files (fun _ paths ->
+    let ui = load (List.hd_exn paths) in
+    let a = active ui in
+    let ui, b = open_ ui (List.nth_exn paths 1) in
+    let ui = run ui " sn" in
+    let panes ui =
+      match Ui_state.editor_panes ui ~width ~height with
+      | [ left; right ] -> left, right
+      | _ -> assert false in
+    let left, right = panes ui in
+    let other = if Buffer_id.equal left.buffer b then left else right in
+    let ui = click ui ~x:other.geometry.text.x ~y:other.geometry.text.y in
+    assert (active_is ui b);
+    let x, y = tab_position ui ~width a |> Option.value_exn in
+    let ui = click ui ~x ~y in
+    let left, right = panes ui in
+    assert (Buffer_id.equal left.buffer a && Buffer_id.equal right.buffer a);
+    let l = left.geometry.text and r = right.geometry.text in
+    let ui = click ui ~x:(l.x + 2) ~y:(l.y + 1) in
+    assert ((fst (panes ui)).focused && line ui = 1 && Editor.cursor_column (editor ui) = 2);
+    let ui = pointer ui `Wheel_down ~x:r.x ~y:r.y in
+    let left, right = panes ui in
+    assert (left.scroll.top = 0 && right.scroll.top = 3 && left.focused);
+    let ui = click ui ~x:(r.x + 5) ~y:(r.y + 2) in
+    assert ((snd (panes ui)).focused && line ui = 5 && Editor.cursor_column (editor ui) = 5);
+    let rendered_cursor = (redraw ui).cursor |> Option.value_exn in
+    assert (rendered_cursor.x = r.x + 5 && rendered_cursor.y = r.y + 2);
+    let ui = run ui " sf" in
+    assert ((fst (panes ui)).focused && line ui = 1 && Editor.cursor_column (editor ui) = 2);
+    Session.dispose (Ui_state.session ui))
+;;
+
+let%test_unit "only a visible file divider press captures drag; movement and release clamp" =
+  with_files (fun _ paths ->
+    let ui = load (List.hd_exn paths) in
+    let ui, _ = open_ ui (List.nth_exn paths 1) in
+    let ui = run ui " sn" |> fun ui -> Ui_state.with_mouse_reporting ui ~enabled:true in
+    let left ui = List.hd_exn (Ui_state.editor_panes ui ~width ~height) in
+    let divider ui = let p = left ui in p.allocation.x + p.allocation.width in
+    let initial_x = divider ui and initial_active = active ui and initial_cursor = cursor ui in
+    let y = (left ui).geometry.text.y in
+    let drag ui x = pointer ui `Drag ~x ~y:(height + 3) in
+    let release ui x = pointer ui `Release ~x ~y:0 in
+    assert (phys_equal ui (drag ui 65));
+    let w = Ui_state.workspace ui ~width ~height in
+    let tabs = Ui_state.workspace_tab_rect ui w |> Option.value_exn in
+    let tab = click ui ~x:initial_x ~y:tabs.y in
+    assert (divider (drag tab 65) = initial_x);
+    let body = click ui ~x:(left ui).geometry.text.x ~y in
+    assert (divider (drag body 65) = initial_x);
+    let press ui = click ui ~x:(divider ui) ~y in
+    let dragging = press ui in
+    assert (divider dragging = initial_x);
+    let moved = drag dragging 65 in
+    assert (divider moved = 65 && active_is moved initial_active && cursor moved = initial_cursor);
+    let minimum = Workspace.min_document_width in
+    let at_left = drag moved (-100) in
+    assert ((left at_left).allocation.width = minimum);
+    let at_right = release at_left (width + 100) in
+    let right = List.last_exn (Ui_state.editor_panes at_right ~width ~height) in
+    assert (right.allocation.width = minimum);
+    assert (active_is at_right initial_active && cursor at_right = initial_cursor);
+    assert (phys_equal at_right (drag at_right 60));
+    let canceled = pointer (press at_right) `Cancel ~x:0 ~y:0 in
+    assert (divider canceled = divider at_right && phys_equal canceled (drag canceled 60));
+    let keyboard = run (press at_right) "j" in
+    assert (phys_equal keyboard (drag keyboard 60));
+    let toggled = press at_right |> Ui_state.toggle_mouse |> Ui_state.toggle_mouse in
+    assert (phys_equal toggled (drag toggled 60));
+    let modal = run (press at_right) " cc" in
+    assert (phys_equal modal (drag modal 60));
+    let hidden = pointer ~width:20 (press at_right) `Drag ~x:10 ~y in
+    assert (List.length (Ui_state.editor_panes hidden ~width:20 ~height) = 1);
+    assert (phys_equal hidden (drag hidden 60));
+    Session.dispose (Ui_state.session at_right))
+;;
+
+let%test_unit "file divider drag and pane clicks respect a focused directory sidebar" =
+  with_files (fun root paths ->
+    let ui = load root |> fun ui -> run ui " ds<CR>" in
+    let ui, _ = open_ ui (List.nth_exn paths 1) in
+    let ui = run ui " sn" in
+    let dir = dir_geometry ui in
+    let ui = click ui ~x:dir.text.x ~y:dir.text.y in
+    let directory_focused ui =
+      Cobalt_tile.View_id.equal (Ui_state.focused_view ui ~width ~height) Ui_state.directory_id in
+    assert (directory_focused ui);
+    let side ui = (Ui_state.side_layout ui ~width ~height |> Option.value_exn).outer in
+    let sidebar = side ui in
+    let first ui = List.hd_exn (Ui_state.editor_panes ui ~width ~height) in
+    let last ui = List.last_exn (Ui_state.editor_panes ui ~width ~height) in
+    let left = first ui in
+    let y = left.geometry.text.y in
+    let gap = left.allocation.x + left.allocation.width in
+    let ui = click ui ~x:gap ~y |> fun ui -> pointer ui `Drag ~x:(gap + 5) ~y in
+    let ui = pointer ui `Release ~x:(gap + 5) ~y in
+    let left = first ui and right = last ui in
+    assert (left.allocation.x + left.allocation.width = gap + 5);
+    assert (directory_focused ui && Geometry.Rect.equal (side ui) sidebar);
+    let x = right.geometry.text.x + 2 and y = right.geometry.text.y + 1 in
+    let ui = click ui ~x ~y in
+    assert ((last ui).focused && active_is ui right.buffer && line ui = 1);
+    let rendered_cursor = (redraw ui).cursor |> Option.value_exn in
+    assert (rendered_cursor.x = x && rendered_cursor.y = y);
     Session.dispose (Ui_state.session ui))
 ;;
 

@@ -36,6 +36,37 @@ let show_pair ui left right ~focused =
   assert ([%equal: (Buffer_id.t * bool) list] ids expected)
 ;;
 
+let%test_unit "only the focused split title has one trailing title-colored cell" =
+  with_files (fun _ a b _ ->
+    let ui = create a in
+    let aid = active ui in
+    let ui, bid = open_ ui b in
+    let ui = run ui " sn" in
+    let check ui id path ~focused =
+      let frame = Frame.render ui ~width ~height in
+      let allocation = (pane ui id).allocation in
+      let tabs = Ui_state.workspace_tab_rect ui (Ui_state.workspace ui ~width ~height) in
+      let row = List.nth_exn frame.rows (allocation.y + Bool.to_int (Option.is_some tabs)) in
+      let rec from x = function
+        | (span : Span.t) :: rest when x > 0 -> from (x - span.width) rest
+        | spans when x = 0 -> spans
+        | _ -> failwith "expected a title at the start of the pane" in
+      let label = (if focused then "> " else "  ") ^ Filename.basename path
+        ^ (if focused then " " else "") in
+      match from allocation.x row with
+      | title :: background :: _ ->
+        assert (String.equal title.text label && title.width = String.length label);
+        assert (Style.equal title.style (if focused then Title else Hint));
+        assert (Style.equal background.style Status && background.width > 0)
+      | _ -> failwith "expected a title followed by header background" in
+    check ui aid a ~focused:true;
+    check ui bid b ~focused:false;
+    let ui = run ui " sf" in
+    check ui aid a ~focused:false;
+    check ui bid b ~focused:true;
+    dispose ui)
+;;
+
 let%test_unit "file split frame, palette, focus, swap/width, tab replacement and independent scroll" =
   with_files (fun _ a b c ->
     let ui = create a in
@@ -58,12 +89,14 @@ let%test_unit "file split frame, palette, focus, swap/width, tab replacement and
     assert ((pane ui aid).scroll.top > 0);
     let ui = run ui " sx s+" in
     show_pair ui aid bid ~focused:bid;
-    assert ((pane ui aid).allocation.width > (pane ui bid).allocation.width);
+    assert ((pane ui bid).allocation.width > (pane ui aid).allocation.width);
     let ui, cid = open_ ui c in
     show_pair ui aid cid ~focused:cid;
     assert (Session.buffer_count (Ui_state.session ui) = 3);
     let ui = run ui " bn" in
-    show_pair ui aid cid ~focused:aid;
+    assert ([%equal: (Buffer_id.t * bool) list]
+      (List.map (panes ui) ~f:(fun p -> p.buffer, p.focused))
+      [aid, false; aid, true]);
     let ui, again = open_ ui c in
     assert (Buffer_id.equal again cid);
     show_pair ui aid cid ~focused:cid;
@@ -111,7 +144,7 @@ let%test_unit "resize, zen, directory sidebar and major VCS slot are independent
     dispose ui)
 ;;
 
-let%test_unit "split picker opens a second file and ordinary picker activates its pane" =
+let%test_unit "split picker opens a second file and ordinary picker replaces the focused pane" =
   with_files (fun root a b _ ->
     let module Model = Cobalt_file_picker.Model in
     let ui = create a in
@@ -139,7 +172,68 @@ let%test_unit "split picker opens a second file and ordinary picker activates it
     let bid = active ui in
     show_pair ui aid bid ~focused:bid;
     let ui = pick ui ~split:false a 3 in
-    show_pair ui aid bid ~focused:aid;
+    assert ([%equal: (Buffer_id.t * bool) list]
+      (List.map (panes ui) ~f:(fun p -> p.buffer, p.focused))
+      [aid, false; aid, true]);
+    dispose ui)
+;;
+
+let%test_unit "cycling to the other pane's file keeps focus and allows independent cursor and scroll" =
+  with_files (fun _ a b c ->
+    let module Editor = Cobalt_core.Editor in
+    let ui = create a in
+    let aid = active ui in
+    let ui = run ui "12G" in
+    let ui, bid = open_ ui b in
+    let ui, cid = open_ ui c in
+    let ui = run ui " sn" in
+    show_pair ui cid aid ~focused:aid;
+    let ui = run ui " bp" in
+    let by_slot ui secondary = List.find_exn (panes ui) ~f:(fun p -> Bool.equal p.secondary secondary) in
+    let assert_pair ui primary secondary ~focused_secondary =
+      List.iter [false, primary; true, secondary] ~f:(fun (slot, id) ->
+        let p = by_slot ui slot in
+        assert (Buffer_id.equal p.buffer id && Bool.equal p.focused (Bool.equal slot focused_secondary))) in
+    assert_pair ui cid cid ~focused_secondary:true;
+    let ui = run ui "45G" in
+    assert ((by_slot ui true).scroll.top > (by_slot ui false).scroll.top);
+    let ui = run ui " sf" in
+    assert_pair ui cid cid ~focused_secondary:false;
+    let cursor ui = Editor.cursor_line (Controller.editor (Ui_state.controller ui)) in
+    assert (cursor ui = 0);
+    let ui = run ui "22G sf" in
+    assert_pair ui cid cid ~focused_secondary:true;
+    assert (cursor ui = 44);
+    let ui = run ui " bn bn" in
+    assert_pair ui cid bid ~focused_secondary:true;
+    let ui = run ui " bn sf" in
+    assert_pair ui cid cid ~focused_secondary:false;
+    assert (cursor ui = 21);
+    let ui = run ui " bn" in
+    assert_pair ui aid cid ~focused_secondary:false;
+    let ui = Ui_state.activate_buffer ui ~width ~height cid |> Or_error.ok_exn in
+    assert_pair ui cid cid ~focused_secondary:false;
+    assert (cursor ui = 21);
+    let ui = run ui " sf sc" in
+    assert (List.length (panes ui) = 1 && cursor ui = 44);
+    assert ((List.hd_exn (panes ui)).scroll.top > 25);
+    dispose ui)
+;;
+
+let%test_unit "closing a shared file tab refuses unsaved edits unless forced" =
+  with_files (fun _ a b _ ->
+    let ui = create a in
+    let aid = active ui in
+    let ui, bid = open_ ui b in
+    let ui = run ui " sn bniX<Esc>" in
+    assert (List.length (String.substr_index_all (rendered ui) ~pattern:"XBETA_00" ~may_overlap:false) = 2);
+    let ui = run ui " bc" in
+    assert (List.length (panes ui) = 2 && Buffer_id.equal (active ui) bid);
+    assert (contains (rendered ui) "Unsaved buffer");
+    let ui = run ui " bC" in
+    assert (List.length (panes ui) = 1 && Buffer_id.equal (active ui) aid);
+    assert (Session.buffer_count (Ui_state.session ui) = 1);
+    assert (String.is_prefix (In_channel.read_all b) ~prefix:"BETA");
     dispose ui)
 ;;
 
