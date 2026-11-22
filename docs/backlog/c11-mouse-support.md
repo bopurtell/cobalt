@@ -35,6 +35,9 @@ Plain `co .` keeps terminal-native selection and copying. No runtime toggle in v
   keyboard scroll path may move the cursor to keep it visible. Wheel scrolling
   changes only the target viewport; rendering must not snap it back merely
   because the cursor is offscreen. Preserve existing keyboard scroll behavior.
+  Use three rows per wheel step and retain the viewport per buffer, independent
+  of focus. A cursor-motion command (even at a boundary) or edit restores
+  cursor-follow; an incomplete keyboard prefix does not.
 - Carry pointer inputs from [`ui/terminal_input.ml`](../../ui/terminal_input.ml)
   to the screen layer. Enable terminal reporting only for opted-in launches
   through [`ui/editor_view.ml`](../../ui/editor_view.ml). Keep hit testing and
@@ -59,3 +62,13 @@ Plain `co .` keeps terminal-native selection and copying. No runtime toggle in v
 Drag selection, double-click actions, dragging split dividers, mouse controls
 for VCS and pickers, and forwarding mouse input to embedded terminals. C11
 can ship before C10; verify targeting across both editors once both land.
+
+## Headless evidence
+
+[`screen/test/test_pointer.ml`](../../screen/test/test_pointer.ml) drives
+zero-based pointer input through the screen transition and checks rendered
+frames. It covers character-cell mapping, modal and paste capture, directory
+row selection without opening or marking, independent sidebar and file
+viewports, keyboard re-follow and undo, tab overflow, and visible/hidden editor
+targeting with C10. All eight cases passed in the pointer partition. Run the
+headless suites with `dune runtest -j4 screen app core`.

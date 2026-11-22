@@ -5,3 +5,7 @@ val render : Cobalt_app.Open_buffers.t list -> width:int -> Span.t list
 
 (** {!render} for the whole tab strip: file and view tabs ({!Tab_strip.Item}). *)
 val render_items : Tab_strip.Item.t list -> width:int -> Span.t list
+
+(** The original index of the tab drawn at [column], excluding overflow
+    indicators, padding and the spaces separating adjacent tabs. *)
+val hit : Tab_strip.Item.t list -> width:int -> column:int -> int option

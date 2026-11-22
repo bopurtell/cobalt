@@ -102,6 +102,8 @@ type t =
       ; placement : Placement.t
       }
   | Focus_other_pane
+  | Split_next_file
+  | Split_file_picker
   | Swap_split
   | Adjust_split of int
   | Close_split
@@ -181,6 +183,8 @@ let scale t ~count =
   | Focus_view _
   | Place_view _
   | Focus_other_pane
+  | Split_next_file
+  | Split_file_picker
   | Swap_split
   | Close_split
   | Run_view_command _

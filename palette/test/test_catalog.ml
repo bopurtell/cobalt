@@ -130,11 +130,13 @@ let%expect_test "the default catalog, with shortcuts derived from bindings" =
     views.to-split                 Move focused view to the split
     views.to-band                  Move focused view to the bottom band
     views.close                    Close focused view
+    split.next-file                Split editor with next file tab
+    split.open-file                Split editor and pick a file
     split.focus-other              Focus other split pane
     split.swap                     Swap split sides
     split.grow-view                Grow split view by 10%
     split.shrink-view              Shrink split view by 10%
-    split.close                    Close split view
+    split.close                    Close split
     problems.toggle                Toggle problems tile
     problems.focus                 Focus problems
     problems.toggle-filter         Toggle problems filter (workspace / current document)

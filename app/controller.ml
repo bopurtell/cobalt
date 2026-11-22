@@ -33,6 +33,7 @@ type t =
   ; feedback : Feedback.t
   ; keymap : Keymap.t
   ; dispatched : bool
+  ; motion_serial : int
   ; clipboard : string option (** The newest [Set_clipboard] not yet taken. *)
   ; saved : Saved.t option (** The newest successful write not yet taken. *)
   ; highlighting : Highlighting.t
@@ -48,6 +49,7 @@ let create ?(keymap_config = Keymap.Config.default) ?(kind = Kind.File) editor =
   ; feedback = Feedback.empty
   ; keymap = Keymap.create keymap_config
   ; dispatched = false
+  ; motion_serial = 0
   ; clipboard = None
   ; saved = None
   ; highlighting = Highlighting.create editor
@@ -88,6 +90,7 @@ let highlight_status t = Highlighting.status t.highlighting
 let highlight_parse_count t = Highlighting.parse_count t.highlighting
 let close t = Highlighting.close t.highlighting
 let last_input_dispatched t = t.dispatched
+let motion_serial t = t.motion_serial
 let take_clipboard t = { t with clipboard = None }, t.clipboard
 let take_saved t = { t with saved = None }, t.saved
 
@@ -132,6 +135,12 @@ let jump_offset t offset =
       editor
     ; highlighting = Highlighting.update t.highlighting editor ~reset:false
     })
+;;
+
+let place_cursor t offset =
+  Result.map (Editor.place_cursor t.editor offset) ~f:(fun editor ->
+    { (cancel_pending t) with editor
+    ; highlighting = Highlighting.update t.highlighting editor ~reset:false })
 ;;
 
 let apply_insert_edits t ~expected_revision ~edits ~cursor =
@@ -290,6 +299,12 @@ let run t ~keymap ~feedback actions =
   let actions = if Kind.equal t.kind Directory then List.filter actions ~f:(function
     | Keymap.Action.Editor (Save | Reload) -> false
     | _ -> true) else actions in
+  let motion_serial =
+    if List.exists actions ~f:(function
+      | Keymap.Action.Editor (Move _ | Repeat_find _ | Search _ | Search_word _) -> true
+      | _ -> false)
+    then t.motion_serial + 1
+    else t.motion_serial in
   let editor, feedback, views, { Pending.clipboard; saved }, dispatched, status, reloaded =
     perform_all
       t.editor
@@ -302,7 +317,7 @@ let run t ~keymap ~feedback actions =
   in
   let highlighting = Highlighting.update t.highlighting editor ~reset:reloaded in
   let document_id = if reloaded then ref () else t.document_id in
-   let t = { t with editor; document_id; feedback; keymap; dispatched; clipboard; saved; highlighting;
+   let t = { t with editor; document_id; feedback; keymap; dispatched; motion_serial; clipboard; saved; highlighting;
      had_backing = t.had_backing || Option.is_some saved } in
   (match status with
    | Exit -> close t

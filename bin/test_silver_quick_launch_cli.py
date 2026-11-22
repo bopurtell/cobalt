@@ -29,7 +29,8 @@ def test(binary, wire):
     recorded_root = re.search(r'\(project_root"([^"]+)"\)', ack)[1]
     digest = re.search(r"\(discovery_digest\(([^)]+)\)\)", catalog)[1]
     attempt = re.search(r"\(id (sim-[a-z0-9]+)\)", ack)[1]
-    with tempfile.TemporaryDirectory(prefix="cobalt-silver-quick-launch-") as temp:
+    parent = os.getenv("COBALT_TEST_SHARE_TMPDIR", "/tmp")
+    with tempfile.TemporaryDirectory(prefix="cobalt-silver-quick-launch-", dir=parent) as temp:
         root = Path(temp).resolve() / "project with spaces"
         root.mkdir()
         file = root / "main.txt"
@@ -144,7 +145,7 @@ def test(binary, wire):
                 # share. The picker still accepts a typed loopback URL.
                 env.pop("COBALT_SILVER_SHARE_FIXTURE", None)
                 metadata = Path(temp) / "hardcaml-workbench/daemon.sexp"
-                metadata.parent.mkdir()
+                metadata.parent.mkdir(mode=0o700)
                 metadata.write_text(f"((endpoint {endpoint})(instance_id fixture)(pid {os.getpid()}))")
                 metadata.chmod(0o600)
                 local_file = root / "code.txt"

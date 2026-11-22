@@ -36,8 +36,8 @@ module Split : sig
   val default : t
 end
 
-(** The major split: the editor area (the document's allocation) shared side by
-    side between the active tab and one registered view. *)
+(** The major split: the editor area shared side by side by two files, or
+    between the active tab and one registered view. *)
 module Major_split : sig
   module Side : sig
     type t =
@@ -47,7 +47,7 @@ module Major_split : sig
   end
 
   type t =
-    { view_side : Side.t (** The split view's side; the active tab takes the other. *)
+    { view_side : Side.t (** The split view or secondary editor's side. *)
     ; percent : int
     (** The split view's requested share of the editor area, between {!min_percent}
         and {!max_percent}, before clamping to both panes' minimum widths. *)
@@ -87,6 +87,9 @@ end
 
 type t =
   { document : Pane.t
+  ; second_editor : Geometry.Rect.t option
+  (** The unfocused file allocation; [document] is the focused file allocation.
+      Both include the shared tab strip's first row, when used. *)
   ; status : Pane.t option
   ; minors : Pane.t list
   (** Requested minor views that fit: the side view first, then the bottom band left
@@ -138,11 +141,14 @@ val preferred_band_height : int
     each side its minimum width, and the document keeps the rest. The split view is
     left out (the document keeps the whole area) when the area is narrower than
     {!min_document_width} plus the gap plus {!min_split_width}, or lower than
-    {!min_band_height}. *)
+    {!min_band_height}. [editors] instead requests two file allocations, with
+    a Boolean identifying whether the focused file is in the secondary slot.
+    Both need {!min_document_width} cells and at least four rows. *)
 val allocate
   :  ?minors:Cobalt_tile.View_id.t list
   -> ?side:(Cobalt_tile.View_id.t * int)
   -> ?split:(Cobalt_tile.View_id.t * Major_split.t)
+  -> ?editors:(bool * Major_split.t)
   -> Prefs.t
   -> allocation:Geometry.Rect.t
   -> t

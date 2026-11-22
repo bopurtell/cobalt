@@ -56,10 +56,22 @@ let terminal_key (key : Event.Key.t) (mods : Event.Modifier.t list)
   | _ -> { code; modifiers = { shift = has Shift; alt = has Meta; ctrl = has Ctrl } }
 ;;
 
-let inputs ?(terminal = false) (event : Event.t) : Cobalt_screen.Ui_state.Input.t list =
+let pointer (kind : Event.mouse_kind) ~x ~y : Cobalt_screen.Ui_state.Input.t list =
+  (* Notty has already converted the report's one-based coordinates to cells. *)
+  if x < 0 || y < 0 then [] else
+  match kind with
+  | Left -> [ Pointer { action = `Left_click; x; y } ]
+  | Scroll `Up -> [ Pointer { action = `Wheel_up; x; y } ]
+  | Scroll `Down -> [ Pointer { action = `Wheel_down; x; y } ]
+  | Middle | Right | Drag | Hover | Release -> []
+;;
+
+let inputs ?(terminal = false) ?(mouse = false) (event : Event.t)
+  : Cobalt_screen.Ui_state.Input.t list =
   match event with
   | Paste `Start -> [ Paste_start ]
   | Paste `End -> [ Paste_end ]
+  | Mouse { kind; position = { x; y }; mods = [] } when mouse -> pointer kind ~x ~y
   | Mouse _ -> []
   | Key_press { key; mods } when terminal ->
     [ Terminal_key (terminal_key key mods) ]

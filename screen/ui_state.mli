@@ -55,6 +55,8 @@ module Input : sig
         of cursor animation. *)
     | Paste_start
     | Paste_end
+    | Pointer of { action : [ `Left_click | `Wheel_up | `Wheel_down ]; x : int; y : int }
+    (** Zero-based terminal cells of the surface receiving this event. *)
     | Animation_tick of Time_ns.t
      (** A timestamped frontend animation-clock pulse; never reaches the editor. *)
     | Resize (** Reconcile allocation/focus without interpreting editor input. *)
@@ -272,6 +274,9 @@ val directory_id : Cobalt_tile.View_id.t
 val side_layout : t -> width:int -> height:int -> Tile_shell.Layout.t option
 (** Rendering-only snapshot of a retained surface; never adopt or dispatch it. *)
 val surface : t -> directory:bool -> t
+(** Rendering-only snapshot of a retained file. The ID must belong to a file
+    buffer. Do not adopt or dispatch the snapshot. *)
+val file_editor_surface : t -> Cobalt_app.Buffer_id.t -> t
 
 val status_id : Cobalt_tile.View_id.t
 
@@ -388,7 +393,7 @@ val popup_layout : t -> width:int -> height:int -> Tile_shell.Layout.t option
     Only one transient float exists. Refusal calls [release]; all closing paths
     cancel discovery once. Returning restores the prior available capture. *)
 val open_file_picker
-  : t -> width:int -> height:int
+  : ?split:bool -> t -> width:int -> height:int
   -> discovery:Cobalt_file_picker.Model.Discovery.t
   -> release:(unit -> unit) -> t
 val can_open_file_picker : t -> width:int -> height:int -> bool
@@ -406,7 +411,10 @@ val line_picker_layout : t -> width:int -> height:int -> Tile_shell.Layout.t opt
 (** Take after installing the returned UI state, then deliver to an injected
     consumer. Capture/discovery are already released; intents are not retried. *)
 val take_file_requests : t -> t * Cobalt_tile.View_id.t Cobalt_file_picker.Model.Request.t list
-val take_file_picker_activation : t -> t * bool
+val take_file_picker_activation : t -> t * [ `Open | `Split ] option
+(** A split acceptance belongs to the invoking editor, not an external file
+    consumer. Route it back through [Input.File_picker_accept]. *)
+val is_split_file_request : Cobalt_tile.View_id.t Cobalt_file_picker.Model.Request.t -> bool
 val take_content_picker_activation : t -> t * bool
 val with_notice : ?source:string -> t -> string -> t
 
@@ -502,6 +510,21 @@ val update_feedback
     Status remains non-focusable. Problems focus is effective only while its
     allocation exists. Resize events persistently restore document focus when hidden. *)
 val workspace : t -> width:int -> height:int -> Workspace.t
+val workspace_tab_rect : t -> Workspace.t -> Geometry.Rect.t option
+val split_tabs : t -> Workspace.t -> bool option
+
+type editor_pane =
+  { buffer : Cobalt_app.Buffer_id.t
+  ; allocation : Geometry.Rect.t
+  ; geometry : Geometry.t
+  ; scroll : Scroll.t
+  ; focused : bool
+  }
+
+(** Visible file surfaces, in left-to-right order, with their rendered text
+    geometry and scroll. Floats may occlude them; directory and view tabs are not
+    file surfaces. Use {!activate_buffer} to focus a pane by its buffer ID. *)
+val editor_panes : t -> width:int -> height:int -> editor_pane list
 
 val scroll : t -> Scroll.t
 val message : t -> Message.t option
@@ -758,10 +781,11 @@ val fitted_scroll : t -> width:int -> height:int -> Scroll.t
     effective [buffers_in_status] to all queries when a status tile is present. *)
 val tab_rect : ?buffers_in_status:bool -> t -> allocation:Geometry.Rect.t -> Geometry.Rect.t option
 val directory_rect : ?buffers_in_status:bool -> t -> allocation:Geometry.Rect.t -> Geometry.Rect.t option
-val geometry_in : ?buffers_in_status:bool -> t -> allocation:Geometry.Rect.t -> reserve_status_row:bool -> Geometry.t
+val geometry_in : ?buffers_in_status:bool -> ?split_tabs:bool -> t -> allocation:Geometry.Rect.t -> reserve_status_row:bool -> Geometry.t
 
 val fitted_scroll_in
   :  ?buffers_in_status:bool
+  -> ?split_tabs:bool
   -> t
   -> allocation:Geometry.Rect.t
   -> reserve_status_row:bool
@@ -769,6 +793,7 @@ val fitted_scroll_in
 
 val cursor_position_in
   :  ?buffers_in_status:bool
+  -> ?split_tabs:bool
   -> t
   -> allocation:Geometry.Rect.t
   -> reserve_status_row:bool

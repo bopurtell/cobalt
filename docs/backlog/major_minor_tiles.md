@@ -46,6 +46,10 @@ under "Shared tile direction — Major/minor roles and consumer-independent plum
 - Later (2026-10-27): `Close_split` (`Space s c`, `split.close`) closes the split
   view from either pane, through the same path as `Place_view` to `Hidden`, even
   while zen or a narrow editor area keeps it from being shown.
+- [C10](c10-side-by-side-editors.md): the same slot can instead show a second
+  session file. The session owns pane buffer IDs and the focused slot; the
+  workspace allocator owns the rectangles. Both editors share one tab strip,
+  and an editor split cannot displace a registered split view or vice versa.
 
 **Done in VCS workspace phase 0C (2026-10-18):** questions a view asks.
 - An adapter's outcome may carry a `View_registry.Ask.t`: a confirmation (`y` only;

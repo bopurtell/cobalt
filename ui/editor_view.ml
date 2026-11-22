@@ -117,7 +117,7 @@ type open_location_listener =
   -> on_request:(Open_location.request -> (unit, Open_location.failure) Result.t Async.Deferred.t)
   -> (unit -> unit Async.Deferred.t) Async.Deferred.Or_error.t
 
-let component ?layout ?terminal ?snippets ?configuration ?startup_configuration ?configuration_path ?document_decorations ?document_decoration_host ?(document_decorations_enabled = false) ?(smear_enabled = false) ?(zen = false) ?bare ?theme ?appearance ?buffer_presentation ?report ?(silver_overview : Silver_overview_host.t option) ?source ?vcs ?font ?file_picker ?content_picker ?on_toggle_terminal ?host_commands ?on_host_command ?on_open_location_ready ~set_clipboard controller ~exit ~blank_on_close ~dimensions ~visible ~focused (local_ graph)
+let component ?layout ?terminal ?snippets ?configuration ?startup_configuration ?configuration_path ?document_decorations ?document_decoration_host ?(document_decorations_enabled = false) ?(smear_enabled = false) ?(mouse = false) ?(zen = false) ?bare ?theme ?appearance ?buffer_presentation ?report ?(silver_overview : Silver_overview_host.t option) ?source ?vcs ?font ?file_picker ?content_picker ?on_toggle_terminal ?host_commands ?on_host_command ?on_open_location_ready ~set_clipboard controller ~exit ~blank_on_close ~dimensions ~visible ~focused (local_ graph)
   =
   let dimensions = let%arr { Dimensions.width; height } = dimensions in
     { Dimensions.width = Int.max 0 width; height = Int.max 0 height } in
@@ -403,7 +403,7 @@ let component ?layout ?terminal ?snippets ?configuration ?startup_configuration 
                | `Inputs inputs -> inputs
                | `Event _ when not accepts_input -> []
               | `Event (event, at) ->
-                Terminal_input.inputs ~terminal:(Ui_state.terminal_capturing model) event
+                Terminal_input.inputs ~terminal:(Ui_state.terminal_capturing model) ~mouse event
                 |> List.map ~f:(function
                   | Ui_state.Input.Key key -> Ui_state.Input.Key_at { key; at }
                   | Ui_state.Input.Terminal_key key -> Ui_state.Input.Terminal_key_at { key; at }
@@ -491,8 +491,8 @@ let component ?layout ?terminal ?snippets ?configuration ?startup_configuration 
            let after_step model =
              let model = follow_silver model in
             let model, activate_files = Ui_state.take_file_picker_activation model in
-            let model = if not activate_files then model else
-              match Cobalt_file_picker_host.Runtime.open_picker file_runtime model
+            let model = match activate_files with None -> model | Some intent ->
+              match Cobalt_file_picker_host.Runtime.open_picker ~split:(Poly.equal intent `Split) file_runtime model
                 ~settings:(Ui_state.file_picker_settings model)
                 ~root:project_root ~width ~height with
               | Ok model -> model
@@ -599,8 +599,9 @@ let component ?layout ?terminal ?snippets ?configuration ?startup_configuration 
           List.iter requests ~f:(fun request ->
             Bonsai.Apply_action_context.schedule_event context
               (match file_picker with
-               | Some host -> Effect.of_thunk (fun () -> host.consume request)
-               | None -> Bonsai.Apply_action_context.inject context
+               | Some host when not (Ui_state.is_split_file_request request) ->
+                 Effect.of_thunk (fun () -> host.consume request)
+               | _ -> Bonsai.Apply_action_context.inject context
                    (`Inputs [ Ui_state.Input.File_picker_accept request ])));
           let model, requests = Ui_state.take_content_requests model in
           List.iter requests ~f:(fun request ->
@@ -863,7 +864,7 @@ let hosted ?layout ?terminal ?snippets ?configuration ?startup_configuration ?co
 
 let app_with_terminal ~terminal ?snippets ?configuration ?startup_configuration ?configuration_path
     ?document_decorations ?document_decoration_host ?document_decorations_enabled ?smear_enabled
-    ?zen ?bare ?theme ?buffer_presentation ?report ?source ?vcs ?font ?file_picker ?content_picker
+    ?mouse ?zen ?bare ?theme ?buffer_presentation ?report ?source ?vcs ?font ?file_picker ?content_picker
     ?silver_overview ?on_open_location_ready controller ~exit ~dimensions (local_ graph) =
   let set_clipboard =
     let%arr write = Expert.Write_to_tty.write_string_to_tty graph in
@@ -871,7 +872,7 @@ let app_with_terminal ~terminal ?snippets ?configuration ?startup_configuration 
   in
   let surface = component ~terminal ?snippets ?configuration ?startup_configuration ?configuration_path
       ?document_decorations ?document_decoration_host ?document_decorations_enabled ?smear_enabled
-      ?zen ?bare ?theme ?buffer_presentation ?report ?source ?vcs ?font ?file_picker ?content_picker
+      ?mouse ?zen ?bare ?theme ?buffer_presentation ?report ?source ?vcs ?font ?file_picker ?content_picker
       ?silver_overview ?on_open_location_ready ~set_clipboard controller ~exit ~blank_on_close:false ~dimensions ~visible:(Bonsai.return true)
       ~focused:(Bonsai.return true) graph in
   let set_cursor = Effect.set_cursor graph in
@@ -888,7 +889,7 @@ let app ?terminal ?snippets ?configuration ?startup_configuration ?configuration
     ?report ?source ?vcs ?font ?file_picker ?content_picker controller ~exit ~dimensions graph
 ;;
 
-let run ?configuration ?startup_configuration ?configuration_path ?document_decorations ?document_decorations_enabled ?(smear_enabled = false) ?(zen = false) ?bare ?theme ?font ?buffer_presentation ?report ?(silver_overview : Silver_overview_host.t option) ?source ?vcs ?(open_location_listener : open_location_listener option) controller =
+let run ?configuration ?startup_configuration ?configuration_path ?document_decorations ?document_decorations_enabled ?(smear_enabled = false) ?(mouse = false) ?(zen = false) ?bare ?theme ?font ?buffer_presentation ?report ?(silver_overview : Silver_overview_host.t option) ?source ?vcs ?(open_location_listener : open_location_listener option) controller =
   let document_decoration_host = Document_decoration_host.create
     (Option.value document_decorations ~default:Document_decoration_host.Factory.unavailable) in
   let decorations_at_shutdown = ref (Some document_decoration_host) in
@@ -965,9 +966,9 @@ let run ?configuration ?startup_configuration ?configuration_path ?document_deco
   Async.Deferred.bind
     (Bonsai_term.start_with_exit
        ~dispose:true
-       ~mouse:No_mouse_events
+       ~mouse:(if mouse then All_mouse_events_except_hover else No_mouse_events)
        ~bpaste:true
-          (app_with_terminal ~terminal ~configuration ~startup_configuration ?configuration_path ~document_decoration_host ?document_decorations_enabled ~smear_enabled ~zen ?bare ?theme ?buffer_presentation ?report ?silver_overview ?source ?vcs ?font ?on_open_location_ready controller))
+          (app_with_terminal ~terminal ~configuration ~startup_configuration ?configuration_path ~document_decoration_host ?document_decorations_enabled ~smear_enabled ~mouse ~zen ?bare ?theme ?buffer_presentation ?report ?silver_overview ?source ?vcs ?font ?on_open_location_ready controller))
       ~f:(fun result ->
        stop_silver ();
        let%bind.Async.Deferred () = stop_listener () in

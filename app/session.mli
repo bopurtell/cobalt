@@ -22,6 +22,18 @@ val same_file_lifetimes : t -> t -> bool
 val same_buffer_membership : t -> t -> bool
 (** Active file tab underneath any major directory presentation. *)
 val active_id : t -> Buffer_id.t option
+type editor_split = { other : Buffer_id.t; active_secondary : bool }
+(** The other buffer and whether the active file occupies the secondary slot.
+    The requested split is independent of screen visibility. *)
+val editor_split : t -> editor_split option
+(** Split the active file with a distinct retained tab, or open a second file
+    transactionally. The secondary slot becomes active. *)
+val split_with : t -> Buffer_id.t -> t Or_error.t
+val split_open_file : t -> string -> (t * Buffer_id.t) Or_error.t
+(** Keep the active file visible; neither tab is closed. *)
+val close_editor_split : t -> t
+(** Read-only drawing snapshot; do not adopt or dispatch it. *)
+val editor_surface : t -> Buffer_id.t -> t
 (** Visible input owner, not necessarily the active file tab. *)
 val context_id : t -> Buffer_id.t option
 val has_buffer : t -> Buffer_id.t -> bool
@@ -119,7 +131,7 @@ module Reconciled : sig
     { reloaded : Buffer_id.t list (** Clean, changed on disk (or back from missing). *)
     ; missing : Buffer_id.t list (** Clean, file gone: marked missing. *)
     ; dirty : Buffer_id.t list (** Unsaved changes: untouched, not read. *)
-    ; busy : Buffer_id.t list (** The active buffer in Insert/Visual: untouched. *)
+    ; busy : Buffer_id.t list (** Buffers in Insert/Visual: untouched. *)
     ; failed : (Buffer_id.t * Error.t) list (** Unreadable: untouched. *)
     }
   [@@deriving sexp_of]

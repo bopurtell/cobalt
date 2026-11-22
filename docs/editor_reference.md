@@ -25,6 +25,29 @@ edits. `cobalt-open` is installed by the Dune package. See [selecting a main
 editor](../main_editor/README.md) for the source-checkout command, project
 matching, optional columns, and sender exit codes.
 
+## Mouse input
+
+Start with `cobalt --mouse PATH` to enable mouse input for that launch. Without
+the flag, your terminal handles native selection and copying as usual. With
+mouse input enabled, many terminals let you hold **Shift** to select text
+natively; the override depends on your terminal. There is no in-editor mouse
+toggle.
+
+- Left-click file text to focus the pane and place the cursor. Normal and
+  Insert mode stay active; clicking in Visual mode ends the selection.
+- Left-click an Oil/Dired row to focus the browser and move its cursor to the
+  row under the pointer. The click doesn't open or mark the entry or change
+  anything on disk. Press `Enter` to open the entry.
+- Left-click a visible file tab to activate it just as with the keyboard. If
+  the file is already visible in the other editor pane, that pane gains focus.
+- Use the wheel over file text or a directory listing to scroll that pane
+  without changing focus, cursor position, or selection. If the cursor scrolls
+  out of view, the next keyboard edit or cursor movement brings it back.
+
+Gutters, dividers, and other unsupported areas do not respond to clicks. Modal
+overlays block input to the workspace underneath. Drag selection and mouse input
+to Tile Terms are not supported.
+
 ## Floating terminal
 
 The floating-terminal system is called **Tile Terms**. In Normal or Insert mode,
@@ -479,6 +502,30 @@ Save targets the owner from which the palette opened, including a side browser;
 it can permanently delete entries. Undo/Redo affect text only, not disk.
 There is no interactive open-path/save-as prompt; save-all is an application API,
 not a default binding or palette action.
+
+### Side-by-side file editors
+
+| Keys | Palette command | Action |
+| --- | --- | --- |
+| `Space s n` | **Split editor with next file tab** | Keep the current file and open the next retained file tab beside it, wrapping past the last file tab. |
+| `Space s o` | **Split editor and pick a file** | Choose a different file in the project file picker and open it beside the current file. |
+| `Space s f` | **Focus other split pane** | Switch to the other editor when both fit. |
+| `Space s x` | **Swap split sides** | Trade sides without changing the focused file. |
+| `Space s +` / `Space s -` | **Grow split view by 10%** / **Shrink split view by 10%** | Adjust the width of the second slot, regardless of which file is focused. |
+| `Space s c` | **Close split** | Keep the focused file visible and keep the other tab, including unsaved edits. |
+
+The `>` in the pane title marks the editor with input focus. Both editors share
+one tab list. Opening another file or changing tabs replaces the focused pane;
+selecting a file already on screen focuses its existing pane. Each file keeps
+its own cursor, selection, scroll, and undo history. `Space w` and `:e!` affect only
+the focused file. Ordinary tab close and quit still guard dirty or missing files.
+
+The two editors and the VCS split use the same slot: close the current split
+first, or move VCS back to a tab (`Space g t`). The directory sidebar can still
+sit beside both editors if there is room. Zen, bare, and compact layouts keep
+the split requested but show just the active file; the second editor returns
+without stealing focus. Two editors fit when at least 33 columns and four rows
+remain in the editor area after other workspace panes are allocated.
 
 ## Directory workspace
 

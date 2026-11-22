@@ -22,8 +22,8 @@
 
 | Ticket | Status | Scope |
 | --- | --- | --- |
-| [C10: Side-by-side file editors](c10-side-by-side-editors.md) | Proposed | Two keyboard-accessible file editor panes in the existing workspace |
-| [C11: Basic mouse support](c11-mouse-support.md) | Proposed | Opt-in click-to-focus, cursor placement, file tab activation, and wheel scrolling |
+| [C10: Side-by-side file editors](c10-side-by-side-editors.md) | Implemented and verified | Two keyboard-accessible file editor panes in the existing workspace |
+| [C11: Basic mouse support](c11-mouse-support.md) | Implemented and verified | Opt-in click-to-focus, cursor placement, file tab activation, and wheel scrolling |
 
 The Oil/Dired-style directory refresh already exists: focus the listing and
 press `Space r` in Normal mode. It rereads a clean listing from disk and
@@ -33,7 +33,7 @@ refuses pending directory edits. Cached revisits do not refresh automatically;
 
 ## Installation
 
-- [C12: Install Cobalt from a clone](c12-source-install.md) (proposed):
+- [C12: Install Cobalt from a clone](c12-source-install.md) (implemented):
   build and install the native commands into a user-owned prefix with one
   Silver-style `./install.sh` invocation once prerequisites are available.
 

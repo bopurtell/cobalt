@@ -52,7 +52,7 @@ let same_run t request =
     Model.Discovery.equal_request snapshot.request request)
 ;;
 
-let open_picker_with_policy ?settings t ui ~root ~policy ~width ~height =
+let open_picker_with_policy ?settings ?split t ui ~root ~policy ~width ~height =
   let include_ignored, limits = match settings with
     | None -> false, t.limits
     | Some (settings : Cobalt_config_runtime.Settings.File_picker.t) ->
@@ -77,7 +77,7 @@ let open_picker_with_policy ?settings t ui ~root ~policy ~width ~height =
      let validated = ref None in
      t.validation <- Some (request, validated);
     let release () = if same_run t request then Provider.cancel t.provider in
-    let ui = Ui_state.open_file_picker ui ~width ~height
+    let ui = Ui_state.open_file_picker ?split ui ~width ~height
       ~discovery:(Option.value_exn (Provider.snapshot t.provider)) ~release in
     Option.iter (Ui_state.file_picker ui) ~f:(fun picker ->
       let session = Tile.session picker in
@@ -88,7 +88,8 @@ let open_picker_with_policy ?settings t ui ~root ~policy ~width ~height =
       Interaction.set_snapshot_sink session (fun data ->
         remember t ~root ~policy ~validated:(Option.value !validated ~default:(t.now ())) data));
     ui)))
-let open_picker ?settings t ui ~root ~width ~height = open_picker_with_policy ?settings t ui ~root ~policy:"native-v1" ~width ~height
+let open_picker ?settings ?split t ui ~root ~width ~height =
+  open_picker_with_policy ?settings ?split t ui ~root ~policy:"native-v1" ~width ~height
 ;;
 
 (* The frontend chains these deferred turns, not one turn per rendered frame.

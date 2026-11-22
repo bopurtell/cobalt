@@ -108,6 +108,29 @@ let%test_unit "terminal capture retains paste boundaries and ignores mouse" =
         (Sexp.to_string [%sexp (Terminal_input.inputs ~terminal:true event : Cobalt_screen.Ui_state.Input.t list)])))
 ;;
 
+let%test_unit "opt-in preserves pointer coordinates and drops unsupported reports" =
+  let mouse ?(mods = []) ?(x = 4) kind : Event.t =
+    Mouse { kind; position = { x; y = 2 }; mods }
+  in
+  let check event expected =
+    assert (List.is_empty (Terminal_input.inputs event));
+    List.iter [ false; true ] ~f:(fun terminal ->
+      match Terminal_input.inputs ~terminal ~mouse:true event with
+      | [ Pointer { action; x = 4; y = 2 } ] when Poly.equal action expected -> ()
+      | actual ->
+        raise_s [%message "pointer input mismatch" (actual : Cobalt_screen.Ui_state.Input.t list)])
+  in
+  check (mouse Left) `Left_click;
+  check (mouse (Scroll `Up)) `Wheel_up;
+  check (mouse (Scroll `Down)) `Wheel_down;
+  List.iter
+    [ mouse Middle; mouse Right; mouse Drag; mouse Hover; mouse Release
+    ; mouse ~mods:[ Ctrl ] Left; mouse ~mods:[ Meta ] (Scroll `Down)
+    ; mouse ~mods:[ Shift ] Left; mouse ~x:(-1) Left
+    ]
+    ~f:(fun event -> assert (List.is_empty (Terminal_input.inputs ~mouse:true event)))
+;;
+
 let%test_unit "frontend normalizes Insert navigation without synthesizing paste text" =
   let module U = Cobalt_screen.Ui_state in
   let module E = Cobalt_core.Editor in

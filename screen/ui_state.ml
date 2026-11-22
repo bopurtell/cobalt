@@ -116,6 +116,7 @@ module Input = struct
     | Terminal_tick of Time_ns.t
     | Paste_start
     | Paste_end
+    | Pointer of { action : [ `Left_click | `Wheel_up | `Wheel_down ]; x : int; y : int }
     | Animation_tick of Time_ns.t
     | Resize
     | Source of Cobalt_error.Source_event.t
@@ -217,7 +218,10 @@ type t =
   ; config_reload_requests : int list
   ; config_loading : bool
   ; session : Session.t
-  ; scrolls : Scroll.t Buffer_id.Map.t
+  ; scrolls : (Scroll.t * int option) Buffer_id.Map.t
+  (* Detached viewports take precedence over cursor fitting, even for a pane
+     that is not receiving key input. Buffer IDs are stable across placement. *)
+  ; wheel_scrolls : Scroll.t Buffer_id.Map.t
   ; paste_buffer : Buffer_id.t option
   ; prefs : Geometry.Prefs.t
   ; bare_prefs : Presentation.Bare_prefs.t
@@ -284,7 +288,9 @@ type t =
   ; file_picker_release : unit -> unit
   ; file_picker_return : View_id.t
   ; file_requests : View_id.t Cobalt_file_picker.Model.Request.t list
-  ; file_picker_activation : bool
+  ; file_picker_activation : [ `Open | `Split ] option
+  ; split_picker_serial : int
+  ; split_picker_origin : (View_id.t * Buffer_id.t) option
   ; content_picker_activation : bool
   ; line_picker : Line_picker_tile.t option
   ; line_generation : int
@@ -325,6 +331,7 @@ type t =
 let document_id = View_id.of_string "document"
 let status_id = View_id.of_string "status"
 let directory_id = View_id.of_string "directory"
+let split_picker_token_prefix = "editor-split-picker-"
 let demo_report_unavailable = "Demo report unavailable; launch with --demo-report"
 
 let create
@@ -417,6 +424,7 @@ let create
   ; config_loading = false
   ; session
   ; scrolls = Buffer_id.Map.empty
+  ; wheel_scrolls = Buffer_id.Map.empty
   ; paste_buffer = None
   ; prefs
   ; bare_prefs
@@ -502,7 +510,9 @@ let create
   ; prompt = None
   ; popup = None
   ; file_picker = None
-  ; file_picker_activation = false
+  ; file_picker_activation = None
+  ; split_picker_serial = 0
+  ; split_picker_origin = None
   ; content_picker_activation = false
   ; file_picker_release = (fun () -> ())
   ; file_picker_return = document_id
@@ -1400,23 +1410,25 @@ let file_tab t = { t with tabs = Tab_strip.activate t.tabs None }
 
 let tab_label t id = Option.value (View_registry.label t.views id) ~default:(view_title t id)
 
-let tab_items t =
+let tab_item_entries t =
   let files = Open_buffers.of_session (session t) in
   let active_view = active_tab_view t in
   List.filter_map (tab_entries t) ~f:(function
-    | File id ->
+    | (File id as entry) ->
       List.find files ~f:(fun file -> Buffer_id.equal file.id id)
       |> Option.map ~f:(fun file ->
         let item = Tab_strip.Item.of_file file in
-        { item with active = item.active && Option.is_none active_view })
-    | View id ->
-      Some
+        entry, { item with active = item.active && Option.is_none active_view })
+    | (View id as entry) ->
+      Some (entry,
         { Tab_strip.Item.label = tab_label t id
         ; active = Option.exists active_view ~f:(View_id.equal id)
         ; modified = false
         ; missing = false
-        })
+        }))
 ;;
+
+let tab_items t = List.map (tab_item_entries t) ~f:snd
 
 (* Problems and history are always installed (see [create]). *)
 let problems_tile t = Option.value_exn (View_registry.find t.views Problems_tile.key)
@@ -1441,7 +1453,11 @@ let line_picker_generation t = t.line_generation
 let take_file_requests t = { t with file_requests = [] }, List.rev t.file_requests
 let take_vcs_jobs t = { t with jobs = [] }, List.rev t.jobs
 ;;
-let scroll t = t.scroll
+let wheel_scroll t =
+  Option.bind (Session.context_id t.session) ~f:(Map.find t.wheel_scrolls)
+;;
+
+let scroll t = Option.value (wheel_scroll t) ~default:t.scroll
 
 let message t =
   let feedback = Controller.feedback t.controller in
@@ -1557,13 +1573,16 @@ let directory_rect ?(buffers_in_status = false) t ~(allocation : Geometry.Rect.t
   then Some { allocation with height = 1 } else None
 ;;
 
-let geometry_in ?(buffers_in_status = false) t ~allocation ~reserve_status_row =
+let geometry_in ?(buffers_in_status = false) ?split_tabs t ~allocation ~reserve_status_row =
+  let below (rect : Geometry.Rect.t) rows =
+    { rect with y = rect.y + rows; height = Int.max 0 (rect.height - rows) } in
   let header = directory_rect ~buffers_in_status t ~allocation in
-  let allocation = match tab_rect ~buffers_in_status t ~allocation with
-    | None -> allocation
-    | Some _ -> { allocation with y = allocation.y + 1; height = allocation.height - 1 } in
-  let allocation = match header with None -> allocation | Some _ ->
-    { allocation with y = allocation.y + 1; height = allocation.height - 1 } in
+  let allocation = match split_tabs with
+    | Some tabs -> below allocation (if tabs then 2 else 1)
+    | None ->
+      let allocation = if Option.is_some (tab_rect ~buffers_in_status t ~allocation)
+        then below allocation 1 else allocation in
+      if Option.is_some header then below allocation 1 else allocation in
   Geometry.compute_in
     ~decorated:(not (bare t))
     (if bare t then { t.prefs with centered = false; offset = 0; left_padding = 0; line_numbers = t.bare_prefs.line_numbers }
@@ -1598,6 +1617,11 @@ let workspace t ~width ~height =
     ?split:(if suppress_workspace t then None
       else Option.bind (View_registry.split t.views) ~f:(fun id ->
         Option.some_if (not (is_companion id)) (id, t.split)))
+    ?editors:(if suppress_workspace t || Option.is_some (active_tab_view t)
+                  || Option.exists (Session.directory_presentation t.session) ~f:(fun p ->
+                       Poly.equal p.placement Major && Option.is_some (Session.input_directory t.session))
+      then None else Option.map (Session.editor_split t.session) ~f:(fun split ->
+        split.active_secondary, t.split))
     ?side:(match companion with
       | Some id -> Some (id, Int.clamp_exn (width * 2 / 5) ~min:30 ~max:60)
       | None -> Option.bind (Session.directory_presentation t.session) ~f:(fun p ->
@@ -1615,6 +1639,21 @@ let buffers_in_status_in t (workspace : Workspace.t) =
 ;;
 
 let buffers_in_status t ~width ~height = buffers_in_status_in t (workspace t ~width ~height)
+
+let workspace_tab_rect t (workspace : Workspace.t) =
+  let allocation = workspace.document.rect in
+  let allocation = Option.value_map workspace.second_editor ~default:allocation ~f:(fun other ->
+    let x = Int.min allocation.x other.x in
+    { allocation with x; width = Int.max (allocation.x + allocation.width) (other.x + other.width) - x }) in
+  (* When the sidebar owns input, the strip still belongs to the file surface. *)
+  let t = if Option.exists (Session.directory_presentation t.session) ~f:(fun p -> Poly.equal p.placement Side)
+    then { t with session = Session.surface t.session ~directory:false } else t in
+  tab_rect ~buffers_in_status:(buffers_in_status_in t workspace) t ~allocation
+;;
+
+let split_tabs t (workspace : Workspace.t) =
+  Option.map workspace.second_editor ~f:(fun _ -> Option.is_some (workspace_tab_rect t workspace))
+;;
 
 (* The active view tab's shell: the editor area below the tab strip, above any
    compact feedback row, like the document it covers. *)
@@ -1816,9 +1855,10 @@ let available t ~width ~height = view_available t ~width ~height
 let side_layout t ~width ~height = view_layout t ~width ~height directory_id
 
 let input_allocation t ~width ~height =
+  let w = workspace t ~width ~height in
   match Session.input_directory t.session, side_layout t ~width ~height with
-  | Some _, Some layout -> layout.content, false
-  | _ -> let w = workspace t ~width ~height in w.document.rect, w.reserve_status_row
+  | Some _, Some layout -> layout.content, false, None
+  | _ -> w.document.rect, w.reserve_status_row, split_tabs t w
 ;;
 
 let focused_view ?floating t ~width ~height =
@@ -1851,15 +1891,27 @@ let view_context t ~width ~height =
     (fun () -> List.map (Lazy.force files) ~f:snd)
 ;;
 
+let saved_viewport scrolls id =
+  Option.value (Option.bind id ~f:(Map.find scrolls)) ~default:(Scroll.zero, None)
+;;
+
 let surface t ~directory =
   let session = Session.surface (session t) ~directory in
   let id = Session.context_id session in
-  let scroll = if Option.equal Buffer_id.equal id (Session.context_id t.session) then t.scroll else
-    Option.value (Option.bind id ~f:(Map.find t.scrolls)) ~default:Scroll.zero in
+  let scroll, rows = if Option.equal Buffer_id.equal id (Session.context_id t.session)
+    then t.scroll, t.rows else saved_viewport t.scrolls id in
   { t with session; controller = Option.value (Session.active_controller session) ~default:t.controller
-    ; scroll; rows = None; hide_tabs = directory
+    ; scroll; rows; hide_tabs = directory
     ; tabs = (if directory then Tab_strip.activate t.tabs None else t.tabs)
     ; prefs = (if directory then { t.prefs with centered = false; left_padding = 0 } else t.prefs) }
+;;
+
+let file_editor_surface t id =
+  let session = Session.editor_surface t.session id in
+  let current = Option.equal Buffer_id.equal (Some id) (Session.context_id t.session) in
+  let scroll, rows = if current then t.scroll, t.rows else saved_viewport t.scrolls (Some id) in
+  let controller = if current then t.controller else Option.value_exn (Session.active_controller session) in
+  { t with session; controller; scroll; rows }
 ;;
 
 let problems_focused t ~width ~height =
@@ -2063,7 +2115,7 @@ let leave t id =
   then (
     Option.iter t.file_picker ~f:(fun picker ->
       File_picker_tile.cancel picker ~release:t.file_picker_release);
-    { t with file_picker = None; file_picker_release = (fun () -> ()) })
+     { t with file_picker = None; file_picker_release = (fun () -> ()); split_picker_origin = None })
   else if View_id.equal id Line_picker_tile.id
   then (
     Option.iter t.line_picker ~f:(fun picker -> Line_picker_tile.cancel picker ~release:(fun () -> ()));
@@ -2595,11 +2647,11 @@ let synchronize t ~width ~height =
       && Option.is_none (side_layout t ~width ~height)
     then
       let old = Session.context_id t.session in
-      let scrolls = Option.value_map old ~default:t.scrolls ~f:(fun id -> Map.set t.scrolls ~key:id ~data:t.scroll) in
+      let scrolls = Option.value_map old ~default:t.scrolls ~f:(fun id -> Map.set t.scrolls ~key:id ~data:(t.scroll, t.rows)) in
       let session = Session.focus_directory (session t) false in
-      let scroll = Option.value (Option.bind (Session.context_id session) ~f:(Map.find scrolls)) ~default:Scroll.zero in
+      let scroll, rows = saved_viewport scrolls (Session.context_id session) in
       { (return_to_document t) with session; controller = Option.value_exn (Session.active_controller session)
-        ; scrolls; scroll; rows = None; paste_buffer = None }
+        ; scrolls; scroll; rows; paste_buffer = None }
     else t in
   let ids = View_registry.ids t.views in
   let before = List.map ids ~f:(text_view t) in
@@ -2653,8 +2705,8 @@ let update_feedback t ~width ~height update =
 ;;
 
 let geometry t ~width ~height =
-  let allocation, reserve_status_row = input_allocation t ~width ~height in
-  geometry_in ~buffers_in_status:(buffers_in_status t ~width ~height) t ~allocation ~reserve_status_row
+  let allocation, reserve_status_row, split_tabs = input_allocation t ~width ~height in
+  geometry_in ~buffers_in_status:(buffers_in_status t ~width ~height) ?split_tabs t ~allocation ~reserve_status_row
 ;;
 
 (* All tab paths share lifetime, viewport, prefix and paste reconciliation. Held
@@ -2711,12 +2763,14 @@ let adopt_session_state ?(keep_view_tab = false) ?(keep_focus = false) t session
     (Session.buffer_count session > 1)) in
   let scrolls = match previous with
     | None -> t.scrolls
-    | Some id -> Map.set t.scrolls ~key:id ~data:t.scroll in
+    | Some id -> Map.set t.scrolls ~key:id ~data:(t.scroll, t.rows) in
   let scrolls = if Session.same_buffer_membership t.session session then scrolls else
     Map.filter_keys scrolls ~f:(Session.has_buffer session) in
+  let wheel_scrolls = if Session.same_buffer_membership t.session session then t.wheel_scrolls else
+    Map.filter_keys t.wheel_scrolls ~f:(Session.has_buffer session) in
   let controller = Option.value (Session.active_controller session)
     ~default:(Controller.with_feedback t.controller (Session.feedback session)) in
-  let t = { t with session; controller; scrolls; exited = Session.exited session
+  let t = { t with session; controller; scrolls; wheel_scrolls; exited = Session.exited session
     ; toggle_pending = if Session.exited session then None else t.toggle_pending } in
   let t = if not changed then
     (if placement_changed then { t with rows = None; paste_buffer = None
@@ -2725,8 +2779,8 @@ let adopt_session_state ?(keep_view_tab = false) ?(keep_focus = false) t session
     (if not tabs_changed then t else
        { t with rows = None; animation = Animation.create ~enabled:(Animation.enabled t.animation) }))
     else
-    let scroll = Option.value (Option.bind (Session.context_id session) ~f:(Map.find scrolls)) ~default:Scroll.zero in
-    { (if keep_focus then t else return_to_document t) with scroll; rows = None; paste_buffer = None
+    let scroll, rows = saved_viewport scrolls (Session.context_id session) in
+    { (if keep_focus then t else return_to_document t) with scroll; rows; paste_buffer = None
       ; animation = Animation.create ~enabled:(Animation.enabled t.animation) } in
   let t = synchronize t ~width ~height in
   if (not keep_focus)
@@ -2776,6 +2830,16 @@ let show_view_tab t ~width ~height id =
   }
 ;;
 
+let select_file_tab t ~width ~height id =
+  let t = finalize_completion t in
+  match Session.activate (session t) id with
+  | Error _ -> t
+  | Ok session ->
+    let t = adopt_session_state (show_file_tab t) session ~width ~height in
+    if View_id.equal (focused_view t ~width ~height) document_id
+    then t else return_to_document t
+;;
+
 (* File and view tabs cycle together, wrapping in strip order. From no active entry
    (a directory without files), forward starts at the first. *)
 let switch_tab t ~width ~height ~direction =
@@ -2796,8 +2860,7 @@ let switch_tab t ~width ~height ~direction =
     in
     match target with
     | View id -> show_view_tab t ~width ~height id
-    | File target ->
-      adopt_session_state (show_file_tab t) (Session.activate (session t) target |> Or_error.ok_exn) ~width ~height)
+    | File target -> select_file_tab t ~width ~height target)
 ;;
 
 (* The cursor's line and cells. A block insert's cursor is at its first insertion point,
@@ -2819,26 +2882,39 @@ let cursor_cells editor =
            | Normal | Visual _ -> false) )
 ;;
 
-let fitted_scroll_in ?(buffers_in_status = false) t ~allocation ~reserve_status_row =
+let fitted_scroll_in ?(buffers_in_status = false) ?split_tabs t ~allocation ~reserve_status_row =
   let editor = Controller.editor t.controller in
   let text = Editor.text editor in
-  let line, span = cursor_cells editor in
-  let { Geometry.text = viewport; _ } = geometry_in ~buffers_in_status t ~allocation ~reserve_status_row in
-  Scroll.fit
-    t.scroll
-    ~fill:(not ([%equal: int option] t.rows (Some viewport.height)))
-    ~line
-    ~span
-    ~rows:viewport.height
-    ~cols:viewport.width
-    ~line_count:(Text_buffer.line_count text)
+  let line_count = Text_buffer.line_count text in
+  match wheel_scroll t with
+  | Some scroll -> { scroll with top = Int.min scroll.top (line_count - 1) }
+  | None ->
+    let line, span = cursor_cells editor in
+    let { Geometry.text = viewport; _ } = geometry_in ~buffers_in_status ?split_tabs t ~allocation ~reserve_status_row in
+    Scroll.fit
+      t.scroll
+      ~fill:(not ([%equal: int option] t.rows (Some viewport.height)))
+      ~line
+      ~span
+      ~rows:viewport.height
+      ~cols:viewport.width
+      ~line_count
 ;;
 
-let cursor_position_in ?(buffers_in_status = false) t ~allocation ~reserve_status_row =
+let follow_cursor t =
+  match Session.context_id t.session with
+  | None -> t
+  | Some id ->
+    (match Map.find t.wheel_scrolls id with
+     | None -> t
+     | Some scroll -> { t with scroll; wheel_scrolls = Map.remove t.wheel_scrolls id })
+;;
+
+let cursor_position_in ?(buffers_in_status = false) ?split_tabs t ~allocation ~reserve_status_row =
   if not (has_document t) then None else
   let cursor_line, (start, _) = cursor_cells (Controller.editor t.controller) in
-  let scroll = fitted_scroll_in ~buffers_in_status t ~allocation ~reserve_status_row in
-  let { Geometry.text = viewport; _ } = geometry_in ~buffers_in_status t ~allocation ~reserve_status_row in
+  let scroll = fitted_scroll_in ~buffers_in_status ?split_tabs t ~allocation ~reserve_status_row in
+  let { Geometry.text = viewport; _ } = geometry_in ~buffers_in_status ?split_tabs t ~allocation ~reserve_status_row in
   let x = start - scroll.left
   and y = cursor_line - scroll.top in
   if x >= 0 && x < viewport.width && y >= 0 && y < viewport.height
@@ -2847,21 +2923,55 @@ let cursor_position_in ?(buffers_in_status = false) t ~allocation ~reserve_statu
 ;;
 
 let fitted_scroll t ~width ~height =
-  let allocation, reserve_status_row = input_allocation t ~width ~height in
+  let allocation, reserve_status_row, split_tabs = input_allocation t ~width ~height in
   fitted_scroll_in
     ~buffers_in_status:(buffers_in_status t ~width ~height)
+    ?split_tabs
     t
     ~allocation
     ~reserve_status_row
 ;;
 
 let cursor_position t ~width ~height =
-  let allocation, reserve_status_row = input_allocation t ~width ~height in
+  let allocation, reserve_status_row, split_tabs = input_allocation t ~width ~height in
   cursor_position_in
     ~buffers_in_status:(buffers_in_status t ~width ~height)
+    ?split_tabs
     t
     ~allocation
     ~reserve_status_row
+;;
+
+type editor_pane =
+  { buffer : Buffer_id.t
+  ; allocation : Geometry.Rect.t
+  ; geometry : Geometry.t
+  ; scroll : Scroll.t
+  ; focused : bool
+  }
+
+let editor_panes t ~width ~height =
+  match Session.active_id t.session with
+  | None -> []
+  | Some _ when Option.is_some (active_tab_view t)
+               || (Option.is_some (Session.input_directory t.session)
+                   && Option.is_none (side_layout t ~width ~height)) -> []
+  | Some active ->
+    let workspace = workspace t ~width ~height in
+    let buffers_in_status = buffers_in_status_in t workspace in
+    let split_tabs = split_tabs t workspace in
+    let reserve_status_row = workspace.reserve_status_row in
+    let input = input_buffer t ~width ~height in
+    let pane buffer allocation =
+      let ui = file_editor_surface t buffer in
+      { buffer; allocation
+      ; geometry = geometry_in ~buffers_in_status ?split_tabs ui ~allocation ~reserve_status_row
+      ; scroll = fitted_scroll_in ~buffers_in_status ?split_tabs ui ~allocation ~reserve_status_row
+      ; focused = Option.equal Buffer_id.equal input (Some buffer) } in
+    let other = Option.map2 workspace.second_editor (Session.editor_split t.session)
+      ~f:(fun rect split -> pane split.other rect) in
+    List.sort (pane active workspace.document.rect :: Option.to_list other)
+      ~compare:(fun a b -> Int.compare a.allocation.x b.allocation.x)
 ;;
 
 let minor_cursor ?floating t ~width ~height =
@@ -2899,6 +3009,8 @@ let apply_view (prefs : Geometry.Prefs.t) (view : View_command.t) : Geometry.Pre
   | Focus_view _
   | Place_view _
   | Focus_other_pane
+  | Split_next_file
+  | Split_file_picker
   | Swap_split
   | Adjust_split _
   | Close_split
@@ -2969,9 +3081,12 @@ let view_feedback t ~before ~width ~height (view : View_command.t) : string opti
          else if bare t then "Buffer rows saved for workspace; bare"
          else if buffers_in_status t ~width ~height then "Open buffers in status rows"
          else "Status rows requested (top strip fallback)")
+  | Focus_other_pane when Option.is_some (Session.editor_split t.session) -> None
   | Focus_view _ | Focus_other_pane ->
     let focused = Host.spec t.host (focused_view t ~width ~height) in
     Some (Option.value (Host.notice t.host) ~default:(focused.title ^ " focused"))
+  | Close_split when Option.is_some (Session.editor_split before.session) -> None
+  | Split_next_file | Split_file_picker -> None
   | Place_view _ | Close_split -> Host.notice t.host
   | Swap_split | Adjust_split _ ->
     let split = t.split in
@@ -2980,13 +3095,15 @@ let view_feedback t ~before ~width ~height (view : View_command.t) : string opti
       | Left -> "left"
       | Right -> "right"
     in
-    let columns =
-      Option.bind (View_registry.split t.views) ~f:(fun id ->
-        Workspace.minor (workspace t ~width ~height) id)
-      |> Option.value_map ~default:"not shown" ~f:(fun pane ->
-        sprintf "%d columns" pane.rect.width)
-    in
-    Some (sprintf "Split view %s %d%% (%s)" side split.percent columns)
+    let w = workspace t ~width ~height in
+    let name, rect =
+      match Session.editor_split t.session with
+      | Some split -> "Second editor", (if split.active_secondary && Option.is_some w.second_editor
+          then Some w.document.rect else w.second_editor)
+      | None -> "Split view", Option.bind (View_registry.split t.views) ~f:(fun id ->
+          Option.map (Workspace.minor w id) ~f:(fun pane -> pane.rect)) in
+    let columns = Option.value_map rect ~default:"not shown" ~f:(fun rect -> sprintf "%d columns" rect.width) in
+    Some (sprintf "%s %s %d%% (%s)" name side split.percent columns)
   | Toggle_view id ->
     Some
       (if not (View_registry.installed t.views id)
@@ -3092,6 +3209,7 @@ let view_feedback t ~before ~width ~height (view : View_command.t) : string opti
    would leave the view, the cursor is moved by a counted [Up]/[Down], which keeps its
    preferred column. *)
 let scroll_view t ~width ~height (scroll : View_command.Scroll.t) ~count =
+  let t = follow_cursor t in
   let rows = (geometry t ~width ~height).text.height in
   if rows <= 0
   then t
@@ -4125,6 +4243,29 @@ let receive_silver_connections t ~generation (lookup : Silver_overview_tile.Conn
   | _ -> t
 ;;
 
+let editor_slot_error t =
+  match View_registry.split t.views, Session.editor_split t.session, Session.active_id t.session with
+  | Some id, _, _ -> Some (sprintf "%s occupies the split; close it (Space s c) or move it to a tab first" (view_title t id))
+  | _, Some _, _ -> Some "Two editors are already open; select a tab in the focused pane"
+  | _, _, None -> Some "Open a file before splitting"
+  | _ -> None
+;;
+
+(* A refused workspace request is visible from the editor as well as a
+   captured view, whose footer might otherwise keep an older notice. *)
+let workspace_notice t ~width ~height text =
+  let t =
+    { t with
+      controller =
+        Controller.update_feedback t.controller
+          (Notify { source = "workspace"; scope = None; severity = Info; text; history = false })
+    }
+  in
+  if View_id.equal (focused_view t ~width ~height) document_id
+  then t
+  else { t with host = Host.with_notice t.host text }
+;;
+
 (* Provider assembly boundary. The frontend owns discovery; release cancels it
    on every close path, before queued session acceptance. *)
 let can_open_file_picker t ~width ~height =
@@ -4134,24 +4275,30 @@ let can_open_file_picker t ~width ~height =
   && not (Host.pasting t.host)
 ;;
 
-let open_file_picker t ~width ~height ~discovery ~release =
+let open_file_picker ?(split = false) t ~width ~height ~discovery ~release =
   let t = finalize_completion t in
-  if not (can_open_file_picker t ~width ~height)
-  then (
+  match (if split then editor_slot_error t else None) with
+  | Some text -> release (); workspace_notice t ~width ~height text
+  | None when not (can_open_file_picker t ~width ~height) ->
     release ();
     { t with host = Host.with_notice t.host
-        "Files unavailable: finish paste, leave Insert/Visual, and allow at least 14 columns and 5 rows" })
-  else (
+        "Files unavailable: finish paste, leave Insert/Visual, and allow at least 14 columns and 5 rows" }
+  | None ->
     let previous = match t.file_picker with
       | Some _ -> t.file_picker_return
       | None -> focused_view t ~width ~height in
     let t = leave t (focused_view t ~width ~height) in
-    let picker = File_picker_tile.create ~token:document_id ~discovery in
+    let serial = t.split_picker_serial + Bool.to_int split in
+    let origin = if split then Option.map (Session.active_id t.session) ~f:(fun id ->
+      View_id.of_string (split_picker_token_prefix ^ Int.to_string serial), id) else None in
+    let token = Option.value_map origin ~default:document_id ~f:fst in
+    let picker = File_picker_tile.create ~token ~discovery in
     let t = { t with file_picker = Some picker; file_picker_release = release
+      ; split_picker_origin = origin; split_picker_serial = serial
       ; file_picker_return = previous; controller = Controller.cancel_pending t.controller
       ; host = Host.focus t.host File_picker_tile.id } in
     File_picker_tile.fit picker ~rows:(minor_rows t ~width ~height File_picker_tile.id);
-    t)
+    t
 ;;
 
 let open_line_picker t ~width ~height =
@@ -4204,11 +4351,19 @@ let close_view t ~width ~height id =
 ;;
 
 let split_needs = Workspace.min_document_width + Workspace.gap + Workspace.min_split_width
+let editor_split_needs = 2 * Workspace.min_document_width + Workspace.gap
+
+let refuse_view_split t ~width ~height =
+  let text = "Two file editors occupy the split; close it first (Space s c)" in
+  workspace_notice { t with host = Host.with_notice t.host text } ~width ~height text
+;;
 
 (* Move installed view [id] out of its placement into [placement]. A tab is added
    after the active entry and activated; tab and split views are focused when they
    can be shown. The notice says where the view went. *)
 let place_view t ~width ~height id (placement : View_registry.Placement.t) =
+  if View_registry.Placement.equal placement Split && Option.is_some (Session.editor_split t.session)
+  then refuse_view_split t ~width ~height else
   let t = if View_registry.Placement.equal placement Hidden then t else leave_bare t in
   let title = view_title t id in
   let previous = View_registry.placement t.views id in
@@ -4259,7 +4414,10 @@ let place_view t ~width ~height id (placement : View_registry.Placement.t) =
 (* Show hidden view [id] where it opens ([View_registry.opens_in]): in the band, as a
    tab added after the active entry and activated, or in the split (closing the view
    there). *)
-let show_hidden t id =
+let show_hidden t ~width ~height id =
+  if View_registry.Placement.equal (View_registry.opens_in t.views id) Split
+      && Option.is_some (Session.editor_split t.session)
+  then refuse_view_split t ~width ~height else
   let t = leave_bare t in
   match View_registry.opens_in t.views id with
   | Band -> { t with views = View_registry.set_placement t.views id Band }
@@ -4292,24 +4450,13 @@ let place_named t ~width ~height view placement =
   | Some id, _ -> { t with host = Host.with_notice t.host (view_unavailable t id) }
 ;;
 
-(* A refused workspace request: on the feedback line, and in the footer of a focused
-   view or float (whose footer would otherwise keep an older notice). *)
-let workspace_notice t ~width ~height text =
-  let t =
-    { t with
-      controller =
-        Controller.update_feedback t.controller
-          (Notify { source = "workspace"; scope = None; severity = Info; text; history = false })
-    }
-  in
-  if View_id.equal (focused_view t ~width ~height) document_id
-  then t
-  else { t with host = Host.with_notice t.host text }
-;;
-
 (* [Focus_view] of installed view [id]: show it (a hidden view where it opens, a view
    tab activated) and focus it, or return to the document when it is focused. *)
 let focus_view t ~width ~height id =
+  if Option.equal View_registry.Placement.equal (View_registry.placement t.views id) (Some Hidden)
+     && View_registry.Placement.equal (View_registry.opens_in t.views id) Split
+     && Option.is_some (Session.editor_split t.session)
+  then refuse_view_split t ~width ~height else
   let t = leave_bare t in
   match View_registry.placement t.views id with
   | Some _ when Option.exists (editor_companion t ~width ~height) ~f:(View_id.equal id) ->
@@ -4324,7 +4471,7 @@ let focus_view t ~width ~height id =
       { t with tabs = Tab_strip.activate t.tabs (Some id); rows = None })
   | Some (Hidden | Band | Split) | None ->
     toggle_focus t ~width ~height id ~show:(fun t ->
-      if view_visible t id then t else show_hidden t id)
+      if view_visible t id then t else show_hidden t ~width ~height id)
 ;;
 
 (* [Request_view]: a named request to view [id], focused or not, as a signal. An
@@ -4352,24 +4499,55 @@ let request_view t ~width ~height id request =
 
 (* In the major split, focus the split view or return to the active tab. *)
 let focus_other_pane t ~width ~height =
-  let t = leave_bare t in
-  match View_registry.split t.views with
-  | Some id when available t ~width ~height id ->
+  match Session.editor_split t.session, View_registry.split t.views with
+  | Some split, _ when Option.is_some (workspace t ~width ~height).second_editor ->
+    let session = Session.activate (session t) split.other |> Or_error.ok_exn in
+    let t = adopt_session_state t session ~width ~height in
+    workspace_notice t ~width ~height "Other editor focused"
+  | Some _, _ ->
+    workspace_notice t ~width ~height "The other editor is hidden; return to the split or make room for both panes"
+  | None, Some id when available t ~width ~height id ->
     let current = focused_view t ~width ~height in
     if View_id.equal current id
     then return_to_document t
     else (
       let t = leave t current in
       { t with host = Host.focus t.host id; controller = Controller.cancel_pending t.controller })
-  | Some _ | None -> { t with host = Host.with_notice t.host "No split view shown" }
+  | None, _ -> { t with host = Host.with_notice t.host "No split view shown" }
 ;;
 
-(* Close the split view from either pane, shown or not (zen, too narrow): the
-   placement is what closes, as [Place_view] to [Hidden] would close it. *)
 let close_split t ~width ~height =
-  match View_registry.split t.views with
-  | Some id -> place_view t ~width ~height id Hidden
-  | None -> { t with host = Host.with_notice t.host "No split view" }
+  match Session.editor_split t.session, View_registry.split t.views with
+  | Some _, _ ->
+    let t = adopt_session_state { t with rows = None }
+      (Session.close_editor_split (session t)) ~width ~height in
+    workspace_notice t ~width ~height "Editor split closed; both file tabs kept"
+  | None, Some id -> place_view t ~width ~height id Hidden
+  | None, None -> { t with host = Host.with_notice t.host "No split view" }
+;;
+
+let show_editor_split t session ~width ~height =
+  let t = adopt_session_state (return_to_document (file_tab t)) session ~width ~height in
+  let text = if Option.is_some (workspace t ~width ~height).second_editor then "Editor split opened"
+    else if suppress_workspace t then "Editor split requested (zen/bare)"
+    else sprintf "Editor split hidden: needs %d editor columns and 4 rows" editor_split_needs in
+  workspace_notice t ~width ~height text
+;;
+
+let split_next_file t ~width ~height =
+  match editor_slot_error t with
+  | Some text -> workspace_notice t ~width ~height text
+  | None ->
+    let session = session t in
+    let active = Option.value_exn (Session.active_id session) in
+    let files = List.map (Session.buffer_labels session) ~f:fst in
+    let earlier, rest = List.split_while files ~f:(fun id -> not (Buffer_id.equal active id)) in
+    match List.hd (List.drop rest 1 @ earlier) with
+    | None -> workspace_notice t ~width ~height "No other file tab; pick a file for the split (Space s o)"
+    | Some id ->
+      (match Session.split_with session id with
+       | Ok session -> show_editor_split t session ~width ~height
+       | Error error -> workspace_notice t ~width ~height (Error.to_string_hum error))
 ;;
 
 let apply_view_command t ~width ~height (view : View_command.t) =
@@ -4426,7 +4604,7 @@ let apply_view_command t ~width ~height (view : View_command.t) =
         then Session.focus_directory session false else session in
       let t = { t with presentation = Bare; bare_return = previous
         ; host = Host.return t.host; paste_buffer = None
-        ; file_picker_activation = false; content_picker_activation = false
+        ; file_picker_activation = None; content_picker_activation = false
         ; rows = None; animation_time = None } in
       adopt_session_state t session ~width ~height)
   | Present_buffers buffer_presentation ->
@@ -4462,7 +4640,12 @@ let apply_view_command t ~width ~height (view : View_command.t) =
   | Open_palette -> open_palette t ~width ~height
   | Open_theme_picker -> open_theme_picker t ~width ~height
   | Open_line_picker -> open_line_picker t ~width ~height
-  | Open_file_picker -> { t with file_picker_activation = true }
+  | Open_file_picker -> { t with file_picker_activation = Some `Open }
+  | Split_file_picker ->
+    (match editor_slot_error t with
+     | None -> { t with file_picker_activation = Some `Split }
+     | Some text -> workspace_notice t ~width ~height text)
+  | Split_next_file -> split_next_file t ~width ~height
   | Open_content_picker -> { t with content_picker_activation = true }
   | Focus_view id ->
     if not (View_registry.installed t.views id)
@@ -4473,7 +4656,7 @@ let apply_view_command t ~width ~height (view : View_command.t) =
     then t
     else if view_visible t id
     then close_view t ~width ~height id
-    else show_hidden t id
+    else show_hidden t ~width ~height id
   | Place_view { view; placement } -> place_named t ~width ~height view placement
   | Focus_other_pane -> focus_other_pane t ~width ~height
   | Swap_split -> { t with split = Workspace.Major_split.swap t.split; rows = None }
@@ -4569,25 +4752,27 @@ let apply_view_command t ~width ~height (view : View_command.t) =
 ;;
 
 let split_shown t ~width ~height =
-  Option.exists (View_registry.split t.views) ~f:(fun id ->
-    Option.is_some (Workspace.minor (workspace t ~width ~height) id))
+  let w = workspace t ~width ~height in
+  Option.is_some w.second_editor
+  || Option.exists (View_registry.split t.views) ~f:(fun id -> Option.is_some (Workspace.minor w id))
 ;;
 
 (* After a resize, say when the split view stopped or started fitting. It stays in
    the split placement either way. [before] is whether it fit the last dimensions. *)
 let split_notice t ~before ~width ~height =
-  match View_registry.split t.views, before with
-  | Some id, Some before when (not (suppress_workspace t)) && Bool.(before <> split_shown t ~width ~height) ->
-    let text =
-      if before
-      then sprintf "%s split hidden: needs %d columns" (view_title t id) split_needs
-      else view_title t id ^ " split restored"
-    in
-    { t with
-      controller =
-        Controller.update_feedback t.controller
-          (Notify { source = "workspace"; scope = None; severity = Info; text; history = false })
-    }
+  match before with
+  | Some before when not (suppress_workspace t) && Bool.(before <> split_shown t ~width ~height) ->
+    let text = match View_registry.split t.views, Session.editor_split t.session with
+      | Some id, _ -> Some (if before
+          then sprintf "%s split hidden: needs %d columns" (view_title t id) split_needs
+          else view_title t id ^ " split restored")
+      | None, Some _ -> Some (if before
+          then sprintf "Editor split hidden: needs %d editor columns and 4 rows" editor_split_needs
+          else "Editor split restored")
+      | None, None -> None in
+    Option.value_map text ~default:t ~f:(fun text ->
+      { t with controller = Controller.update_feedback t.controller
+        (Notify { source = "workspace"; scope = None; severity = Info; text; history = false }) })
   | _ -> t
 ;;
 
@@ -5360,7 +5545,8 @@ let route t ~width ~height key =
             t.file_picker_release ();
             updated := close_file_picker t ~width ~height)
           ~consume:(fun request ->
-            updated := { !updated with file_requests = request :: !updated.file_requests });
+            updated := { !updated with file_requests = request :: !updated.file_requests
+              ; split_picker_origin = t.split_picker_origin });
         !updated
       | Content (Event event), Some picker ->
         File_picker_tile.update picker ~rows:(minor_rows t ~width ~height id) event; t
@@ -5522,6 +5708,147 @@ let release_held t ~width ~height =
     |> synchronize ~width ~height
 ;;
 
+type pointer_pane =
+  { target_buffer : Buffer_id.t
+  ; target_text : Text_buffer.t
+  ; text_rect : Geometry.Rect.t
+  ; target_scroll : Scroll.t
+  ; target_directory : Cobalt_app.Directory_buffer.t option
+  }
+
+let contains (rect : Geometry.Rect.t) ~x ~y =
+  x >= rect.x && x - rect.x < rect.width && y >= rect.y && y - rect.y < rect.height
+;;
+
+let directory_pointer_pane t ~width ~height ~(side : Tile_shell.Layout.t option) =
+  Option.bind (Session.directory_buffer (session t)) ~f:(fun directory ->
+    let pane (ui : t) ~allocation ~reserve_status_row ~buffers_in_status =
+      Some
+        { target_buffer = directory.id
+        ; target_text = Editor.text (Controller.editor ui.controller)
+        ; text_rect = (geometry_in ui ~allocation ~reserve_status_row ~buffers_in_status).text
+        ; target_scroll = fitted_scroll_in ui ~allocation ~reserve_status_row ~buffers_in_status
+        ; target_directory = Some directory
+        } in
+    match side with
+    | Some layout ->
+      pane (surface t ~directory:true) ~allocation:layout.content
+        ~reserve_status_row:false ~buffers_in_status:false
+    | None when Option.is_some (Session.input_directory t.session) && Option.is_none (active_tab_view t) ->
+      let w = workspace t ~width ~height in
+      pane t ~allocation:w.document.rect ~reserve_status_row:w.reserve_status_row
+        ~buffers_in_status:(buffers_in_status_in t w)
+    | None -> None)
+;;
+
+let pointer_pane t ~file_ui ~width ~height ~side ~x ~y =
+  match side with
+  | Some layout when contains layout.Tile_shell.Layout.outer ~x ~y ->
+    Option.filter (directory_pointer_pane t ~width ~height ~side)
+      ~f:(fun pane -> contains pane.text_rect ~x ~y)
+  | _ ->
+    match if Option.is_none side then directory_pointer_pane t ~width ~height ~side else None with
+    | Some pane -> Option.some_if (contains pane.text_rect ~x ~y) pane
+    | None ->
+      List.find_map (editor_panes file_ui ~width ~height) ~f:(fun pane ->
+        if not (contains pane.geometry.text ~x ~y) then None
+        else Some
+          { target_buffer = pane.buffer
+          ; target_text = Editor.text (Controller.editor (file_editor_surface file_ui pane.buffer).controller)
+          ; text_rect = pane.geometry.text
+          ; target_scroll = pane.scroll
+          ; target_directory = None
+          })
+;;
+
+let apply_pointer t ~width ~height ~x ~y ~action =
+  if x < 0 || x >= width || y < 0 || y >= height
+     || not (has_document t) || pasting t
+     || Option.is_some (effective_floating None t ~width ~height)
+     || Option.is_some (Keymap.search_preview (Controller.keymap t.controller))
+  then t
+  else
+    let side = side_layout t ~width ~height in
+    (* Like Frame.prepare, lay out the underlying file surface independently
+       of the directory input owner when the side shell is drawn over it. *)
+    let file_ui = if Option.is_some side then surface t ~directory:false else t in
+    let tab = match action with
+      | `Wheel_up | `Wheel_down -> None
+      | `Left_click ->
+        let covered = Option.exists side ~f:(fun layout -> contains layout.outer ~x ~y) in
+        if covered then None else
+        Option.bind (workspace_tab_rect file_ui (workspace file_ui ~width ~height))
+          ~f:(fun rect ->
+            if not (contains rect ~x ~y) then None
+            else
+              let entries = tab_item_entries file_ui in
+              Option.bind (File_tabs.hit (List.map entries ~f:snd) ~width:rect.width ~column:(x - rect.x))
+                ~f:(fun i -> Option.map (List.nth entries i) ~f:fst)) in
+    let settle t = release_held t ~width ~height |> refit ~width ~height in
+    match action, tab with
+    | `Left_click, Some (File id) ->
+      let t = select_file_tab (dismiss_completion t) ~width ~height id in
+      settle { t with controller = Controller.cancel_pending t.controller; toggle_pending = None }
+    | `Left_click, Some (View _) -> t
+    | _ ->
+      match pointer_pane t ~file_ui ~width ~height ~side ~x ~y with
+      | None -> t
+      | Some pane ->
+        let text = pane.target_text in
+        let scroll = pane.target_scroll in
+        let line_count = Text_buffer.line_count text in
+        match action with
+        | (`Wheel_up | `Wheel_down) as wheel ->
+          (* Do not refit or signal the view host: even background panes retain
+             their complete editor state. Limit the last page without snapping
+             backwards from an existing keyboard scroll past that limit. *)
+          let step = match wheel with `Wheel_up -> -3 | `Wheel_down -> 3 in
+          let limit = Int.max scroll.top (line_count - pane.text_rect.height) in
+          let top = Int.clamp_exn (scroll.top + step) ~min:0 ~max:limit in
+          if top = scroll.top then t
+          else
+            { t with wheel_scrolls = Map.set t.wheel_scrolls ~key:pane.target_buffer
+                ~data:{ scroll with top }
+            ; animation = (if Option.equal Buffer_id.equal (Session.context_id t.session) (Some pane.target_buffer)
+                then Animation.create ~enabled:(Animation.enabled t.animation)
+                else t.animation) }
+        | `Left_click ->
+          let line = scroll.top + (y - pane.text_rect.y) in
+          let placeholder = Option.exists pane.target_directory ~f:(fun d ->
+            List.is_empty d.entries && not (Cobalt_app.Directory_buffer.is_dirty d)) in
+          if line >= line_count || placeholder then t
+          else
+            let start = Text_buffer.line_start text line in
+            let offset = if Option.is_some pane.target_directory then start else
+              let layout = Text_buffer.line_layout text ~width:Cell_map.width line in
+              let column = scroll.left + (x - pane.text_rect.x) in
+              start + Option.value (Cell_layout.Index.pos_of_column layout column)
+                ~default:(Cell_layout.Index.length layout) in
+            let t = dismiss_completion t in
+            let focus = if Option.is_some pane.target_directory && Option.is_some side
+              then directory_id else document_id in
+            let t = if View_id.equal focus (focused_view t ~width ~height)
+              then t else return_to_document t in
+            let session = session t in
+            let session =
+              if Option.equal Buffer_id.equal (Session.context_id session) (Some pane.target_buffer)
+              then session
+              else if Option.is_some pane.target_directory then Session.focus_directory session true
+              else Session.activate session pane.target_buffer |> Or_error.ok_exn in
+            let controller = Option.value_exn (Session.active_controller session) in
+            match Controller.place_cursor controller offset with
+            | Error _ -> t
+            | Ok controller ->
+              let t = adopt_session_state t (Session.replace_active session controller) ~width ~height in
+              settle
+                { t with scroll
+                ; wheel_scrolls = Map.remove t.wheel_scrolls pane.target_buffer
+                ; toggle_pending = None
+                ; snippet = None
+                ; animation = Animation.create ~enabled:(Animation.enabled t.animation)
+                }
+;;
+
 let toggle_owner t ~width ~height =
   if terminal_capturing t then
     if terminal_running t && Option.is_none t.terminal_inspection
@@ -5566,6 +5893,10 @@ let toggle_step text c =
 ;;
 
 let rec apply t ~width ~height (input : Input.t) =
+  match input with
+  | Pointer _ when t.exited -> t, Controller.Status.Exit
+  | Pointer { x; y; action } -> apply_pointer t ~width ~height ~x ~y ~action, Running
+  | _ ->
   let t = match input with
     | Key (Escape | Ctrl 'c') | Key_at { key = (Escape | Ctrl 'c'); _ } | Paste_start -> dismiss_signature t
     | _ -> t in
@@ -5740,14 +6071,28 @@ and apply_running t ~width ~height (input : Input.t) : t * Controller.Status.t =
             (Notify { source = "content picker"; scope = path t; severity = Error; text; history = true }) } in
     release_held t ~width ~height, Running
   | File_picker_accept request ->
-    let t = match Session.open_or_activate ~must_exist:true (session t) request.path with
+    let report (t : t) error =
+      let text = Cobalt_file_picker.Model.Candidate.display_text (Error.to_string_hum error) in
+      { t with host = Host.with_notice t.host text;
+        controller = Controller.update_feedback t.controller
+          (Notify { source = "file picker"; scope = path t; severity = Error;
+            text; history = true }) } in
+    let t = if View_id.equal request.token document_id then
+      match Session.open_or_activate ~must_exist:true (session t) request.path with
       | Ok (session, _) -> adopt_session_state (return_to_document (file_tab t)) session ~width ~height
-      | Error error ->
-        let text = Cobalt_file_picker.Model.Candidate.display_text (Error.to_string_hum error) in
-        { t with host = Host.with_notice t.host text;
-          controller = Controller.update_feedback t.controller
-            (Notify { source = "file picker"; scope = path t; severity = Error;
-              text; history = true }) } in
+      | Error error -> report t error
+    else match t.split_picker_origin with
+      | Some (token, origin) when View_id.equal request.token token && Option.is_none t.file_picker ->
+        let t = { t with split_picker_origin = None } in
+        (match editor_slot_error t with
+         | Some text -> workspace_notice t ~width ~height text
+         | None when not (Option.equal Buffer_id.equal (Some origin) (Session.active_id t.session)) ->
+           workspace_notice t ~width ~height "Split picker's original file is no longer active; nothing opened"
+         | None ->
+           (match Session.split_open_file (session t) request.path with
+            | Ok (session, _) -> show_editor_split t session ~width ~height
+            | Error error -> report t error))
+      | _ -> t in
     release_held t ~width ~height, Running
   | Content_picker_snapshot snapshot ->
     Option.iter t.content_picker ~f:(fun picker ->
@@ -5872,7 +6217,7 @@ and apply_regular_inner t ~width ~height (input : Input.t) =
     | _ -> refit t ~width ~height in
   match input with
   | Resize -> t, Running
-  | Key_at _ | Toggle_tick _ | Terminal _ | Terminal_update _ | Terminal_session_update _ | Terminal_key _ | Terminal_key_at _ | Terminal_tick _ -> assert false
+  | Pointer _ | Key_at _ | Toggle_tick _ | Terminal _ | Terminal_update _ | Terminal_session_update _ | Terminal_key _ | Terminal_key_at _ | Terminal_tick _ -> assert false
   | Source event -> receive_all t ~width ~height [ event ], Running
   | Vcs event -> receive_jobs t ~width ~height [ event ], Running
      | File_preview _ | File_picker_snapshot _ | File_picker_update _ | File_picker_work _ | File_picker_accept _ | Content_picker_accept _ | Line_picker_work _ | Content_picker_snapshot _ -> assert false
@@ -5890,6 +6235,7 @@ and apply_regular_inner t ~width ~height (input : Input.t) =
     and before_placements = View_registry.placements t.views
     and before_presentation = t.presentation in
     let before_buffer = Session.context_id t.session in
+    let before_controller = t.controller in
     let t, status =
       match input with
        | Paste_start ->
@@ -5909,9 +6255,19 @@ and apply_regular_inner t ~width ~height (input : Input.t) =
         | Key key when not (has_document t) ->
           feed t ~width ~height (Key key)
         | Key key -> route ~width ~height t key
-         | Key_at _ | Toggle_tick _ | Terminal _ | Terminal_update _ | Terminal_session_update _ | Terminal_key _ | Terminal_key_at _ | Terminal_tick _ -> assert false
+         | Pointer _ | Key_at _ | Toggle_tick _ | Terminal _ | Terminal_update _ | Terminal_session_update _ | Terminal_key _ | Terminal_key_at _ | Terminal_tick _ -> assert false
        | Animation_tick _ | Resize | Source _ | Vcs _ | File_preview _ | File_picker_snapshot _ | File_picker_update _ | File_picker_work _ | File_picker_accept _ | Content_picker_accept _ | Line_picker_work _ | Content_picker_snapshot _ -> assert false
     in
+    let t =
+      let before = Controller.editor before_controller and after = Controller.editor t.controller in
+      if Option.equal Buffer_id.equal before_buffer (Session.context_id t.session)
+         && (Controller.motion_serial before_controller <> Controller.motion_serial t.controller
+             || Editor.cursor before <> Editor.cursor after
+             || Editor.revision before <> Editor.revision after
+             || not (Controller.Document_id.equal (Controller.document_id before_controller)
+                       (Controller.document_id t.controller)))
+      then follow_cursor t
+      else t in
     let t = release_held t ~width ~height in
     let t = refit t ~width ~height in
     let after = cursor_position t ~width ~height in
@@ -5988,7 +6344,11 @@ let adopt_session t session ~width ~height =
 ;;
 
 let take_file_picker_activation t =
-  { t with file_picker_activation = false }, t.file_picker_activation
+  { t with file_picker_activation = None }, t.file_picker_activation
+;;
+
+let is_split_file_request (request : View_id.t Cobalt_file_picker.Model.Request.t) =
+  String.is_prefix (View_id.to_string request.token) ~prefix:split_picker_token_prefix
 ;;
 
 let take_content_picker_activation t =
@@ -6074,7 +6434,7 @@ let receive_harness t ~width ~height ~request result =
 let activate_buffer t ~width ~height id =
   let t = finalize_completion t in
   Or_error.map (Session.activate (session t) id) ~f:(fun session ->
-    adopt_session (show_file_tab t) session ~width ~height)
+    adopt_session (return_to_document (file_tab t)) session ~width ~height)
 ;;
 let show_directory ?select t ~width ~height path =
   let t = finalize_completion t in

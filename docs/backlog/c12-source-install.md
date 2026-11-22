@@ -1,6 +1,6 @@
 # C12 — Install Cobalt from a clone
 
-**Status:** Proposed.
+**Status:** Implemented; isolated acceptance passed.
 
 ## Why
 
@@ -83,3 +83,33 @@ from the checkout), not leave users guessing at a compiler error.
 **Out of scope:** Bootstrapping opam or OxCaml from scratch, downloading
 prebuilt releases from the installer, distro packages, and publishing release
 artifacts.
+
+## Evidence
+
+- [`install.sh`](../../install.sh) builds `@install` in a standard `_build`
+  and installs the Dune `cobalt` package. The [source installation guide](../source-install.md)
+  covers the supported switch, dependency setup, PATH and alias migration,
+  upgrade, and package-specific removal.
+- Verified with opam 2.5.0, OxCaml `5.2.0+ox` (`oxcaml-compiler.5.2.0minus39`),
+  Jane Street `v0.18~preview.130.106+341`, Dune 3.24.2, GCC and `gzip`.
+  [`source_install_smoke.py`](../../scripts/source_install_smoke.py) passed on a
+  private copy of the integrated C10/C11/C12 working tree, including untracked
+  source files and the optional modules, using `/var/tmp` on ext4.
+
+  ```sh
+  scratch=$(mktemp -d /var/tmp/cobalt-c12.XXXXXX)
+  python3 -B scripts/source_install_smoke.py --switch 5.2.0+ox --jobs 4 --scratch-dir "$scratch"
+  ```
+
+- The smoke built from source with an isolated HOME, installed both native
+  binaries into the default and custom prefixes, evaluated the custom PATH
+  guidance, and reran the installer. With the checkout moved and the switch
+  absent from the runtime PATH, it listed themes, ran `cobalt-open --help`,
+  opened a directory in a PTY, edited and saved a file, and quit. A separate
+  consumer linked `cobalt.hosted` and `cobalt.terminal` from the prefix and
+  passed the hosted smoke using `OCAMLPATH`.
+- Failure coverage includes malformed arguments, unavailable opam/switch,
+  missing build tools, an unwritable or blocked prefix, and an intentional
+  compiler error that left the previous install intact. Uninstall preserved
+  unrelated prefix files and editor configuration; shell startup files and
+  opam switch metadata remained unchanged.

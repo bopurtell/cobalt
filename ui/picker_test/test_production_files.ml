@@ -13,8 +13,9 @@ let%expect_test "batched picker activation routes following keys and cancel to t
   let contents = Cobalt_content_picker_host.Runtime.create () in
   let activate ui =
     let ui, file = Ui_state.take_file_picker_activation ui in
-    let ui = if file then Cobalt_file_picker_host.Runtime.open_picker files ui
-      ~root ~width:100 ~height:30 |> Or_error.ok_exn else ui in
+    let ui = match file with None -> ui | Some intent ->
+      Cobalt_file_picker_host.Runtime.open_picker ~split:(Poly.equal intent `Split) files ui
+        ~root ~width:100 ~height:30 |> Or_error.ok_exn in
     let ui, content = Ui_state.take_content_picker_activation ui in
     if content then Cobalt_content_picker_host.Runtime.open_picker contents ui
       ~root ~width:100 ~height:30 |> Or_error.ok_exn else ui in

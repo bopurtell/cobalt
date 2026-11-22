@@ -42,6 +42,19 @@ verification, optional runtime tools and remaining distribution-audit work.
 `cobalt.opam` is generated from `dune-project`; package metadata changes belong in
 `dune-project`.
 
+For a regular user install, see [Install Cobalt from source](source-install.md).
+The opt-in installer smoke builds from a fresh private source copy, keeps HOME
+and XDG state private, and uses your existing switch read-only. It exercises the
+real installed commands and checks the separate hosted consumer (requires
+`bonsai_test` in that switch) and a terminal edit from an unrelated directory:
+
+```sh
+python3 -B scripts/source_install_smoke.py --switch 5.2.0+ox --jobs 4
+```
+
+This Linux smoke uses Python 3.11+ and PTYs. Use `--scratch-dir` to choose a
+filesystem with enough space for the fresh build.
+
 Keep the combined job pool at **20 or fewer** across concurrent commands. The
 commands here leave headroom; reduce `-j` further when other builds are running.
 

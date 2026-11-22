@@ -108,21 +108,32 @@ use reproducible terminal-frame captures; see the
 
 ## Getting started
 
-### Build from source
+### Install from a clone
 
-With the [development toolchain](docs/development.md#toolchain) available:
+With [opam, a compatible OxCaml switch, and the build dependencies](docs/source-install.md#prerequisites):
 
 ```sh
-dune build -j 12 bin/cobalt.exe
-_build/default/bin/cobalt.exe .
+git clone https://github.com/bopurtell/cobalt.git
+cd cobalt
+./install.sh
+export PATH="$HOME/.local/bin:$PATH"
+cd /path/to/your/project
+cobalt .
 ```
 
-Open a directory to browse a project, or pass a file path to edit it. If you have
-`cobalt` on your `PATH`:
+The installer copies `cobalt`, `cobalt-open`, and the public libraries to
+`$HOME/.local` by default. No `sudo` or active opam shell is needed to run the
+installed editor. To upgrade, update your clone and rerun `./install.sh` with
+the same prefix. See [source installation](docs/source-install.md) for custom
+prefixes and old `co` aliases, and [uninstall](docs/source-install.md#uninstall)
+to remove just Cobalt from a shared prefix.
+
+Open a directory to browse a project, or pass a file path to edit it:
 
 ```sh
 cobalt completion/snippet.ml   # Vim Classic theme, Zen layout
 cobalt --workspace .           # Full tile workspace
+cobalt --mouse .               # Opt in to editor clicks and wheel scrolling
 cobalt --bare core/editor.ml   # Borderless editing (also --superzen)
 cobalt --theme glacier .       # Choose a different theme
 cobalt --list-themes           # Browse available palettes
@@ -132,6 +143,9 @@ For blue palettes, try `cobalt-room`, `cobalt-midnight` (deep navy),
 `cobalt-electric` (vivid accents), `cobalt-mist` (soft slate blue), or
 `cobalt-frost` (light icy blue). Preview them in the theme picker with `Space v T`,
 or launch with `cobalt --theme cobalt-midnight .`.
+
+Without `--mouse`, selection and copying stay with your terminal. See
+[Mouse input](docs/editor_reference.md#mouse-input) for supported gestures.
 
 Use [`--main-editor` and `cobalt-open`](bin/MAIN_EDITOR.md) to send a file
 location to a specific running Cobalt session.

@@ -21,6 +21,8 @@
 
 ## Building and understanding Cobalt
 
+- [Install from source](source-install.md): toolchain, user-owned prefixes,
+  upgrades, and uninstall.
 - [Release packaging](releases.md): Linux tarballs, runtime requirements,
   installation, checksums and source/license audit status.
 - [Development](development.md): toolchain, dependencies, builds, tests, and smoke suites.

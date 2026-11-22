@@ -78,6 +78,7 @@ end
 
 type t =
   { document : Pane.t
+  ; second_editor : Geometry.Rect.t option
   ; status : Pane.t option
   ; minors : Pane.t list
   ; gaps : Geometry.Rect.t list
@@ -114,6 +115,7 @@ let allocate_pair (prefs : Prefs.t) ~(allocation : Geometry.Rect.t) =
   if not prefs.status_visible || not fits
   then
     { document = { id = Document; rect = allocation }
+    ; second_editor = None
     ; status = None
     ; minors = []
     ; gaps = []
@@ -141,6 +143,7 @@ let allocate_pair (prefs : Prefs.t) ~(allocation : Geometry.Rect.t) =
       else { allocation with y = allocation.y + start; height = size }
     in
     { document = { id = Document; rect = rect document_start document_size }
+    ; second_editor = None
     ; status = Some { id = Status; rect = rect status_start status_size }
     ; minors = []
     ; gaps =
@@ -201,15 +204,13 @@ let allocate_band ?(minors = []) prefs ~(allocation : Geometry.Rect.t) =
     { workspace with minors; gaps = workspace.gaps @ gaps })
 ;;
 
-(* Divide the document's allocation between the active tab and the split view. *)
-let allocate_split t (id, (request : Major_split.t)) =
-  let area = t.document.rect in
+let divide (area : Geometry.Rect.t) (request : Major_split.t) ~min_width ~min_height =
   let available = area.width - gap in
-  if available < min_document_width + min_split_width || area.height < min_band_height
-  then t
+  if available < min_document_width + min_width || area.height < min_height
+  then None
   else (
     let size =
-      Int.clamp_exn (available * request.percent / 100) ~min:min_split_width
+      Int.clamp_exn (available * request.percent / 100) ~min:min_width
         ~max:(available - min_document_width)
     in
     let document_width = available - size in
@@ -218,11 +219,28 @@ let allocate_split t (id, (request : Major_split.t)) =
       | Right -> area.x + document_width + gap, area.x, area.x + document_width
       | Left -> area.x, area.x + size + gap, area.x + size
     in
-    { t with
-      document = { t.document with rect = { area with x = document_x; width = document_width } }
-    ; minors = t.minors @ [ { Pane.id = Minor id; rect = { area with x = view_x; width = size } } ]
-    ; gaps = t.gaps @ [ { area with x = gap_x; width = gap } ]
-    })
+    Some ({ area with x = document_x; width = document_width },
+      { area with x = view_x; width = size }, { area with x = gap_x; width = gap }))
+;;
+
+(* Divide the document's allocation between the active tab and the split view. *)
+let allocate_split t (id, request) =
+  match divide t.document.rect request ~min_width:min_split_width ~min_height:min_band_height with
+  | None -> t
+  | Some (document, view, gap) ->
+    { t with document = { t.document with rect = document }
+    ; minors = t.minors @ [ { Pane.id = Minor id; rect = view } ]
+    ; gaps = t.gaps @ [ gap ] }
+;;
+
+let allocate_editors t ~secondary_focused request =
+  (* Shared tabs, a pane title, a text row, and potentially a feedback row. *)
+  match divide t.document.rect request ~min_width:min_document_width ~min_height:4 with
+  | None -> t
+  | Some (primary, secondary, gap) ->
+    let focused, other = if secondary_focused then secondary, primary else primary, secondary in
+    { t with document = { t.document with rect = focused }
+    ; second_editor = Some other; gaps = t.gaps @ [ gap ] }
 ;;
 
 let allocate_side ~minors ?side prefs ~(allocation : Geometry.Rect.t) =
@@ -237,9 +255,13 @@ let allocate_side ~minors ?side prefs ~(allocation : Geometry.Rect.t) =
   | _ -> allocate_band ~minors prefs ~allocation
 ;;
 
-let allocate ?(minors = []) ?side ?split prefs ~(allocation : Geometry.Rect.t) =
+let allocate ?(minors = []) ?side ?split ?editors prefs ~(allocation : Geometry.Rect.t) =
   let allocation = { allocation with width = Int.max 0 allocation.width; height = Int.max 0 allocation.height } in
-  Option.fold split ~init:(allocate_side ~minors ?side prefs ~allocation) ~f:allocate_split
+  let base = allocate_side ~minors ?side prefs ~allocation in
+  match split, editors with
+  | Some split, _ -> allocate_split base split
+  | None, Some (secondary_focused, request) -> allocate_editors base ~secondary_focused request
+  | None, None -> base
 ;;
 
 let minor t id =

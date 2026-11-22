@@ -268,6 +268,8 @@ let default =
     ; place 'b' Band
     ; place 'h' Hidden
     ; split 'f' Focus_other_pane
+    ; split 'n' Split_next_file
+    ; split 'o' Split_file_picker
     ; split 'x' Swap_split
     ; split 'c' Close_split
     ; split '-' (Adjust_split (-10))

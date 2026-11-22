@@ -20,8 +20,8 @@ Keep fixture exchanges and harness instructions with their adapter.
 | [C5: Companion overview](#c5--optional-silver-module-and-overview-tile) | Closed | Cobalt-first monitoring against a real Silver endpoint |
 | [C6: Test quick launch](#c6--run-a-silver-test-from-the-editor) | Closed | WB-093: tile `R` and exact `test`; no stage launch |
 | [C7: Discover/connect wizard](#c7--discover-and-connect-to-a-shared-silver-project) | Live embedded + attached verified | WB-094: two-app acceptance passed |
-| [C8: Stage checklist and aliases](#c8--stage-checklist-and-palette-aliases) | Fixture verified | WB-095: native two-window comparison pending |
-| [C9: Flow kickoff tile](#c9--flow-kickoff-tile) | Fixture verified | WB-095: live plan and accepted workflow comparison pending |
+| [C8: Stage checklist and aliases](#c8--stage-checklist-and-palette-aliases) | Live parity verified | WB-095: checklist and exact aliases matched native Silver across seven runs |
+| [C9: Flow kickoff tile](#c9--flow-kickoff-tile) | Live parity verified | WB-095: exact nondefault preview reserved once; stale previews did not submit |
 
 **Parallel order:** start C7's picker against fixture advertisements while
 C8 and C9 start against a fake launch service with an explicit project binding.

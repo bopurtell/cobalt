@@ -40,7 +40,7 @@ let%expect_test "opening lists available commands and selects the first" =
       harness.new-sv
       harness.new-hardcaml
       harness.new-ocaml
-      ... 107 more
+      ... 109 more
     |}]
 ;;
 
@@ -152,7 +152,7 @@ let%expect_test "no matches: no selection, navigation and accept do nothing" =
     {|
     query: ""
     > file.save
-      ... 110 more
+      ... 112 more
     |}]
 ;;
 

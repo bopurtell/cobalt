@@ -58,6 +58,8 @@
       Normal  Space v p h/l/k/j      View Position_status Left/Right/Above/Below
       Normal  Space v p - / + / =    View Adjust_status_size -2 / 2 / 2; count repeats
       Normal  Space s - / + / =      View Adjust_split -10 / 10 / 10; count repeats
+      Normal  Space s n / o          View Split_next_file / Split_file_picker
+      Normal  Space s f / x          View Focus_other_pane / Swap_split
       Normal  Space s c              View Close_split
       Normal  Space d - / +          View Adjust_directory_size -4 / 4; count repeats
        Normal  Space v z              View Toggle_zen

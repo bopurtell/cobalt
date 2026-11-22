@@ -184,6 +184,7 @@ val run
     -> ?document_decorations:Document_decoration_host.Factory.t
     -> ?document_decorations_enabled:bool
     -> ?smear_enabled:bool (** Disabled by default; Space v s toggles at runtime. *)
+    -> ?mouse:bool (** Opt in to standalone terminal mouse reporting; false by default. *)
    -> ?zen:bool (** Start in Zen; false by default. [bare] takes precedence. *)
    -> ?bare:bool (** Start in borderless document presentation. *)
    -> ?theme:Cobalt_theme.Theme.t (** Initial theme; Space v T previews and chooses themes. *)

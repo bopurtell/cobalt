@@ -4,6 +4,9 @@ open Cobalt_input
 module Feedback = Cobalt_error.Error
 
 type buffer = { id : Buffer_id.t; controller : Controller.t; generation : int }
+(* The active file remains the single input owner. [other] is the other
+   retained file, and [active_secondary] assigns each ID to its stable slot. *)
+type editor_split = { other : Buffer_id.t; active_secondary : bool }
 type placement = Major | Side
 type directory_presentation =
   { buffer : Buffer_id.t; placement : placement; target_group : Group_id.t; return_target : Buffer_id.t option }
@@ -27,6 +30,7 @@ type t =
   ; file_lifetimes : unit ref
   ; resources : Buffer_id.t String.Map.t
   ; active : Buffer_id.t option
+  ; editor_split : editor_split option
   ; next_id : int
   ; next_generation : int
   ; feedback : Feedback.t
@@ -65,6 +69,7 @@ let reindex t bs =
   { t with buffer_index; buffers }
 ;;
 let active_id t = t.active
+let editor_split t = t.editor_split
 let group_id _ = Group_id.of_int 1
 let startup_directory t = t.startup_directory
 let project_root t = t.project_root
@@ -130,7 +135,8 @@ let create ?(cwd = Core_unix.getcwd ()) ?project_root ?keymap_config ?(directory
    ; source_changes = Buffer_id.Set.of_list (List.map bs ~f:(fun b -> b.id))
    ; file_lifetimes = ref ()
   ; resources = (if directory_start then String.Map.empty else Option.value_map path ~default:String.Map.empty ~f:(fun p -> String.Map.singleton (Resource.normalize ~cwd p) (Buffer_id.of_int 1)))
-   ; active = (if directory_start then None else Some (Buffer_id.of_int 1)); next_id = 2; next_generation = 2; feedback = Controller.feedback controller
+    ; active = (if directory_start then None else Some (Buffer_id.of_int 1))
+    ; editor_split = None; next_id = 2; next_generation = 2; feedback = Controller.feedback controller
   ; register = Editor.unnamed_register (Controller.editor controller); clipboard = None
   ; saved = []; directory_changes = []; closed = []; exited = false; empty_keymap = Keymap.create keymap_config
    ; directories; directory = (if directory_start then Some (Buffer_id.of_int 1) else None)
@@ -357,11 +363,13 @@ let context_exit editor =
   | Normal -> None
 ;;
 
-let finish_context t =
+let finish_context ?(preserve_visual = false) t =
   match active_controller t with
   | None -> t
   | Some c ->
-    let command = context_exit (Controller.editor c) in
+    let command = match context_exit (Controller.editor c) with
+      | Some Exit_visual when preserve_visual && not t.directory_focused -> None
+      | command -> command in
     let c = match command with None -> c | Some command -> let c, _, _ = Controller.dispatch (install t c) [ Editor command ] in c in
     replace_active t (Controller.cancel_pending c)
 ;;
@@ -372,13 +380,17 @@ let activate t id =
   | None -> Or_error.error_string "Buffer is not open"
    | Some _ when Option.equal Buffer_id.equal t.active (Some id) && not t.directory_focused -> Ok t
   | Some _ ->
-    let t = finish_context t in
-    let t = { t with active = Some id; directory = (match t.placement with Major -> None | Side -> t.directory)
-      ; directory_focused = false; empty_keymap = Keymap.reset t.empty_keymap } in
+     let t = finish_context ~preserve_visual:(Option.is_some t.editor_split) t in
+     let editor_split = match t.editor_split with
+       | Some split when Buffer_id.equal split.other id ->
+         Some { other = Option.value_exn t.active; active_secondary = not split.active_secondary }
+       | split -> split in
+     let t = { t with active = Some id; editor_split; directory = (match t.placement with Major -> None | Side -> t.directory)
+       ; directory_focused = false; empty_keymap = Keymap.reset t.empty_keymap } in
     Ok (replace_active t (Controller.cancel_pending (install t (Option.value_exn (find t id)))))
 ;;
 
-let open_or_activate_with ~must_exist ~open_failed ~validate t path =
+let open_or_activate_with ?(activate = activate) ~must_exist ~open_failed ~validate t path =
   let path = normalize t path in
   let activate t id =
     Result.map_error (activate t id) ~f:open_failed
@@ -403,7 +415,9 @@ let open_or_activate_with ~must_exist ~open_failed ~validate t path =
            ; file_lifetimes = ref ()
            ; source_changes = Set.add t.source_changes id
            ; resources = Map.set t.resources ~key:path ~data:id; next_id = t.next_id + 1; next_generation = t.next_generation + 1 } in
-          activate t id)
+          (match activate t id with
+           | Ok _ as result -> result
+           | Error _ as result -> Controller.close controller; result))
 ;;
 
 let open_or_activate ?(must_exist = false) ?(validate = fun _ -> Ok ()) t path =
@@ -411,6 +425,30 @@ let open_or_activate ?(must_exist = false) ?(validate = fun _ -> Ok ()) t path =
   let validate controller = Or_error.join (Or_error.try_with (fun () -> validate controller)) in
   open_or_activate_with ~must_exist ~open_failed:Fn.id ~validate t path
 ;;
+
+let split_with t id =
+  match t.active with
+  | None -> Or_error.error_string "Open a file before splitting"
+  | Some active when Buffer_id.equal active id ->
+    Or_error.error_string "Choose a different file for the second editor"
+  | Some _ when Option.is_some t.editor_split ->
+    Or_error.error_string "Two editors are already open; select a tab in the focused pane"
+  | Some _ ->
+    (* [activate] will swap the active and other identities, keeping the first file
+       in the primary slot, and preserving its Visual selection. *)
+    activate { t with editor_split = Some { other = id; active_secondary = false } } id
+;;
+
+let split_open_file t path =
+  open_or_activate_with ~activate:split_with ~must_exist:true ~open_failed:Fn.id
+    ~validate:(fun _ -> Ok ()) t path
+;;
+
+let close_editor_split t = { t with editor_split = None }
+
+(* This is a drawing snapshot; it must not run modal transitions or mutate the
+   stored owner of either pane. *)
+let editor_surface t id = { t with active = Some id; directory_focused = false }
 
 module Open_location = struct
   type position = { line : int; column : int }
@@ -495,7 +533,7 @@ let show_directory ?select t path =
     else match cached with Some d -> Ok d | None ->
     Directory_buffer.load ~config:t.directory_config ~id:(Buffer_id.of_int t.next_id) ~path ~cell_width:t.cell_width ~keymap_config:t.keymap_config () in
   Or_error.map loaded ~f:(fun d ->
-    let t = finish_context t in
+    let t = finish_context ~preserve_visual:(Option.is_some t.editor_split) t in
     let d = if Option.is_none cached then d else
       find_directory t d.id |> Option.value_exn in
     let d = Option.value_map select ~default:d ~f:(Directory_buffer.select d) in
@@ -515,7 +553,8 @@ let update_directory t d =
    selection or editing state. Only explicit file opening finishes Visual. *)
 let focus_directory t focused =
   let leaving_insert = Option.exists (active_controller t) ~f:(fun c -> Mode.equal (Editor.mode (Controller.editor c)) Insert) in
-  let t = if (focused && not t.directory_focused) || leaving_insert then finish_context t else t in
+  let t = if (focused && not t.directory_focused) || leaving_insert
+    then finish_context ~preserve_visual:(Option.is_some t.editor_split) t else t in
   let t = match active_controller t with None -> t | Some c -> replace_active t (Controller.cancel_pending c) in
   let focused = focused && Option.is_some t.directory in
   let t = { t with directory_focused = focused } in
@@ -799,14 +838,19 @@ let close_buffer t id ~force =
     let order = List.filter t.order ~f:(fun current -> not (Buffer_id.equal current id)) in
     let buffer_index = Map.remove t.buffer_index id in
     let buffers = snapshot buffer_index in
-    let active = if Option.equal Buffer_id.equal t.active (Some id)
-      then (if List.is_empty order then None else List.nth order (Int.min index (List.length order - 1))) else t.active in
+     let active = if was_active then
+       match t.editor_split with
+       | Some split -> Some split.other
+       | None -> List.nth order (Int.min index (List.length order - 1))
+       else t.active in
+     let editor_split = Option.filter t.editor_split ~f:(fun split ->
+       not (was_active || Buffer_id.equal split.other id)) in
     let resources = Option.value_map (Editor.path (Controller.editor c)) ~default:t.resources ~f:(fun path -> Map.remove t.resources path) in
     let feedback = Option.value_map (Editor.path (Controller.editor c)) ~default:t.feedback ~f:(fun resource ->
       List.fold (Feedback.Diagnostics.collections (Feedback.diagnostics t.feedback)) ~init:(Feedback.forget_resource t.feedback resource)
         ~f:(fun feedback collection -> if String.equal (normalize t collection.resource) resource
           then Feedback.forget_resource feedback collection.resource else feedback)) in
-    let t = { t with order; buffer_index; buffers; labels = labels buffers; resources; active; feedback
+     let t = { t with order; buffer_index; buffers; labels = labels buffers; resources; active; editor_split; feedback
       ; file_lifetimes = ref ()
       ; source_changes = Set.add t.source_changes id
       ; empty_keymap = (if was_active then Keymap.reset t.empty_keymap else t.empty_keymap)

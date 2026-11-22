@@ -190,7 +190,8 @@ let overlay_floating rows (layer : Floating_layer.t) ~focused =
     else Span.overlay row ~x:outer.x ~width:outer.width layer_rows.(y - outer.y))
 ;;
 
-let prepare_document ?highlights ?decorations ?allocation ?reserve_status_row ?floating ui ~width ~height =
+let rec prepare_document ?highlights ?decorations ?allocation ?reserve_status_row ?floating
+    ?(inactive_editor = false) ?split_tabs ui ~width ~height =
   let width = Int.max 0 width
   and height = Int.max 0 height in
   let floating = floating_layer ?allocation ?floating ui ~width ~height in
@@ -215,6 +216,8 @@ let prepare_document ?highlights ?decorations ?allocation ?reserve_status_row ?f
   in
   let explicit_allocation = Option.is_some allocation in
   let workspace = Ui_state.workspace ui ~width ~height in
+  let split_tabs = if explicit_allocation then split_tabs else Ui_state.split_tabs ui workspace in
+  let in_editor_split = Option.is_some split_tabs in
   let buffers_in_status = not explicit_allocation && Ui_state.buffers_in_status ui ~width ~height in
   let pane_relative = Option.is_some allocation || Option.is_some workspace.status
     || not (List.is_empty workspace.minors)
@@ -260,8 +263,8 @@ let prepare_document ?highlights ?decorations ?allocation ?reserve_status_row ?f
   in
   let line_count = Text_buffer.line_count text in
   let cursor_line = Editor.cursor_line editor in
-  let geometry = Ui_state.geometry_in ~buffers_in_status ui ~allocation ~reserve_status_row in
-  let scroll = Ui_state.fitted_scroll_in ~buffers_in_status ui ~allocation ~reserve_status_row in
+  let geometry = Ui_state.geometry_in ~buffers_in_status ?split_tabs ui ~allocation ~reserve_status_row in
+  let scroll = Ui_state.fitted_scroll_in ~buffers_in_status ?split_tabs ui ~allocation ~reserve_status_row in
   let { Geometry.tile
       ; border
       ; padding
@@ -276,7 +279,7 @@ let prepare_document ?highlights ?decorations ?allocation ?reserve_status_row ?f
     geometry
   in
   let fields = Status.fields ui in
-  let title = List.find_map areas ~f:(fun area ->
+  let title = if in_editor_split then None else List.find_map areas ~f:(fun area ->
     match area.Geometry.Area.layout with
     | Border_title -> Some (Status.render area fields)
     | Status_row -> None) in
@@ -284,7 +287,11 @@ let prepare_document ?highlights ?decorations ?allocation ?reserve_status_row ?f
   let title_has_path = Option.exists title ~f:(List.exists ~f:(fun span ->
     not (Style.equal span.Span.style Border))) in
   let buffers = Ui_state.tab_items ui in
-  let tab_row = Option.map (Ui_state.tab_rect ~buffers_in_status ui ~allocation) ~f:(fun rect ->
+  let tab_rect =
+    if inactive_editor then None
+    else if in_editor_split then Ui_state.workspace_tab_rect ui workspace
+    else Ui_state.tab_rect ~buffers_in_status ui ~allocation in
+  let tab_row = Option.map tab_rect ~f:(fun rect ->
     rect, File_tabs.render_items buffers ~width:rect.width) in
   let directory = Session.input_directory (Ui_state.session ui) in
   let directory_label (d : Cobalt_app.Directory_buffer.t) ~width ~show_path =
@@ -312,7 +319,8 @@ let prepare_document ?highlights ?decorations ?allocation ?reserve_status_row ?f
   (* A directory's path belongs in the title or its fallback header, not also in
      the compact status row or separate Status tile. File status is unchanged. *)
   let status_fields =
-    if Option.is_some directory && (title_has_path || Option.is_some header)
+    if inactive_editor then []
+    else if in_editor_split || (Option.is_some directory && (title_has_path || Option.is_some header))
     then List.filter fields ~f:(fun field ->
       not (Status_field.Id.equal field.Status_field.id Filename))
     else fields
@@ -328,6 +336,21 @@ let prepare_document ?highlights ?decorations ?allocation ?reserve_status_row ?f
   (* Each minor pane's content comes from its adapter; only the focused view shows the
      host's capture notice and pending prefix. *)
   let focused_view = Ui_state.focused_view ?floating:floating_view ui ~width ~height in
+  let editor_focused = not inactive_editor && Cobalt_tile.View_id.equal focused_view Ui_state.document_id in
+  let editor_header = Option.map split_tabs ~f:(fun tabs ->
+    let rect = { allocation with y = allocation.y + Bool.to_int tabs; height = 1 } in
+    let label = Option.value_map (Session.active_id (Ui_state.session ui))
+      ~default:"[unnamed]" ~f:(fun id ->
+        Option.value (List.Assoc.find (Session.buffer_labels (Ui_state.session ui)) id ~equal:Cobalt_app.Buffer_id.equal)
+          ~default:"[unnamed]") in
+    let suffix = if Controller.is_missing (Ui_state.controller ui) then " [missing]"
+      else if Editor.is_dirty editor then " [+]" else "" in
+    let style : Style.t = if editor_focused then Title else Hint in
+    let marker = if editor_focused then "> " else "  " in
+    let spans = Span.create style marker ~width:2 ::
+      Span.keep_right (Span.of_text (label ^ suffix) ~style ~special:Title_special)
+        ~n:(rect.width - 2) ~marker_style:Title_special in
+    rect, spans @ [ Span.blank Status (rect.width - Span.total_width spans) ]) in
   let hotkey_hints = Ui_state.hotkey_hints ui in
   let view_tile id (layout : Tile_shell.Layout.t) =
     let width = layout.content.width and rows = layout.content.height in
@@ -352,6 +375,15 @@ let prepare_document ?highlights ?decorations ?allocation ?reserve_status_row ?f
     | Document | Status -> None
     | Minor id when Cobalt_tile.View_id.equal id Ui_state.directory_id -> None
     | Minor id -> Some (view_tile id (Option.value_exn (Ui_state.minor_layout ui ~width ~height id)))) in
+  let second_editor =
+    if explicit_allocation then None else
+    Option.map2 workspace.second_editor (Session.editor_split (Ui_state.session ui)) ~f:(fun rect split ->
+      let width = rect.width and height = rect.height in
+      let local = { rect with x = 0; y = 0 } in
+      let render = prepare_document ~inactive_editor:true ?split_tabs ~allocation:local
+        ~reserve_status_row (Ui_state.file_editor_surface ui split.other) ~width ~height in
+      let frame = render (Animation.create ~enabled:false) in
+      rect, Array.of_list frame.rows) in
   let search =
     match Keymap.search_preview (Controller.keymap (Ui_state.controller ui)) with
     | Some query when not (String.is_empty query) -> Some (query, false, Editor.Search_case.(match Editor.search_case editor with Sensitive -> true | Insensitive -> false | Smart -> String.exists query ~f:(fun c -> Char.(c >= 'A' && c <= 'Z'))), None)
@@ -445,7 +477,7 @@ let prepare_document ?highlights ?decorations ?allocation ?reserve_status_row ?f
   in
   (* A block edge inside a TAB highlights only the TAB's cells within the block, so
      the TAB is drawn as separate runs of spaces at the edges. *)
-  let split_tabs glyphs ~edges =
+  let split_tab_glyphs glyphs ~edges =
     Array.concat_map glyphs ~f:(fun (glyph : Cell_map.Glyph.t) ->
       match glyph.kind with
       | Plain | Escape -> [| glyph |]
@@ -599,7 +631,7 @@ let prepare_document ?highlights ?decorations ?allocation ?reserve_status_row ?f
             | Some (col, _) -> [ col; col + 1 ]
             | None -> []
           in
-          let glyphs = if List.is_empty edges then glyphs else split_tabs glyphs ~edges in
+           let glyphs = if List.is_empty edges then glyphs else split_tab_glyphs glyphs ~edges in
            Span.of_glyphs
               ?syntax
               ?decoration:decoration_style
@@ -635,7 +667,7 @@ let prepare_document ?highlights ?decorations ?allocation ?reserve_status_row ?f
   let rows =
     List.init height ~f:(fun y ->
       let document =
-        match header with
+        match Option.first_some editor_header header with
         | Some (rect, spans) when y = rect.y -> [ rect, spans ]
         | _ -> match tab_row, area_on_row Status_row y with
         | Some (rect, spans), _ when y = rect.y -> [ rect, spans ]
@@ -670,7 +702,11 @@ let prepare_document ?highlights ?decorations ?allocation ?reserve_status_row ?f
       let minors = List.filter_map minor_tiles ~f:(fun (rect, rows) ->
         if y >= rect.y && y < rect.y + rect.height then Some (rect, rows.(y - rect.y))
         else None) in
-      let segments = List.sort (document @ status @ minors) ~compare:(fun (a, _) (b, _) -> Int.compare a.x b.x) in
+      let other = match second_editor with
+        | Some (rect, rows) when y >= rect.y && y < rect.y + rect.height
+             && not (Option.exists tab_rect ~f:(fun tabs -> tabs.y = y)) -> [ rect, rows.(y - rect.y) ]
+        | Some _ | None -> [] in
+      let segments = List.sort (document @ status @ minors @ other) ~compare:(fun (a, _) (b, _) -> Int.compare a.x b.x) in
       let spans, right = List.fold segments ~init:([], 0) ~f:(fun (spans, right) (rect, content) ->
         spans @ [ Span.blank Backdrop (rect.x - right) ] @ content, rect.x + rect.width)
       in
@@ -683,7 +719,7 @@ let prepare_document ?highlights ?decorations ?allocation ?reserve_status_row ?f
       overlay_floating rows layer ~focused:(Cobalt_tile.View_id.equal focused_view layer.id)
   in
   let document_cursor =
-    Option.exists (Ui_state.cursor_owner ?floating:floating_view ui ~width ~height)
+    not inactive_editor && Option.exists (Ui_state.cursor_owner ?floating:floating_view ui ~width ~height)
       ~f:(Cobalt_tile.View_id.equal Ui_state.document_id) in
   let covered_by_float (x, y) =
     Option.exists floating ~f:(fun layer ->
@@ -692,7 +728,8 @@ let prepare_document ?highlights ?decorations ?allocation ?reserve_status_row ?f
       && y >= rect.y && y < rect.y + rect.height)
   in
   let cursor =
-    if not document_cursor
+    if inactive_editor then None
+    else if not document_cursor
     then
       (* A focused minor view's cursor, the one other terminal-cursor owner. *)
       let position =
@@ -721,7 +758,7 @@ let prepare_document ?highlights ?decorations ?allocation ?reserve_status_row ?f
     else if not (List.is_empty insert_points)
     then None
     else
-       Option.map (Ui_state.cursor_position_in ~buffers_in_status ui ~allocation ~reserve_status_row) ~f:(fun (x, y) ->
+       Option.map (Ui_state.cursor_position_in ~buffers_in_status ?split_tabs ui ~allocation ~reserve_status_row) ~f:(fun (x, y) ->
         { Cursor.x = x
         ; y
         ; shape =

@@ -36,9 +36,7 @@ mkdir -p "$cache"
 work=$(mktemp -d "$cache/cobalt-hosted-consumer.XXXXXX")
 mkdir "$work/tmp"
 export TMPDIR="$work/tmp"
-unset DUNE_BUILD_DIR
-dune build -j 4 @install
-dune install --prefix "$work/prefix" cobalt
+./install.sh --prefix "$work/prefix" --jobs 4
 
 mkdir -p "$work/consumer" "$work/project/src"
 cp examples/hosted_consumer/dune examples/hosted_consumer/dune-project \
@@ -47,6 +45,7 @@ printf 'first file\n' > "$work/project/src/first.txt"
 printf 'second file\né界x\n' > "$work/project/second.txt"
 
 cd "$work/consumer"
+unset DUNE_BUILD_DIR
 export OCAMLPATH="$work/prefix/lib"
 dune build --root . -j 4 smoke.exe
 dune exec --root . -j 4 ./smoke.exe -- "$work/project" </dev/null

@@ -101,6 +101,11 @@ val close : t -> unit
     for that input. [false] before any input. *)
 val last_input_dispatched : t -> bool
 
+(** Changes when a cursor-motion command runs, including one whose destination
+    is already the current cursor. Prefixes and commands such as Save do not
+    change it. Compare successive states of the same buffer. *)
+val motion_serial : t -> int
+
 (** The newest text the editor asked to put on the system clipboard (see
     [Effect.Set_clipboard]) since the last take, and the controller with it cleared. The
     controller cannot reach the terminal, so a frontend takes it after {!handle_input} and
@@ -173,6 +178,10 @@ val feed_input : t -> Keymap.Input.t -> t * Keymap.Action.t list
 (** Validated current-document navigation only. No IO, edits, or feedback resolution. *)
 val jump : t -> line:int -> column:int -> t Or_error.t
 val jump_offset : t -> int -> t Or_error.t
+
+(** Relocate the editor cursor without dispatching a command or filesystem
+    effect, and cancel any pending key sequence. See {!Cobalt_core.Editor.place_cursor}. *)
+val place_cursor : t -> int -> t Or_error.t
 
 module For_testing : sig
   val has_live_highlight_provider : t -> bool

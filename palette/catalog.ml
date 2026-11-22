@@ -305,6 +305,16 @@ let default =
         ~keywords:[ "placement"; "hide" ]
         (Place_view { view = None; placement = Hidden })
     ; view
+        ~id:"split.next-file"
+        ~title:"Split editor with next file tab"
+        ~keywords:[ "pane"; "buffer"; "existing"; "side by side" ]
+        Split_next_file
+    ; view
+        ~id:"split.open-file"
+        ~title:"Split editor and pick a file"
+        ~keywords:[ "pane"; "second editor"; "open"; "picker"; "side by side" ]
+        Split_file_picker
+    ; view
         ~id:"split.focus-other"
         ~title:"Focus other split pane"
         ~keywords:[ "pane"; "switch"; "window" ]
@@ -326,8 +336,8 @@ let default =
         (Adjust_split (-10))
     ; view
         ~id:"split.close"
-        ~title:"Close split view"
-        ~keywords:[ "pane"; "hide"; "unsplit" ]
+        ~title:"Close split"
+        ~keywords:[ "pane"; "view"; "hide"; "unsplit" ]
         Close_split
     ; view
         ~id:"problems.toggle"

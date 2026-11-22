@@ -206,6 +206,19 @@ let go_to_offset t offset =
   else Ok (set_cursor t offset)
 ;;
 
+let place_cursor t offset =
+  if not (B.is_boundary t.text offset)
+  then Or_error.error_string "Invalid document byte boundary"
+  else
+    let t =
+      match t.mode with
+      | Visual _ -> { t with mode = Normal; selection = None }
+      | Insert -> { t with block_insert = None }
+      | Normal -> t
+    in
+    Ok (set_cursor t offset)
+;;
+
 let go_to_display_position t ~line ~column =
   if not (Mode.equal t.mode Normal)
   then Or_error.error_string "Problem navigation requires Normal mode"

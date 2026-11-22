@@ -254,6 +254,11 @@ val go_to_display_position : t -> line:int -> column:int -> t Or_error.t
     scalar positions. Line ends normalize as for other Normal cursor movements. *)
 val go_to_offset : t -> int -> t Or_error.t
 
+(** Place the pointer at a UTF-8 byte boundary. Preserve Normal or Insert mode;
+    end Visual selection or block insertion (remaining in Insert). Text and
+    history are unchanged. *)
+val place_cursor : t -> int -> t Or_error.t
+
 (** Convert an absolute UTF-8 byte boundary using this editor's width table to
     one-based line/display-cell coordinates. Zero-width scalars map to the
     preceding visible glyph (or cell 1), as in [Cell_layout.cursor_span]; display

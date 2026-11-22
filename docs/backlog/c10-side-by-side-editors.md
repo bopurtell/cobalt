@@ -1,6 +1,6 @@
 # C10 — Side-by-side file editors
 
-**Status:** Proposed. **Tracker:** [GitHub #7](https://github.com/bopurtell/cobalt/issues/7).
+**Status:** Implemented and verified. **Tracker:** [GitHub #7](https://github.com/bopurtell/cobalt/issues/7).
 
 ## Why
 
@@ -49,7 +49,21 @@ groups, simultaneous editor and VCS major splits, mouse gestures, or
 cross-session layout persistence. [C11](c11-mouse-support.md) does not block this
 ticket.
 
-Start with the [existing major split](major_minor_tiles.md), the split
-commands in [`input/`](../../input/), the allocator in
-[`screen/workspace.ml`](../../screen/workspace.ml), and buffer ownership in
-[`app/session.ml`](../../app/session.ml).
+## Implementation and verification
+
+- [Editor reference](../editor_reference.md#side-by-side-file-editors): shortcuts,
+  focus, coexistence with the directory sidebar, and compact fallback.
+- [`app/test/test_editor_split.ml`](../../app/test/test_editor_split.ml):
+  single buffer identity, preserved Visual selection, focused save/reload/undo,
+  split and tab close, and guarded quit.
+- [`screen/test/test_editor_split.ml`](../../screen/test/test_editor_split.ml):
+  shared tab strip, pane geometry and cursor, independent scroll, split commands
+  and picker, VCS conflicts, directory sidebar, and narrow/zen fallback.
+- Passed `dune build -j4 @app/test/runtest @screen/test/runtest @palette/test/runtest
+  @ui/picker_test/runtest @file_picker/host/runtest` with a private temp directory.
+- Real PTY check with the standalone editor: opened the second file from the
+  production picker, saved just the focused file, narrowed to 31 columns and
+  widened without changing focus, force-reloaded the other pane, and confirmed
+  guarded quit still caught unsaved edits after closing the split.
+- C11 can use `Ui_state.editor_panes` for rendered file identities, geometry and
+  scroll, and `Ui_state.activate_buffer` to activate a file by ID.

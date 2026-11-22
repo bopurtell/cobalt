@@ -12,8 +12,11 @@
       before another key arrives the same way, so a Meta key becomes [Escape] and then
       the key without Meta. Dropping it would lose the Escape.
     - Bracketed paste markers become [Paste_start] and [Paste_end].
-    - Everything else (Up/Down, modified navigation, function keys, mouse events,
-      other Ctrl combinations) is dropped. *)
+    - With [mouse=true], left presses and vertical wheel reports without decoded
+      modifiers become [Pointer] events in zero-based terminal cells. Other
+      mouse reports are dropped, and none are forwarded as child terminal input.
+    - Everything else (Up/Down, modified navigation, function keys, other Ctrl
+      combinations) is dropped. *)
 
 open! Core
 open Bonsai_term
@@ -23,4 +26,4 @@ open Bonsai_term
     Notty's [Enter] denotes LF and is forwarded as Ctrl-J, distinct from the
     physical Enter key's Ctrl-M (CR). The CLI disables CR/LF input translation.
     Paste boundaries are unchanged in either mode. *)
-val inputs : ?terminal:bool -> Event.t -> Cobalt_screen.Ui_state.Input.t list
+val inputs : ?terminal:bool -> ?mouse:bool -> Event.t -> Cobalt_screen.Ui_state.Input.t list

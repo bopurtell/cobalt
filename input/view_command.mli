@@ -125,15 +125,17 @@ type t =
       [Split] also focus it; a view already in the split is closed by another's
       arrival. [Hidden] closes it. *)
   | Focus_other_pane
-  (** In the major split, focus the split view, or return to the active tab when it
-      is focused. *)
+  (** Focus the other visible file editor or switch between the split view and active tab. *)
+  | Split_next_file
+  (** Open the next retained file tab in a second editor. *)
+  | Split_file_picker
+  (** Open a second editor with a path from the file picker. *)
   | Swap_split (** Put the split view on the other side of the editor area. *)
   | Adjust_split of int
   (** Change the split view's requested share of the editor area, in percent. *)
   | Close_split
-  (** Close the split view from either pane, as [Place_view] to [Hidden] would, even
-      while zen or a narrow editor area keeps it from being shown. Focus in it
-      returns to the active tab. With no split view, only says so. *)
+  (** Close the split even when it is hidden by zen or insufficient space.
+      With two file editors, keep the focused file visible and both tabs open. *)
   | Run_view_command of
       { view : View_id.t
       ; command : string (** A name the view declares among its local commands. *)
