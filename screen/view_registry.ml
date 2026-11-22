@@ -27,6 +27,11 @@ module Ask = struct
         ; accept : string -> 'action
         ; cancel : 'action option
         }
+    | Form of
+        { title : string
+        ; fields : (string * string) list
+        ; accept : (string * string) list -> 'action
+        }
     | Popup of
         { popup : 'action Cobalt_vcs.Popup.t
         ; enabled : string list
@@ -44,6 +49,7 @@ module Ask = struct
           ; initial : string
           ; validate : string -> string option
           }
+      | Form of { title : string; fields : (string * string) list }
       | Popup of
           { popup : unit Cobalt_vcs.Popup.t
           ; enabled : string list
@@ -53,6 +59,7 @@ module Ask = struct
   let question : _ t -> Question.t = function
     | Confirm { title; message; _ } -> Confirm { title; message }
     | Prompt { title; initial; validate; _ } -> Prompt { title; initial; validate }
+    | Form { title; fields; _ } -> Form { title; fields }
     | Popup { popup; enabled; _ } ->
       Popup { popup = Cobalt_vcs.Popup.map popup ~f:(fun _ -> ()); enabled }
   ;;
@@ -63,6 +70,7 @@ module Answer = struct
     | Yes
     | No
     | Text of string
+    | Fields of (string * string) list
     | Choose of
         { key : char
         ; enabled : string list
@@ -493,10 +501,12 @@ let answer t id (answer : Answer.t) ~controller ~context ~rows ~width =
       match pending, answer with
       | None, _ -> `Keep
       | Some (Confirm { yes; _ }), Yes -> `Perform (Some yes)
-      | Some (Confirm { no; _ }), (No | Text _ | Choose _) -> `Perform no
+       | Some (Confirm { no; _ }), _ -> `Perform no
       | Some (Prompt { validate; accept; _ }), Text text ->
         if Option.is_some (validate text) then `Keep else `Perform (Some (accept text))
-      | Some (Prompt { cancel; _ }), (Yes | No | Choose _) -> `Perform cancel
+       | Some (Prompt { cancel; _ }), _ -> `Perform cancel
+       | Some (Form { accept; _ }), Fields fields -> `Perform (Some (accept fields))
+       | Some (Form _), _ -> `Perform None
       | Some (Popup { popup; cancel; _ }), Choose { key; enabled } ->
         (match
            List.find popup.actions ~f:(fun (action : _ Cobalt_vcs.Popup.Action.t) ->
@@ -506,7 +516,7 @@ let answer t id (answer : Answer.t) ~controller ~context ~rows ~width =
            `Perform
              (Some (action.run ~enabled:(Cobalt_vcs.Popup.initial popup ~enabled).enabled))
          | None -> `Perform cancel)
-      | Some (Popup { cancel; _ }), (Yes | No | Text _) -> `Perform cancel
+       | Some (Popup { cancel; _ }), _ -> `Perform cancel
     in
     (match action with
      | `Keep -> t, None

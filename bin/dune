@@ -43,3 +43,16 @@
  (action
   (run python3 %{dep:test_silver_cli.py}
    %{exe:cobalt.exe} %{exe:cobalt_no_provider.exe})))
+
+(rule
+ (alias runtest)
+ (enabled_if %{lib-available:cobalt_silver_overview})
+ (deps
+  test_silver_cli.py
+  test_silver_quick_launch_cli.py
+  ../examples/silver_overview/wire/c6-catalog.json
+  ../examples/silver_overview/wire/c6-launch.json)
+ (locks /smoke)
+ (action
+  (run python3 -B %{dep:test_silver_quick_launch_cli.py}
+   %{exe:cobalt.exe} ../examples/silver_overview/wire)))

@@ -170,6 +170,12 @@ let component ?layout ?terminal ?snippets ?configuration ?startup_configuration 
     | Some path -> Ok path
     | None -> Error "Cannot locate configuration: set an absolute XDG_CONFIG_HOME or a non-empty HOME") in
   let initial_ui = Ui_state.with_configuration_path initial_ui configuration_path in
+  let initial_ui =
+    match silver_overview with
+    | None -> Ui_state.with_silver_test initial_ui (Unavailable "Silver adapter is not available in this session")
+    | Some host ->
+      Silver_overview_host.synchronize initial_ui host |> Ui_state.with_silver_connection ~project_root
+  in
   let initial_ui = Option.value_map startup_configuration ~default:initial_ui
     ~f:(apply_startup_configuration ?theme_override:theme initial_ui) in
   let initial_ui = if Option.is_some appearance
@@ -261,7 +267,6 @@ let component ?layout ?terminal ?snippets ?configuration ?startup_configuration 
   let stopping = Async.Ivar.create () in
   let finished = Async.Ivar.create () in
   let silver_open = ref false in
-  let silver_initial_rows = Option.map silver_overview ~f:(fun host -> host.rows ()) in
   let stopped () = Async.Ivar.is_full stopping in
   let stop () =
     if not (stopped ()) then (
@@ -360,13 +365,18 @@ let component ?layout ?terminal ?snippets ?configuration ?startup_configuration 
                | `Navigation_preview snapshot ->
                  Frame.Cache.invalidate render_cache;
                   Ui_state.receive_navigation_preview model snapshot
-                | `Silver_changed ->
-                  (match silver_overview with
-                   | Some host when !silver_open ->
-                     Frame.Cache.invalidate render_cache;
-                     Ui_state.map_view model Silver_overview_tile.key ~f:(fun tile ->
-                       Silver_overview_tile.with_rows tile (host.rows ()))
-                   | _ -> model)
+                 | `Silver_changed ->
+                   (match silver_overview with
+                    | Some host ->
+                      Frame.Cache.invalidate render_cache;
+                      Silver_overview_host.synchronize model host
+                    | _ -> model)
+                | `Silver_feedback result ->
+                  Frame.Cache.invalidate render_cache;
+                  Ui_state.with_silver_result model result
+                | `Silver_connections (generation, endpoints) ->
+                  Frame.Cache.invalidate render_cache;
+                  Ui_state.receive_silver_connections model ~generation endpoints
                | `Harness (request, result) ->
                  Frame.Cache.invalidate render_cache;
                  Ui_state.receive_harness model ~width ~height ~request result
@@ -378,7 +388,8 @@ let component ?layout ?terminal ?snippets ?configuration ?startup_configuration 
             (* Capture belongs to the model at this transition, not the last
                displayed handler: several events can arrive before a redraw. *)
             let inputs = match action with
-                 | `Words _ | `Snippets _ | `Configuration _ | `Navigation_preview _ | `Harness _ | `Silver_changed
+                  | `Words _ | `Snippets _ | `Configuration _ | `Navigation_preview _ | `Harness _
+                  | `Silver_changed | `Silver_feedback _ | `Silver_connections _
                   | `Shutdown | `Lost_input | `Open_location _ -> []
                | `Inputs inputs -> inputs
                | `Event _ when not accepts_input -> []
@@ -405,7 +416,57 @@ let component ?layout ?terminal ?snippets ?configuration ?startup_configuration 
            let was_running = not (Ui_state.exited model) in
            if List.exists inputs ~f:(function Ui_state.Input.Resize -> true | _ -> false)
            then clear_preview ();
-          let activate_pickers model =
+           let follow_silver model =
+             match silver_overview with
+             | None -> model
+             | Some host ->
+               let shown =
+                 not (Ui_state.exited model) && Ui_state.view_visible model Silver_overview_tile.id
+               in
+               let changed = not (Bool.equal shown !silver_open) in
+               silver_open := shown;
+               if changed then (if shown then host.show () else host.hide ());
+               let model, intents = Silver_overview_host.take_intents model in
+               let model =
+                 List.fold intents ~init:model ~f:(fun model intent ->
+                   match intent with
+                   | Refresh ->
+                     if shown then host.refresh ();
+                     model
+                   | Apply_settings (target, fields) ->
+                     let result =
+                       Result.map (host.apply_settings target fields) ~f:(fun () ->
+                         "Saved test settings · " ^ Silver_overview_tile.Target.name target)
+                     in
+                     Ui_state.with_silver_result model result
+                   | Launch target ->
+                     (* Start once, regardless of the tile placement. Capture both
+                        the target and its settings before the next key. *)
+                     let result = host.launch target in
+                     Bonsai.Apply_action_context.schedule_event context
+                       (let%bind.Effect result = Effect.of_deferred_thunk (fun () -> result) in
+                        Bonsai.Apply_action_context.inject context (`Silver_feedback result));
+                     model
+                   | Connections generation ->
+                     Bonsai.Apply_action_context.schedule_event context
+                       (let%bind.Effect endpoints = Effect.of_deferred_thunk host.connections in
+                        Bonsai.Apply_action_context.inject context
+                          (`Silver_connections (generation, endpoints)));
+                     model
+                   | Connect { endpoint; project_root } ->
+                     let request = host.connect { endpoint; project_root; run = None } in
+                     Bonsai.Apply_action_context.schedule_event context
+                       (let%bind.Effect result = Effect.of_deferred_thunk (fun () -> request) in
+                        let result = Result.map result ~f:(fun () -> "Connected to Silver · " ^ endpoint) in
+                        Bonsai.Apply_action_context.inject context (`Silver_feedback result));
+                     model)
+               in
+               if changed || not (List.is_empty intents)
+               then Silver_overview_host.synchronize model host
+               else model
+           in
+           let after_step model =
+             let model = follow_silver model in
             let model, activate_files = Ui_state.take_file_picker_activation model in
             let model = if not activate_files then model else
               match Cobalt_file_picker_host.Runtime.open_picker file_runtime model
@@ -422,32 +483,10 @@ let component ?layout ?terminal ?snippets ?configuration ?startup_configuration 
               synchronize_navigation_preview (synchronize_preview model)
               |> Document_decoration_host.follow ~parse:false ~width ~height document_decorations
           in
-            let model, status = Frame.Cache.apply_inputs render_cache ~after_step:activate_pickers model ~width ~height inputs in
+             let model, status = Frame.Cache.apply_inputs render_cache ~after_step model ~width ~height inputs in
+             let model = follow_silver model in
             let model = synchronize_navigation_preview (synchronize_preview model)
               |> Document_decoration_host.follow ~width ~height document_decorations in
-             let model = match silver_overview with
-              | None -> model
-              | Some host ->
-                (* Only closing the placement releases observation; Zen, another
-                   tab, and compact allocation do not change the binding. *)
-                let shown = not (Ui_state.exited model)
-                  && Ui_state.view_visible model Silver_overview_tile.id in
-                let model, intent = Silver_overview_host.take_intent model in
-                let changed = not (Bool.equal shown !silver_open) in
-                silver_open := shown;
-                if changed || Option.is_some intent then
-                  Bonsai.Apply_action_context.schedule_event context
-                    (Effect.of_thunk (fun () ->
-                       if not (stopped ()) then
-                         if changed then (if shown then host.show () else host.hide ())
-                         else
-                           match intent with
-                           | Some Refresh when shown -> host.refresh ()
-                           | _ -> ()));
-                if changed && not shown then
-                  Ui_state.map_view model Silver_overview_tile.key ~f:(fun tile ->
-                    Silver_overview_tile.with_rows tile (Option.value_exn silver_initial_rows))
-                else model in
             current_ui := model;
             if not !navigation_preview_pumping
                && Option.is_some (Navigation_preview_host.snapshot navigation_preview)

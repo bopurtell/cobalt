@@ -1,5 +1,5 @@
-(** Optional read-only view of an explicitly named Silver simulation project/attempt.
-    All operations on the adapter are called on the Async scheduler. *)
+(** Optional Silver simulation observation and test quick launch. All network
+    operations are called on the Async scheduler. *)
 
 type binding =
   { endpoint : string
@@ -78,3 +78,76 @@ val await_change : t -> after:int -> unit Async.Deferred.t
 
 (** Permanently stop observation. Never changes the state of a Silver run. *)
 val shutdown : t -> unit
+
+(** One-shot Testing operations, independent of the overview's watched attempt.
+    Keep a verified [project] for the editor session, not the tile lifetime. *)
+module Testing : sig
+  type project
+
+  (** Verify loopback Silver v1 and open the explicitly selected canonical project
+      root. A different root is rejected and no attempt is selected. If supplied,
+      [expected_instance_id] must match [hello] before opening the project. *)
+  val connect
+    :  ?peer:peer
+    -> ?timeout:Core.Time_ns.Span.t
+    -> ?expected_instance_id:string
+    -> endpoint:string
+    -> project_root:string
+    -> unit
+    -> (project, string) result Async.Deferred.t
+
+  (** Abandon local requests and invalidate this project's catalogs. Does not
+      cancel attempts or shut down the daemon. *)
+  val close : project -> unit
+  val project_root : project -> string
+
+  type parameter =
+    { key : string
+    ; label : string
+    ; default : string
+    ; choices : string list
+    }
+
+  type case = { id : string; label : string }
+
+  type suite =
+    { id : string
+    ; label : string
+    ; cases : case list
+    ; parameters : parameter list
+    ; default_seed : string
+    }
+
+  type catalog
+
+  (** Read the current catalog, starting at most one provider discovery if needed.
+      Polls only while discovery is in progress and only up to [discovery_timeout]
+      (default 30 seconds). Does not start a simulation. *)
+  val discover
+    :  ?discovery_timeout:Core.Time_ns.Span.t
+    -> project
+    -> (catalog, string) result Async.Deferred.t
+
+  val digest : catalog -> string
+  val suites : catalog -> suite list
+
+  type acceptance = { attempt_id : string; job_id : string }
+
+  type launch_result =
+    | Accepted of acceptance
+    | Stale_catalog of string
+    | Rejected of string
+    | Uncertain of string
+
+  (** Submit exactly the captured catalog digest and input values once, with a fresh
+      submission key. Supply explicit nonempty case IDs, a seed, and every declared
+      parameter. [Uncertain] means Silver may have reserved an attempt; do not retry
+      automatically. A stale result requires discovery and a new selection. *)
+  val launch
+    :  catalog
+    -> suite:string
+    -> cases:string list
+    -> seed:string
+    -> parameters:(string * string) list
+    -> launch_result Async.Deferred.t
+end

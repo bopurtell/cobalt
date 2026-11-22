@@ -59,12 +59,12 @@ class Terminal:
 
 
 @contextmanager
-def editor(binary, file, env, flags):
+def editor(binary, file, env, flags, *, width=160):
     master, slave = pty.openpty()
     process = None
     terminal = None
     try:
-        fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 36, 160, 0, 0))
+        fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 36, width, 0, 0))
         process = subprocess.Popen([binary, "--no-lsp", *flags, str(file)], env=env,
                                    stdin=slave, stdout=slave, stderr=slave)
         terminal = Terminal(master, process)
@@ -96,6 +96,7 @@ def test(binary, stub):
         # Use a distinct project-session ID per handshake. Normal status polling
         # cannot be mistaken for a new observation started by the refresh key.
         opens = []
+        observed_projects = {}
 
         class Handler(BaseHTTPRequestHandler):
             def log_message(self, *_):
@@ -124,8 +125,13 @@ def test(binary, stub):
                     opens.append(body)
                     self.result(f"(Ok ((project ((id sid-{len(opens)}) (root ((path {root_atom})))))))")
                 elif self.path == "/api/v1/simulation":
+                    if "(operation Get)" in body:
+                        self.result("(Ok ((configured false) (discovery ()) (discovery_digest ())"
+                                    " (discovery_job ()) (discovery_error ()) (attempts ()) (detail ())))")
+                        return
                     assert f"(Observe {attempt})" in body and "(project sid-" in body, body
-                    generation = int(body.split("(project sid-", 1)[1].split(")")[0])
+                    project = body.split("(project sid-", 1)[1].split(")")[0]
+                    generation = observed_projects.setdefault(project, len(observed_projects) + 1)
                     if generation > 1:
                         # Block the response; a local close must close this socket
                         # promptly, without waiting on transport timeout or a reply.
@@ -147,8 +153,7 @@ def test(binary, stub):
                     self.send_error(404)
 
         def observed(generation):
-            return any(path == "/api/v1/simulation" and f"(project sid-{generation})" in body
-                       for path, body in requests)
+            return generation in observed_projects.values()
 
         with ThreadingHTTPServer(("127.0.0.1", 0), Handler) as server:
             threading.Thread(target=server.serve_forever, daemon=True).start()
@@ -163,9 +168,11 @@ def test(binary, stub):
 
             try:
                 fails(binary, flags[:2], b"must be supplied together")
+                fails(binary, ["--silver-run", attempt], b"--silver-run requires both")
                 fails(binary, [*flags, "--list-themes"], b"requires an interactive session")
                 fails(binary, [*flags[:3], "relative-project", *flags[4:]], b"an absolute project root")
                 fails(stub, [*flags, str(file)], b"adapter unavailable in this build")
+                fails(stub, [*flags[:4], str(file)], b"adapter unavailable in this build")
                 with editor(stub, file, env, []) as ui:
                     ui.see(b"UNRELATED_EDITOR_FILE")
                     ui.keys(b" vS")

@@ -2,7 +2,7 @@
 """C5 acceptance with a private Silver daemon and independent Silver/Cobalt PTYs."""
 
 import argparse
-from contextlib import ExitStack
+from contextlib import ExitStack, contextmanager
 import http.client
 import json
 import os
@@ -103,7 +103,7 @@ def one(values, description):
     return values[0]
 
 
-def setup_fixture(silver, project):
+def open_project(silver, project):
     hello = dict(silver.request("/api/hello", label="hello"))
     require("1" in hello["protocol_versions"] and "simulation" in hello["capabilities"],
             f"Silver v1 simulation capability missing: {hello!r}")
@@ -117,11 +117,19 @@ def setup_fixture(silver, project):
             "Silver opened a different project")
     silver.project = resolved_project["id"]
 
-    # Bootstrap only. Neither window gets a launch command.
-    silver.simulation("Discover")
+
+def discover_project(silver, *, automatic=False, catalog_label=None):
+    silver.simulation("Ensure_discovered" if automatic else "Discover")
     discovery = until("fixture discovery", lambda: silver.simulation("Get"),
                       lambda snap: snap["discovery_digest"] or snap["discovery_error"])
     require(not discovery["discovery_error"], f"Discovery failed: {discovery!r}")
+    return silver.simulation("Get", label=catalog_label) if catalog_label else discovery
+
+
+def setup_fixture(silver, project):
+    open_project(silver, project)
+    # Bootstrap only. Neither window gets a launch command.
+    discovery = discover_project(silver)
     launched = silver.simulation([
         "Launch", ("submission_key", "c5-live"), ("discovery_digest", one(
             discovery["discovery_digest"], "discovery digest")),
@@ -231,17 +239,17 @@ def compare_windows(args, terminal_class, evidence, env, silver, project, status
     testing.capture("after-cobalt-quit", testing_status)
 
 
-def run(args, evidence):
+@contextmanager
+def private_fixture(args, evidence, *, quick_launch=False):
     sys.dont_write_bytecode = True
     sys.path.insert(0, str(args.silver_checkout / "scripts" / "fixtures"))
     sys.path.insert(0, str(args.silver_checkout / "test"))
     import simulation_fixture_wire as codec
-    from support.terminal import Terminal
-
     project = evidence / "project with spaces"
     project.mkdir()
-    (project / "dune-project").write_text("(lang dune 3.22)\n(name c5_live_fixture)\n")
-    (project / "fixture.txt").write_text("c5 fixture editor\n")
+    label = "c6" if quick_launch else "c5"
+    (project / "dune-project").write_text(f"(lang dune 3.22)\n(name {label}_live_fixture)\n")
+    (project / "fixture.txt").write_text(f"{label} fixture editor\n")
     control, calls = evidence / "control.json", evidence / "provider-calls.jsonl"
     control.write_text('{"mode":"pass"}\n')
     fixture_dir = args.silver_checkout / "scripts" / "fixtures"
@@ -249,6 +257,9 @@ def run(args, evidence):
     shutil.copyfile(fixture_dir / provider.name, provider)
     shutil.copyfile(fixture_dir / "simulation_fixture_wire.py",
                     evidence / "simulation_fixture_wire.py")
+    if quick_launch:
+        provider = evidence / "quick_launch_provider.py"
+        shutil.copyfile(Path(__file__).with_name(provider.name), provider)
     (project / "hardcaml-workbench-simulation.sexp").write_text(codec.sexp([
         ("schema_version", 1), ("provider_executable", sys.executable),
         ("provider_args", [provider, "--control", control, "--calls", calls]),
@@ -279,14 +290,24 @@ def run(args, evidence):
 
         daemon_info = dict(codec.parse(until("private daemon metadata", daemon_metadata, bool)))
         silver = Silver(daemon_info["endpoint"], codec, evidence)
+        yield SimpleNamespace(silver=silver, project=project, env=env, calls=calls,
+                              daemon_info=daemon_info, stack=stack)
+
+
+def run(args, evidence):
+    with private_fixture(args, evidence) as fixture:
+        from support.terminal import Terminal
+
+        silver, project, calls = fixture.silver, fixture.project, fixture.calls
         attempt = setup_fixture(silver, project)
-        require(silver.instance == daemon_info["instance_id"], "Daemon identity changed")
+        require(silver.instance == fixture.daemon_info["instance_id"], "Daemon identity changed")
         status = compare_wire(silver, attempt, project)
         before = calls.read_bytes()
         require([json.loads(line)["operation"] for line in before.splitlines()]
                 == ["discover", "run"], "Exactly one fixture discovery and one launch expected")
         if not args.wire_only:
-            compare_windows(args, Terminal, evidence, env, silver, project, status, stack)
+            compare_windows(args, Terminal, evidence, fixture.env, silver, project, status,
+                            fixture.stack)
         final = silver.simulation(["Observe", attempt], label="after")
         detail = dict(one(final["detail"], "attempt after observation"))
         require([dict(item)["id"] for item in final["attempts"]] == [attempt]

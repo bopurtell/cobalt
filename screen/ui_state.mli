@@ -163,6 +163,10 @@ val with_external_terminal : t -> t
 val take_external_terminal_toggles : t -> t * int option list
 
 val with_host_commands : t -> Cobalt_palette.Catalog.Host_command.t list -> t
+val with_silver_test : t -> Silver_overview_tile.Test_action.t -> t
+val with_silver_connection : t -> project_root:string -> t
+val receive_silver_connections : t -> generation:int -> string list -> t
+val with_silver_result : t -> (string, string) result -> t
 val take_host_command_requests : t -> t * string list
 (** Drain recognized toggles in recognition order. [None] leaves terminal
     selection to the host. *)
@@ -652,8 +656,9 @@ val cursor_position : t -> width:int -> height:int -> (int * int) option
     help) lists that view's commands first, titled [<Title>: <description>] with
     their keys as shortcuts, and does not leave the view; accepting one closes the
     palette, refocuses the view and runs it as its keys would
-    ({!View_command.t.Run_view_command}). Any other command, or closing, returns to
-    the document as before.
+    ({!View_command.t.Run_view_command}). Dismissing the palette restores its
+    caller when available. Native editor commands still target the document;
+    host commands restore the caller before dispatch.
 
     {2 Read-only text in minor views}
 

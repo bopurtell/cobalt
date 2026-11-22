@@ -1,4 +1,4 @@
-"""A scripted, read-only loopback Silver peer for process-level adapter tests."""
+"""A scripted loopback Silver peer for process-level adapter tests."""
 
 from dataclasses import dataclass, field
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -148,8 +148,9 @@ class Peer:
             assert request.method == "POST", request
             assert request.headers.get("Content-Type") == "application/sexp", request
             assert request.headers.get("X-Workbench-Protocol") == "1", request
-            pairs = parse_request(request.body)
-            assert len(pairs) == len(fields) and dict(pairs) == fields, (request, fields)
+            if fields is not None:
+                pairs = parse_request(request.body)
+                assert len(pairs) == len(fields) and dict(pairs) == fields, (request, fields)
         return request
 
     def hello(self):

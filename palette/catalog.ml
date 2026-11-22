@@ -34,6 +34,8 @@ module Entry = struct
     ; keywords : string list
     ; available : (Context.t -> bool[@sexp.opaque])
     ; target : Target.t
+    ; priority_alias : string option
+    ; exact_only : bool
     }
   [@@deriving sexp_of, fields ~getters]
 
@@ -43,7 +45,8 @@ module Entry = struct
 
   let create_target ~id ~title ?description ?(keywords = []) ?(available = normal_mode_only) target
     =
-    { id = Id.of_string id; title; description; keywords; available; target }
+    { id = Id.of_string id; title; description; keywords; available; target
+    ; priority_alias = None; exact_only = false }
   ;;
 
   let create ~id ~title ?description ?keywords ?available action =
@@ -57,6 +60,12 @@ module Entry = struct
   ;;
 
   let is_available t context = t.available context
+
+  let create_host ~id ~title ?(aliases = []) ?priority_alias ?(exact_only = false) () =
+    let keywords = Option.to_list priority_alias @ aliases in
+    { (create_target ~id:("host." ^ id) ~title ~keywords (Host id))
+      with priority_alias; exact_only }
+  ;;
 end
 
 type t = Entry.t list [@@deriving sexp_of]
@@ -502,7 +511,7 @@ let with_host_commands t commands =
     then None
     else (
       Hash_set.add seen catalog_id;
-      Some (Entry.create_target ~id:catalog_id ~title ~keywords:aliases (Host id))))
+       Some (Entry.create_host ~id ~title ~aliases ())))
 ;;
 
 module Field = struct
@@ -534,12 +543,19 @@ let exact_priority ~query (entry : Entry.t) =
 ;;
 
 let search_with_exact t context ~query =
+  let exact_alias (entry : Entry.t) =
+    Option.exists entry.priority_alias ~f:(String.Caseless.equal (String.strip query))
+  in
   let ranked =
-    List.filter t ~f:(fun entry -> Entry.is_available entry context)
+    List.filter t ~f:(fun entry ->
+      Entry.is_available entry context && (not entry.exact_only || exact_alias entry))
     |> List.map ~f:(fun entry -> entry, fields entry)
     |> Fuzzy.rank ~query
   in
   let query = String.strip query in
+  let priority_matches, ranked =
+    List.partition_tf ranked ~f:(fun (result : result) -> exact_alias result.item)
+  in
   let priority (result : result) = exact_priority ~query result.item in
   let has_host_exact =
     List.exists ranked ~f:(fun result ->
@@ -547,7 +563,10 @@ let search_with_exact t context ~query =
       | Native _ -> false
       | Host _ -> priority result = 1)
   in
-  if not has_host_exact
+  if not (List.is_empty priority_matches)
+  then
+    priority_matches @ ranked, Option.map (List.hd priority_matches) ~f:(fun result -> Entry.id result.item)
+  else if not has_host_exact
   then ranked, None
   else (
     let native, rest = List.partition_tf ranked ~f:(fun result -> priority result = 0) in

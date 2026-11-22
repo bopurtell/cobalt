@@ -11,7 +11,8 @@
 ; Silver protocol or transport into the editor libraries.
 (library
  (name cobalt_silver_composition)
- (libraries cobalt_ui core
+ (libraries cobalt_ui cobalt_screen core async
   (select silver_adapter.ml from
    (cobalt_silver_overview -> silver_adapter.enabled.ml)
-   (-> silver_adapter.disabled.ml))))
+   (-> silver_adapter.disabled.ml)))
+ (preprocess (pps ppx_jane)))

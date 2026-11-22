@@ -23,6 +23,9 @@ type t [@@deriving sexp_of]
     local commands; they take precedence. *)
 val create
   :  ?shortcuts:(Catalog.Id.t * Key.t list) list
+  -> ?title:string
+  -> ?empty:string
+  -> ?instructions:string
   -> Catalog.t
   -> Catalog.Context.t
   -> token:Cobalt_tile.View_id.t
@@ -53,6 +56,7 @@ val hint : string
 
 (** Apply [event], then {!fit} to [rows]. *)
 val update : t -> rows:int -> Palette.Event.t -> t
+val with_catalog : t -> Catalog.t -> t
 
 (** The text-entry point after the query on the prompt row, in a [width]-cell content
     area: a bar, always within the area when [width > 0]. *)

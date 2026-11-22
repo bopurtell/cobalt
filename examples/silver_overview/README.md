@@ -70,5 +70,29 @@ recorded attempt is
 suite `fixture`, seed `42`, lifecycle `Finished`, outcome `Passed`. Lifecycle
 and outcome are separate fields; `Finished` alone does not mean `Passed`.
 
-The Cobalt tile does not discover, launch, rerun, or cancel simulations. In the
-test, only fixture setup sends `Discover` and `Launch` to its private daemon.
+The C5 harness only observes simulations from Cobalt. In that test, only
+fixture setup sends `Discover` and `Launch` to its private daemon.
+
+## C6 slice 1: quick-launch wire capture
+
+```sh
+python3 -B examples/silver_overview/check_quick_launch.py \
+  --silver-checkout "$silver_checkout" \
+  --daemon "$silver_bin/daemon/main.exe"
+```
+
+This starts the same isolated daemon but uses a FIFO suite with `seeded` and
+`smoke` variants and an `n` parameter defaulting to `10`. It discovers a project
+with no attempts, captures a real [catalog reply](wire/c6-catalog.json) and
+[launch request/reply](wire/c6-launch.json) for `FIFO / seeded · n=50`, then
+checks the accepted attempt finishes `Passed` and the provider ran exactly
+once. This wire-only check does not exercise the editor.
+
+Add `--cobalt "$PWD/_build/default/bin/cobalt.exe"` to exercise the same
+catalog from a real Cobalt PTY instead. That mode applies `n=50` without
+launching, runs `R` with focus retained, then hides the tile and launches again
+via exact `test` from code. The daemon must report two distinct passing
+attempts, each with `FIFO / seeded` and `n=50`. Add
+`--silver-client "$silver_bin/terminal/main.exe"` to also verify both attempt
+IDs from the Silver Testing window. The result is recorded in
+`/tmp/opencode/c6-live-*/result.json`, with painted PTY screens alongside it.

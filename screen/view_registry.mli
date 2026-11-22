@@ -30,7 +30,8 @@ end
 (** A question a view asks the user on a float over itself, and the view's own action
     that each answer performs. A confirmation's default answer is No: only [y]
     performs [yes]. A prompt's [accept] runs only on text that [validate] passes
-    ([None]; [Some error] is shown inline). A popup ({!Cobalt_vcs.Popup}: switches
+    ([None]; [Some error] is shown inline). A form accepts all named fields
+    together, or discards its draft on cancel. A popup ({!Cobalt_vcs.Popup}: switches
     toggled with [-] and a key, actions run with one key) performs the chosen
     action's [run ~enabled]; its switches start as its [enabled] gives them. [no] and
     [cancel] are performed when the user declines; a question withdrawn without an
@@ -49,6 +50,11 @@ module Ask : sig
         ; validate : string -> string option
         ; accept : string -> 'action
         ; cancel : 'action option
+        }
+    | Form of
+        { title : string
+        ; fields : (string * string) list
+        ; accept : (string * string) list -> 'action
         }
     | Popup of
         { popup : 'action Cobalt_vcs.Popup.t
@@ -71,6 +77,7 @@ module Ask : sig
           ; initial : string
           ; validate : string -> string option
           }
+      | Form of { title : string; fields : (string * string) list }
     | Popup of
         { popup : unit Cobalt_vcs.Popup.t
         (** The view's popup with its actions' results dropped
@@ -84,13 +91,14 @@ module Ask : sig
 end
 
 (** The user's answer to a view's pending question ({!answer}). [Yes] answers only a
-    confirmation, [Text] only a prompt and [Choose] only a popup; any other answer
-    declines. *)
+    confirmation, [Text] only a prompt, [Fields] only a form and [Choose] only a
+    popup; any other answer declines. *)
 module Answer : sig
   type t =
     | Yes
     | No
     | Text of string
+    | Fields of (string * string) list
     | Choose of
         { key : char (** The action's key. *)
         ; enabled : string list

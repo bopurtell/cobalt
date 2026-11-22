@@ -1,6 +1,6 @@
 (executables
- (names driver test_ordering)
- (modules driver test_ordering)
+ (names driver test_ordering testing_driver)
+ (modules driver test_ordering testing_driver)
  (libraries cobalt_silver_overview core async yojson)
  (preprocess (pps ppx_jane)))
 
@@ -8,8 +8,27 @@
  (alias runtest)
  (action (run %{exe:test_ordering.exe})))
 
+(test
+ (name test_quick_launch)
+ (modules test_quick_launch)
+ (libraries cobalt_silver_overview core)
+ (preprocess (pps ppx_jane)))
+
+(test
+ (name test_connection)
+ (modules test_connection)
+ (libraries cobalt_silver_overview core core_unix async)
+ (preprocess (pps ppx_jane)))
+
 (rule
  (alias runtest)
  (deps test_adapter.py fake_peer.py (source_tree ../../examples/silver_overview/wire))
  (action
   (run python3 -B %{dep:test_adapter.py} %{exe:driver.exe} ../../examples/silver_overview/wire)))
+
+(rule
+ (alias runtest)
+ (deps test_testing.py fake_peer.py (source_tree ../../examples/silver_overview/wire))
+ (action
+  (run python3 -B %{dep:test_testing.py} %{exe:testing_driver.exe}
+    ../../examples/silver_overview/wire)))

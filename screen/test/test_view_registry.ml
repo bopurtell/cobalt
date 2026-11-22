@@ -225,13 +225,13 @@ let%expect_test "the palette lists the focused view's commands first and runs th
   let t = run t "<CR>" in
   show t;
   [%expect {| focused counter, count 1, notice (none) |}];
-  (* Other commands, and closing, return to the document as before. *)
+  (* Dismissal returns to the caller and preserves its local commands. *)
   let t = run t " cc<Esc>" in
   show t;
-  [%expect {| focused document, count 1, notice (none) |}];
+  [%expect {| focused counter, count 1, notice (none) |}];
   let t = run t " cc" in
   palette_ids ~limit:1 t;
-  [%expect {| file.save |}]
+  [%expect {| local.counter.increment |}]
 ;;
 
 let%expect_test "a local command by name is refused unless its view is focused and declares it" =

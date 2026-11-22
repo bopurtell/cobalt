@@ -1,0 +1,33 @@
+{
+  "request": {
+    "method": "POST",
+    "target": "/api/v1/simulation",
+    "headers": {
+      "Host": "127.0.0.1:41811",
+      "Connection": "close",
+      "Content-Type": "application/sexp",
+      "X-Workbench-Protocol": "1",
+      "Content-Length": "372"
+    },
+    "body": "((\"instance_id\" \"641215-1795328229014531801-326e72e5\") (\"project\" \"641215-1795328229014531801-326e72e5-project-1\") (\"operation\" (\"Launch\" (\"submission_key\" \"c6-live\") (\"discovery_digest\" \"b6ed71173b50cd433d13a1678884036ae76d49041f5c9571c2a4e092991062f4\") (\"selection\" ((\"suite\" \"FIFO\") (\"cases\" (\"seeded\")) (\"seed\" \"42\") (\"parameters\" ((\"n\" \"50\"))) (\"asic_inputs\" ()))))))"
+  },
+  "response": {
+    "status": 200,
+    "reason": "OK",
+    "headers": [
+      [
+        "content-type",
+        "application/sexp"
+      ],
+      [
+        "content-length",
+        "1552"
+      ],
+      [
+        "connection",
+        "close"
+      ]
+    ],
+    "body": "(Ok((configured true)(discovery(((protocol_version 1)(suites(((id FIFO)(label FIFO)(cases(((id seeded)(label seeded))((id smoke)(label smoke))))(parameters(((key n)(label n)(default 10)(choices(10 50)))))(default_seed 42)))))))(discovery_digest(b6ed71173b50cd433d13a1678884036ae76d49041f5c9571c2a4e092991062f4))(discovery_job())(discovery_error())(attempts(((id sim-e587bc91c355bcf6b6055f1d436f735e1a0b499da1ab595d5aa58d0d28a47e66)(job 641215-1795328229014531801-326e72e5-job-2)(suite FIFO)(seed 42)(created_at\"2026-11-22 01:17:09.142392659-05:00\")(parent())(lifecycle Queued)(outcome Unknown))))(next_before())(detail(((id sim-e587bc91c355bcf6b6055f1d436f735e1a0b499da1ab595d5aa58d0d28a47e66)(job 641215-1795328229014531801-326e72e5-job-2)(project_root\"/tmp/opencode/c6-live-luqtv66u/project with spaces\")(created_at\"2026-11-22 01:17:09.142392659-05:00\")(parent())(captured((selection((suite FIFO)(cases(seeded))(seed 42)(parameters((n 50)))(asic_inputs())))(discovery_digest b6ed71173b50cd433d13a1678884036ae76d49041f5c9571c2a4e092991062f4)(provider_executable /home/wayne/.local/share/kicad-ai/venv/bin/python3)(provider_args(/tmp/opencode/c6-live-luqtv66u/quick_launch_provider.py --control /tmp/opencode/c6-live-luqtv66u/control.json --calls /tmp/opencode/c6-live-luqtv66u/provider-calls.jsonl))(environment Inherit_daemon)))(lifecycle Queued)(outcome Unknown)(exit_code())(diagnostic())(progress())(cases(((case_id seeded)(status Pending)(message())(progress()))))(artifacts())(next_sequence 0)(recent_events()))))(byte_page())(history_error())))"
+  }
+}

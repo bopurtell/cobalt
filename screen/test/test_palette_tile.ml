@@ -133,7 +133,7 @@ let%test_unit "explicit document allocation does not draw the open palette or it
   assert (String.equal (Frame.to_string (render initial)) (Frame.to_string (render opened)))
 ;;
 
-let%test_unit "opening from a docked capture still targets and returns to the document" =
+let%test_unit "dismissing the palette restores its docked caller" =
   let initial = run (create ()) " vo" in
   assert (Cobalt_tile.View_id.equal (Ui_state.focused_view initial ~width ~height) Problems_tile.id);
   let workspace = Ui_state.workspace initial ~width ~height in
@@ -141,7 +141,7 @@ let%test_unit "opening from a docked capture still targets and returns to the do
   assert (Cobalt_tile.View_id.equal (Ui_state.focused_view opened ~width ~height) Palette_tile.id);
   assert ([%equal: Workspace.t] workspace (Ui_state.workspace opened ~width ~height));
   let closed = run opened "<Esc>" in
-  assert (Cobalt_tile.View_id.equal (Ui_state.focused_view closed ~width ~height) Ui_state.document_id);
+  assert (Cobalt_tile.View_id.equal (Ui_state.focused_view closed ~width ~height) Problems_tile.id);
   assert (String.equal (text initial) (text closed))
 ;;
 

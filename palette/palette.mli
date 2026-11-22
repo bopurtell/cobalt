@@ -75,6 +75,7 @@ type 'token t
 val create : Catalog.t -> Catalog.Context.t -> token:'token -> 'token t
 
 val update : 'token t -> Event.t -> 'token t
+val with_catalog : 'token t -> Catalog.t -> 'token t
 
 (** [accept t ~context] resolves the selection against the target's current
     [context], or [None] if the target no longer exists. *)

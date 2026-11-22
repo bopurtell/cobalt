@@ -82,6 +82,10 @@ a separate opt-in target, not part of the historical default `@smoke` aggregate.
 source copy without `markdown/` and exercises the stub-selected CLI. Neither
 command edits source files or personal configuration.
 
+Run `python3 -B scripts/smoke_no_silver.py --jobs 4` to build the production
+executable in a temporary source tree without `silver_overview/` and exercise
+ordinary editing, saving, quitting, and the handling of Silver-only flags.
+
 After building, scripts can also be run directly:
 
 ```sh

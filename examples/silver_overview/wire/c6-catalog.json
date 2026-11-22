@@ -1,0 +1,33 @@
+{
+  "request": {
+    "method": "POST",
+    "target": "/api/v1/simulation",
+    "headers": {
+      "Host": "127.0.0.1:41811",
+      "Connection": "close",
+      "Content-Type": "application/sexp",
+      "X-Workbench-Protocol": "1",
+      "Content-Length": "135"
+    },
+    "body": "((\"instance_id\" \"641215-1795328229014531801-326e72e5\") (\"project\" \"641215-1795328229014531801-326e72e5-project-1\") (\"operation\" \"Get\"))"
+  },
+  "response": {
+    "status": 200,
+    "reason": "OK",
+    "headers": [
+      [
+        "content-type",
+        "application/sexp"
+      ],
+      [
+        "content-length",
+        "416"
+      ],
+      [
+        "connection",
+        "close"
+      ]
+    ],
+    "body": "(Ok((configured true)(discovery(((protocol_version 1)(suites(((id FIFO)(label FIFO)(cases(((id seeded)(label seeded))((id smoke)(label smoke))))(parameters(((key n)(label n)(default 10)(choices(10 50)))))(default_seed 42)))))))(discovery_digest(b6ed71173b50cd433d13a1678884036ae76d49041f5c9571c2a4e092991062f4))(discovery_job())(discovery_error())(attempts())(next_before())(detail())(byte_page())(history_error())))"
+  }
+}

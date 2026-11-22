@@ -64,6 +64,8 @@ let create catalog context ~token =
   refresh { catalog; context; token; query = ""; results = []; selected = None }
 ;;
 
+let with_catalog t catalog = refresh { t with catalog }
+
 let sanitize = Query.sanitize
 
 let append t text =

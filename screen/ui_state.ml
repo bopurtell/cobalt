@@ -236,6 +236,13 @@ type t =
   ; tabs : Tab_strip.t (** View tabs' order among the file tabs, and the active one. *)
   ; split : Workspace.Major_split.t (** Requested side and share of the split view. *)
   ; palette : Palette_tile.t option (** Open, and then focused, or closed. *)
+  ; palette_caller : View_id.t option
+  ; silver_picker : (string * Silver_overview_tile.Target.t) list option
+  ; silver_connections : (int * (string * string) list) option
+  ; silver_connection_generation : int
+  ; silver_project_root : string option
+  ; silver_test : Silver_overview_tile.Test_action.t
+  ; palette_silver_test : Silver_overview_tile.Test_action.t option
   ; terminal_visible : bool
   ; terminal_number : int
   ; terminal_sessions : terminal_session Int.Map.t
@@ -449,7 +456,14 @@ let create
   ; views
   ; tabs = Tab_strip.empty
    ; split = Option.value_map layout ~default:Workspace.Major_split.default ~f:Hosted_layout.split
-  ; palette = None
+   ; palette = None
+   ; palette_caller = None
+   ; silver_picker = None
+   ; silver_connections = None
+   ; silver_connection_generation = 0
+   ; silver_project_root = None
+   ; silver_test = Unavailable "No Silver project is bound"
+   ; palette_silver_test = None
   ; terminal_visible = false
   ; terminal_number = 1
   ; terminal_sessions = Int.Map.empty
@@ -2028,7 +2042,8 @@ let leave t id =
   then dismiss_navigation t
   else if View_id.equal id Palette_tile.id
   then (* Leaving closes the palette and discards its query; nothing runs. *)
-    { t with palette = None; palette_origin = None }
+     { t with palette = None; palette_origin = None; palette_caller = None
+     ; silver_picker = None; silver_connections = None; palette_silver_test = None }
   else if View_id.equal id Help_tile.id
   then { t with help = None }
   else if is_ask id
@@ -2101,6 +2116,26 @@ let with_external_terminal t = { t with external_terminal_toggles = Some [] }
 
 let with_host_commands t host_commands =
   if phys_equal t.host_commands host_commands then t else { t with host_commands }
+;;
+
+let silver_test_id = "silver.test"
+let silver_connect_id = "silver.connect"
+let silver_test_entry action =
+  Cobalt_palette.Catalog.Entry.create_host ~id:silver_test_id
+    ~title:(Silver_overview_tile.Test_action.title action) ~priority_alias:"test"
+    ~exact_only:(match action with Unavailable _ -> true | _ -> false) ()
+;;
+
+let silver_connect_entry =
+  Cobalt_palette.Catalog.Entry.create_host ~id:silver_connect_id
+    ~title:"Silver: Connect…" ~aliases:[ "endpoint"; "silver connect" ] ()
+;;
+
+let with_silver_connection t ~project_root = { t with silver_project_root = Some project_root }
+
+let with_silver_test t action =
+  if Silver_overview_tile.Test_action.equal t.silver_test action then t
+  else { t with silver_test = action }
 ;;
 
 let take_host_command_requests t =
@@ -2352,6 +2387,16 @@ let return_to_document t =
   }
 ;;
 
+let close_palette t ~width ~height =
+  let caller = t.palette_caller in
+  let t = leave t Palette_tile.id in
+  match caller with
+  | Some view when available t ~width ~height view ->
+    { t with host = Host.focus t.host view
+    ; controller = Controller.cancel_pending t.controller }
+  | _ -> return_to_document t
+;;
+
 (* Closing help returns to the view it describes, which it never left, or to the
    document when that view is no longer available. *)
 let close_help t ~width ~height =
@@ -2545,9 +2590,10 @@ let synchronize t ~width ~height =
      | _ -> t)
   in
   let t =
-    match Host.reconcile t.host ~available:(available t ~width ~height) with
-    | _, `Kept -> t
-    | _, `Returned _ -> return_to_document t
+     match Host.reconcile t.host ~available:(available t ~width ~height) with
+     | _, `Kept -> t
+     | _, `Returned id when View_id.equal id Palette_tile.id -> close_palette t ~width ~height
+     | _, `Returned _ -> return_to_document t
   in
   (* The hidden document never owns input while a view tab covers it. *)
   match active_tab_view t with
@@ -3090,14 +3136,22 @@ let open_ask t ~width ~height ~source (question : View_registry.Ask.Question.t) 
       if Option.is_none (confirm_placement confirm ~width ~height)
       then refuse title Confirm_tile.minimum
       else { t with confirm = Some confirm; host = Host.focus t.host Confirm_tile.id }
-    | Prompt { title; initial; validate } ->
+     | Prompt { title; initial; validate } ->
       if Option.is_none (prompt_placement ~width ~height)
       then refuse title Prompt_tile.minimum
       else
         { t with
           prompt = Some (Prompt_tile.create ~origin:source ~title ~initial ~validate)
-        ; host = Host.focus t.host Prompt_tile.id
-        }
+         ; host = Host.focus t.host Prompt_tile.id
+         }
+     | Form { title; fields } ->
+       if Option.is_none (prompt_placement ~width ~height)
+       then refuse title Prompt_tile.minimum
+       else
+         { t with
+           prompt = Some (Prompt_tile.create_form ~origin:source ~title ~fields)
+         ; host = Host.focus t.host Prompt_tile.id
+         }
     | Popup { popup; enabled } ->
       let popup = Popup_tile.create ~enabled ~origin:source popup in
       if Option.is_none (popup_placement popup ~width ~height)
@@ -3916,7 +3970,9 @@ let open_palette t ~width ~height =
     in
     let catalog =
       Cobalt_palette.Catalog.create
-        (List.map local ~f:fst @ Cobalt_palette.Catalog.entries globals)
+         (List.map local ~f:fst @ Cobalt_palette.Catalog.entries globals
+          @ [ silver_test_entry t.silver_test ]
+          @ if Option.is_some t.silver_project_root then [ silver_connect_entry ] else [])
       |> Result.ok |> Option.value ~default:globals
       |> fun catalog -> Cobalt_palette.Catalog.with_host_commands catalog t.host_commands
     in
@@ -3934,8 +3990,10 @@ let open_palette t ~width ~height =
          then t
          else leave (leave t current) Popup_tile.id) with
         controller = Controller.cancel_pending t.controller
-      ; palette = Some palette
-      ; palette_origin = origin
+       ; palette = Some palette
+       ; palette_origin = origin
+       ; palette_caller = Some (Option.value origin ~default:current)
+       ; palette_silver_test = Some t.silver_test
       }
     in
     { t with
@@ -3943,6 +4001,70 @@ let open_palette t ~width ~height =
     ; palette =
         Some (Palette_tile.fit palette ~rows:(minor_rows t ~width ~height Palette_tile.id))
     })
+;;
+
+(* Reuse the query float, but its result identities now refer only to the
+   captured target list, never to a later catalog with the same row index. *)
+let open_silver_picker t ~width ~height =
+  let targets =
+    View_registry.find t.views Silver_overview_tile.key
+    |> Option.value_map ~default:[] ~f:Silver_overview_tile.targets
+  in
+  match targets with
+  | [] ->
+    pane_notice (close_palette t ~width ~height) ~source:Silver_overview_tile.id
+      "No test suites or variants are available; nothing ran"
+  | targets ->
+    let entries =
+      List.mapi targets ~f:(fun i target -> sprintf "silver.pick.%d" i, target)
+    in
+    let catalog =
+      List.map entries ~f:(fun (id, target) ->
+        Cobalt_palette.Catalog.Entry.create_host ~id
+          ~title:(Silver_overview_tile.Target.summary target) ())
+      |> Cobalt_palette.Catalog.create |> Or_error.ok_exn
+    in
+    let palette =
+      Palette_tile.create ~title:"Choose a Silver test" ~empty:"No matching tests"
+        ~instructions:"Tab selects | Enter runs | Esc cancels" catalog { mode = Normal }
+        ~token:document_id ~bindings:[]
+      |> Palette_tile.fit ~rows:(minor_rows t ~width ~height Palette_tile.id)
+    in
+    { t with palette = Some palette; silver_picker = Some entries }
+  ;;
+
+let connection_catalog entries =
+  List.map entries ~f:(fun (id, endpoint) ->
+    Cobalt_palette.Catalog.Entry.create_host ~id ~title:endpoint ())
+  |> Cobalt_palette.Catalog.create |> Or_error.ok_exn
+;;
+
+let open_silver_connections t ~width ~height =
+  let generation = t.silver_connection_generation + 1 in
+  let palette =
+    Palette_tile.create ~title:"Silver: Connect…" ~empty:"Type an endpoint, then press Enter"
+      ~instructions:"Type a URL or Tab to choose | Enter connects | Esc cancels"
+      (connection_catalog []) { mode = Normal } ~token:document_id ~bindings:[]
+    |> Palette_tile.fit ~rows:(minor_rows t ~width ~height Palette_tile.id)
+  in
+  let t =
+    map_view t Silver_overview_tile.key ~f:(fun tile ->
+      Silver_overview_tile.enqueue tile (Connections generation))
+  in
+  { t with palette = Some palette; silver_connections = Some (generation, [])
+  ; silver_connection_generation = generation }
+;;
+
+let receive_silver_connections t ~generation endpoints =
+  match t.silver_connections, t.palette with
+  | Some (current, _), Some palette when generation = current ->
+    let entries =
+      List.filter endpoints ~f:(fun endpoint -> not (String.is_empty (String.strip endpoint)))
+      |> List.mapi ~f:(fun i endpoint -> sprintf "silver.endpoint.%d" i, endpoint)
+    in
+    { t with silver_connections = Some (generation, entries)
+    ; palette = Some (Palette_tile.with_catalog palette (connection_catalog entries)) }
+  | _ -> t
 ;;
 
 (* Provider assembly boundary. The frontend owns discovery; release cancels it
@@ -4722,11 +4844,37 @@ let accept_palette t ~width ~height palette =
       (View_id.equal (Cobalt_palette.Palette.token palette) document_id)
       { Cobalt_palette.Catalog.Context.mode = Editor.mode editor }
   in
-  let refuse text = pane_notice (return_to_document t) ~source:Palette_tile.id text in
-  match Cobalt_palette.Palette.accept palette ~context with
-  | No_selection -> { t with host = Host.with_notice t.host "No matching command" }, Controller.Status.Running
-  | Target_gone _ -> refuse "The palette's document is gone; nothing ran", Running
-  | Unavailable { id; _ } ->
+   let refuse text = pane_notice (close_palette t ~width ~height) ~source:Palette_tile.id text in
+   let launch target =
+     let t = close_palette t ~width ~height in
+     map_view t Silver_overview_tile.key ~f:(fun tile ->
+       Silver_overview_tile.enqueue tile (Launch target))
+   in
+  let selected = Cobalt_palette.Palette.accept palette ~context in
+  let connect =
+    Option.map (Option.both t.silver_connections t.silver_project_root)
+      ~f:(fun ((_, entries), project_root) ->
+        let query = String.strip (Cobalt_palette.Palette.query palette) in
+        let endpoint =
+          if String.is_substring query ~substring:"://" then query
+          else
+            match selected with
+            | Execute { target = Host id; _ } ->
+              List.Assoc.find entries id ~equal:String.equal |> Option.value ~default:query
+            | _ -> query
+        in
+        if String.is_empty endpoint
+        then { t with host = Host.with_notice t.host "Choose or type a Silver endpoint" }
+        else
+          let t = close_palette t ~width ~height in
+          map_view t Silver_overview_tile.key ~f:(fun tile ->
+            Silver_overview_tile.enqueue tile (Connect { endpoint; project_root })))
+  in
+  match connect, selected with
+  | Some t, _ -> t, Controller.Status.Running
+  | None, No_selection -> { t with host = Host.with_notice t.host "No matching command" }, Running
+  | None, Target_gone _ -> refuse "The palette's document is gone; nothing ran", Running
+  | None, Unavailable { id; _ } ->
     let title =
       Option.value_map
         (Cobalt_palette.Catalog.find Cobalt_palette.Catalog.default id)
@@ -4734,22 +4882,29 @@ let accept_palette t ~width ~height palette =
         ~f:Cobalt_palette.Catalog.Entry.title
     in
     refuse (sprintf "%s is unavailable here; nothing ran" title), Running
-   | Execute { target = Host id; _ } ->
+  | None, Execute { target = Host id; _ } when Option.is_some t.silver_picker ->
+    (match List.Assoc.find (Option.value_exn t.silver_picker) id ~equal:String.equal with
+     | Some target -> launch target, Running
+     | None -> refuse "The test selection is unavailable; nothing ran", Running)
+  | None, Execute { target = Host id; _ } when String.equal id silver_test_id ->
+    (match t.palette_silver_test with
+     | Some (Run target) -> launch target, Running
+     | Some Pick -> open_silver_picker t ~width ~height, Running
+     | Some (Unavailable reason) -> refuse (sprintf "Run test: %s; nothing ran" reason), Running
+     | None -> refuse "Run test is unavailable; nothing ran", Running)
+  | None, Execute { target = Host id; _ } when String.equal id silver_connect_id
+                                               && Option.is_some t.silver_project_root ->
+    open_silver_connections t ~width ~height, Running
+  | None, Execute { target = Host id; _ } ->
      (* The rows are a snapshot taken on open; a host can withdraw a command
         before Enter. Only requests, never callbacks, live in the UI state. *)
      if not (List.exists t.host_commands ~f:(fun command ->
        String.equal command.id id))
      then refuse "The host command is no longer available; nothing ran", Running
      else
-       let origin = t.palette_origin in
-       let t = return_to_document t in
-       let host =
-         match origin with
-         | Some view when available t ~width ~height view -> Host.focus t.host view
-         | _ -> t.host
-       in
-       { t with host; host_command_requests = id :: t.host_command_requests }, Running
-   | Execute { target = Native (View (Run_view_command { view; _ } as command)); _ } ->
+        let t = close_palette t ~width ~height in
+        { t with host_command_requests = id :: t.host_command_requests }, Running
+   | None, Execute { target = Native (View (Run_view_command { view; _ } as command)); _ } ->
     (* A local command runs in the view the palette was opened over, refocused. *)
     let origin = t.palette_origin in
     let t = leave t Palette_tile.id in
@@ -4763,7 +4918,7 @@ let accept_palette t ~width ~height palette =
        in
        apply_view_command t ~width ~height command, Running
      | Some _ | None -> refuse "The palette's view is gone; nothing ran", Running)
-   | Execute { target = Native action; _ } ->
+   | None, Execute { target = Native action; _ } ->
     (* Moving "the focused view" moves the view the palette was opened over. *)
     let action : Keymap.Action.t =
       match action, t.palette_origin with
@@ -4793,10 +4948,15 @@ let feed_palette t ~width ~height palette key =
   let t = { t with host } in
   match decision with
   | Handled -> t, Controller.Status.Running
-  | Return -> return_to_document t, Running
+   | Return -> close_palette t ~width ~height, Running
   | Notice text -> { t with host = Host.with_notice t.host text }, Running
   | Workspace view -> apply_view_command t ~width ~height view, Running
-  | Content (Event event) ->
+   | Content (Event (Next | Previous))
+      when Option.is_none t.silver_picker && Option.is_none t.silver_connections
+          && (match t.palette_silver_test with Some (Unavailable _) -> true | _ -> false)
+          && String.Caseless.equal (String.strip (Cobalt_palette.Palette.query (Palette_tile.palette palette))) "test" ->
+     t, Running
+   | Content (Event event) ->
     ( { t with
         palette =
           Some
@@ -5022,19 +5182,21 @@ let route t ~width ~height key =
             ~footer:id
             view
         | Handled -> t)
-      else (
-        let host, decision =
-          if decline then t.host, Host.Decision.Return
+       else (
+         let prompt = Option.value_exn t.prompt in
+         let host, decision =
+           if decline || (Key.equal key Tab && not (Prompt_tile.is_form prompt))
+           then t.host, Host.Decision.Return
           else Host.key t.host key
               ~lookup:(Keymap.lookup (Controller.keymap t.controller))
-              ~content:Prompt_tile.interpret ~escape:None ~hint:Prompt_tile.hint
+               ~content:(Prompt_tile.interpret prompt) ~escape:None ~hint:(Prompt_tile.hint prompt)
         in
         let t = { t with host } in
         match decision, t.prompt with
         | Return, _ -> answer_ask t ~width ~height No
         | Content Accept, Some prompt ->
           (match Prompt_tile.accept prompt with
-           | Ok text -> answer_ask t ~width ~height (Text text)
+            | Ok answer -> answer_ask t ~width ~height answer
            | Error prompt -> { t with prompt = Some prompt })
         | Content (Edit event), Some prompt ->
           { t with prompt = Some (Prompt_tile.update prompt event) }
@@ -5745,6 +5907,20 @@ let with_notice ?(source = "file picker") t text =
     controller = Controller.update_feedback t.controller
       (Notify { source; scope = path t; severity = Error;
         text; history = true }) }
+;;
+
+let with_silver_result t result =
+  let severity, text =
+    match result with
+    | Ok text -> Cobalt_error.Error.Severity.Info, text
+    | Error text -> Cobalt_error.Error.Severity.Error, text
+  in
+  let text = Cobalt_file_picker.Model.Candidate.display_text text in
+  { t with
+    host = Host.with_notice t.host text
+  ; controller = Controller.update_feedback t.controller
+      (Notify { source = "silver-overview"; scope = None; severity; text; history = true })
+  }
 ;;
 
 let document_decorations_enabled t = t.document_decorations_enabled

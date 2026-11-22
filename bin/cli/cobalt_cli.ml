@@ -82,8 +82,9 @@ let command ~document_decorations ~silver_overview =
            --main-editor makes this session the explicit local destination for cobalt-open.\n\
            Use the absolute startup directory (PATH itself for a directory, its parent for a file)\n\
            with cobalt-open --project ROOT FILE [LINE [COLUMN]]. No other session is tried.\n\
-           Supply --silver-endpoint, --silver-project and --silver-run together for\n\
-           a read-only Silver overview (when built with the adapter). Space v S\n\
+            Supply --silver-endpoint and --silver-project together for a Silver project\n\
+            binding (when built with the adapter); --silver-run watches a specific attempt.\n\
+            The editor's current buffer does not change the binding. Space v S\n\
            shows/closes it; Space v U focuses it (j/k scroll, r refresh, Escape returns).")
     (let%map_open.Command path = anon (maybe ("PATH" %: Filename_unix.arg_type))
       and list_themes = flag "--list-themes" no_arg
@@ -94,8 +95,10 @@ let command ~document_decorations ~silver_overview =
          ~doc:"URL Explicit Silver loopback HTTP endpoint"
        and silver_project = flag "--silver-project" (optional string)
          ~doc:"ROOT Explicit canonical absolute Silver project root"
-       and silver_run = flag "--silver-run" (optional string)
-         ~doc:"ATTEMPT Explicit Silver simulation attempt ID"
+        and silver_run = flag "--silver-run" (optional string)
+          ~doc:"ATTEMPT Optional exact Silver simulation attempt to watch"
+        and silver_test_default = flag "--silver-test-default" (optional string)
+          ~doc:"SUITE[/VARIANT] Target for exact test, scoped to the explicit Silver project"
       and theme = flag "--theme"
         (optional
            (Command.Arg_type.create (fun name ->
@@ -132,22 +135,35 @@ let command ~document_decorations ~silver_overview =
        let fail error =
          eprintf "cobalt: %s\n" (Error.to_string_hum error);
          exit 1
-       in
-       let%bind bound_silver =
-         match silver_endpoint, silver_project, silver_run with
-         | None, None, None -> return None
-         | Some endpoint, Some project_root, Some run ->
-           if list_themes then
-             fail (Error.of_string "Silver overview requires an interactive session, not --list-themes")
-           else if String.is_empty (String.strip endpoint) || Filename.is_relative project_root
-              || String.is_empty (String.strip run) then
-             fail (Error.of_string "Silver overview requires an endpoint, an absolute project root and a nonempty run ID")
-           else (match silver_overview with
-            | Some factory -> return (Some (factory, { Cobalt_ui.Silver_overview_host.endpoint; project_root; run }))
-            | None -> fail (Error.of_string "Silver overview adapter unavailable in this build"))
-         | _ ->
-           fail (Error.of_string "--silver-endpoint, --silver-project and --silver-run must be supplied together")
-       in
+        in
+         let%bind silver_binding =
+          match silver_endpoint, silver_project, silver_run with
+          | None, None, None -> return None
+          | Some endpoint, Some project_root, run ->
+            if list_themes then
+              fail (Error.of_string "Silver overview requires an interactive session, not --list-themes")
+            else if String.is_empty (String.strip endpoint) || Filename.is_relative project_root
+               || Option.exists run ~f:(fun run -> String.is_empty (String.strip run)) then
+              fail (Error.of_string "Silver overview requires an endpoint, an absolute project root and, if supplied, a nonempty run ID")
+            else (match silver_overview with
+             | Some _ -> return (Some { Cobalt_ui.Silver_overview_host.endpoint; project_root; run })
+             | None -> fail (Error.of_string "Silver overview adapter unavailable in this build"))
+          | _ ->
+            fail (Error.of_string "--silver-endpoint and --silver-project must be supplied together; --silver-run requires both")
+        in
+        let%bind silver_test_default =
+          match silver_test_default, silver_binding with
+          | None, _ -> return None
+          | Some _, None ->
+            fail (Error.of_string "--silver-test-default requires --silver-endpoint and --silver-project")
+          | Some raw, Some _ ->
+            let nonempty part = not (String.is_empty (String.strip part)) in
+            (match String.split raw ~on:'/' with
+             | [ suite ] when nonempty suite -> return (Some (suite, None))
+             | [ suite; variant ] when nonempty suite && nonempty variant ->
+               return (Some (suite, Some variant))
+             | _ -> fail (Error.of_string "--silver-test-default expects SUITE or SUITE/VARIANT"))
+        in
         (* Bonsai_term reads keys from stdin; without a terminal there it fails with a
           long message meant for its developers. *)
          if list_themes && main_editor then
@@ -161,7 +177,7 @@ let command ~document_decorations ~silver_overview =
          else
          let%bind path = match path with
            | Some path -> return path
-           | None when Option.is_some bound_silver ->
+            | None when Option.is_some silver_binding ->
              fail (Error.of_string "Silver overview requires an editor startup PATH")
            | None when main_editor ->
              fail (Error.of_string "--main-editor requires an editor startup PATH")
@@ -213,10 +229,11 @@ let command ~document_decorations ~silver_overview =
             Core_unix.Terminal_io.tcsetattr
               { tty with c_icrnl = false; c_inlcr = false; c_igncr = false }
               Core_unix.stdin ~mode:TCSANOW;
-               let silver_overview = Option.map bound_silver ~f:(fun (factory, binding) -> factory binding) in
+                let silver_overview = Option.map silver_overview ~f:(fun factory ->
+                  factory ~test_default:silver_test_default silver_binding) in
                (match%bind Cobalt_ui.Editor_view.run ~document_decorations
                   ~document_decorations_enabled:markdown ~smear_enabled
-                  ~zen:(not workspace && Option.is_none silver_overview)
+                   ~zen:(not workspace && Option.is_none silver_binding)
                   ~bare ?theme ~buffer_presentation ?report ?silver_overview ?source ~vcs ?open_location_listener controller with
             | Ok () -> return ()
             | Error error -> fail error)))

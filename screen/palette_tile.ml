@@ -10,10 +10,14 @@ type t =
   { palette : (Cobalt_tile.View_id.t Palette.t[@sexp.opaque])
   ; view : Catalog.Id.t Selection.t
   ; shortcuts : (Catalog.Id.t * string) list (** The first binding of each entry. *)
+  ; title : string
+  ; empty : string
+  ; instructions : string option
   }
 [@@deriving sexp_of]
 
-let create ?(shortcuts = []) catalog context ~token ~bindings =
+let create ?(shortcuts = []) ?(title = "Commands") ?(empty = "No matching commands") ?instructions
+    catalog context ~token ~bindings =
   let shortcuts =
     List.map shortcuts ~f:(fun (id, keys) -> id, Shortcut.to_string_hum keys)
     @ List.filter_map (Catalog.entries catalog) ~f:(fun entry ->
@@ -27,7 +31,7 @@ let create ?(shortcuts = []) catalog context ~token ~bindings =
          | [] -> None
          | keys :: _ -> Some (Catalog.Entry.id entry, Shortcut.to_string_hum keys)))
   in
-  { palette = Palette.create catalog context ~token; view = Selection.empty; shortcuts }
+  { palette = Palette.create catalog context ~token; view = Selection.empty; shortcuts; title; empty; instructions }
 ;;
 
 let palette t = t.palette
@@ -68,6 +72,7 @@ let interpret (keys : Key.t list) : action Cobalt_tile.Content_key.t =
 
 let hint = "Type to search; Ctrl-w deletes a word, Tab/Shift-Tab or Ctrl-n/p select, Enter runs"
 let update t ~rows event = fit { t with palette = Palette.update t.palette event } ~rows
+let with_catalog t catalog = { t with palette = Palette.with_catalog t.palette catalog }
 let prompt = Picker_text.prompt
 
 (* The prompt and as much of the query's end as leaves a cell for the cursor. *)
@@ -128,7 +133,7 @@ let render ?(hotkey_hints = false) ?notice t ~width ~rows : Tile_shell.Content.t
     else (
       let list =
         if count = 0
-        then [ Tile_text.row Stale "No matching commands" ~width ]
+         then [ Tile_text.row Stale t.empty ~width ]
         else
           List.take (List.drop results t.view.top) (rows - 1)
           |> List.mapi ~f:(fun i result ->
@@ -138,7 +143,7 @@ let render ?(hotkey_hints = false) ?notice t ~width ~rows : Tile_shell.Content.t
       (query @ [ Span.blank Status (Int.max 0 (width - Span.total_width query)) ])
       :: List.take list (rows - 1))
   in
-  { title = "Commands"
+  { title = t.title
   ; footer =
       Some
         (Tile_shell.Label.footer
@@ -149,7 +154,9 @@ let render ?(hotkey_hints = false) ?notice t ~width ~rows : Tile_shell.Content.t
                 "%d/%d%s"
                 (if count = 0 then 0 else t.view.index + 1)
                 count
-                (if hotkey_hints then " | Enter run, Tab/Shift-Tab, Ctrl-n/p, Esc" else "")))
+                (match t.instructions with
+                 | Some instructions -> " | " ^ instructions
+                 | None -> if hotkey_hints then " | Enter run, Tab/Shift-Tab, Ctrl-n/p, Esc" else "")))
   ; body
   }
 ;;

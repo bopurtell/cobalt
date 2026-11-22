@@ -6,7 +6,7 @@ open! Async
 let max_body_bytes = 2 * 1024 * 1024
 let max_header_bytes = 16 * 1024
 
-let endpoint text =
+let parse_endpoint text =
   let invalid () =
     failwith "Silver endpoint must be http://localhost:PORT, http://127.0.0.1:PORT, or http://[::1]:PORT"
   in
@@ -23,6 +23,19 @@ let endpoint text =
   then invalid ();
   let port = Int.of_string port in
   if port < 1 || port > 65535 then invalid ();
+  host, addr, port
+;;
+
+let normalize_endpoint text =
+  try
+    let host, _, port = parse_endpoint text in
+    Ok (Printf.sprintf "http://%s:%d" host port)
+  with
+  | Failure message -> Error message
+;;
+
+let endpoint text =
+  let host, addr, port = parse_endpoint text in
   let address = Unix.Inet_addr.of_string addr in
   let remote = Socket.Address.Inet.create address ~port in
   Printf.sprintf "%s:%d" host port, Tcp.Where_to_connect.of_inet_address remote, addr
@@ -141,12 +154,17 @@ let request ~endpoint:text ~timeout ~stop ~meth ~path ~headers ~body =
           List.iter headers ~f:(fun (name, value) ->
             Writer.writef writer "%s: %s\r\n" name value);
           Writer.writef writer "Content-Length: %d\r\n\r\n%s" (String.length body) body;
-          Deferred.choose
+           (* A close may make the reader fail after [abandoned] wins. Keep that
+              exception local rather than leaking it into Tcp.with_connection. *)
+           let response = Monitor.try_with (fun () -> read_response reader) in
+           Deferred.choose
             [ Deferred.choice abandoned (fun () ->
                 (* Close just this transport, even if the peer never reads our write. *)
                 don't_wait_for (Writer.close writer ~force_close:Deferred.unit);
                 Error "Silver HTTP request abandoned")
-            ; Deferred.choice (read_response reader) (fun reply -> Ok reply)
+             ; Deferred.choice response (function
+                 | Ok reply -> Ok reply
+                 | Error exn -> Error (Exn.to_string exn))
             ])))
   in
   let%map result =

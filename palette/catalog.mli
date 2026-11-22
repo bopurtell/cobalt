@@ -48,6 +48,13 @@ module Entry : sig
 
   val id : t -> Id.t
 
+  (** An explicit priority alias puts this action first and selects it on an exact
+      query, even if a native command also matches exactly. [exact_only] hides the
+      action under any other query. *)
+  val create_host
+    : id:string -> title:string -> ?aliases:string list -> ?priority_alias:string
+    -> ?exact_only:bool -> unit -> t
+
   (** Shown in the palette and searched first, e.g. ["Toggle relative line numbers"]. *)
   val title : t -> string
 
@@ -91,7 +98,8 @@ type result = (Entry.t, Field.t) Fuzzy.Match.t
 val search : t -> Context.t -> query:string -> result list
 
 (** Also returns the default selection when the query exactly matches a host
-    command: an exact native match wins, otherwise the best exact host match. *)
+    command: a priority alias wins, otherwise an exact native match wins,
+    otherwise the best exact host match. *)
 val search_with_exact : t -> Context.t -> query:string -> result list * Id.t option
 
 (** The byte offsets of the title's matched code points, for highlighting. Empty when

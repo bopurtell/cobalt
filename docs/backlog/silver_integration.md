@@ -1,8 +1,8 @@
 # Silver integration: Cobalt-side tickets
 
 **Status:** C1–C5 are **closed** for their Cobalt-side scope; their handoff
-evidence is linked below. C5 also passed its live two-window check. C6 remains
-**proposed**. Use these as implementation slices, not duplicate feature
+evidence is linked below. C5 also passed its live two-window check. C6 is
+**in progress**, starting with test quick launch. Use these as implementation slices, not duplicate feature
 trackers. Silver's `docs/cobalt_editor_roadmap.md` owns the user workflows and
 end-to-end acceptance. “Ready for Silver” here means a Cobalt interface is usable
 and demonstrated against a local harness. It does not mean the two apps have
@@ -18,7 +18,7 @@ the module that implements them so Silver can consume the same examples.
 | [C3: Terminal handoff](#c3--expose-toggleterm-as-a-host-action) | Closed | WB-089/090: numbered shells and focus |
 | [C4: Main editor destination](#c4--address-an-opted-in-standalone-editor) | Closed | Silver navigation: second destination for the same location |
 | [C5: Companion overview](#c5--optional-silver-module-and-overview-tile) | Closed | Cobalt-first monitoring against a real Silver endpoint |
-| [C6: Companion commands](#c6--run-a-silver-command-from-the-editor) | Proposed | WB-093: test quick launch first, then stage quick launch |
+| [C6: Companion commands](#c6--run-a-silver-command-from-the-editor) | In progress | WB-093: test quick launch first, then stage quick launch |
 
 **Next:** C6 builds on C5's connection model. Use the two delivery slices below;
 Silver WB-093 is the single end-to-end acceptance record.
@@ -123,7 +123,7 @@ acceptance check and captured exchanges](../../examples/silver_overview/README.m
 
 ## C6 — Run a Silver command from the editor
 
-**Status: proposed; design agreed.** One optional Silver module owns the connection,
+**Status: slice 1 implemented and live-tested; slice 2 proposed.** One optional Silver module owns the connection,
 selected targets, settings, launch requests and acknowledgements. It may split those
 responsibilities into internal modules. Tiles render module state and emit intents;
 tile `R` and palette commands invoke the same launch operation.
@@ -134,6 +134,15 @@ binding. A project binding suffices before the first attempt exists. Changing
 buffers or hiding a tile neither retargets commands nor drops pending results.
 
 **Slice 1 — test quick launch**
+
+The [launch adapter](../../silver_overview/README.md#testing-quick-launch)
+documents the verified connection, discovery digest and one-shot submission.
+The [session model](../../silver_overview/silver_quick_launch.mli) defines how
+the tile and `test` alias share settings and resolve a target. Run
+`dune runtest silver_overview` to exercise these contracts without a daemon.
+The [two-window acceptance harness](../../examples/silver_overview/README.md#c6-slice-1-quick-launch-wire-capture)
+verified that applying `n=50` created no attempt, then tile `R` and palette
+`test` each created a distinct passing attempt with that value in Silver.
 
 - Render suites and their variants in a compact tile. `R` on a suite launches with
   configured/catalog defaults; `R` on a variant launches that variant. `Enter`

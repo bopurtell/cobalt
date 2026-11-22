@@ -1,11 +1,13 @@
-(** The single-line prompt float: a registered view's request for a line of text
-    ({!View_registry.Ask.Prompt}), such as a branch name, opened on the single float
-    slot over that view, which is neither left nor changed meanwhile. Its input edits
+(** A registered view's text-input float, opened over that view, which is
+    neither left nor changed meanwhile. It hosts a single-line prompt
+    ({!View_registry.Ask.Prompt}) or a form ({!View_registry.Ask.Form}) that
+    edits one field at a time. Its input edits
     like the palette's query ({!Cobalt_palette.Query}: typed and pasted text is
     sanitized to one line). The view's validation runs on every edit once the text
     has been edited, or when Enter is refused; its error shows on the row under the
     input. Enter accepts valid text; Escape, Tab and Ctrl-c cancel ({!Ui_state} routes
-    them). Either closes it and returns focus to the view. *)
+    them). On a form Tab instead advances fields, and Enter applies them
+    together. Closing returns focus to the view. *)
 
 open! Core
 open Cobalt_input
@@ -23,8 +25,15 @@ val create
   -> validate:(string -> string option)
   -> t
 
+val create_form
+  :  origin:Cobalt_tile.View_id.t
+  -> title:string
+  -> fields:(string * string) list
+  -> t
+
 (** The view that asked, and that focus returns to. *)
 val origin : t -> Cobalt_tile.View_id.t
+val is_form : t -> bool
 
 val title : t -> string
 val text : t -> string
@@ -43,6 +52,8 @@ module Event : sig
     | Paste of string
     | Backspace
     | Delete_word
+    | Clear
+    | Field of int
   [@@deriving sexp_of]
 end
 
@@ -53,13 +64,13 @@ type action =
 
 (** Characters, including Space, [?] and [q], are text; Backspace deletes a
     character, and Ctrl-w or Ctrl-h a word; Enter accepts. *)
-val interpret : Key.t list -> action Cobalt_tile.Content_key.t
+val interpret : t -> Key.t list -> action Cobalt_tile.Content_key.t
 
-val hint : string
+val hint : t -> string
 val update : t -> Event.t -> t
 
-(** The text when it passes validation; otherwise the prompt with the error shown. *)
-val accept : t -> (string, t) Result.t
+(** The validated text or the atomic form draft; otherwise the prompt with its error. *)
+val accept : t -> (View_registry.Answer.t, t) Result.t
 
 (** The text-entry point after the input, in a [width]-cell content area. *)
 val cursor : t -> width:int -> Cobalt_tile.Cursor.t
