@@ -43,6 +43,47 @@ partial paste. Only the host starts the TUI or writes to the physical TTY. An
 optional `set_clipboard` effect receives plain text; otherwise Cobalt retains
 its own yank register without touching the system clipboard.
 
+## Initial tile layout
+
+Omit `layout` to use the standard Cobalt workspace. To start with the source
+above a full-width Problems band and no History or Status pane, pass:
+
+```ocaml
+let layout =
+  Core.Sexp.of_string "((views ((Problems Band))))"
+  |> Cobalt_hosted.Layout.t_of_sexp
+in
+Cobalt_hosted.component ~layout startup ~dimensions ~visible ~focused graph
+```
+
+Supported hosted views are `Problems`, `History`, `Language_servers`, and `Vcs`.
+Use `Band` for the bottom band, `Tab` for an initially inactive tab, `Split` for
+a single pane beside the document, and `Hidden` (or omit the view) to start
+closed. Band and tab order follows the list. Optional `status` and `split`
+fields set Status placement and the split's side and sizing; see
+`Cobalt_hosted.Layout`. This sets the initial layout only: the existing
+shortcuts still move, reopen, and hide views, and Zen and Bare remain available.
+
+## Editor appearance
+
+Omit `appearance` to keep Cobalt-managed colors and its normal theme picker.
+Pass `~appearance` as a `Cobalt_hosted.Theme.t Bonsai.t` to make the host
+authoritative. A host can follow its own palette reactively, or keep the editor
+independent using a constant Cobalt preset such as:
+
+```ocaml
+let appearance =
+  Cobalt_hosted.Theme.find "abyss" |> Core.Option.value_exn |> Bonsai.return
+in
+Cobalt_hosted.component ~appearance startup ~dimensions ~visible ~focused graph
+```
+
+For custom colors use `Theme.of_base16` and, where needed, `Theme.with_colors`
+to set individual semantic RGB roles. The same palette colors the editor,
+panels, syntax, and overlays. Palette changes repaint the existing session;
+they do not change focus or reopen buffers. While the host owns the palette,
+the editor's theme picker is unavailable.
+
 ## Hosting the numbered terminals
 
 Omit `on_toggle_terminal` to keep Cobalt's own numbered terminal pool, just

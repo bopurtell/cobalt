@@ -242,6 +242,22 @@ let create entries =
   | None -> entries
 ;;
 
+let with_initial_placements t placements =
+  let placement entry placement =
+    match entry with
+    | Entry.Installed entry -> Entry.Installed { entry with placement }
+    | Unavailable _ -> entry
+  in
+  let selected = List.filter_map placements ~f:(fun (id, target) ->
+    List.find t ~f:(fun entry -> View_id.equal (Entry.id entry) id)
+    |> Option.map ~f:(fun entry -> placement entry target)) in
+  let rest = List.filter_map t ~f:(fun entry ->
+    if List.Assoc.mem placements (Entry.id entry) ~equal:View_id.equal
+    then None
+    else Some (placement entry Placement.Hidden)) in
+  selected @ rest
+;;
+
 let installed_entries t =
   List.filter t ~f:(function
     | Entry.Installed _ -> true

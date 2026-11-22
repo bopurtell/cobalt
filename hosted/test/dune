@@ -13,3 +13,10 @@
  (action (run sh %{dep:with_fake_shell.sh} %{exe:test_hosted_toggle.exe}))
  (preprocess
   (pps ppx_jane)))
+
+(test
+ (name test_hosted_appearance)
+ (modules test_hosted_appearance)
+ (libraries cobalt_hosted core core_unix.filename_unix core_unix async bonsai
+   bonsai_test bonsai_term bonsai_term_test notty-community)
+ (preprocess (pps ppx_jane)))

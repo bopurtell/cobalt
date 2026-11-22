@@ -115,6 +115,29 @@ let%test_unit "invalid completion role or non-strict RGB rejects the entire list
   assert (Theme.equal Theme.default (Option.value_exn (Theme.find "vim-classic")))
 ;;
 
+let%test_unit "semantic overrides are exact, independent, last-wins and immutable" =
+  let original = Theme.default in
+  let expected =
+    [ Theme.Role.Background, (1, 2, 3)
+    ; Syntax_keyword, (4, 5, 6)
+    ; Selection_background, (7, 8, 9)
+    ; Completion_label, (10, 11, 12) ]
+  in
+  let updated = Theme.with_colors original ((Background, (0, 0, 0)) :: expected) in
+  assert (String.equal (Theme.id updated) (Theme.id original));
+  assert (String.equal (Theme.title updated) (Theme.title original));
+  assert (Theme.Kind.equal (Theme.kind updated) (Theme.kind original));
+  List.iter Theme.Role.all ~f:(fun role ->
+    let rgb = Option.value (List.Assoc.find expected role ~equal:Theme.Role.equal)
+        ~default:(Theme.color original role) in
+    assert (Poly.equal (Theme.color updated role) rgb));
+  assert (Theme.equal original (Option.value_exn (Theme.find (Theme.id original))));
+  List.iter [ (-1, 0, 0); (0, 256, 0) ] ~f:(fun rgb ->
+    match Theme.with_colors original [ Background, rgb; Background, (0, 0, 0) ] with
+    | _ -> failwith "Accepted an invalid RGB channel"
+    | exception Invalid_argument _ -> ())
+;;
+
 let%test_unit "registry is total, valid, distinct, and normalized" =
   assert (List.length Theme.all = 58);
   assert (String.equal (Theme.id Theme.default) "vim-classic");

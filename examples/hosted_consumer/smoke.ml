@@ -11,12 +11,13 @@ let check condition message = if not condition then failwith message
 
 let main root =
   let startup = Editor.open_project root |> Or_error.ok_exn in
+  let layout = Sexp.of_string "((views ((Problems Band))))" |> Editor.Layout.t_of_sexp in
   let dimensions = Var.create { Dimensions.width = 100; height = 24 } in
   let visible = Var.create true in
   let focused = Var.create true in
   let handle =
     Handle.create Bonsai_test.Result_spec.invisible
-      (Editor.component startup
+      (Editor.component ~layout startup
          ~dimensions:(Var.value dimensions)
          ~visible:(Var.value visible)
          ~focused:(Var.value focused))
@@ -59,6 +60,8 @@ let main root =
   let ( let* ) deferred f = Deferred.bind deferred ~f in
   let* first = open_file "src/first.txt" in
   let first = opened first in
+  check (String.is_substring (rendered ()) ~substring:"Problems (") "missing Problems band";
+  check (not (String.is_substring (rendered ()) ~substring:"History:")) "unexpected History tile";
   let* () = send (ASCII 'i') in
   let* () = send (ASCII 'Z') in
   let* () = send Escape in

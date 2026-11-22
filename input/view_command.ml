@@ -23,7 +23,7 @@ module Status_position = struct
     | Right
     | Above
     | Below
-  [@@deriving sexp_of, equal]
+  [@@deriving sexp, equal]
 end
 
 module Buffer_presentation = struct
@@ -36,7 +36,7 @@ module Placement = struct
     | Band
     | Tab
     | Split
-  [@@deriving sexp_of, equal]
+  [@@deriving sexp, equal]
 end
 
 type t =

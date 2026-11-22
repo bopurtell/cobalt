@@ -51,6 +51,13 @@ let completion_roles : (string * Role.t) list =
 let completion_color_roles = List.map completion_roles ~f:fst
 let is_completion role = List.exists completion_roles ~f:(fun (_, r) -> Role.equal r role)
 
+let replace_colors t overrides =
+  let overrides = List.rev overrides in
+  { t with colors = List.map t.colors ~f:(fun (role, original) ->
+      role, Option.value (List.Assoc.find overrides role ~equal:Role.equal)
+        ~default:original) }
+;;
+
 let with_completion_colors t overrides =
   let open Or_error.Let_syntax in
   let%map overrides =
@@ -68,9 +75,7 @@ let with_completion_colors t overrides =
           Ok (role, (channel 1, channel 3, channel 5)))
     |> Or_error.all
   in
-  { t with colors = List.map t.colors ~f:(fun (role, original) ->
-      role, Option.value (List.Assoc.find (List.rev overrides) role ~equal:Role.equal)
-        ~default:original) }
+  replace_colors t overrides
 ;;
 
 let blend (r, g, b) (r', g', b') amount =
@@ -133,6 +138,11 @@ let completion_defaults t =
 let validate_rgb (r, g, b) =
   if List.exists [ r; g; b ] ~f:(fun c -> c < 0 || c > 255)
   then invalid_arg "Theme: RGB channel outside 0..255"
+;;
+
+let with_colors t overrides =
+  List.iter overrides ~f:(fun (_, rgb) -> validate_rgb rgb);
+  replace_colors t overrides
 ;;
 
 let of_base16 ~id ~title ~(kind : Kind.t) ~palette =

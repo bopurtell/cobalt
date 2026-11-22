@@ -255,6 +255,7 @@ type t =
   ; terminal_inspection : Terminal_tile.inspection option
   ; terminal_paste : (string list * int * bool) option (** Chunks, bytes, valid. *)
   ; theme : Cobalt_theme.Theme.t
+  ; external_appearance : bool
   ; theme_picker : Theme_picker_tile.t option
   ; theme_picker_return : View_id.t
   ; snippet_picker : Snippet_picker_tile.t option
@@ -315,6 +316,7 @@ let directory_id = View_id.of_string "directory"
 let demo_report_unavailable = "Demo report unavailable; launch with --demo-report"
 
 let create
+  ?layout
   ?theme
   ?(prefs = Geometry.Prefs.default)
   ?(bare_prefs = Presentation.Bare_prefs.default)
@@ -345,10 +347,15 @@ let create
             (Language_servers_tile.create ~source_attached)
        ]
        @ views)
+    |> fun views ->
+    Option.value_map layout ~default:views ~f:(fun layout ->
+      View_registry.with_initial_placements views (Hosted_layout.placements layout))
   in
   let workspace_prefs =
-    Option.value workspace_prefs
-      ~default:{ Workspace.Prefs.default with status_visible = tiles_visible }
+    Option.value_map layout
+      ~default:(Option.value workspace_prefs
+        ~default:{ Workspace.Prefs.default with status_visible = tiles_visible })
+      ~f:Hosted_layout.workspace_prefs
   in
   let session = Session.create ?directory_config ~cell_width:Cell_map.width controller in
   let session = if bare && Option.is_some (Session.active_id session)
@@ -439,7 +446,7 @@ let create
            ])
   ; views
   ; tabs = Tab_strip.empty
-  ; split = Workspace.Major_split.default
+   ; split = Option.value_map layout ~default:Workspace.Major_split.default ~f:Hosted_layout.split
   ; palette = None
   ; terminal_visible = false
   ; terminal_number = 1
@@ -460,6 +467,7 @@ let create
   ; terminal_inspection = None
   ; terminal_paste = None
   ; theme = Option.value theme ~default:Cobalt_theme.Theme.default
+  ; external_appearance = false
   ; theme_picker = None
   ; theme_picker_return = document_id
   ; snippet_picker = None
@@ -556,6 +564,8 @@ let take_terminal_requests t =
 let theme t =
   let base = Option.value_map t.theme_picker ~f:Theme_picker_tile.preview ~default:t.theme in
   Cobalt_theme.Theme.with_completion_colors base t.completion_colors |> Or_error.ok_exn
+
+let with_external_appearance t = { t with external_appearance = true }
 let theme_picker t = t.theme_picker
 let snippet_picker t = t.snippet_picker
 let hover t = t.hover
@@ -3528,21 +3538,29 @@ let local_entries t origin =
    command, or closing, returns to the document as before. From another view it
    leaves that view. Refusal does not disturb the current focus. *)
 let open_theme_picker t ~width ~height =
-  let t = finalize_completion t in
-  if not (Mode.equal (Editor.mode (Controller.editor t.controller)) Normal)
-     || Host.pasting t.host || Option.is_none (palette_placement ~width ~height)
-  then { t with host = Host.with_notice t.host
-    "Themes unavailable: finish paste, leave Insert/Visual, and allow at least 14 columns and 4 rows" }
-  else
-    let previous = match t.theme_picker with Some _ -> t.theme_picker_return
-      | None -> focused_view t ~width ~height in
-    let t = List.fold (leave_ids t) ~init:t ~f:leave in
-    let picker = Theme_picker_tile.create t.theme in
-    let t = { t with theme_picker = Some picker; theme_picker_return = previous
-      ; host = Host.focus t.host Theme_picker_tile.id
-      ; controller = Controller.cancel_pending t.controller } in
-    { t with theme_picker = Some (Theme_picker_tile.fit picker
-      ~rows:(minor_rows t ~width ~height Theme_picker_tile.id)) }
+  if t.external_appearance
+  then (
+    let text = "Appearance is managed by the host" in
+    { t with host = Host.with_notice t.host text
+    ; controller = Controller.update_feedback t.controller
+        (Notify { source = "appearance"; scope = None; severity = Info; text; history = false })
+    })
+  else (
+    let t = finalize_completion t in
+    if not (Mode.equal (Editor.mode (Controller.editor t.controller)) Normal)
+       || Host.pasting t.host || Option.is_none (palette_placement ~width ~height)
+    then { t with host = Host.with_notice t.host
+      "Themes unavailable: finish paste, leave Insert/Visual, and allow at least 14 columns and 4 rows" }
+    else
+      let previous = match t.theme_picker with Some _ -> t.theme_picker_return
+        | None -> focused_view t ~width ~height in
+      let t = List.fold (leave_ids t) ~init:t ~f:leave in
+      let picker = Theme_picker_tile.create t.theme in
+      let t = { t with theme_picker = Some picker; theme_picker_return = previous
+        ; host = Host.focus t.host Theme_picker_tile.id
+        ; controller = Controller.cancel_pending t.controller } in
+      { t with theme_picker = Some (Theme_picker_tile.fit picker
+        ~rows:(minor_rows t ~width ~height Theme_picker_tile.id)) })
 ;;
 
 let navigation_notice t text =

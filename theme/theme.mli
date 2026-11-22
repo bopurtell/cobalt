@@ -33,6 +33,11 @@ val title : t -> string
 val kind : t -> Kind.t
 val color : t -> Role.t -> rgb
 
+(** Immutable semantic overrides, with the last value winning for duplicate roles.
+    Preserves identity, kind, and all unspecified roles (including completion).
+    Raises [Invalid_argument] if any supplied channel is outside [0..255]. *)
+val with_colors : t -> (Role.t * rgb) list -> t
+
 (** The eleven exact, case-sensitive configuration role names. *)
 val completion_color_roles : string list
 

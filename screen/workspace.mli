@@ -43,7 +43,7 @@ module Major_split : sig
     type t =
       | Left
       | Right
-    [@@deriving sexp_of, equal]
+    [@@deriving sexp, equal]
   end
 
   type t =
@@ -52,7 +52,7 @@ module Major_split : sig
     (** The split view's requested share of the editor area, between {!min_percent}
         and {!max_percent}, before clamping to both panes' minimum widths. *)
     }
-  [@@deriving sexp_of, equal]
+  [@@deriving sexp, equal]
 
   val min_percent : int
   val max_percent : int

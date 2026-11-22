@@ -20,7 +20,7 @@ let wait_for what predicate =
   loop ()
 ;;
 
-let mount ?on_toggle_terminal ~focused ~root () =
+let mount ?layout ?on_toggle_terminal ~focused ~root () =
   let startup = Cobalt_hosted.open_project root |> Or_error.ok_exn in
   let opened = ref false and closed = ref false in
   let handle =
@@ -36,7 +36,7 @@ let mount ?on_toggle_terminal ~focused ~root () =
               | Error failure -> raise (Error.to_exn (Cobalt_hosted.Open_location.to_error failure)))
         | Shutdown -> Effect.map (pane.shutdown ()) ~f:(fun () -> closed := true))
       (fun ~dimensions (local_ graph) ->
-        Cobalt_hosted.component ?on_toggle_terminal startup ~dimensions
+         Cobalt_hosted.component ?layout ?on_toggle_terminal startup ~dimensions
           ~visible:(Bonsai.return true) ~focused:(Bonsai.Expert.Var.value focused) graph)
   in
   Handle.recompute_view handle;
@@ -161,5 +161,19 @@ let () =
   let shells () = In_channel.read_lines (Filename.concat root "shells.log") in
   Thread_safe.block_on_async_exn (fun () ->
     let%bind () = delegate ~root ~shells () in
-    local ~root ~shells ())
+    let%bind () = local ~root ~shells () in
+    let layout =
+      Cobalt_hosted.Layout.t_of_sexp (Sexp.of_string "((views ((Problems Band))))") in
+    let focused = Bonsai.Expert.Var.create true in
+    let%bind handle, shutdown = mount ~layout ~focused ~root () in
+    Monitor.protect ~finally:shutdown (fun () ->
+      assert (view_contains handle "seed");
+      assert (view_contains handle "Problems (");
+      assert (not (view_contains handle "History:"));
+      type_ handle " vz";
+      assert (not (view_contains handle "Problems ("));
+      type_ handle " vz vm";
+      assert (view_contains handle "Problems (");
+      assert (view_contains handle "History:");
+      return ()))
 ;;

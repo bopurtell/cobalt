@@ -29,7 +29,7 @@ module Status_position : sig
     | Right
     | Above
     | Below
-  [@@deriving sexp_of, equal]
+  [@@deriving sexp, equal]
 end
 
 module Buffer_presentation : sig
@@ -45,7 +45,7 @@ module Placement : sig
     (** An entry in the tab strip, added after the active entry; while active it fills
         the editor area. *)
     | Split (** The major split: a peer pane beside the active tab. At most one view. *)
-  [@@deriving sexp_of, equal]
+  [@@deriving sexp, equal]
 end
 
 type t =

@@ -117,7 +117,7 @@ type open_location_listener =
   -> on_request:(Open_location.request -> (unit, Open_location.failure) Result.t Async.Deferred.t)
   -> (unit -> unit Async.Deferred.t) Async.Deferred.Or_error.t
 
-let component ?terminal ?snippets ?configuration ?startup_configuration ?configuration_path ?document_decorations ?document_decoration_host ?(document_decorations_enabled = false) ?(smear_enabled = false) ?(zen = false) ?bare ?theme ?buffer_presentation ?report ?(silver_overview : Silver_overview_host.t option) ?source ?vcs ?font ?file_picker ?content_picker ?on_toggle_terminal ?on_open_location_ready ~set_clipboard controller ~exit ~blank_on_close ~dimensions ~visible ~focused (local_ graph)
+let component ?layout ?terminal ?snippets ?configuration ?startup_configuration ?configuration_path ?document_decorations ?document_decoration_host ?(document_decorations_enabled = false) ?(smear_enabled = false) ?(zen = false) ?bare ?theme ?appearance ?buffer_presentation ?report ?(silver_overview : Silver_overview_host.t option) ?source ?vcs ?font ?file_picker ?content_picker ?on_toggle_terminal ?on_open_location_ready ~set_clipboard controller ~exit ~blank_on_close ~dimensions ~visible ~focused (local_ graph)
   =
   let dimensions = let%arr { Dimensions.width; height } = dimensions in
     { Dimensions.width = Int.max 0 width; height = Int.max 0 height } in
@@ -154,7 +154,7 @@ let component ?terminal ?snippets ?configuration ?startup_configuration ?configu
     | Some host, None -> host.Content_picker_host.initial_ui
     | None, Some host -> host.File_picker_host.initial_ui
     | None, None ->
-      let ui = Ui_state.create ~smear_enabled ?bare ?theme ?buffer_presentation ?report
+      let ui = Ui_state.create ?layout ~smear_enabled ?bare ?theme ?buffer_presentation ?report
         ~source_attached:(Option.is_some source)
         ~views:[ Silver_overview_host.entry silver_overview; vcs_entry ] controller in
       (* Headless assembly retains Workspace. Enter Zen through the normal command
@@ -172,6 +172,11 @@ let component ?terminal ?snippets ?configuration ?startup_configuration ?configu
   let initial_ui = Ui_state.with_configuration_path initial_ui configuration_path in
   let initial_ui = Option.value_map startup_configuration ~default:initial_ui
     ~f:(apply_startup_configuration ?theme_override:theme initial_ui) in
+  let initial_ui = if Option.is_some appearance
+    then Ui_state.with_external_appearance initial_ui else initial_ui in
+  let appearance = match appearance with
+    | None -> Bonsai.return None
+    | Some appearance -> let%arr appearance in Some appearance in
   (* Session opt-in is applied after configuration; providers are injected only
      by executable composition. Neither screen rendering nor config loads them. *)
   let document_decorations = Option.value_or_thunk document_decoration_host ~default:(fun () ->
@@ -720,14 +725,15 @@ let component ?terminal ?snippets ?configuration ?startup_configuration ?configu
          graph;
        Bonsai.return ()
    in
-   let surface =
-     let%arr model
-     and { Dimensions.width; height } = dimensions
-     and visible and focused in
+    let surface =
+      let%arr model
+      and { Dimensions.width; height } = dimensions
+      and appearance
+      and visible and focused in
      if (blank_on_close && Ui_state.exited model) || not visible || width = 0 || height = 0
      then View.none, None
      else (
-       let theme = Ui_state.theme model in
+        let theme = Option.value_or_thunk appearance ~default:(fun () -> Ui_state.theme model) in
        if not (Option.equal Cobalt_theme.Theme.equal !last_drawn_theme (Some theme))
        then (
          Frame.Cache.invalidate render_cache;
@@ -761,8 +767,8 @@ let component ?terminal ?snippets ?configuration ?startup_configuration ?configu
    { view; cursor; handle_event; open_location; shutdown; closed }
 ;;
 
-let hosted ?terminal ?snippets ?configuration ?startup_configuration ?configuration_path
-    ?document_decorations ?document_decorations_enabled ?smear_enabled ?zen ?bare ?theme
+let hosted ?layout ?terminal ?snippets ?configuration ?startup_configuration ?configuration_path
+    ?document_decorations ?document_decorations_enabled ?smear_enabled ?zen ?bare ?theme ?appearance
     ?buffer_presentation ?report ?source ?vcs ?font ?file_picker ?content_picker ?on_toggle_terminal
     ?(set_clipboard = Bonsai.return (fun _ -> Effect.Ignore))
     controller ~dimensions ~visible ~focused (local_ graph) =
@@ -774,8 +780,8 @@ let hosted ?terminal ?snippets ?configuration ?startup_configuration ?configurat
      supported document opens. The component owns it, not the outer host. *)
   let source = Option.value_or_thunk source ~default:(fun () ->
     Cobalt_source.Lsp_client.start_workspace ~cell_width:Cell_map.width ()) in
-  component ?terminal ?snippets ?configuration ?startup_configuration ?configuration_path
-    ?document_decorations ?document_decorations_enabled ?smear_enabled ?zen ?bare ?theme
+  component ?layout ?terminal ?snippets ?configuration ?startup_configuration ?configuration_path
+    ?document_decorations ?document_decorations_enabled ?smear_enabled ?zen ?bare ?theme ?appearance
     ?buffer_presentation ?report ~source ~vcs ?font ?file_picker ?content_picker ?on_toggle_terminal ~set_clipboard
     controller ~exit:(fun () -> Effect.Ignore) ~blank_on_close:true ~dimensions ~visible ~focused graph
 ;;

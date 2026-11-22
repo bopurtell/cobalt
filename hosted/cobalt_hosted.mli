@@ -3,6 +3,12 @@
 
 type startup
 
+module Layout = Cobalt_screen.Hosted_layout
+
+(** The shared Cobalt palette API: resolve a named theme with [find], or build a
+    custom theme with [of_base16] and [with_colors]. *)
+module Theme = Cobalt_theme.Theme
+
 (** Open an existing project directory as the editor's startup surface.
     Prepare once per mounted editor. The root must be absolute and does not
     depend on the host's working directory. *)
@@ -51,6 +57,10 @@ type t =
     coordinates. [set_clipboard] delegates clipboard writes to the host;
     omitting it leaves Cobalt's own yank register in use.
 
+    [layout] overrides the initial workspace tile placements, not their
+    commands. Omit it for Cobalt's standard workspace. It is applied once
+    per mount; the user can then move or toggle tiles as usual.
+
     [on_toggle_terminal] replaces the local terminal pool. Cobalt calls it
     once per recognized ToggleTerm action, with [Some id] for [N Space /]
     or [None] for [Space /] so the host can use its own most-recent terminal.
@@ -66,10 +76,17 @@ type t =
 
     [shutdown] discards unsaved edits, closes the session and waits for cleanup;
     await the effect before unmounting. Requests after closing return
-    [Session_exited]. *)
+    [Session_exited].
+
+    [appearance] gives the host ownership of the editor palette, including
+    chrome, syntax and overlays. Changes repaint the mounted editor without
+    replacing its session. The Cobalt theme picker is unavailable while the
+    host owns appearance. Omit this option for Cobalt-managed appearance. *)
 val component
-  :  ?set_clipboard:(string -> unit Bonsai_term.Effect.t) Bonsai.t
+  :  ?layout:Layout.t
+  -> ?set_clipboard:(string -> unit Bonsai_term.Effect.t) Bonsai.t
   -> ?on_toggle_terminal:(int option -> unit Bonsai_term.Effect.t) Bonsai.t
+  -> ?appearance:Theme.t Bonsai.t
   -> startup
   -> dimensions:Bonsai_term.Dimensions.t Bonsai.t
   -> visible:bool Bonsai.t

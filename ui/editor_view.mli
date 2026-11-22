@@ -62,7 +62,8 @@ type hosted =
     permanent teardown, not as hiding; await [shutdown] before unmounting when the
     host needs to wait for child cleanup. See [HOSTED.md] for integration details. *)
 val hosted
-  :  ?terminal:Terminal_host.t
+  :  ?layout:Cobalt_screen.Hosted_layout.t
+  -> ?terminal:Terminal_host.t
   -> ?snippets:Snippet_host.t
   -> ?configuration:Configuration_host.t
   -> ?startup_configuration:Configuration_host.configuration
@@ -73,6 +74,8 @@ val hosted
   -> ?zen:bool
   -> ?bare:bool
   -> ?theme:Cobalt_theme.Theme.t
+  -> ?appearance:Cobalt_theme.Theme.t Bonsai.t
+       (** Live host-owned palette; supersedes Cobalt's [theme] and picker. *)
   -> ?buffer_presentation:Cobalt_input.View_command.Buffer_presentation.t
   -> ?report:Cobalt_screen.Report_tile.Item.t list
   -> ?source:Cobalt_source.Source.t

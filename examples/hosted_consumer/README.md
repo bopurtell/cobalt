@@ -56,8 +56,9 @@ Expected: `external C1/C2 smoke passed`. This checks the installed public API
 against the real mounted editor without starting a physical terminal. It
 opens two files, injects a modal edit, checks typed failures and stable
 buffer identity, reopens while hidden, resizes and restores focus, verifies
-the edit still renders, and awaits shutdown. For the interactive sibling-pane
-demo and terminal acceptance, see [`../hosted_editor`](../hosted_editor).
+the edit still renders, and awaits shutdown. It also supplies a hosted layout
+with Problems in the bottom band and History hidden. For the interactive
+sibling-pane demo and terminal acceptance, see [`../hosted_editor`](../hosted_editor).
 
 Verified with Dune 3.24.2 and OCaml 5.2.0+ox: a clean standard `_build`
 installed to an absolute prefix via `dune install`. The independent consumer

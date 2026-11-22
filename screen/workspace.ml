@@ -31,14 +31,14 @@ module Major_split = struct
     type t =
       | Left
       | Right
-    [@@deriving sexp_of, equal]
+    [@@deriving sexp, equal]
   end
 
   type t =
     { view_side : Side.t
     ; percent : int
     }
-  [@@deriving sexp_of, equal]
+  [@@deriving sexp, equal]
 
   let min_percent = 20
   let max_percent = 80

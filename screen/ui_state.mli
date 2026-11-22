@@ -188,6 +188,9 @@ val terminal_layout : t -> width:int -> height:int -> Tile_shell.Layout.t option
     otherwise the committed base choice, with configured completion colors applied.
     Independent of presentation and file buffers; never mutates registered themes. *)
 val theme : t -> Cobalt_theme.Theme.t
+(** Set on a new state when its frontend owns the effective palette. Cobalt's
+    picker is unavailable; the frontend supplies colors at draw time. *)
+val with_external_appearance : t -> t
 val theme_picker : t -> Theme_picker_tile.t option
 val theme_picker_layout : t -> width:int -> height:int -> Tile_shell.Layout.t option
 (** Explicit snippet discovery over a captured catalog and editor snapshot. *)
@@ -219,7 +222,9 @@ val instances_layout : t -> width:int -> height:int -> Tile_shell.Layout.t optio
 val file_picker_visible_stamp : t -> (int * int * int) option
 
 val create
-  :  ?theme:Cobalt_theme.Theme.t
+  :  ?layout:Hosted_layout.t
+       (** Overrides initial registered placements and workspace preferences. *)
+  -> ?theme:Cobalt_theme.Theme.t
   -> ?prefs:Geometry.Prefs.t
   -> ?bare_prefs:Presentation.Bare_prefs.t
        (** Independent Bare profile; default numbers [Off]. May be supplied even
