@@ -36,13 +36,15 @@ end
 module Entry : sig
   type t [@@deriving sexp_of]
 
-  (** [available] defaults to Normal mode only. *)
+  (** [available] defaults to Normal mode only. An exact [priority_aliases]
+      match pins this command first and selects it even if unavailable. *)
   val create
     :  id:string
     -> title:string
     -> ?description:string
     -> ?keywords:string list
     -> ?available:(Context.t -> bool)
+    -> ?priority_aliases:string list
     -> Keymap.Action.t
     -> t
 
@@ -92,14 +94,17 @@ end
 
 type result = (Entry.t, Field.t) Fuzzy.Match.t
 
-(** [search t context ~query] ranks the entries available in [context] against [query]
+(** [search t context ~query] ranks available entries (and any pinned alias)
     with {!Fuzzy.rank}, matching each entry's title, then its ID, then each keyword,
     weighted in that order. An empty query lists the available entries in order. *)
 val search : t -> Context.t -> query:string -> result list
 
-(** Also returns the default selection when the query exactly matches a host
-    command: a priority alias wins, otherwise an exact native match wins,
-    otherwise the best exact host match. *)
+(** The native command reserved for a case-insensitive, trimmed exact alias. *)
+val pinned_alias : t -> query:string -> Id.t option
+
+(** Also returns the default selection when the query exactly matches a native
+    priority alias or a host command. A pinned native alias wins, then a host
+    priority alias, then an exact native match, then an exact host match. *)
 val search_with_exact : t -> Context.t -> query:string -> result list * Id.t option
 
 (** The byte offsets of the title's matched code points, for highlighting. Empty when

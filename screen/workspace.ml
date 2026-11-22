@@ -154,17 +154,26 @@ let allocate_pair (prefs : Prefs.t) ~(allocation : Geometry.Rect.t) =
     })
 ;;
 
-let allocate_band ?(minors = []) prefs ~(allocation : Geometry.Rect.t) =
+let allocate_band ?(minors = []) ?(major = true) prefs ~(allocation : Geometry.Rect.t) =
   let allocation =
     { allocation with width = Int.max 0 allocation.width; height = Int.max 0 allocation.height }
   in
-  let original = allocate_pair prefs ~allocation in
+  let upper ~allocation =
+    if major then allocate_pair prefs ~allocation else
+      let status = Option.some_if
+          (prefs.Prefs.status_visible && allocation.width >= min_status_width
+           && allocation.height >= min_status_height)
+          { Pane.id = Status; rect = allocation } in
+      { document = { id = Document; rect = { allocation with width = 0; height = 0 } }
+      ; second_editor = None; status; minors = []; gaps = []; reserve_status_row = false }
+  in
+  let original = upper ~allocation in
   (* Document/status minima take precedence over the band. *)
   let minimum =
     match original.status, prefs.split.axis with
-    | Some _, Split.Axis.Vertical -> min_document_height + min_status_height
-    | Some _, Horizontal -> min_status_height
-    | None, _ -> 2
+    | Some _, Split.Axis.Vertical when major -> min_document_height + min_status_height
+    | Some _, _ -> min_status_height
+    | None, _ -> if major then 2 else 0
   in
   let minors = List.take minors ((allocation.width + gap) / (min_minor_width + gap)) in
   if List.is_empty minors || allocation.width < min_document_width
@@ -173,12 +182,12 @@ let allocate_band ?(minors = []) prefs ~(allocation : Geometry.Rect.t) =
   else (
     (* The band keeps the upper workspace at least two thirds of the height. *)
     let size =
-      Int.min
+      if minimum = 0 then allocation.height else Int.min
         (Int.min preferred_band_height (allocation.height - minimum))
         (Int.max min_band_height (allocation.height / 3))
     in
-    let upper = { allocation with height = allocation.height - size } in
-    let workspace = allocate_pair prefs ~allocation:upper in
+    let upper_rect = { allocation with height = allocation.height - size } in
+    let workspace = upper ~allocation:upper_rect in
     let count = List.length minors in
     let shared = allocation.width - ((count - 1) * gap) in
     let start i = (shared * i / count) + (i * gap) in
@@ -187,7 +196,7 @@ let allocate_band ?(minors = []) prefs ~(allocation : Geometry.Rect.t) =
         { Pane.id = Minor id
         ; rect =
             { Geometry.Rect.x = allocation.x + start i
-            ; y = allocation.y + upper.height
+             ; y = allocation.y + upper_rect.height
             ; width = (shared * (i + 1) / count) - (shared * i / count)
             ; height = size
             }
@@ -196,7 +205,7 @@ let allocate_band ?(minors = []) prefs ~(allocation : Geometry.Rect.t) =
     let gaps =
       List.init (count - 1) ~f:(fun i ->
         { Geometry.Rect.x = allocation.x + start (i + 1) - gap
-        ; y = allocation.y + upper.height
+         ; y = allocation.y + upper_rect.height
         ; width = gap
         ; height = size
         })
@@ -243,25 +252,42 @@ let allocate_editors t ~secondary_focused request =
     ; second_editor = Some other; gaps = t.gaps @ [ gap ] }
 ;;
 
-let allocate_side ~minors ?side prefs ~(allocation : Geometry.Rect.t) =
+let allocate_side ~minors ~major ?side prefs ~(allocation : Geometry.Rect.t) =
   match side with
+  | Some (id, _) when not major && not prefs.Prefs.status_visible && List.is_empty minors
+                      && allocation.width >= min_minor_width && allocation.height >= 4 ->
+    let workspace = allocate_band ~major prefs ~allocation in
+    { workspace with minors = [ { Pane.id = Minor id; rect = allocation } ] }
   | Some (id, preferred) when allocation.width >= 16 + gap + min_document_width && allocation.height >= 4 ->
     let size = Int.clamp_exn preferred ~min:16 ~max:(allocation.width - gap - min_document_width) in
     let rect = { allocation with width = size } in
     let rest = { allocation with x = allocation.x + size + gap; width = allocation.width - size - gap } in
-    let workspace = allocate_band ~minors prefs ~allocation:rest in
+    let workspace = allocate_band ~minors ~major prefs ~allocation:rest in
     { workspace with minors = { Pane.id = Minor id; rect } :: workspace.minors
       ; gaps = { allocation with x = allocation.x + size; width = gap } :: workspace.gaps }
-  | _ -> allocate_band ~minors prefs ~allocation
+  | _ -> allocate_band ~minors ~major prefs ~allocation
 ;;
 
-let allocate ?(minors = []) ?side ?split ?editors prefs ~(allocation : Geometry.Rect.t) =
+let allocate ?(minors = []) ?side ?split ?editors ?(document_visible = true)
+    prefs ~(allocation : Geometry.Rect.t) =
   let allocation = { allocation with width = Int.max 0 allocation.width; height = Int.max 0 allocation.height } in
-  let base = allocate_side ~minors ?side prefs ~allocation in
-  match split, editors with
-  | Some split, _ -> allocate_split base split
-  | None, Some (secondary_focused, request) -> allocate_editors base ~secondary_focused request
-  | None, None -> base
+  let major = document_visible || Option.is_some split || Option.is_some editors in
+  let base = allocate_side ~minors ~major ?side prefs ~allocation in
+  if document_visible then (
+    match split, editors with
+    | Some split, _ -> allocate_split base split
+    | None, Some (secondary_focused, request) -> allocate_editors base ~secondary_focused request
+    | None, None -> base)
+  else (
+    let rect = base.document.rect in
+    let base = { base with document = { base.document with rect = { rect with width = 0; height = 0 } }
+      ; reserve_status_row = false } in
+    match split, editors with
+    | Some (id, _), _ when rect.width >= min_split_width && rect.height >= min_band_height ->
+      { base with minors = base.minors @ [ { Pane.id = Minor id; rect } ] }
+    | None, Some _ when rect.width >= min_document_width && rect.height >= 4 ->
+      { base with second_editor = Some rect }
+    | _ -> base)
 ;;
 
 let minor t id =

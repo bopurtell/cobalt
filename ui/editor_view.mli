@@ -53,8 +53,9 @@ type hosted =
 
 (** Mount once per editor session, including while hidden. The component owns the
     startup controller and supplied runtime handles, and does not start or write to
-    the physical terminal. [set_clipboard] optionally delegates plain-text clipboard
-    copies to the host. [on_toggle_terminal] delegates recognized toggles
+    the physical terminal or control its mouse reporting. [set_clipboard]
+    optionally delegates plain-text clipboard copies to the host.
+    [on_toggle_terminal] delegates recognized toggles
     ([Some id] for an explicit number, [None] for the host's current terminal)
     instead of running an editor terminal. The default [vcs] is a fresh Git runner. Without a [source]
     override, the editor owns a workspace LSP source that starts servers only for
@@ -184,7 +185,8 @@ val run
     -> ?document_decorations:Document_decoration_host.Factory.t
     -> ?document_decorations_enabled:bool
     -> ?smear_enabled:bool (** Disabled by default; Space v s toggles at runtime. *)
-    -> ?mouse:bool (** Opt in to standalone terminal mouse reporting; false by default. *)
+     -> ?mouse:bool (** Initial standalone terminal mouse reporting; true by default.
+                         Toggle in the command palette without restarting. *)
    -> ?zen:bool (** Start in Zen; false by default. [bare] takes precedence. *)
    -> ?bare:bool (** Start in borderless document presentation. *)
    -> ?theme:Cobalt_theme.Theme.t (** Initial theme; Space v T previews and chooses themes. *)

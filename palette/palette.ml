@@ -90,9 +90,9 @@ let delete_word t =
 ;;
 
 let move t ~by =
-  match t.selected with
-  | None -> t
-  | Some id ->
+  match t.selected, Catalog.pinned_alias t.catalog ~query:t.query with
+  | None, _ | _, Some _ -> t
+  | Some id, None ->
     let ids = Array.of_list (result_ids t) in
     (match Array.findi ids ~f:(fun _ candidate -> Catalog.Id.equal candidate id) with
      | None -> t

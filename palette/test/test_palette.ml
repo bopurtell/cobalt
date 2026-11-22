@@ -40,7 +40,7 @@ let%expect_test "opening lists available commands and selects the first" =
       harness.new-sv
       harness.new-hardcaml
       harness.new-ocaml
-      ... 109 more
+      ... 112 more
     |}]
 ;;
 
@@ -152,7 +152,7 @@ let%expect_test "no matches: no selection, navigation and accept do nothing" =
     {|
     query: ""
     > file.save
-      ... 112 more
+      ... 115 more
     |}]
 ;;
 
@@ -283,6 +283,38 @@ let%test_unit "host aliases are additive, exact, and stable" =
    | Execute { target = Native (Editor Undo); _ } -> ()
    | _ -> failwith "Expected an exact native command to take precedence");
   expect_host (Palette.update collision Next) "overview"
+;;
+
+let%test_unit "native exact aliases pin row one even against another priority alias" =
+  let aliases =
+    [ " hide ", "workspace.hide-tile", Cobalt_input.View_command.Hide_focused_tile
+    ; "HIDE TILE", "workspace.hide-tile", Hide_focused_tile
+    ; "Unhide", "workspace.unhide-tile", Unhide_tile
+    ; "Mouse", "workspace.toggle-mouse", Toggle_mouse
+    ]
+  in
+  List.iter aliases ~f:(fun (query, expected, command) ->
+    let host = Catalog.Entry.create_host ~id:"competition" ~title:"Host command"
+        ~priority_alias:(String.strip query) () in
+    let other = Catalog.Entry.create ~id:"competition.undo" ~title:(String.strip query)
+        ~available:(fun _ -> true) (Editor Undo) in
+    let catalog = Catalog.create (host :: other :: Catalog.entries Catalog.default) |> Or_error.ok_exn in
+    List.iter [ normal; { Catalog.Context.mode = Insert } ] ~f:(fun context ->
+      let palette = Palette.update (create ~catalog ~context ()) (Paste query) in
+      let id = Catalog.Id.of_string expected in
+      let first = List.hd_exn (Palette.results palette) in
+      assert (Catalog.Id.equal (Catalog.Entry.id first.item) id);
+      assert (List.length (Palette.results palette) >= 2);
+      let palette = events palette [ Next; Next; Previous; Next ] in
+      assert (Option.exists (Palette.selected palette) ~f:(Catalog.Id.equal id));
+      match Palette.accept palette ~context:(Some context) with
+      | Execute { target = Native (View actual); _ } ->
+        assert (Cobalt_core.Mode.equal context.mode Normal);
+        assert (Cobalt_input.View_command.equal actual command)
+      | Unavailable { id = unavailable; _ } ->
+        assert (Cobalt_core.Mode.equal context.mode Insert);
+        assert (Catalog.Id.equal unavailable id)
+      | _ -> failwith "Expected the pinned native command"))
 ;;
 
 (* A fake adapter: tokens are view numbers, and [views] is the mode of each view that

@@ -186,6 +186,9 @@ let%expect_test "the default catalog, with shortcuts derived from bindings" =
     configuration.reload           Reload configuration
     snippets.reload                Reload snippets
     development.insert-demo-snippet Insert demo snippet
+    workspace.hide-tile            Hide focused tile
+    workspace.unhide-tile          Unhide tile
+    workspace.toggle-mouse         Toggle mouse
     |}]
 ;;
 

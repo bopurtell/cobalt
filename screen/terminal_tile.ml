@@ -176,7 +176,7 @@ let render ?(hotkey_hints = false) ?(number = 1) ?inspection snapshot ~failure ~
     | None -> "INSERT" ^ (if hotkey_hints then " | Ctrl-Space/jk: Normal (Escape passes through)" else "")
     | Some t -> (if Option.is_some t.block_anchor then "VISUAL BLOCK"
       else if Option.is_some (T.visual t.text) then "VISUAL" else "NORMAL")
-      ^ (if hotkey_hints then " | Space /: hide  +/-: size  Space t r: reset  i/a: Insert  v/V/C-v: select  y/yy: yank" else "") in
+      ^ (if hotkey_hints then " | Space /: hide  +/-: size  Space t r: reset  i/a: Insert  v/V/C-v: select  y/yy: yank  Space c c: palette" else "") in
   let restart = if hotkey_hints then " | r: restart" else "" in
   let status = match failure, live_snapshot with
     | _, Some { exited = Some status; _ } -> "Exited: " ^ status ^ restart ^ " | " ^ mode

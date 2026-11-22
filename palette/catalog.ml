@@ -34,7 +34,7 @@ module Entry = struct
     ; keywords : string list
     ; available : (Context.t -> bool[@sexp.opaque])
     ; target : Target.t
-    ; priority_alias : string option
+    ; priority_aliases : string list
     ; exact_only : bool
     }
   [@@deriving sexp_of, fields ~getters]
@@ -43,14 +43,15 @@ module Entry = struct
     Cobalt_core.Mode.equal context.mode Normal
   ;;
 
-  let create_target ~id ~title ?description ?(keywords = []) ?(available = normal_mode_only) target
+  let create_target ~id ~title ?description ?(keywords = []) ?(available = normal_mode_only)
+      ?(priority_aliases = []) target
     =
-    { id = Id.of_string id; title; description; keywords; available; target
-    ; priority_alias = None; exact_only = false }
+    { id = Id.of_string id; title; description; keywords = priority_aliases @ keywords
+    ; available; target; priority_aliases; exact_only = false }
   ;;
 
-  let create ~id ~title ?description ?keywords ?available action =
-    create_target ~id ~title ?description ?keywords ?available (Native action)
+  let create ~id ~title ?description ?keywords ?available ?priority_aliases action =
+    create_target ~id ~title ?description ?keywords ?available ?priority_aliases (Native action)
   ;;
 
   let action t =
@@ -62,9 +63,9 @@ module Entry = struct
   let is_available t context = t.available context
 
   let create_host ~id ~title ?(aliases = []) ?priority_alias ?(exact_only = false) () =
-    let keywords = Option.to_list priority_alias @ aliases in
-    { (create_target ~id:("host." ^ id) ~title ~keywords (Host id))
-      with priority_alias; exact_only }
+    { (create_target ~id:("host." ^ id) ~title ~keywords:aliases
+         ~priority_aliases:(Option.to_list priority_alias) (Host id))
+      with exact_only }
   ;;
 end
 
@@ -98,8 +99,8 @@ let default =
   let editor ~id ~title ?keywords (command : Cobalt_core.Command.t) =
     Entry.create ~id ~title ?keywords (Editor command)
   in
-  let view ~id ~title ?description ?keywords (command : View_command.t) =
-    Entry.create ~id ~title ?description ?keywords (View command)
+  let view ~id ~title ?description ?keywords ?priority_aliases (command : View_command.t) =
+    Entry.create ~id ~title ?description ?keywords ?priority_aliases (View command)
   in
   let numbers = [ "gutter"; "numbering"; "line numbers" ] in
   let conflict = [ "merge"; "rebase"; "markers"; "resolve"; "smerge" ] in
@@ -502,6 +503,12 @@ let default =
     ; view ~id:"development.insert-demo-snippet" ~title:"Insert demo snippet"
         ~description:"Development utility: linked snippet fields in the current file (no server required)"
         ~keywords:[ "development"; "test"; "placeholders"; "linked fields" ] Insert_demo_snippet
+    ; view ~id:"workspace.hide-tile" ~title:"Hide focused tile"
+        ~priority_aliases:[ "hide"; "hide tile" ] Hide_focused_tile
+    ; view ~id:"workspace.unhide-tile" ~title:"Unhide tile"
+        ~priority_aliases:[ "unhide" ] Unhide_tile
+    ; view ~id:"workspace.toggle-mouse" ~title:"Toggle mouse"
+        ~priority_aliases:[ "mouse" ] Toggle_mouse
     ]
   |> Or_error.ok_exn
 ;;
@@ -552,19 +559,35 @@ let exact_priority ~query (entry : Entry.t) =
     | Host _ -> 1
 ;;
 
+let exact_alias ~query (entry : Entry.t) =
+  not (String.is_empty query)
+  && List.exists entry.priority_aliases ~f:(String.Caseless.equal query)
+;;
+
+let pinned_alias t ~query =
+  let query = String.strip query in
+  List.find_map t ~f:(fun entry ->
+    match Entry.target entry with
+    | Native _ when exact_alias ~query entry -> Some (Entry.id entry)
+    | Native _ | Host _ -> None)
+;;
+
 let search_with_exact t context ~query =
-  let exact_alias (entry : Entry.t) =
-    Option.exists entry.priority_alias ~f:(String.Caseless.equal (String.strip query))
-  in
+  let query = String.strip query in
+  let pinned = pinned_alias t ~query in
+  let is_pinned entry = Option.exists pinned ~f:(Id.equal (Entry.id entry)) in
   let ranked =
     List.filter t ~f:(fun entry ->
-      Entry.is_available entry context && (not entry.exact_only || exact_alias entry))
+      is_pinned entry
+      || (Entry.is_available entry context && (not entry.exact_only || exact_alias ~query entry)))
     |> List.map ~f:(fun entry -> entry, fields entry)
     |> Fuzzy.rank ~query
   in
-  let query = String.strip query in
   let priority_matches, ranked =
-    List.partition_tf ranked ~f:(fun (result : result) -> exact_alias result.item)
+    List.partition_tf ranked ~f:(fun (result : result) -> exact_alias ~query result.item)
+  in
+  let pinned_matches, priority_matches =
+    List.partition_tf priority_matches ~f:(fun (result : result) -> is_pinned result.item)
   in
   let priority (result : result) = exact_priority ~query result.item in
   let has_host_exact =
@@ -573,7 +596,9 @@ let search_with_exact t context ~query =
       | Native _ -> false
       | Host _ -> priority result = 1)
   in
-  if not (List.is_empty priority_matches)
+  if Option.is_some pinned
+  then pinned_matches @ priority_matches @ ranked, pinned
+  else if not (List.is_empty priority_matches)
   then
     priority_matches @ ranked, Option.map (List.hd priority_matches) ~f:(fun result -> Entry.id result.item)
   else if not has_host_exact

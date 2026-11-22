@@ -25,6 +25,23 @@ let active_is ui id = Buffer_id.equal (active ui) id
 let layout ui = Ui_state.geometry ui ~width ~height
 let redraw ui = Frame.render ui ~width ~height
 
+let%test_unit "standalone mouse reporting gates pointer input without taking over hosted terminals" =
+  let hosted = Helpers.ui ordinary in
+  assert (Option.is_none (Ui_state.mouse_reporting hosted));
+  assert (phys_equal hosted (Ui_state.toggle_mouse hosted));
+  let ui = Ui_state.with_mouse_reporting hosted ~enabled:true in
+  let g = layout ui in
+  let click ui = click ui ~x:(g.text.x + 4) ~y:(g.text.y + 1) in
+  let off = Ui_state.toggle_mouse ui in
+  assert (Option.equal Bool.equal (Ui_state.mouse_reporting off) (Some false));
+  assert (cursor (click off) = cursor off);
+  let scrolled = pointer off `Wheel_down ~x:g.text.x ~y:g.text.y in
+  assert ((Ui_state.fitted_scroll scrolled ~width ~height).top = 0);
+  let on = Ui_state.toggle_mouse off in
+  assert (Option.equal Bool.equal (Ui_state.mouse_reporting on) (Some true));
+  assert (line (click on) = 1)
+;;
+
 let%test_unit "tab layout and hits share display-cell widths and exclude separators" =
   let tabs =
     [ { Tab_strip.Item.label = "界"; active = false; modified = false; missing = false }

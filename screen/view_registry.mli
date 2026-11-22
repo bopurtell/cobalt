@@ -420,7 +420,7 @@ val editor_companion : t -> path:string -> View_id.t option
 
 (** Fit every installed view, hidden ones included; [viewport id] is its
     [(rows, width)]. [companion] selects the view presented beside its editor. *)
-val fit : ?companion:View_id.t -> t -> Cobalt_app.Controller.t -> viewport:(View_id.t -> int * int) -> t
+val fit : ?companion:View_id.t -> ?skip:(View_id.t -> bool) -> t -> Cobalt_app.Controller.t -> viewport:(View_id.t -> int * int) -> t
 
 val text_view : t -> View_id.t -> Cobalt_tile.Text_view.t option
 

@@ -89,6 +89,19 @@ class Editor:
                 enabled.difference_update(modes)
         return enabled
 
+    def mouse_mode_writes(self):
+        return [match[0] for match in DEC_MODES.finditer(self.output)
+                if {int(mode) for mode in match[1].split(b";")} & MOUSE_MODES]
+
+    def toggle_mouse(self, *, enabled):
+        self.keys(b" ccToggle mouse\r")
+        if enabled:
+            self.wait(lambda: {1000, 1006} <= self.modes(), "mouse reporting on")
+            assert 1003 not in self.modes(), "unexpected hover reporting"
+        else:
+            self.wait(lambda: not self.modes() & MOUSE_MODES, "mouse reporting off")
+        assert {1049, 2004} <= self.modes(), "toggle disturbed screen or paste mode"
+
 
 @contextmanager
 def editor(binary, file, env, *flags):
@@ -114,18 +127,18 @@ def test(binary, root, env):
         f"row-{n:03}\n" for n in range(80))
     file.write_text(original)
 
-    with editor(binary, file, env, "--bare") as (tty, before):
+    with editor(binary, file, env, "--no-mouse", "--bare") as (tty, before):
         tty.see("paste:abcd")
         assert not tty.modes(ever_enabled=True) & MOUSE_MODES
         # A report from a parent that was already tracking mouse still can't
-        # move the cursor in an editor that didn't opt in.
+        # move the cursor in an editor that starts with reporting off.
         tty.keys(tty.report(0, "click:abcd", 7) + b"iN\x1b w q")
         tty.finish(before)
         assert not tty.modes(ever_enabled=True) & MOUSE_MODES
         assert file.read_text() == "N" + original
 
     file.write_text(original)
-    with editor(binary, file, env, "--mouse", "--bare") as (tty, before):
+    with editor(binary, file, env, "--bare") as (tty, before):
         tty.see("paste:abcd")
         assert {1000, 1006, 2004} <= tty.modes(), "mouse or paste reporting not enabled"
         assert 1003 not in tty.modes(), "unexpected hover reporting"
@@ -161,6 +174,39 @@ def test(binary, root, env):
         tty.process.terminate()
         tty.finish(before, status=1)
         assert file.read_text() == expected
+
+
+def test_toggle(binary, root, env):
+    file = root / "toggle.txt"
+    file.write_text("first:abcd\nsecond:abcd\nthird:abcd\n")
+    with editor(binary, file, env, "--bare") as (tty, before):
+        tty.see("third:abcd")
+        assert {1000, 1006} <= tty.modes()
+        writes = tty.mouse_mode_writes()
+        assert len(set(writes)) == len(writes), "startup rewrote mouse modes"
+        tty.keys(tty.report(0, "second:abcd", 8) + b"iA\x1b")
+        tty.see("second:aAbcd")
+        assert tty.mouse_mode_writes() == writes, "redraw rewrote mouse modes"
+
+        tty.toggle_mouse(enabled=False)
+        # Inject a late report despite the terminal being in selection mode:
+        # it must neither move the cursor nor leak escape bytes as keys.
+        tty.keys(tty.report(0, "first:abcd", 7) + b"iB\x1b")
+        tty.see("second:aBAbcd")
+        assert not tty.modes() & MOUSE_MODES, "redraw re-enabled mouse modes"
+
+        tty.toggle_mouse(enabled=True)
+        tty.keys(tty.report(0, "third:abcd", 7) + b"iC\x1b w q")
+        tty.finish(before)
+        assert file.read_text() == "first:abcd\nsecond:aBAbcd\nthird:aCbcd\n"
+
+    with editor(binary, file, env, "--mouse", "--no-mouse", "--bare") as (tty, before):
+        tty.see("third:aCbcd")
+        assert not tty.modes(ever_enabled=True) & MOUSE_MODES
+        tty.toggle_mouse(enabled=True)
+        tty.toggle_mouse(enabled=False)
+        tty.keys(b" q")
+        tty.finish(before)
 
 
 def test_directory(binary, root, env):
@@ -245,7 +291,8 @@ if __name__ == "__main__":
         env = dict(os.environ, HOME=temporary, XDG_CONFIG_HOME=str(root / "config"),
                    TERM="xterm-256color", COLORTERM="truecolor", LC_ALL="C.UTF-8")
         test(binary, root, env)
+        test_toggle(binary, root, env)
         test_directory(binary, root, env)
         test_two_editors(binary, root, env)
-    print("Mouse CLI: opt-in, click/keyboard edit, wheel, directories, tabs, two editors,"
-          " bracketed paste, quit and signal cleanup")
+    print("Mouse CLI: default, startup override, runtime toggle, click/keyboard edit,"
+          " wheel, directories, tabs, two editors, bracketed paste, quit and signal cleanup")

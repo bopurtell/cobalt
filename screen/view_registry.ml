@@ -370,8 +370,9 @@ let editor_companion t ~path =
     | _ -> None)
 ;;
 
-let fit ?companion t controller ~viewport =
+let fit ?companion ?(skip = fun _ -> false) t controller ~viewport =
   List.map t ~f:(function
+    | Entry.Installed { adapter; _ } as entry when skip adapter.spec.id -> entry
     | Entry.Installed ({ adapter; state; companion = present; _ } as entry) ->
       let rows, width = viewport adapter.spec.id in
       let state = present state (Option.exists companion ~f:(View_id.equal adapter.spec.id)) in

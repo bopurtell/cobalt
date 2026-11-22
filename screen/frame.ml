@@ -42,6 +42,16 @@ let floating_layer ?allocation ?floating ui ~width ~height =
     match floating with
     | Some _ -> floating
     | None when Option.is_some allocation -> None
+    | None when Option.is_some (Ui_state.palette ui) ->
+      Option.bind (Ui_state.palette_layout ui ~width ~height) ~f:(fun layout ->
+        Option.map (Ui_state.palette ui) ~f:(fun palette ->
+          let content = layout.content in
+          { Floating_layer.id = Palette_tile.id
+          ; layout
+          ; content = Palette_tile.render ~hotkey_hints ?notice:(Ui_state.capture_notice ui)
+              palette ~width:content.width ~rows:content.height
+          ; cursor = Some (Palette_tile.cursor palette ~width:content.width)
+          }))
     | None when Option.is_some (Ui_state.waveform ui) ->
       Option.bind (Ui_state.waveform_layout ui ~width ~height) ~f:(fun layout ->
         Option.map (Ui_state.waveform ui) ~f:(fun wave ->
@@ -169,16 +179,7 @@ let floating_layer ?allocation ?floating ui ~width ~height =
                  ~rows:content.height
            ; cursor = None
            }))
-     | None ->
-      Option.bind (Ui_state.palette_layout ui ~width ~height) ~f:(fun layout ->
-        Option.map (Ui_state.palette ui) ~f:(fun palette ->
-          let content = layout.content in
-          { Floating_layer.id = Palette_tile.id
-          ; layout
-           ; content = Palette_tile.render ~hotkey_hints ?notice:(Ui_state.capture_notice ui)
-              palette ~width:content.width ~rows:content.height
-          ; cursor = Some (Palette_tile.cursor palette ~width:content.width)
-          }))
+      | None -> None
 ;;
 
 let overlay_floating rows (layer : Floating_layer.t) ~focused =
@@ -664,10 +665,26 @@ let rec prepare_document ?highlights ?decorations ?allocation ?reserve_status_ro
       let side = if border then [ Span.create Border "│" ~width:1 ] else [] in
       side @ padding_spans @ gutter_spans @ text_spans @ side)
   in
+  let empty_workspace =
+    not explicit_allocation && workspace.document.rect.width = 0
+    && Option.is_none workspace.second_editor && Option.is_none workspace.status
+    && List.is_empty workspace.minors in
   let rows =
     List.init height ~f:(fun y ->
       let document =
-        match Option.first_some editor_header header with
+        if empty_workspace && y < 2 && width > 0 then (
+           let message = if y = 0 then "No tile shown - Space c c opens the command palette"
+             else (Option.first_some (Ui_state.capture_notice ui)
+                 (Option.map (Ui_state.message ui) ~f:(fun message -> message.text))
+               |> Option.value ~default:"") in
+          let spans = Span.take (Span.of_text message ~style:Hint ~special:Hint) ~n:width in
+          let used = Span.total_width spans in
+          [ { Geometry.Rect.x = 0; y; width = used; height = 1 }, spans ])
+        else if allocation.width = 0 || allocation.height = 0 then
+          (match tab_row with
+           | Some (rect, spans) when y = rect.y -> [ rect, spans ]
+           | _ -> [])
+        else match Option.first_some editor_header header with
         | Some (rect, spans) when y = rect.y -> [ rect, spans ]
         | _ -> match tab_row, area_on_row Status_row y with
         | Some (rect, spans), _ when y = rect.y -> [ rect, spans ]

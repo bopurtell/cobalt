@@ -23,7 +23,7 @@
 | Ticket | Status | Scope |
 | --- | --- | --- |
 | [C10: Side-by-side file editors](c10-side-by-side-editors.md) | Implemented and verified | Two keyboard-accessible file editor panes in the existing workspace |
-| [C11: Basic mouse support](c11-mouse-support.md) | Implemented and verified | Opt-in click-to-focus, cursor placement, file tab activation, and wheel scrolling |
+| [C11: Basic mouse support](c11-mouse-support.md) | Implemented and verified | Click-to-focus, cursor placement, file tab activation, wheel scrolling, and runtime reporting toggle |
 
 The Oil/Dired-style directory refresh already exists: focus the listing and
 press `Space r` in Normal mode. It rereads a clean listing from disk and

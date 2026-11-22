@@ -133,7 +133,7 @@ Open a directory to browse a project, or pass a file path to edit it:
 ```sh
 cobalt completion/snippet.ml   # Vim Classic theme, Zen layout
 cobalt --workspace .           # Full tile workspace
-cobalt --mouse .               # Opt in to editor clicks and wheel scrolling
+ cobalt --no-mouse .            # Start with terminal-native selection and copying
 cobalt --bare core/editor.ml   # Borderless editing (also --superzen)
 cobalt --theme glacier .       # Choose a different theme
 cobalt --list-themes           # Browse available palettes
@@ -144,8 +144,10 @@ For blue palettes, try `cobalt-room`, `cobalt-midnight` (deep navy),
 `cobalt-frost` (light icy blue). Preview them in the theme picker with `Space v T`,
 or launch with `cobalt --theme cobalt-midnight .`.
 
-Without `--mouse`, selection and copying stay with your terminal. See
-[Mouse input](docs/editor_reference.md#mouse-input) for supported gestures.
+Mouse clicks and wheel scrolling are enabled by default. Use **Toggle mouse**
+in the command palette (`Space c c`) to switch to terminal-native selection and
+back without restarting. See [Mouse input](docs/editor_reference.md#mouse-input)
+for supported gestures.
 
 Use [`--main-editor` and `cobalt-open`](bin/MAIN_EDITOR.md) to send a file
 location to a specific running Cobalt session.

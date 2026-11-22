@@ -39,6 +39,7 @@ val context_id : t -> Buffer_id.t option
 val has_buffer : t -> Buffer_id.t -> bool
 (** Presented browser, including an unfocused side browser. *)
 val directory_buffer : t -> Directory_buffer.t option
+val find_directory : t -> Buffer_id.t -> Directory_buffer.t option
 (** Directory adapter only when it owns modal input. *)
 val input_directory : t -> Directory_buffer.t option
 (** Cancel prefixes on both owners; preserve directory selection and text state. *)

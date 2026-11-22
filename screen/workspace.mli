@@ -143,12 +143,15 @@ val preferred_band_height : int
     {!min_document_width} plus the gap plus {!min_split_width}, or lower than
     {!min_band_height}. [editors] instead requests two file allocations, with
     a Boolean identifying whether the focused file is in the secondary slot.
-    Both need {!min_document_width} cells and at least four rows. *)
+     Both need {!min_document_width} cells and at least four rows. If
+     [document_visible] is false, the document gets a zero-sized allocation;
+     its split partner, if any, uses the full major area. *)
 val allocate
   :  ?minors:Cobalt_tile.View_id.t list
   -> ?side:(Cobalt_tile.View_id.t * int)
   -> ?split:(Cobalt_tile.View_id.t * Major_split.t)
   -> ?editors:(bool * Major_split.t)
+  -> ?document_visible:bool
   -> Prefs.t
   -> allocation:Geometry.Rect.t
   -> t

@@ -17,8 +17,9 @@
     Selection is by command ID, not row. When the query changes, the selected command
     stays selected if it still matches, and otherwise the best match is selected. With
     no matches nothing is selected. An exact host match selects the best exact
-    result instead (native before host). {!Event.Next} and {!Event.Previous} stop at the
-    ends of the list.
+    result instead (native before host). A pinned native alias keeps its command
+    first and selected until the query changes. Otherwise {!Event.Next} and
+    {!Event.Previous} stop at the ends of the list.
 
     {2 Query text}
 

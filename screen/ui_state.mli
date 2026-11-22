@@ -144,6 +144,12 @@ val receive_snippets : t -> generation:int -> (Cobalt_completion.User_snippets.t
     is capped at 1 MiB including child bracket markers, and is dropped on
     overflow or loss of ownership; input is swallowed through its end marker. *)
 val terminal_capturing : t -> bool
+val mouse_reporting : t -> bool option
+(** Standalone reporting preference; [None] means Cobalt does not control the terminal. *)
+val with_mouse_reporting : t -> enabled:bool -> t
+(** Declare ownership and set the initial preference for a standalone terminal. *)
+val toggle_mouse : t -> t
+(** Toggle standalone mouse reporting; leave a host-owned terminal untouched. *)
 val terminal_key_pending : t -> bool
 (** Whether the frontend should schedule [Terminal_tick], including with smear off. *)
 val toggle_key_pending : t -> bool
@@ -287,6 +293,14 @@ val controller : t -> Cobalt_app.Controller.t
 val session : t -> Cobalt_app.Session.t
 val show_directory : ?select:string -> t -> width:int -> height:int -> string -> t Or_error.t
 val has_document : t -> bool
+
+(** Hide the exact currently focused workspace tile (or the palette's caller).
+    This does not close its buffer, view, or terminal job. *)
+val hide_focused_tile : t -> width:int -> height:int -> t
+
+(** Restore the most recently hidden workspace tile. *)
+val unhide_tile : t -> width:int -> height:int -> t
+val has_hidden_tile : t -> bool
 val open_file : t -> width:int -> height:int -> string -> (t * Cobalt_app.Buffer_id.t) Or_error.t
 val open_location
   : t -> width:int -> height:int -> Cobalt_app.Session.Open_location.request
@@ -319,8 +333,8 @@ val views : t -> View_registry.t
     focus or the editor session. The frontend must invalidate cached frames. *)
 val map_view : t -> 'a Type_equal.Id.t -> f:('a -> 'a) -> t
 
-(** Whether a registered view is placed (requested), even if zen or a small screen
-    leaves it without an allocation, or it is an inactive tab. *)
+(** Whether a registered view is placed (requested) and not explicitly hidden,
+    even if zen or a small screen leaves it without an allocation, or it is an inactive tab. *)
 val view_visible : t -> Cobalt_tile.View_id.t -> bool
 
 (** A view's title (its spec's), for notices. *)
@@ -682,8 +696,10 @@ val cursor_position : t -> width:int -> height:int -> (int * int) option
     their keys as shortcuts, and does not leave the view; accepting one closes the
     palette, refocuses the view and runs it as its keys would
     ({!View_command.t.Run_view_command}). Dismissing the palette restores its
-    caller when available. Native editor commands still target the document;
-    host commands restore the caller before dispatch.
+     caller when available. Native editor commands still target the document;
+     host commands restore the caller before dispatch. The exact [hide] and
+     [hide tile] queries target the palette's caller, not the palette or a
+     fallback pane.
 
     {2 Read-only text in minor views}
 

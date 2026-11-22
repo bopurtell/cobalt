@@ -145,6 +145,49 @@ let%test_unit "dismissing the palette restores its docked caller" =
   assert (String.equal (text initial) (text closed))
 ;;
 
+let%test_unit "hide tile targets the docked caller and unhide restores it" =
+  let focused_problems t =
+    Cobalt_tile.View_id.equal (Ui_state.focused_view t ~width ~height) Problems_tile.id
+  in
+  let shown t = Option.is_some (Ui_state.minor_layout t ~width ~height Problems_tile.id) in
+  let initial = run (create ()) " vo" in
+  assert (shown initial && focused_problems initial);
+  let opened = run initial " cchide tile<Tab>" in
+  assert (String.equal (focused opened) "palette");
+  assert ((Palette_tile.view (Option.value_exn (Ui_state.palette opened))).index = 0);
+  let hidden = run opened "<CR>" in
+  assert (Option.is_none (palette hidden));
+  assert (not (shown hidden));
+  let restored = run hidden " ccunhide<CR>" in
+  assert (shown restored && focused_problems restored);
+  assert (String.equal (text restored) (text initial))
+;;
+
+let%test_unit "unavailable exact aliases do not dispatch colliding host commands" =
+  let command alias : Cobalt_palette.Catalog.Host_command.t =
+    { id = alias; title = alias; aliases = [ alias ] }
+  in
+  let initial = Ui_state.with_host_commands (create ()) (List.map [ "unhide"; "mouse" ] ~f:command) in
+  List.iter [ "unhide"; "mouse" ] ~f:(fun alias ->
+    let closed = run initial (" cc" ^ alias ^ "<Tab><CR>") in
+    assert (Option.is_none (palette closed));
+    assert (String.equal (focused closed) "document");
+    assert (Option.is_some (Ui_state.message closed));
+    assert (List.is_empty (snd (Ui_state.take_host_command_requests closed))))
+;;
+
+let%test_unit "mouse toggles once and returns focus to the palette caller" =
+  let initial = Ui_state.with_mouse_reporting (create ()) ~enabled:true in
+  let initial = run initial " vo" in
+  let opened = run initial " ccmouse" in
+  assert ([%equal: bool option] (Ui_state.mouse_reporting opened) (Some true));
+  let closed = run opened "<CR>" in
+  assert ([%equal: bool option] (Ui_state.mouse_reporting closed) (Some false));
+  assert (String.equal (focused closed) (focused initial));
+  let enabled = run closed " ccMOUSE<CR>" in
+  assert ([%equal: bool option] (Ui_state.mouse_reporting enabled) (Some true))
+;;
+
 (* The open palette's query and up to [limit] result IDs, the selected one marked. *)
 let results ?(limit = 3) t =
   match palette t with
@@ -193,7 +236,7 @@ let%expect_test "Space c c opens a centered floating palette, with a bar cursor"
     ││ >                                                                          ││|
     ││ > Save buffer                                                      Space w ││|
     ││   Quick-Harness: New SV scratch                                            ││|
-    ╰╰─ 1/113 ────────────────────────────────────────────────────────────────────╯╯|
+    ╰╰─ 1/116 ────────────────────────────────────────────────────────────────────╯╯|
     cursor: 5,2 Bar
     |}]
 ;;
@@ -429,7 +472,7 @@ let%expect_test "resizing keeps the query and selected command" =
     ││ > tile                                       ││|
     ││   Move document tile left by 2 columns       ││|
     ││   Move document tile right by 2 columns      ││|
-    ╰╰─ 4/29 ───────────────────────────────────────╯╯|
+    ╰╰─ 4/31 ───────────────────────────────────────╯╯|
     cursor: 9,2 Bar
     |}]
 ;;

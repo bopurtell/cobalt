@@ -120,6 +120,9 @@ type t =
   | Kill_source
   | Toggle_zen
   | Toggle_bare
+  | Hide_focused_tile
+  | Unhide_tile
+  | Toggle_mouse
   | Open_palette
   | Open_theme_picker
   | Open_line_picker
@@ -194,6 +197,9 @@ let scale t ~count =
   | Kill_source
   | Toggle_zen
   | Toggle_bare
+  | Hide_focused_tile
+  | Unhide_tile
+  | Toggle_mouse
   | Open_palette
   | Open_theme_picker
   | Open_line_picker

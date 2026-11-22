@@ -1,17 +1,18 @@
 # C11 — Basic mouse support
 
-**Status:** Proposed.
+**Status:** Implemented and verified.
 
 ## Why
 
 Let the user point at a pane, cursor position, or file tab and scroll the
 pane under the pointer without changing Cobalt's keyboard-first workflow.
-Cobalt currently disables terminal mouse reporting and ignores mouse events.
 
-## First release
+## Behavior
 
-Mouse reporting is opt-in at launch; proposed invocation: `co --mouse .`.
-Plain `co .` keeps terminal-native selection and copying. No runtime toggle in v1.
+Standalone Cobalt enables mouse reporting by default. Choose **Toggle mouse**
+in the command palette to switch between editor controls and terminal-native
+selection. Start with `cobalt --no-mouse .` to begin with reporting off. Hosted
+editors leave terminal reporting to their host.
 
 | Gesture | Behavior |
 | --- | --- |
@@ -39,8 +40,8 @@ Plain `co .` keeps terminal-native selection and copying. No runtime toggle in v
   of focus. A cursor-motion command (even at a boundary) or edit restores
   cursor-follow; an incomplete keyboard prefix does not.
 - Carry pointer inputs from [`ui/terminal_input.ml`](../../ui/terminal_input.ml)
-  to the screen layer. Enable terminal reporting only for opted-in launches
-  through [`ui/editor_view.ml`](../../ui/editor_view.ml). Keep hit testing and
+  to the screen layer. Manage standalone terminal reporting through
+  [`ui/editor_view.ml`](../../ui/editor_view.ml). Keep hit testing and
   routing in the screen layer rather than the terminal adapter.
 
 ## Acceptance
@@ -53,9 +54,9 @@ Plain `co .` keeps terminal-native selection and copying. No runtime toggle in v
   a directory click never performs a filesystem operation.
 - Verify resize, tab overflow, and modal overlays do not leave stale targets.
   Confirm keyboard input and bracketed paste still work with mouse enabled.
-- Smoke-test a real terminal: normal launches still allow native text
-  selection, opted-in launches receive click and wheel events, and quitting
-  restores terminal mouse behavior.
+- Smoke-test a real terminal: normal launches receive click and wheel events;
+  `--no-mouse` and toggling off allow native text selection; toggling back on
+  restores editor controls; quitting restores terminal behavior.
 
 ## Follow-ups, not v1
 
@@ -70,5 +71,5 @@ zero-based pointer input through the screen transition and checks rendered
 frames. It covers character-cell mapping, modal and paste capture, directory
 row selection without opening or marking, independent sidebar and file
 viewports, keyboard re-follow and undo, tab overflow, and visible/hidden editor
-targeting with C10. All eight cases passed in the pointer partition. Run the
-headless suites with `dune runtest -j4 screen app core`.
+targeting with C10. Run the headless suites with `dune runtest -j4 screen app core`
+and the standalone PTY suite with `dune build -j4 @bin/mouse-cli-test`.

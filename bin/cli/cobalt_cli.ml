@@ -120,8 +120,10 @@ let command ~document_decorations ~silver_overview =
         ~doc:" Opt in to optional document decorations (palette: Toggle document decorations)"
       and workspace = flag "--workspace" no_arg
         ~doc:" Start in workspace instead of the default Zen (Space v z toggles)"
-      and mouse = flag "--mouse" no_arg
-        ~doc:" Enable editor mouse clicks and wheel scrolling (default: native terminal selection)"
+       and _mouse = flag "--mouse" no_arg
+         ~doc:" Enable editor mouse input (already the default; --no-mouse takes precedence)"
+       and no_mouse = flag "--no-mouse" no_arg
+         ~doc:" Start with mouse reporting off for native terminal selection"
      and bare = flag "--bare" ~aliases:[ "--superzen" ] no_arg
        ~doc:" Start borderless with transient feedback only; overrides --workspace (Space v B returns to workspace)"
      and demo_report = flag "--demo-report" no_arg
@@ -234,7 +236,7 @@ let command ~document_decorations ~silver_overview =
                 let silver_overview = Option.map silver_overview ~f:(fun factory ->
                   factory ~test_default:silver_test_default silver_binding) in
                (match%bind Cobalt_ui.Editor_view.run ~document_decorations
-                   ~document_decorations_enabled:markdown ~smear_enabled ~mouse
+                    ~document_decorations_enabled:markdown ~smear_enabled ~mouse:(not no_mouse)
                    ~zen:(not workspace && Option.is_none silver_binding)
                   ~bare ?theme ~buffer_presentation ?report ?silver_overview ?source ~vcs ?open_location_listener controller with
             | Ok () -> return ()

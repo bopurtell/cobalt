@@ -27,11 +27,15 @@ matching, optional columns, and sender exit codes.
 
 ## Mouse input
 
-Start with `cobalt --mouse PATH` to enable mouse input for that launch. Without
-the flag, your terminal handles native selection and copying as usual. With
-mouse input enabled, many terminals let you hold **Shift** to select text
-natively; the override depends on your terminal. There is no in-editor mouse
-toggle.
+Standalone Cobalt enables mouse clicks and wheel scrolling by default. Choose
+**Toggle mouse** in the command palette (`Space c c`; type `mouse` and press Enter) to turn mouse reporting
+off for terminal-native selection and copying, or on again. The setting lasts
+for the current session only. Start with `cobalt --no-mouse PATH` to begin with
+reporting off. `--mouse` still works and matches the default.
+
+While mouse reporting is enabled, many terminals let you hold **Shift** to
+select text natively; the override depends on your terminal. In hosted mode,
+the host owns terminal mouse reporting.
 
 - Left-click file text to focus the pane and place the cursor. Normal and
   Insert mode stay active; clicking in Visual mode ends the selection.
@@ -431,8 +435,8 @@ command's name, or a related word: `rel num`, `rln`, and `gutter relative` all f
 *Toggle relative line numbers*. Matching is fuzzy and in-process (no `fzf` needed):
 each space-separated word must match, in order, in the title, the command's ID, or
 one of its keywords, and matched title letters are highlighted.
-The current default catalog contains **79 commands**, including all three pickers,
-VCS actions, **Toggle tile hotkey hints**, **Toggle bare mode**, and **Choose theme**.
+The default catalog includes all three pickers, VCS actions, **Toggle tile hotkey hints**,
+**Toggle bare mode**, and **Choose theme**.
 Bare and workspace use the same global catalog: bare does not hide commands.
 Commands local to a supporting view are added only when the palette is opened
 from that view or its help. Some placement commands in bare update saved workspace
@@ -444,7 +448,7 @@ preferences; explicitly opening a supporting view leaves bare to display it.
 | `Backspace` | Delete the last character |
 | `Ctrl-Backspace` or `Ctrl-w` | Delete the last word (most terminals send Ctrl-Backspace as `Ctrl-h`, which works too) |
 | `Tab` / `Shift-Tab` or `Ctrl-n` / `Ctrl-p` | Select the next / previous command |
-| `Enter` | Close the palette and run the selected command once, on the document |
+| `Enter` | Close the palette and run the selected command once |
 | `Escape` | Close it without running anything |
 | `Ctrl-c` | Show the host's reminder to use Escape; keep the palette open |
 
@@ -464,8 +468,15 @@ without execution and returns focus to the document. Closing restores the covere
 workspace and discards the query. Pasted text goes only into the query (line breaks
 become spaces); if the palette closes mid-paste, the rest is dropped even if the
 terminal grows before the paste ends. With no matching result, Enter leaves it open
-and reports that nothing matched. Opening from another supporting view still targets
-the document and returns there on cancellation.
+and reports that nothing matched. Editor commands still target the document
+when opened from a supporting view; cancellation returns to the invoking view.
+
+To temporarily hide a tile, open the palette from that tile and enter `hide`
+or `hide tile`. **Hide focused tile** acts on the tile that opened the palette,
+not the palette itself. Enter `unhide` to restore the most recently hidden tile.
+These exact queries put their command first and keep it selected. If the tile
+cannot be hidden or there is nothing to restore, Enter reports why rather than
+running another matching command.
 
 To add a command, add an entry (ID, title, keywords, and the existing editor or view
 action) to `Catalog.default` in `palette/catalog.ml`. Its shortcut is derived from the
@@ -1978,9 +1989,8 @@ status line shows its keys. An unbound continuation such as `Space z` does
 nothing except report `Space z is not bound`. Sequences have no timeout.
 
 Pasting (with a terminal that supports bracketed paste) inserts the text
-literally in Insert mode and is ignored in Normal mode. Arrow keys and the
-mouse are not used. SIGTERM or SIGHUP ends the editor, discarding unsaved
-changes, after restoring the terminal.
+literally in Insert mode and is ignored in Normal mode. SIGTERM or SIGHUP ends
+the editor, discarding unsaved changes, after restoring the terminal.
 
 ## Syntax highlighting
 

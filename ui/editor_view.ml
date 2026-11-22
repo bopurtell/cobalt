@@ -117,7 +117,7 @@ type open_location_listener =
   -> on_request:(Open_location.request -> (unit, Open_location.failure) Result.t Async.Deferred.t)
   -> (unit -> unit Async.Deferred.t) Async.Deferred.Or_error.t
 
-let component ?layout ?terminal ?snippets ?configuration ?startup_configuration ?configuration_path ?document_decorations ?document_decoration_host ?(document_decorations_enabled = false) ?(smear_enabled = false) ?(mouse = false) ?(zen = false) ?bare ?theme ?appearance ?buffer_presentation ?report ?(silver_overview : Silver_overview_host.t option) ?source ?vcs ?font ?file_picker ?content_picker ?on_toggle_terminal ?host_commands ?on_host_command ?on_open_location_ready ~set_clipboard controller ~exit ~blank_on_close ~dimensions ~visible ~focused (local_ graph)
+let component ?layout ?terminal ?snippets ?configuration ?startup_configuration ?configuration_path ?document_decorations ?document_decoration_host ?(document_decorations_enabled = false) ?(smear_enabled = false) ?mouse ?(zen = false) ?bare ?theme ?appearance ?buffer_presentation ?report ?(silver_overview : Silver_overview_host.t option) ?source ?vcs ?font ?file_picker ?content_picker ?on_toggle_terminal ?host_commands ?on_host_command ?on_open_location_ready ~set_clipboard controller ~exit ~blank_on_close ~dimensions ~visible ~focused (local_ graph)
   =
   let dimensions = let%arr { Dimensions.width; height } = dimensions in
     { Dimensions.width = Int.max 0 width; height = Int.max 0 height } in
@@ -198,6 +198,8 @@ let component ?layout ?terminal ?snippets ?configuration ?startup_configuration 
     |> Document_decoration_host.follow ~parse:false document_decorations in
   let initial_ui = if Option.is_some on_toggle_terminal
     then Ui_state.with_external_terminal initial_ui else initial_ui in
+  let initial_ui = Option.value_map mouse ~default:initial_ui
+    ~f:(fun enabled -> Ui_state.with_mouse_reporting initial_ui ~enabled) in
   let on_toggle_terminal =
     Option.value on_toggle_terminal ~default:(Bonsai.return (fun _ -> Effect.Ignore)) in
   let host_commands, on_host_command =
@@ -402,8 +404,9 @@ let component ?layout ?terminal ?snippets ?configuration ?startup_configuration 
                   | `Shutdown | `Lost_input | `Open_location _ -> []
                | `Inputs inputs -> inputs
                | `Event _ when not accepts_input -> []
-              | `Event (event, at) ->
-                Terminal_input.inputs ~terminal:(Ui_state.terminal_capturing model) ~mouse event
+               | `Event (event, at) ->
+                 let mouse = Option.value (Ui_state.mouse_reporting model) ~default:false in
+                 Terminal_input.inputs ~terminal:(Ui_state.terminal_capturing model) ~mouse event
                 |> List.map ~f:(function
                   | Ui_state.Input.Key key -> Ui_state.Input.Key_at { key; at }
                   | Ui_state.Input.Terminal_key key -> Ui_state.Input.Terminal_key_at { key; at }
@@ -641,7 +644,20 @@ let component ?layout ?terminal ?snippets ?configuration ?startup_configuration 
           dimensions, set_clipboard, on_toggle_terminal, host_commands, on_host_command, accepts_input)
       graph
   in
-   let inject = let%arr inject_action in fun inputs -> inject_action (`Inputs inputs) in
+    Option.iter mouse ~f:(fun initial ->
+      let reporting = let%arr model in
+        if Ui_state.exited model then None else Ui_state.mouse_reporting model in
+      let set_reporting = Mouse_reporting.set_mouse_reporting graph in
+      (* Notty has already installed [initial] at startup and restores the
+         terminal on release. Only write changes while the editor is live. *)
+      Bonsai.Edge.on_change' reporting ~equal:(Option.equal Bool.equal)
+        ~callback:(let%arr set_reporting in fun previous -> function
+          | Some enabled when not (Bool.equal enabled
+              (Option.value (Option.join previous) ~default:initial)) ->
+            set_reporting (if enabled then All_mouse_events_except_hover else No_mouse_events)
+          | _ -> Effect.Ignore)
+        graph);
+    let inject = let%arr inject_action in fun inputs -> inject_action (`Inputs inputs) in
    Option.iter on_open_location_ready ~f:(fun ready ->
      let project_root = Cobalt_app.Session.project_root (Ui_state.session initial_ui) in
      Bonsai.Edge.lifecycle
@@ -889,7 +905,7 @@ let app ?terminal ?snippets ?configuration ?startup_configuration ?configuration
     ?report ?source ?vcs ?font ?file_picker ?content_picker controller ~exit ~dimensions graph
 ;;
 
-let run ?configuration ?startup_configuration ?configuration_path ?document_decorations ?document_decorations_enabled ?(smear_enabled = false) ?(mouse = false) ?(zen = false) ?bare ?theme ?font ?buffer_presentation ?report ?(silver_overview : Silver_overview_host.t option) ?source ?vcs ?(open_location_listener : open_location_listener option) controller =
+let run ?configuration ?startup_configuration ?configuration_path ?document_decorations ?document_decorations_enabled ?(smear_enabled = false) ?(mouse = true) ?(zen = false) ?bare ?theme ?font ?buffer_presentation ?report ?(silver_overview : Silver_overview_host.t option) ?source ?vcs ?(open_location_listener : open_location_listener option) controller =
   let document_decoration_host = Document_decoration_host.create
     (Option.value document_decorations ~default:Document_decoration_host.Factory.unavailable) in
   let decorations_at_shutdown = ref (Some document_decoration_host) in

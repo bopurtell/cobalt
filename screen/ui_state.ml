@@ -167,6 +167,13 @@ type toggle_pending =
   ; at : Time_ns.t
   }
 
+type hidden_tile =
+  | View of View_id.t
+  | Editor of Buffer_id.t
+  | Directory of Buffer_id.t
+  | Terminal of int
+[@@deriving sexp_of, equal]
+
 type t =
   { controller : Controller.t
   ; document_decorations_enabled : bool
@@ -228,6 +235,7 @@ type t =
   ; workspace_prefs : Workspace.Prefs.t
   ; other_status_size : int (** Requested size for the inactive split axis. *)
   ; hotkey_hints : bool
+  ; mouse_reporting : bool option (** [None] leaves terminal reporting to the host. *)
   ; buffer_presentation : View_command.Buffer_presentation.t
   ; presentation : Presentation.t
   ; bare_return : Presentation.t
@@ -238,9 +246,12 @@ type t =
   (** Problems, the demo report (installed only by [--demo-report]), history, and any
       further installed views, with their placements. *)
   ; tabs : Tab_strip.t (** View tabs' order among the file tabs, and the active one. *)
+  ; hidden_tiles : hidden_tile list (** Newest first; independent of placement and lifetime. *)
   ; split : Workspace.Major_split.t (** Requested side and share of the split view. *)
   ; palette : Palette_tile.t option (** Open, and then focused, or closed. *)
-  ; palette_caller : View_id.t option
+  ; palette_caller : View_id.t option (** Underlying workspace focus for [hide]. *)
+  ; palette_return : View_id.t option (** Focus restored by ordinary dismissal. *)
+  ; palette_tile : hidden_tile option (** Exact workspace tile when the palette opened. *)
   ; silver_picker : (string * Silver_overview_tile.Target.t) list option
   ; silver_connections : (int * (string * Silver_overview_tile.Connection.row) list) option
   ; silver_connecting : int option
@@ -434,6 +445,7 @@ let create
        | Horizontal -> 6
        | Vertical -> 28)
   ; hotkey_hints
+  ; mouse_reporting = None
   ; buffer_presentation
   ; presentation = (if bare then Bare else Workspace)
   ; bare_return = Workspace
@@ -466,9 +478,12 @@ let create
            ])
   ; views
   ; tabs = Tab_strip.empty
+  ; hidden_tiles = []
    ; split = Option.value_map layout ~default:Workspace.Major_split.default ~f:Hosted_layout.split
    ; palette = None
    ; palette_caller = None
+   ; palette_return = None
+   ; palette_tile = None
    ; silver_picker = None
    ; silver_connections = None
    ; silver_connecting = None
@@ -1358,6 +1373,13 @@ let prefs t = t.prefs
 let bare_prefs t = t.bare_prefs
 let workspace_prefs t = t.workspace_prefs
 let hotkey_hints t = t.hotkey_hints
+let mouse_reporting t = t.mouse_reporting
+let with_mouse_reporting t ~enabled = { t with mouse_reporting = Some enabled }
+let toggle_mouse t =
+  match mouse_reporting t with
+  | None -> t
+  | Some enabled -> with_mouse_reporting t ~enabled:(not enabled)
+;;
 let buffer_presentation t = t.buffer_presentation
 let presentation t = t.presentation
 let zen t = Presentation.equal t.presentation Zen
@@ -1378,8 +1400,20 @@ let context_files t =
           id, { View_registry.Context.File.path; label; dirty = modified; missing })))
 ;;
 
+let tile_hidden t tile = List.mem t.hidden_tiles tile ~equal:equal_hidden_tile
+let view_hidden t id = tile_hidden t (View id)
+let editor_hidden t id = tile_hidden t (Editor id)
+let reveal_tile t tile =
+  { t with hidden_tiles = List.filter t.hidden_tiles ~f:(fun hidden ->
+      not (equal_hidden_tile tile hidden)) }
+;;
+let directory_hidden t =
+  Option.exists (Session.directory_buffer t.session) ~f:(fun d -> tile_hidden t (Directory d.id))
+;;
+
 let view_visible t id =
-  Option.exists (View_registry.placement t.views id) ~f:(fun placement ->
+  not (view_hidden t id)
+  && Option.exists (View_registry.placement t.views id) ~f:(fun placement ->
     not (View_registry.Placement.equal placement Hidden))
 ;;
 
@@ -1397,6 +1431,20 @@ let active_tab_view t =
   Option.filter (Tab_strip.active t.tabs) ~f:(fun id ->
     Option.exists (View_registry.placement t.views id) ~f:(fun placement ->
       View_registry.Placement.equal placement Tab))
+;;
+
+(* Hiding the active major tile does not select a different tab or bring a
+   different file/directory to the foreground. The empty major slot is valid. *)
+let major_visible t =
+  match active_tab_view t with
+  | Some id when not (bare t) -> not (view_hidden t id)
+  | _ ->
+    if Option.is_some (Session.input_directory t.session)
+       && (Option.is_none (Session.active_id t.session)
+           || Option.exists (Session.directory_presentation t.session) ~f:(fun p ->
+                Poly.equal p.placement Major))
+    then not (directory_hidden t)
+    else Option.exists (Session.active_id t.session) ~f:(fun id -> not (editor_hidden t id))
 ;;
 
 let active_tab t : Tab_strip.Entry.t option =
@@ -1603,7 +1651,7 @@ let editor_companion t ~width ~height =
      || Option.is_some (Session.input_directory t.session) || width < 80 || height < 8
   then None
   else Option.bind (Editor.path (Controller.editor t.controller)) ~f:(fun path ->
-    View_registry.editor_companion t.views ~path)
+    Option.filter (View_registry.editor_companion t.views ~path) ~f:(fun id -> not (view_hidden t id)))
 ;;
 
 let workspace t ~width ~height =
@@ -1611,23 +1659,26 @@ let workspace t ~width ~height =
   let companion = editor_companion t ~width ~height in
   let is_companion id = Option.exists companion ~f:(View_id.equal id) in
   let minors = if suppress_workspace t then [] else
-    List.filter (View_registry.band t.views) ~f:(fun id -> not (is_companion id)) in
+    List.filter (View_registry.band t.views) ~f:(fun id -> not (is_companion id || view_hidden t id)) in
+  let status_visible = prefs.status_visible && not (suppress_workspace t) && not (view_hidden t status_id) in
   Workspace.allocate
+    ~document_visible:(major_visible t)
     ~minors
     ?split:(if suppress_workspace t then None
       else Option.bind (View_registry.split t.views) ~f:(fun id ->
-        Option.some_if (not (is_companion id)) (id, t.split)))
+        Option.some_if (not (is_companion id || view_hidden t id)) (id, t.split)))
     ?editors:(if suppress_workspace t || Option.is_some (active_tab_view t)
                   || Option.exists (Session.directory_presentation t.session) ~f:(fun p ->
                        Poly.equal p.placement Major && Option.is_some (Session.input_directory t.session))
-      then None else Option.map (Session.editor_split t.session) ~f:(fun split ->
-        split.active_secondary, t.split))
+      then None else Option.bind (Session.editor_split t.session) ~f:(fun split ->
+        Option.some_if (not (editor_hidden t split.other)) (split.active_secondary, t.split)))
     ?side:(match companion with
       | Some id -> Some (id, Int.clamp_exn (width * 2 / 5) ~min:30 ~max:60)
       | None -> Option.bind (Session.directory_presentation t.session) ~f:(fun p ->
-        Option.some_if (Poly.equal p.placement Side && not (suppress_workspace t) && Option.is_some (Session.active_id t.session))
+        Option.some_if (Poly.equal p.placement Side && not (suppress_workspace t)
+                        && not (directory_hidden t) && Option.is_some (Session.active_id t.session))
           (directory_id, t.directory_size)))
-    (if suppress_workspace t then { prefs with status_visible = false } else prefs)
+    { prefs with status_visible }
     ~allocation:{ Geometry.Rect.x = 0; y = 0; width; height }
 ;;
 
@@ -1648,7 +1699,8 @@ let workspace_tab_rect t (workspace : Workspace.t) =
   (* When the sidebar owns input, the strip still belongs to the file surface. *)
   let t = if Option.exists (Session.directory_presentation t.session) ~f:(fun p -> Poly.equal p.placement Side)
     then { t with session = Session.surface t.session ~directory:false } else t in
-  tab_rect ~buffers_in_status:(buffers_in_status_in t workspace) t ~allocation
+  if allocation.width = 0 || allocation.height = 0 then None
+  else tab_rect ~buffers_in_status:(buffers_in_status_in t workspace) t ~allocation
 ;;
 
 let split_tabs t (workspace : Workspace.t) =
@@ -1789,6 +1841,7 @@ let prompt_layout t ~width ~height =
 let effective_floating floating t ~width ~height =
   match floating with
   | Some _ -> floating
+  | None when Option.is_some t.palette -> Some (Palette_tile.id, palette_layout t ~width ~height)
   | None when Option.is_some t.waveform -> Some (Waveform_tile.id, waveform_layout t ~width ~height)
   | None when Option.is_some t.hover -> Some (Hover_tile.id, hover_layout t ~width ~height)
   | None when Option.is_some t.destinations -> Some (Destination_picker_tile.id, destinations_layout t ~width ~height)
@@ -1803,26 +1856,23 @@ let effective_floating floating t ~width ~height =
     (match t.content_picker with
      | Some _ -> Some (Content_picker_tile.id, content_picker_layout t ~width ~height)
      | None -> match t.line_picker, t.file_picker with
-      | Some _, _ -> Some (Line_picker_tile.id, line_picker_layout t ~width ~height)
-      | None, Some _ -> Some (File_picker_tile.id, file_picker_layout t ~width ~height)
-      | None, None ->
-        (match t.palette with
-         | Some _ -> Some (Palette_tile.id, palette_layout t ~width ~height)
-         | None ->
-           (* Help may cover the popup it describes. *)
-           (match t.help, t.confirm, t.prompt, t.popup with
-            | Some _, _, _, _ -> Some (Help_tile.id, help_layout t ~width ~height)
-            | None, Some _, _, _ -> Some (Confirm_tile.id, confirm_layout t ~width ~height)
-            | None, None, Some _, _ -> Some (Prompt_tile.id, prompt_layout t ~width ~height)
-            | None, None, None, Some _ -> Some (Popup_tile.id, popup_layout t ~width ~height)
-            | None, None, None, None -> None)))
+       | Some _, _ -> Some (Line_picker_tile.id, line_picker_layout t ~width ~height)
+       | None, Some _ -> Some (File_picker_tile.id, file_picker_layout t ~width ~height)
+       | None, None ->
+         (* Help may cover the popup it describes. *)
+         (match t.help, t.confirm, t.prompt, t.popup with
+          | Some _, _, _, _ -> Some (Help_tile.id, help_layout t ~width ~height)
+          | None, Some _, _, _ -> Some (Confirm_tile.id, confirm_layout t ~width ~height)
+          | None, None, Some _, _ -> Some (Prompt_tile.id, prompt_layout t ~width ~height)
+          | None, None, None, Some _ -> Some (Popup_tile.id, popup_layout t ~width ~height)
+          | None, None, None, None -> None))
 ;;
 
 (* A supplied floating identity overrides its tiled placement, including when
    resize makes its layout unavailable. Otherwise resolve the live palette. A view
    tab has a layout only while active; a split or band view, while allocated. *)
 let view_layout_in ?floating t (workspace : Workspace.t) id =
-  if View_id.equal id document_id
+  if View_id.equal id document_id || view_hidden t id
   then None
   else match floating with
   | Some (floating_id, layout) when View_id.equal id floating_id -> layout
@@ -1866,13 +1916,14 @@ let focused_view ?floating t ~width ~height =
 
 let cursor_owner ?floating t ~width ~height =
   Option.filter (Host.cursor_owner t.host ~available:(view_available ?floating t ~width ~height))
-    ~f:(fun id -> not (View_id.equal id document_id) || has_document t)
+    ~f:(fun id -> not (View_id.equal id document_id) || major_visible t)
 ;;
 
 (* The active file buffer while it has the editor area's input: the document is
    focused and shows it (no view tab, no input directory, no float or view). *)
 let input_buffer t ~width ~height =
   if View_id.equal (focused_view t ~width ~height) document_id
+     && major_visible t
      && Option.is_none (active_tab_view t)
      && Option.is_none (Session.input_directory t.session)
   then Session.active_id t.session
@@ -2087,8 +2138,9 @@ let leave t id =
   if View_id.equal id Terminal_tile.id
   then { (flush_terminal_j t) with terminal_visible = false; terminal_prefix = []
     ; terminal_paste = Option.map t.terminal_paste ~f:(fun (_, _, _) -> [], 0, false) }
-  else if View_registry.installed t.views id
-  then { t with views = View_registry.leave t.views id }
+   else if View_registry.installed t.views id
+   then if view_hidden t id then t
+     else { t with views = View_registry.leave t.views id }
   else if View_id.equal id Waveform_tile.id
   then { t with waveform = None }
   else if View_id.equal id Theme_picker_tile.id
@@ -2100,7 +2152,8 @@ let leave t id =
   then dismiss_navigation t
   else if View_id.equal id Palette_tile.id
   then (* Leaving closes the palette and discards its query; nothing runs. *)
-     { t with palette = None; palette_origin = None; palette_caller = None
+     { t with palette = None; palette_origin = None; palette_caller = None; palette_return = None
+     ; palette_tile = None
       ; silver_picker = None; silver_connections = None; palette_silver_test = None
       ; palette_silver_stage = None }
   else if View_id.equal id Help_tile.id
@@ -2266,7 +2319,8 @@ let toggle_terminal t ~width ~height =
       | Some layout ->
         let previous = focused_view t ~width ~height in
         let t = List.fold (leave_ids t) ~init:t ~f:leave in
-        let t = { t with terminal_visible = true; terminal_return = previous
+         let t = { (reveal_tile t (Terminal t.terminal_number)) with
+             terminal_visible = true; terminal_return = previous
           ; host = Host.focus t.host Terminal_tile.id
           ; controller = Controller.cancel_pending t.controller } in
         if t.terminal_started then
@@ -2328,7 +2382,7 @@ let inspection_key (key : Cobalt_terminal.Model.key) =
   | _ -> None
 ;;
 
-let terminal_key_raw t ~width ~height (key : Cobalt_terminal.Model.key) =
+let terminal_key_raw t ~width ~height ~open_palette (key : Cobalt_terminal.Model.key) =
   let module M = Cobalt_terminal.Model in
   let normal = not key.modifiers.alt && match key.code with
     | Char u -> let c = Uchar.to_scalar u in
@@ -2405,15 +2459,16 @@ let terminal_key_raw t ~width ~height (key : Cobalt_terminal.Model.key) =
               | Key.Char u -> Int.min Cobalt_core.Command.max_count (n * 10 + Uchar.to_scalar u - 48)
               | _ -> n) |> Int.max 1 in
           let sequence s = List.equal Key.equal suffix (List.map (String.to_list s) ~f:Key.char) in
-          if sequence " /" then
+           if sequence " /" then
             if List.is_empty digits then hide_terminal t ~width ~height
             else select_terminal { t with terminal_prefix = [] } count ~width ~height
-          else if sequence " tr" then { (reset_terminal_size t) with terminal_prefix = [] }
+           else if sequence " cc" then open_palette { t with terminal_prefix = [] } ~width ~height
+           else if sequence " tr" then { (reset_terminal_size t) with terminal_prefix = [] }
           else if sequence "+" || sequence "=" || sequence " t+" then
             { (adjust_terminal_size t count ~width ~height) with terminal_prefix = [] }
           else if sequence "-" || sequence " t-" then
             { (adjust_terminal_size t (-count) ~width ~height) with terminal_prefix = [] }
-          else if sequence " " || sequence " t" then { t with terminal_prefix = keys }
+           else if sequence " " || sequence " t" || sequence " c" then { t with terminal_prefix = keys }
           else
           if Key.equal key (Key.char ' ') then { t with terminal_prefix = [ key ] }
           else match T.interpret text keys with
@@ -2427,7 +2482,7 @@ let terminal_j_expired t at =
     Time_ns.Span.( >= ) (Time_ns.diff at started) (Time_ns.Span.of_ms 150.))
 ;;
 
-let terminal_key t ~width ~height ~at (key : Cobalt_terminal.Model.key) =
+let terminal_key t ~width ~height ~at ~open_palette (key : Cobalt_terminal.Model.key) =
   let module M = Cobalt_terminal.Model in
   let plain c = M.equal_key key { code = Char (Uchar.of_char c); modifiers = M.no_modifiers } in
   let t = if terminal_j_expired t at then flush_terminal_j t else t in
@@ -2438,8 +2493,8 @@ let terminal_key t ~width ~height ~at (key : Cobalt_terminal.Model.key) =
     else
       let t = flush_terminal_j t in
       if plain 'j' then { t with terminal_pending_j = Some (at, t.terminal_generation) }
-      else terminal_key_raw t ~width ~height key
-  else terminal_key_raw (flush_terminal_j t) ~width ~height key
+       else terminal_key_raw t ~width ~height ~open_palette key
+   else terminal_key_raw (flush_terminal_j t) ~width ~height ~open_palette key
 ;;
 
 let close_content_picker t ~width ~height =
@@ -2476,21 +2531,25 @@ let return_to_document t =
       if Option.is_some (Session.input_directory t.session)
          && Option.is_some (Session.active_id t.session)
          && Option.exists (Session.directory_presentation t.session) ~f:(fun p -> Poly.equal p.placement Side)
+         && not (directory_hidden t)
       then Host.focus host directory_id
-      else Option.value_map (active_tab_view t) ~default:host ~f:(Host.focus host))
+      else Option.filter (active_tab_view t) ~f:(fun id -> not (view_hidden t id))
+        |> Option.value_map ~default:host ~f:(Host.focus host))
   ; animation = Animation.create ~enabled:(Animation.enabled t.animation)
   ; controller = Controller.cancel_pending t.controller
   }
 ;;
 
-let close_palette t ~width ~height =
-  let caller = t.palette_caller in
+let close_palette ?(restore_workspace_caller = false) t ~width ~height =
+  let caller = if restore_workspace_caller then t.palette_caller else t.palette_return in
   let t = leave t Palette_tile.id in
   match caller with
   | Some view when available t ~width ~height view ->
     { t with host = Host.focus t.host view
     ; controller = Controller.cancel_pending t.controller }
-  | _ -> return_to_document t
+   | _ ->
+     { t with host = Host.return t.host
+     ; controller = Controller.cancel_pending t.controller }
 ;;
 
 (* Closing help returns to the view it describes, which it never left, or to the
@@ -2563,6 +2622,7 @@ let synchronize t ~width ~height =
   let t =
     if not t.terminal_visible then t else
     if not (View_id.equal (Host.focused t.host ~available:(fun _ -> true)) Terminal_tile.id)
+       && not (Option.exists t.palette_caller ~f:(View_id.equal Terminal_tile.id))
     then leave t Terminal_tile.id
     else match terminal_layout t ~width ~height with
       | None -> hide_terminal t ~width ~height
@@ -2643,7 +2703,8 @@ let synchronize t ~width ~height =
      invisible input focus. With no files, the directory remains the major surface. *)
   let t = if Option.is_some (Session.input_directory t.session)
       && Option.is_some (Session.active_id t.session)
-      && Option.exists (Session.directory_presentation t.session) ~f:(fun p -> Poly.equal p.placement Side)
+       && Option.exists (Session.directory_presentation t.session) ~f:(fun p -> Poly.equal p.placement Side)
+       && not (directory_hidden t)
       && Option.is_none (side_layout t ~width ~height)
     then
       let old = Session.context_id t.session in
@@ -2659,6 +2720,7 @@ let synchronize t ~width ~height =
     { t with
       views =
         View_registry.fit ?companion:(editor_companion t ~width ~height)
+           ~skip:(view_hidden t)
           t.views t.controller ~viewport:(fun id ->
           minor_rows t ~width ~height id, minor_width t ~width ~height id)
     ; palette =
@@ -2764,13 +2826,18 @@ let adopt_session_state ?(keep_view_tab = false) ?(keep_focus = false) t session
   let scrolls = match previous with
     | None -> t.scrolls
     | Some id -> Map.set t.scrolls ~key:id ~data:(t.scroll, t.rows) in
-  let scrolls = if Session.same_buffer_membership t.session session then scrolls else
+  let same_membership = Session.same_buffer_membership t.session session in
+  let scrolls = if same_membership then scrolls else
     Map.filter_keys scrolls ~f:(Session.has_buffer session) in
-  let wheel_scrolls = if Session.same_buffer_membership t.session session then t.wheel_scrolls else
+  let wheel_scrolls = if same_membership then t.wheel_scrolls else
     Map.filter_keys t.wheel_scrolls ~f:(Session.has_buffer session) in
+  let hidden_tiles = if same_membership then t.hidden_tiles else
+    List.filter t.hidden_tiles ~f:(function
+      | Editor id | Directory id -> Session.has_buffer session id
+      | View _ | Terminal _ -> true) in
   let controller = Option.value (Session.active_controller session)
     ~default:(Controller.with_feedback t.controller (Session.feedback session)) in
-  let t = { t with session; controller; scrolls; wheel_scrolls; exited = Session.exited session
+  let t = { t with session; controller; scrolls; wheel_scrolls; hidden_tiles; exited = Session.exited session
     ; toggle_pending = if Session.exited session then None else t.toggle_pending } in
   let t = if not changed then
     (if placement_changed then { t with rows = None; paste_buffer = None
@@ -2970,7 +3037,8 @@ let editor_panes t ~width ~height =
       ; focused = Option.equal Buffer_id.equal input (Some buffer) } in
     let other = Option.map2 workspace.second_editor (Session.editor_split t.session)
       ~f:(fun rect split -> pane split.other rect) in
-    List.sort (pane active workspace.document.rect :: Option.to_list other)
+    let front = if major_visible t then [ pane active workspace.document.rect ] else [] in
+    List.sort (front @ Option.to_list other)
       ~compare:(fun a b -> Int.compare a.allocation.x b.allocation.x)
 ;;
 
@@ -3031,6 +3099,7 @@ let apply_view (prefs : Geometry.Prefs.t) (view : View_command.t) : Geometry.Pre
   | Adjust_status_size _
   | Toggle_zen
   | Toggle_bare
+  | Hide_focused_tile | Unhide_tile | Toggle_mouse
    | Open_theme_picker | Open_palette | Open_line_picker | Open_file_picker | Open_content_picker -> prefs
   | Shift cells ->
     { prefs with
@@ -3156,6 +3225,7 @@ let view_feedback t ~before ~width ~height (view : View_command.t) : string opti
     Some (if t.hotkey_hints then "Hotkey hints shown" else "Hotkey hints hidden")
   | Toggle_zen -> Some (if zen t then "Zen (status hidden)" else "Workspace restored")
   | Toggle_bare -> Some (if bare t then "Bare" else if zen t then "Zen restored" else "Workspace restored")
+  | Hide_focused_tile | Unhide_tile | Toggle_mouse -> None
   | Toggle_status | Position_status _ | Adjust_status_size _ ->
     let requested = t.workspace_prefs in
     let location =
@@ -4101,6 +4171,48 @@ let accept_snippet_picker t (item : Cobalt_completion.User_snippets.item) =
         activate_snippet t template ~base:cursor)
 ;;
 
+let workspace_caller t id =
+  let rec underlying seen id =
+    if List.mem seen id ~equal:View_id.equal then document_id else
+    let origin =
+      if View_id.equal id File_picker_tile.id then Some t.file_picker_return
+      else if View_id.equal id Line_picker_tile.id then Some t.line_picker_return
+      else if View_id.equal id Content_picker_tile.id then Some t.content_picker_return
+      else if View_id.equal id Theme_picker_tile.id then Some t.theme_picker_return
+      else if View_id.equal id Snippet_picker_tile.id || View_id.equal id Hover_tile.id
+           || View_id.equal id Destination_picker_tile.id || View_id.equal id Instance_picker_tile.id
+           || View_id.equal id Waveform_tile.id
+      then Some document_id
+      else float_origin t id in
+    match origin with
+    | Some origin -> underlying (id :: seen) origin
+    | None when is_ask id || View_id.equal id Help_tile.id -> document_id
+    | None -> id
+  in
+  underlying [] id
+;;
+
+let workspace_target t ~width ~height id =
+  let w = workspace t ~width ~height in
+  let rendered = w.document.rect.width > 0 && w.document.rect.height > 0 in
+  if View_id.equal id document_id then
+    if not rendered then None
+    else match active_tab_view t with
+    | Some id when not (bare t) ->
+      Option.map (tab_view_layout t w) ~f:(fun _ -> View id)
+    | _ ->
+      if Option.is_some (Session.input_directory t.session) && Option.is_none (side_layout t ~width ~height)
+      then Option.map (Session.input_directory t.session) ~f:(fun d -> Directory d.id)
+      else Option.map (Session.active_id t.session) ~f:(fun id -> Editor id)
+  else if View_id.equal id directory_id then
+    Option.bind (side_layout t ~width ~height) ~f:(fun _ ->
+      Option.map (Session.directory_buffer t.session) ~f:(fun d -> Directory d.id))
+  else if View_id.equal id Terminal_tile.id then
+    Option.map (terminal_layout t ~width ~height) ~f:(fun _ -> Terminal t.terminal_number)
+  else
+    Option.map (view_layout_in t w id) ~f:(fun _ -> View id)
+;;
+
 let open_palette t ~width ~height =
   let t = finalize_completion t in
   let notice text = { t with host = Host.with_notice t.host text } in
@@ -4113,6 +4225,8 @@ let open_palette t ~width ~height =
   then notice "Command palette cannot fit; needs at least 14 columns and 4 rows"
   else (
     let current = focused_view t ~width ~height in
+    let caller = workspace_caller t current in
+    let tile = workspace_target t ~width ~height caller in
     (* Help over a popup describes no view's commands; the popup is withdrawn. *)
     let origin =
       if View_registry.installed t.views current
@@ -4151,13 +4265,15 @@ let open_palette t ~width ~height =
           (List.map local ~f:(fun (entry, keys) -> Cobalt_palette.Catalog.Entry.id entry, keys))
     in
     let t =
-      { (if View_registry.installed t.views current
+       { (if View_registry.installed t.views current || View_id.equal current Terminal_tile.id
          then t
          else leave (leave t current) Popup_tile.id) with
         controller = Controller.cancel_pending t.controller
        ; palette = Some palette
        ; palette_origin = origin
-       ; palette_caller = Some (Option.value origin ~default:current)
+         ; palette_caller = Some caller
+         ; palette_return = Some (Option.value origin ~default:current)
+         ; palette_tile = tile
        ; palette_silver_test = Some t.silver_test
        ; palette_silver_stage = Some t.silver_stage
       }
@@ -4266,6 +4382,140 @@ let workspace_notice t ~width ~height text =
   else { t with host = Host.with_notice t.host text }
 ;;
 
+let focus_workspace t id =
+  { t with host = Host.focus (Host.return t.host) id
+  ; controller = Controller.cancel_pending t.controller
+  ; animation = Animation.create ~enabled:(Animation.enabled t.animation) }
+;;
+
+let fallback_workspace t ~width ~height ?preferred () =
+  let w = workspace t ~width ~height in
+  let matching = Option.filter preferred ~f:(fun id ->
+    if View_id.equal id document_id then major_visible t && Option.is_none (active_tab_view t)
+    else available t ~width ~height id) in
+  let id = match matching with
+    | Some id -> id
+    | None ->
+      match active_tab_view t with
+      | Some id when available t ~width ~height id -> id
+      | _ when w.document.rect.width > 0 && w.document.rect.height > 0 -> document_id
+      | _ ->
+        List.find_map w.minors ~f:(fun pane ->
+          match pane.id with
+          | Minor id when (Host.spec t.host id).focusable -> Some id
+          | _ -> None)
+        |> Option.value ~default:document_id
+  in
+  if View_id.equal id directory_id && Option.is_none (Session.input_directory t.session)
+  then
+    let session = Session.focus_directory (session t) true in
+    focus_workspace (adopt_session_state ~keep_view_tab:true ~keep_focus:true t session ~width ~height) id
+  else focus_workspace t id
+;;
+
+let hide_focused_tile t ~width ~height =
+  let target =
+    if Option.is_some t.palette then t.palette_tile
+    else workspace_target t ~width ~height (workspace_caller t (focused_view t ~width ~height)) in
+  let t = if Option.is_some t.palette then
+      close_palette ~restore_workspace_caller:true t ~width ~height else t in
+  let current = focused_view t ~width ~height in
+  let caller = workspace_caller t current in
+  let t = if View_id.equal current caller then t
+    else focus_workspace (leave (leave t current) Popup_tile.id) caller in
+  (* A captured buffer/terminal is not interchangeable with a newer tile in
+     the same slot, even if the host focus ID is unchanged. *)
+  match target, workspace_target t ~width ~height caller with
+  | Some tile, Some live when equal_hidden_tile tile live ->
+    let t =
+      { t with hidden_tiles = tile :: t.hidden_tiles; toggle_pending = None
+      ; host = Host.invalidate_paste t.host caller } in
+    (match tile with
+     | Terminal _ ->
+       let previous = t.terminal_return in
+       fallback_workspace (leave t Terminal_tile.id) ~width ~height ~preferred:previous ()
+     | Editor _ ->
+       let t =
+         if Option.is_some (workspace t ~width ~height).second_editor then
+           Option.value_map (Session.editor_split t.session) ~default:t ~f:(fun split ->
+             Result.ok (Session.activate (session t) split.other)
+             |> Option.value_map ~default:t ~f:(fun session ->
+               adopt_session_state ~keep_view_tab:true ~keep_focus:true t session ~width ~height))
+         else t in
+       fallback_workspace t ~width ~height ()
+     | Directory _ when View_id.equal caller directory_id ->
+       let session = Session.focus_directory (session t) false in
+       let t = adopt_session_state ~keep_view_tab:true ~keep_focus:true t session ~width ~height in
+       fallback_workspace t ~width ~height ()
+     | Directory _ | View _ -> fallback_workspace t ~width ~height ())
+  | _ -> { t with host = Host.with_notice t.host "No focused workspace tile to hide" }
+;;
+
+let hidden_tile_exists t = function
+  | View id when View_id.equal id status_id -> t.workspace_prefs.status_visible
+  | View id -> Option.exists (View_registry.placement t.views id) ~f:(fun placement ->
+      not (View_registry.Placement.equal placement Hidden))
+  | Editor id | Directory id -> Session.has_buffer t.session id
+  | Terminal number -> number = t.terminal_number || Map.mem t.terminal_sessions number
+;;
+
+let has_hidden_tile t = List.exists t.hidden_tiles ~f:(hidden_tile_exists t)
+
+let unhide_tile t ~width ~height =
+  let t = if Option.is_some t.palette then close_palette t ~width ~height else t in
+  let release_focus t = fallback_workspace t ~width ~height
+      ~preferred:(focused_view t ~width ~height) () in
+  match List.filter t.hidden_tiles ~f:(hidden_tile_exists t) with
+  | [] -> { t with hidden_tiles = []; host = Host.with_notice t.host "No hidden workspace tile" }
+  | Terminal number :: rest ->
+    (match Terminal_tile.placement_with_preferred ~preferred:t.terminal_preferred ~width ~height with
+     | None -> { t with host = Host.with_notice t.host "Tile Term cannot fit; needs at least 20 columns and 6 rows" }
+     | Some _ ->
+       let previous = focused_view t ~width ~height in
+       let t = if number = t.terminal_number then t else
+           let t = flush_terminal_j t in
+           load_terminal t number (save_terminal t) in
+       focus_workspace { t with hidden_tiles = rest; terminal_visible = true; terminal_return = previous }
+         Terminal_tile.id)
+  | tile :: rest ->
+    let t = { t with hidden_tiles = rest } in
+    (match tile with
+     | View id when Option.equal View_registry.Placement.equal
+         (View_registry.placement t.views id) (Some Tab) ->
+       let t = { t with tabs = Tab_strip.activate t.tabs (Some id) } in
+       if available t ~width ~height id then focus_workspace t id else release_focus t
+     | View id when available t ~width ~height id && (Host.spec t.host id).focusable ->
+       focus_workspace t id
+     | Editor id ->
+       (* Restoring a file tab explicitly selects the original buffer, even if a
+          different tile took its place while hidden. Session activation also
+          selects the original side when the buffer is still in the split. *)
+       (match Session.activate (session t) id with
+        | Error _ -> release_focus t
+        | Ok session -> focus_workspace
+            (adopt_session_state ~keep_view_tab:true ~keep_focus:true (file_tab t) session ~width ~height)
+            document_id)
+     | Directory id when Option.exists (Session.directory_buffer t.session) ~f:(fun d ->
+         Buffer_id.equal id d.id) && Option.is_some (side_layout t ~width ~height) ->
+       fallback_workspace t ~width ~height ~preferred:directory_id ()
+     | Directory id when Option.equal Buffer_id.equal (Session.context_id t.session) (Some id)
+                         && Option.is_none (active_tab_view t) && major_visible t ->
+       focus_workspace t document_id
+     | Directory id ->
+       let restored =
+         Option.bind (Session.find_directory t.session id) ~f:(fun directory ->
+           Result.ok (Session.show_directory (session t) directory.path)) in
+       (match restored with
+        | None -> release_focus t
+        | Some session ->
+          let t = adopt_session_state ~keep_view_tab:true ~keep_focus:true (file_tab t)
+              session ~width ~height in
+          if Option.is_some (side_layout t ~width ~height) then focus_workspace t directory_id
+          else release_focus t)
+     | View _ -> release_focus t
+     | Terminal _ -> assert false)
+;;
+
 (* Provider assembly boundary. The frontend owns discovery; release cancels it
    on every close path, before queued session acceptance. *)
 let can_open_file_picker t ~width ~height =
@@ -4340,7 +4590,7 @@ let open_content_picker t ~width ~height ~snapshot ~release =
 let close_view t ~width ~height id =
   let focused = View_id.equal (focused_view t ~width ~height) id in
   let t =
-    { t with
+    { (reveal_tile t (View id)) with
       views = View_registry.close t.views id
     ; host = Host.invalidate_paste t.host id
     ; rows = None
@@ -4364,7 +4614,8 @@ let refuse_view_split t ~width ~height =
 let place_view t ~width ~height id (placement : View_registry.Placement.t) =
   if View_registry.Placement.equal placement Split && Option.is_some (Session.editor_split t.session)
   then refuse_view_split t ~width ~height else
-  let t = if View_registry.Placement.equal placement Hidden then t else leave_bare t in
+  let t = if View_registry.Placement.equal placement Hidden then t else
+      leave_bare (reveal_tile t (View id)) in
   let title = view_title t id in
   let previous = View_registry.placement t.views id in
   let was_active_tab = Option.exists (active_tab_view t) ~f:(View_id.equal id) in
@@ -4415,10 +4666,13 @@ let place_view t ~width ~height id (placement : View_registry.Placement.t) =
    tab added after the active entry and activated, or in the split (closing the view
    there). *)
 let show_hidden t ~width ~height id =
-  if View_registry.Placement.equal (View_registry.opens_in t.views id) Split
+  if view_hidden t id && Option.exists (View_registry.placement t.views id) ~f:(fun placement ->
+       not (View_registry.Placement.equal placement Hidden))
+  then reveal_tile t (View id)
+  else if View_registry.Placement.equal (View_registry.opens_in t.views id) Split
       && Option.is_some (Session.editor_split t.session)
   then refuse_view_split t ~width ~height else
-  let t = leave_bare t in
+  let t = leave_bare (reveal_tile t (View id)) in
   match View_registry.opens_in t.views id with
   | Band -> { t with views = View_registry.set_placement t.views id Band }
   | Split -> { t with views = View_registry.set_placement t.views id Split; rows = None }
@@ -4457,7 +4711,7 @@ let focus_view t ~width ~height id =
      && View_registry.Placement.equal (View_registry.opens_in t.views id) Split
      && Option.is_some (Session.editor_split t.session)
   then refuse_view_split t ~width ~height else
-  let t = leave_bare t in
+  let t = leave_bare (reveal_tile t (View id)) in
   match View_registry.placement t.views id with
   | Some _ when Option.exists (editor_companion t ~width ~height) ~f:(View_id.equal id) ->
     toggle_focus t ~width ~height id ~show:Fn.id
@@ -4594,6 +4848,20 @@ let apply_view_command t ~width ~height (view : View_command.t) =
   | Select_terminal number -> select_terminal t number ~width ~height
   | Adjust_terminal_size steps -> adjust_terminal_size t steps ~width ~height
   | Reset_terminal_size -> reset_terminal_size t
+  | Hide_focused_tile | Unhide_tile ->
+    let t =
+      if View_command.equal view Hide_focused_tile
+      then hide_focused_tile t ~width ~height
+      else unhide_tile t ~width ~height
+    in
+    Option.value_map (Host.notice t.host) ~default:t ~f:(workspace_notice t ~width ~height)
+  | Toggle_mouse ->
+    let t = toggle_mouse t in
+    workspace_notice t ~width ~height
+      (match mouse_reporting t with
+       | Some true -> "Mouse enabled"
+       | Some false -> "Mouse disabled"
+       | None -> "Mouse toggling is unavailable here; nothing ran")
   | Toggle_bare ->
     if bare t then { t with presentation = t.bare_return; rows = None }
     else (
@@ -5077,9 +5345,8 @@ let paste_capture t ~width ~height id text =
     | Some _ | None -> pane_notice t ~source:id (sprintf "%s: paste unsupported" title))
 ;;
 
-(* Accepting the palette: close it and return to the document, then dispatch the
-   command once through the controller's shared route, as its key binding would. A
-   refusal closes it too and says why; nothing runs on another target. *)
+(* Editor actions close the palette and return to the document; caller-sensitive
+   actions close it as they consume or restore the captured target. *)
 let accept_palette t ~width ~height palette =
   let editor = Controller.editor t.controller in
   let context : Cobalt_palette.Catalog.Context.t option =
@@ -5179,7 +5446,7 @@ let accept_palette t ~width ~height palette =
      else
         let t = close_palette t ~width ~height in
         { t with host_command_requests = id :: t.host_command_requests }, Running
-   | None, Execute { target = Native (View (Run_view_command { view; _ } as command)); _ } ->
+    | None, Execute { target = Native (View (Run_view_command { view; _ } as command)); _ } ->
     (* A local command runs in the view the palette was opened over, refocused. *)
     let origin = t.palette_origin in
     let t = leave t Palette_tile.id in
@@ -5192,7 +5459,12 @@ let accept_palette t ~width ~height palette =
          }
        in
        apply_view_command t ~width ~height command, Running
-     | Some _ | None -> refuse "The palette's view is gone; nothing ran", Running)
+      | Some _ | None -> refuse "The palette's view is gone; nothing ran", Running)
+   | None, Execute { target = Native (View ((Hide_focused_tile | Unhide_tile) as command)); _ } ->
+     (* These commands close the float themselves, after consuming its captured tile. *)
+     apply_view_command t ~width ~height command, Running
+   | None, Execute { target = Native (View Toggle_mouse); _ } ->
+     apply_view_command (close_palette t ~width ~height) ~width ~height Toggle_mouse, Running
    | None, Execute { target = Native action; _ } ->
     (* Moving "the focused view" moves the view the palette was opened over. *)
     let action : Keymap.Action.t =
@@ -5556,11 +5828,35 @@ let route t ~width ~height key =
     in
     t, Controller.Status.Running
   | Some id -> feed_capture t ~width ~height id key, Controller.Status.Running
+  | None when not (major_visible t) ->
+    (* The primary host ID is also the empty surface. Workspace bindings remain
+       available, but document keys never edit the covered buffer. *)
+    let module B = Bindings in
+    let lookup = Keymap.lookup (Controller.keymap t.controller) in
+    (match lookup (Host.pending t.host @ [ key ]) with
+     | B.Bound (Editor (Quit | Force_quit as command)) ->
+       let t = focus_workspace t document_id in
+       let session, _, status = Session.dispatch (session t) [ Editor command ] in
+       let t = adopt_session_state ~keep_view_tab:true ~keep_focus:true t session ~width ~height in
+       t, status
+     | _ ->
+       let host, decision =
+         Host.key t.host key ~lookup ~content:(fun _ -> Cobalt_tile.Content_key.Unbound)
+           ~escape:None ~hint:"Space c c opens the command palette" in
+       let t = { t with host } in
+       match decision with
+       | Workspace command -> apply_view_command t ~width ~height command, Controller.Status.Running
+       | Return | Handled | Content _ -> t, Running
+       | Notice text -> { t with host = Host.with_notice host text }, Running)
   | None -> feed t ~width ~height (Key key)
 ;;
 
 let refit t ~width ~height =
   let t = synchronize t ~width ~height in
+  if not (major_visible t) && (Option.is_none (Session.input_directory t.session)
+                             || Option.is_none (side_layout t ~width ~height))
+  then { t with fitted_dimensions = Some (width, height) }
+  else
   { t with
     scroll = fitted_scroll t ~width ~height
   ; rows = Some (geometry t ~width ~height).text.height
@@ -5734,7 +6030,7 @@ let directory_pointer_pane t ~width ~height ~(side : Tile_shell.Layout.t option)
     | Some layout ->
       pane (surface t ~directory:true) ~allocation:layout.content
         ~reserve_status_row:false ~buffers_in_status:false
-    | None when Option.is_some (Session.input_directory t.session) && Option.is_none (active_tab_view t) ->
+    | None when major_visible t && Option.is_some (Session.input_directory t.session) && Option.is_none (active_tab_view t) ->
       let w = workspace t ~width ~height in
       pane t ~allocation:w.document.rect ~reserve_status_row:w.reserve_status_row
         ~buffers_in_status:(buffers_in_status_in t w)
@@ -5856,7 +6152,7 @@ let toggle_owner t ~width ~height =
     then Some (Terminal_owner (t.terminal_number, t.terminal_generation)) else None
   else if not (Host.pasting t.host)
           && View_id.equal (focused_view t ~width ~height) document_id
-          && has_document t
+          && major_visible t
           && Mode.equal (Editor.mode (Controller.editor t.controller)) Insert
   then Some (Editor_owner (Session.context_id t.session))
   else None
@@ -5895,6 +6191,7 @@ let toggle_step text c =
 let rec apply t ~width ~height (input : Input.t) =
   match input with
   | Pointer _ when t.exited -> t, Controller.Status.Exit
+  | Pointer _ when Option.equal Bool.equal t.mouse_reporting (Some false) -> t, Running
   | Pointer { x; y; action } -> apply_pointer t ~width ~height ~x ~y ~action, Running
   | _ ->
   let t = match input with
@@ -5997,7 +6294,7 @@ and apply_running t ~width ~height (input : Input.t) : t * Controller.Status.t =
       match key.code with Char u -> Uchar.to_char u | _ -> None in
     timed_toggle t ~width ~height ~at ~c ~key:(Shell_key key)
       ~literal:(fun t ->
-        synchronize (terminal_key t ~width ~height ~at key) ~width ~height, Controller.Status.Running)
+        synchronize (terminal_key t ~width ~height ~at ~open_palette key) ~width ~height, Controller.Status.Running)
   | Paste_start when terminal_capturing t ->
     let t = flush_terminal_j t in
     let t = synchronize t ~width ~height in
@@ -6141,7 +6438,7 @@ and flush_toggle t ~width ~height : t * Controller.Status.t =
           match key with
           | Editor_key key -> apply_regular t ~width ~height (Input.Key key)
           | Shell_key key ->
-            terminal_key t ~width ~height ~at:pending.at key, Running)
+            terminal_key t ~width ~height ~at:pending.at ~open_palette key, Running)
 
 and timed_toggle t ~width ~height ~at ~c ~key
     ~(literal : t -> t * Controller.Status.t) : t * Controller.Status.t =
@@ -6245,7 +6542,7 @@ and apply_regular_inner t ~width ~height (input : Input.t) =
         (match Host.paste_end t.host with
          | host, `Not_pasting -> { t with host }, Running
           | host, `Deliver (owner, text) when View_id.equal owner document_id ->
-            if Option.equal Buffer_id.equal t.paste_buffer (Session.context_id t.session) && has_document t
+            if Option.equal Buffer_id.equal t.paste_buffer (Session.context_id t.session) && major_visible t
             then feed ~width ~height { t with host } (Paste text)
             else { t with host }, Running
          | host, `Deliver (owner, text) ->
