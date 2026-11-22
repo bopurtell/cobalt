@@ -85,7 +85,7 @@ def test(fixture, binary, stub):
                               b" cc", b"st", b"\t", b"\r"])
                     ui.see(b"fixture-chip/fixture-variant")
                     ui.see(b"fixture-flow/fixture-profile")
-                    ui.see(b"CTS:")
+                    ui.see(b"cts:")
                     ui.see(b"Signoff:")
                     ui.see(b"not reported")
                     assert b"Clock tree synthesis" not in ui.output
@@ -274,7 +274,7 @@ def test_observation(fixture):
                     ui.see(b"Latest ASIC run matching-asic")
                     ui.see(b"Custom placement pass")
                     ui.see(b"running")
-                    ui.see(b"CTS:")
+                    ui.see(b"cts:")
                     ui.see(b"Post CTS timing")
                     evidence = ui.output[ui.output.index(b"Latest ASIC run matching-asic"):]
                     assert evidence.index(b"Custom placement pass") < evidence.index(b"Post CTS timing")

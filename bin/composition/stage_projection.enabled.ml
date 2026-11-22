@@ -86,7 +86,7 @@ let update_launch t flow =
      t.revision <- Some revision)
 ;;
 
-let label ~id name = if String.equal id "cts" then "CTS" else name
+let label ~id name = if String.equal id "cts" then "cts" else name
 
 let context (inputs : Flow.inputs) =
   String.concat ~sep:" · "

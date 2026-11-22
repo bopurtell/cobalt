@@ -90,7 +90,7 @@ Statuses update while the checklist is visible, without a keypress; `r`
 requests a progress refresh without changing launch settings. Reported stages
 appear in Silver's order, followed by additional launch destinations.
 Muted rows have no confirmed progress: a requested endpoint does not prove
-that it or its prerequisites ran. **CTS** is clock tree synthesis.
+that it or its prerequisites ran. The `cts` row is clock tree synthesis.
 When latest is ambiguous, `[` can choose from the available dated matches.
 
 `›` marks the selected row. What the observed run did is separate from what

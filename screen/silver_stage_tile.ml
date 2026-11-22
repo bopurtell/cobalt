@@ -103,7 +103,7 @@ module Row = struct
   type t = { id : string; label : string; status : Status.t; action : Action.t }
   [@@deriving sexp_of]
 
-  let display_label t = if String.equal t.id "cts" then "CTS" else t.label
+  let display_label t = if String.equal t.id "cts" then "cts" else t.label
 end
 
 module Snapshot = struct

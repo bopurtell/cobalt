@@ -240,7 +240,7 @@ let%test_unit "stage evidence has native status roles and stays aligned across s
       [%test_eq: bool] (Style.equal (Test_span.style_at row 2) style) true);
     let cts = List.nth_exn rows 3 in
     check (field (List.hd_exn rows) ~left:0 ~cols:4) "› ? ";
-    check (field cts ~left:0 ~cols:8) "  ✓ CTS:";
+    check (field cts ~left:0 ~cols:8) "  ✓ cts:";
     let selected_routing = run ui "jjjj" in
     let selected = List.last_exn (body selected_routing ~width ~rows:3 ~focused:true) in
     check (field selected ~left:0 ~cols:4) "› ! ";
