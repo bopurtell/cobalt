@@ -114,7 +114,11 @@ module Location : sig
   type t =
     { path : string (** Absolute. *)
     ; line : int option
-    (** 1-based, at the line's first column; past the end means the last line. *)
+    (** 1-based, at the line's first column by default; past the end means the
+        last line when [bsc_column] is absent. *)
+    ; bsc_column : int option
+    (** BSC's character column with 8-wide tabs. When supplied with a line,
+        require a valid position and refuse the open if the buffer is dirty. *)
     ; contents : string option
     (** Write the file first with exactly this text (created or replaced), then open
         it: how a view hands the user a file to edit (a commit message). Refused

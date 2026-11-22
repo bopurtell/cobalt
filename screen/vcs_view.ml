@@ -1398,6 +1398,7 @@ let prepare_finished t (report : Job.Report.t) =
         , `Open
             { View_registry.Location.path
             ; line = Some 1
+            ; bsc_column = None
             ; contents = Some (Git.Commit.template status kind ~flags ~head_message)
             } ))
   | Some (Detect | Refresh _ | Diff _ | Mutate) | None -> t, `Nothing
@@ -1689,7 +1690,7 @@ let open_target t =
   match Vcs_diff_text.line_at t.diff_text (Text_view.cursor t.diff_view), root t with
   | Some { target = Some { path = Some path; line; display = _ }; _ }, Some root ->
     let path = if String.is_suffix root ~suffix:"/" then root ^ path else root ^ "/" ^ path in
-    `Open { View_registry.Location.path; line; contents = None }
+    `Open { View_registry.Location.path; line; bsc_column = None; contents = None }
   | Some { target = Some { path = None; display; _ }; _ }, _ ->
     `Notice (sprintf "%s was deleted: nothing to open" display)
   | _ -> `Notice "No file at the cursor"
@@ -2139,7 +2140,7 @@ let perform t controller ~context ~rows ~width action =
            | Some pending, _ ->
              outcome
                t
-               ~open_file:{ path = pending.path; line = None; contents = None }
+                ~open_file:{ path = pending.path; line = None; bsc_column = None; contents = None }
                ~notice:
                  (`Post
                      "A commit message is already open: Space g c commits it, Space g a \

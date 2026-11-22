@@ -62,7 +62,7 @@ type action [@@deriving sexp_of]
 
 (** [e] toggles the selected row's details (inspecting a problem), [a] acknowledges a
     problem (findings are never acknowledged), and Enter jumps to its location in the
-    current document, in the list or details.
+    current document, in the list or details. BSC findings can also open another file.
     Otherwise, in the list, shared list motions ([j/k], [gg/G], [Ctrl-d/u]) select,
     [yy]/[Y] copy the selected problem's description, and edit keys are rejected; in
     details, keys go to the read-only text ({!Cobalt_tile.Text_view}: movement, Visual
@@ -81,7 +81,8 @@ module Outcome : sig
     ; notice : [ `Post of string | `Show of string ] option
     (** [`Post] also reports the notice as feedback; [`Show] only displays it. *)
     ; effect : Cobalt_tile.Text_view.Effect.t option (** A copy or read-only notice. *)
-    ; return : bool (** Return focus to the document (after a jump). *)
+     ; return : bool (** Return focus to the document (after a jump). *)
+     ; open_file : View_registry.Location.t option
     }
 end
 

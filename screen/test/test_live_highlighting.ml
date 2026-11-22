@@ -55,6 +55,39 @@ let%test_unit "GAS syntax renders for .s/.S, edits incrementally and restores on
     Controller.close (Ui_state.controller ui))
 ;;
 
+let%test_unit "Rust and BSV render local syntax, recolor on edit, then restore on undo" =
+  List.iter
+    [ "main.rs", "fn main() {\n    let word = r#\"hello\"#;\n}\n", "fn", "r#\"hello\"#", Category.String
+    ; "Counter.bsv", "package Counter;\nmodule mkCounter(Empty);\n   rule tick;\n      $display(\"tick\");\n   endrule\nendmodule\nendpackage\n",
+      "package", "$display", Function
+    ] ~f:(fun (path, source, keyword, token, category) ->
+      let ui = ui ~path source in
+      let spans ui = syntax_spans (render ~width:64 ~height:12 ui) in
+      let has ui token category =
+        List.exists (spans ui) ~f:(fun (span, d) ->
+          String.is_substring span.Span.text ~substring:token && Category.equal d.syntax category)
+      in
+      assert (has ui keyword Keyword);
+      assert (has ui token category);
+      assert (count ui = 1);
+      let original = Snapshot.ranges (snapshot ui) in
+      (* Prepend a line comment to the first declaration. The later line must
+         retain color even when the declaration containing it is incomplete. *)
+      let edited = run ui (keys "i//<Esc>") in
+      assert (has edited keyword Comment);
+      assert (has edited token category);
+      let before_undo = count edited in
+      assert (before_undo > 1);
+      let restored = run edited (keys "u") in
+      assert (count restored = before_undo + 1);
+      assert (Controller.For_testing.highlight_incremental_count (Ui_state.controller restored)
+              = count restored - 1);
+      assert (has restored keyword Keyword);
+      assert (has restored token category);
+      [%test_result: Snapshot.Range.t list] (Snapshot.ranges (snapshot restored)) ~expect:original;
+      Controller.close (Ui_state.controller restored))
+;;
+
 let%test_unit "frames, movement, scrolling, resizing, animation, search and selections reuse highlights" =
   let source = String.concat (List.init 100 ~f:(fun i -> sprintf "let item%d = \"é\"\n" i)) in
   let controller = Controller.create (Editor.create ~path:"f.ml" ~cell_width:Cell_map.width

@@ -86,7 +86,7 @@ module Worker = struct
                  { title = "Again"; message = "Run again?"; yes = Submit "again"; no = None })
             () )
       else t, outcome ~notice:(`Post (t.name ^ " work done")) ()
-    | Open (path, line) -> t, outcome ~open_file:{ path; line; contents = None } ()
+     | Open (path, line) -> t, outcome ~open_file:{ path; line; bsc_column = None; contents = None } ()
     | Show_text ->
       ( { t with
           text = Some (Cobalt_tile.Text_view.create ~cell_width:Cell_map.width "abc\ndef")

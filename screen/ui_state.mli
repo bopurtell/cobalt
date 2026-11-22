@@ -225,6 +225,9 @@ val hover : t -> Hover_tile.t option
 val waveform : t -> Waveform_tile.t option
 val waveform_layout : t -> width:int -> height:int -> Tile_shell.Layout.t option
 val take_harness_requests : t -> t * Cobalt_harness.Protocol.work list
+val take_bsc_request : t -> t * Cobalt_app.Bsc.request option
+val receive_bsc
+  :  t -> width:int -> height:int -> Cobalt_app.Bsc.request -> Cobalt_app.Bsc.result -> t
 val receive_harness
   : t -> width:int -> height:int -> request:string
   -> (Cobalt_harness.Protocol.reply * (Cobalt_harness.Vcd.t, string) Result.t option, string) Result.t

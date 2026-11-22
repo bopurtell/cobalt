@@ -1,6 +1,6 @@
 # Silver integration: Cobalt-side tickets
 
-**Status:** C1–C7 are **closed** for their Cobalt-side scope. C5 and C6 passed
+**Status:** C1–C9 are **closed** for their Cobalt-side scope. C5 and C6 passed
 live two-window checks for simulation observation and test quick launch,
 respectively. C8–C9 are live-verified implementation slices, not duplicate feature
 trackers. Silver's `docs/cobalt_editor_roadmap.md` and the named WB tickets own
@@ -20,8 +20,8 @@ Keep fixture exchanges and harness instructions with their adapter.
 | [C5: Companion overview](#c5--optional-silver-module-and-overview-tile) | Closed | Cobalt-first monitoring against a real Silver endpoint |
 | [C6: Test quick launch](#c6--run-a-silver-test-from-the-editor) | Closed | WB-093: tile `R` and exact `test`; no stage launch |
 | [C7: Discover/connect wizard](#c7--discover-and-connect-to-a-shared-silver-project) | Closed | WB-094: owner-accepted after live embedded and attached verification |
-| [C8: Stage checklist and aliases](#c8--stage-checklist-and-palette-aliases) | Open — owner testing | WB-095: native launch parity verified; verify aligned, colored rows and flow-selector handoff |
-| [C9: Flow kickoff tile](#c9--flow-kickoff-tile) | Open — owner testing | WB-095: reviewed launch verified; compact flow selection is the primary interaction |
+| [C8: Stage checklist and aliases](#c8--stage-checklist-and-palette-aliases) | Closed | WB-095: native launch parity and live stage progress verified |
+| [C9: Flow Runner](#c9--flow-kickoff-tile) | Closed | WB-095: flow selection through checklist `R` and explicit reviewed launch verified |
 
 **Verification:** C7 reads Silver's locked share registry; C8 and C9 share
 one flow adapter and can also use an explicit project binding. To rerun the
@@ -218,7 +218,7 @@ uses advertised fresh stage endpoints and Silver's `Stage_fresh` /
 `Launch_fresh` operations. The [terminal test](../../bin/test_silver_stage_cli.py)
 exercises the checklist and exact aliases against an offline peer.
 
-**Owner testing — run progress.** The checklist should show the stage name
+**Accepted behavior — run progress.** The checklist shows the stage name
 once, Silver's observed execution status, and the flow/variant context. Follow
 the latest applicable ASIC run unless a run is selected. Use muted styling
 when no run or stage evidence is available; don't infer completion from the
@@ -264,7 +264,7 @@ explicit nondefault stage settings also have adapter tests.
 
 ## C9 — Flow kickoff tile
 
-**Owner testing workflow:** Keep the editor visible beside a small flow selector.
+**Accepted workflow:** Keep the editor visible beside a small flow selector.
 `j`/`k` chooses the active flow without submitting. Open the command palette
 and enter `st` to focus the stage checklist; `R` should launch the chosen flow
 through the highlighted stage, with no intermediate Apply or Kickoff step.

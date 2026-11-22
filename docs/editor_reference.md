@@ -652,12 +652,48 @@ file dim after an edit until their checker catches up; nothing updates the demo,
 they stay dimmed. Other files' findings never dim from typing. A finding's selection
 survives lines inserted above it. Lists that arrive during Insert wait until it ends.
 
-### Language servers (ocamllsp and slang-server)
+<a id="language-servers-ocamllsp-and-slang-server"></a>
+
+### Language servers
 
 ```sh
 dune exec -j 12 cobalt -- PATH.ml    # or .mli, .mll, .mly; --no-lsp turns it off
 dune exec -j 12 cobalt -- PATH.sv    # or .svh, .v, .vh; see Slang discovery below
+dune exec -j 12 cobalt -- src/lib.rs
 ```
+
+For `.rs` files, Cobalt uses `rust-analyzer`. Open a Rust source file in a
+Cargo project, then use `K` to hover, `gd` to jump to a definition, and `Ctrl-o`
+to return. Use **Language servers** (`Space l i`) to inspect the selected project
+and server status. Multi-crate projects share a server at the Cargo workspace
+root. Cobalt looks for `rust-analyzer` on `PATH`; set `RUST_ANALYZER` to select
+a different executable. Rust syntax highlighting also works without a server.
+
+For Bluespec SystemVerilog (`.bsv`), highlighting needs no setup. To also get
+completion and cross-package definition jumps, install **Blues** and open a
+project with `blues_compdb.json` or `blues.toml`. See the [setup and sample
+compile database](backlog/bsv_language_server_evaluation.md#cobalt-setup).
+Use `Ctrl-n` in Insert mode for completion and `gd` in Normal mode to jump.
+Blues does not provide hover or BSC type checking.
+
+#### Run a Bluespec compiler check or build
+
+Add a `.cobalt-bsc` file in your project root. For a project with `check` and
+`rtl` Make targets that invoke BSC, for example:
+
+```scheme
+((check (make check))
+ (build (make rtl)))
+```
+
+Each command is an executable followed by its arguments, run from the
+directory containing `.cobalt-bsc`. Use your own targets or a direct `bsc`
+command with the same package paths and flags you normally build with.
+Save the source, open the command palette, and choose **Bluespec: Check
+project** or **Bluespec: Build project**. In **Problems**, select a BSC error
+and press `Enter` to visit its source, including errors in imported packages.
+These commands use saved files, run only when requested, and work independently
+of the Blues language server and its compile database.
 
 #### Inspecting attached servers
 
@@ -2026,8 +2062,9 @@ the editor, discarding unsaved changes, after restoring the terminal.
 ## Syntax highlighting
 
 Cobalt highlights OCaml implementation (`.ml`) and interface (`.mli`) files, plus
-SystemVerilog (`.sv`, `.svh`), Verilog (`.v`, `.vh`), and AT&T/GAS assembly
-(`.s`, `.S`), locally with Tree-sitter. `.asm` is unsupported, not Intel syntax.
+SystemVerilog (`.sv`, `.svh`), Verilog (`.v`, `.vh`), Rust (`.rs`), Bluespec
+SystemVerilog (`.bsv`), and AT&T/GAS assembly (`.s`, `.S`) locally.
+`.asm` is unsupported, not Intel syntax.
 Verilog uses the SystemVerilog grammar. Suffix detection is case-sensitive: `.ML`,
 `.SV`, extensionless files, unsupported languages, and buffers without a path stay
 plain text. No language server, network access, external query files, or Neovim
@@ -2099,7 +2136,9 @@ The GAS grammar handles compiler debug `.file`/`.loc` whitespace-separated argum
 and their following instructions; other directive argument lists remain comma-separated.
 Building needs a C compiler and gzip, not Node, a Tree-sitter CLI or grammar
 regeneration. Queries are Cobalt-owned, predicate-free strings in
-`highlight_tree_sitter/ocaml_queries.ml`, `systemverilog_queries.ml` and `gas_queries.ml`. Packaging,
+the `highlight_tree_sitter/` query modules. Rust and BSV use separate vendored
+grammars; see the [highlight asset records](../highlight_tree_sitter/ASSETS.md).
+Packaging,
 ownership and unresolved bundled-asset provenance/license-notice findings are
 recorded in [`highlight_tree_sitter/ASSETS.md`](../highlight_tree_sitter/ASSETS.md); technical
 verification is not a license-compliance finding.

@@ -192,6 +192,8 @@ type update =
   (** Replace the (source, resource) collection; an empty list clears it. A snapshot
       reporting a revision older than the stored reported one is dropped; an equal one
       replaces it. *)
+  | Diagnostics_cleared of { source : string }
+  (** Forget all collections for just this source, across the workspace. *)
   | Source_started of { source : string; root : string }
   (** Clear the source's stopped state. Its kept findings stay [session_ended] until
       replaced. *)

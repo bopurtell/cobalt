@@ -45,6 +45,6 @@ let common =
 ;;
 
 let source = function
-  | Cobalt_highlight.Language.Plain | Systemverilog | Gas -> None
+  | Cobalt_highlight.Language.Plain | Systemverilog | Gas | Rust | Bsv -> None
   | Ocaml | Ocaml_interface -> Some common
 ;;

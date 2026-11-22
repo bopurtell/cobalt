@@ -127,6 +127,7 @@ let component ?layout ?terminal ?snippets ?configuration ?startup_configuration 
      startup and unnamed documents use the session's explicit startup directory. *)
   let production_runtime = Cobalt_file_picker_host.Runtime.create () in
   let harness = Harness_host.create () in
+  let bsc = Bsc_host.create () in
   let content_runtime = Option.value_map content_picker
     ~default:(Cobalt_content_picker_host.Runtime.create ())
     ~f:(fun host -> host.Content_picker_host.runtime) in
@@ -286,6 +287,7 @@ let component ?layout ?terminal ?snippets ?configuration ?startup_configuration 
       if not (Ui_state.exited !current_ui)
       then Cobalt_app.Session.dispose (Ui_state.session !current_ui);
       Harness_host.stop harness;
+      Bsc_host.stop bsc;
       Navigation_preview_host.stop navigation_preview;
       Document_decoration_host.clear document_decorations;
       Word_index_host.stop word_index;
@@ -395,6 +397,9 @@ let component ?layout ?terminal ?snippets ?configuration ?startup_configuration 
                | `Harness (request, result) ->
                  Frame.Cache.invalidate render_cache;
                  Ui_state.receive_harness model ~width ~height ~request result
+               | `Bsc (request, result) ->
+                 Frame.Cache.invalidate render_cache;
+                 Ui_state.receive_bsc model ~width ~height request result
                | `Open_location (request, reply) ->
                  (match Ui_state.open_location model ~width ~height request with
                   | Error failure -> answer reply (Error (`Open failure)); model
@@ -403,7 +408,7 @@ let component ?layout ?terminal ?snippets ?configuration ?startup_configuration 
             (* Capture belongs to the model at this transition, not the last
                displayed handler: several events can arrive before a redraw. *)
             let inputs = match action with
-                  | `Words _ | `Snippets _ | `Configuration _ | `Navigation_preview _ | `Harness _
+                  | `Words _ | `Snippets _ | `Configuration _ | `Navigation_preview _ | `Harness _ | `Bsc _
                    | `Silver_changed | `Silver_feedback _ | `Silver_connections _
                    | `Silver_connect_result _
                   | `Shutdown | `Lost_input | `Open_location _ -> []
@@ -567,6 +572,11 @@ let component ?layout ?terminal ?snippets ?configuration ?startup_configuration 
           active_content_session := Option.map (Ui_state.content_picker model) ~f:Content_picker_tile.session;
            let model, clipboard = Ui_state.take_clipboard model in
            let model, harness_requests = Ui_state.take_harness_requests model in
+           let model, bsc_request = Ui_state.take_bsc_request model in
+           Option.iter bsc_request ~f:(fun request ->
+             Bonsai.Apply_action_context.schedule_event context
+               (let%bind.Effect result = Effect.of_deferred_thunk (fun () -> Bsc_host.execute bsc request) in
+                Bonsai.Apply_action_context.inject context (`Bsc (request, result))));
            List.iter harness_requests ~f:(fun work ->
              Bonsai.Apply_action_context.schedule_event context
                (let%bind.Effect result = Effect.of_deferred_thunk (fun () -> Harness_host.execute harness work) in

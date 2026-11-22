@@ -85,11 +85,21 @@ module Config : sig
       Resolution preserves the built-in function closures for pool sharing. *)
   val slang_server : t
 
-  (** Selects a built-in server for [path], resolving Slang's program at call time,
-      or [None] for unsupported files. *)
+  (** Built-in [rust-analyzer] for [.rs], with [rust] as the document language ID
+      and [Cargo.toml] as the root marker. At selection/start the built-in honors
+      [RUST_ANALYZER] if set (including an invalid override), otherwise uses PATH. *)
+  val rust_analyzer : t
+
+  (** Opt-in Blues server for [.bsv] files beneath a Blues project marker.
+      At selection/start the built-in honors [BLUES_LSP], otherwise uses PATH. *)
+  val blues : t
+
+  (** Selects a built-in server for [path], resolving program overrides at call time,
+       or [None] for unsupported files. *)
   val for_path : string -> t option
 
-  (** Nearest directory containing any [root_markers], else [path]'s directory. *)
+  (** Nearest directory containing any [root_markers], else [path]'s directory.
+      For Rust the workspace pool can refine this using Cargo asynchronously. *)
   val root : t -> string -> string
 end
 
@@ -113,7 +123,10 @@ val start
     [Owned] carries the separate document generation.
     Symlink paths remain distinct URIs; a second resource normalizing to an already
     open lexical URI is explicitly reported unavailable. Configuration callbacks
-    must reuse equivalent function values to share (closures are compared physically).
+     must reuse equivalent function values to share (closures are compared physically).
+     Rust attachments with a [Cargo.toml] resolve their workspace asynchronously
+     before starting a process, falling back to the nearest manifest's directory
+     if Cargo cannot resolve it. Loose Rust files use their containing directory.
      Unversioned diagnostics for an open URI use its current text and ownership,
      including after reopen. They carry no revision or lifetime information: a late
      old-lifetime unversioned message is indistinguishable from fresh output and

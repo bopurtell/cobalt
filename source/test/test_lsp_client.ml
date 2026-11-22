@@ -13,7 +13,7 @@ let cell_width = Cobalt_screen.Cell_map.width
 let%expect_test "server selection and document language ids" =
   List.iter
     [ "a.ml"; "a.mli"; "a.mll"; "a.mly"; "a.sv"; "a.svh"; "a.v"; "a.vh"
-    ; "a.txt"; "a.sv.bak"
+    ; "a.rs"; "a.txt"; "a.sv.bak"; "a.rs.bak"
     ]
     ~f:(fun path ->
       match Lsp_client.Config.for_path path with
@@ -30,8 +30,10 @@ let%expect_test "server selection and document language ids" =
     a.svh: slang-server (systemverilog)
     a.v: slang-server (verilog)
     a.vh: slang-server (verilog)
+    a.rs: rust-analyzer (rust)
     a.txt: none
     a.sv.bak: none
+    a.rs.bak: none
     |}];
   return ()
 ;;
@@ -81,7 +83,7 @@ let%expect_test "conversions: severities, one-line messages, columns per encodin
 let fake = lazy (Filename.concat (Core_unix.getcwd ()) "fake_lsp/fake_lsp.exe")
 
 let with_server_env f =
-  let keys = [ "HOME"; "PATH"; "SLANG_SERVER" ] in
+  let keys = [ "HOME"; "PATH"; "SLANG_SERVER"; "RUST_ANALYZER" ] in
   let saved = List.map keys ~f:(fun key -> key, Sys.getenv key) in
   Monitor.protect f ~finally:(fun () ->
     List.iter saved ~f:(fun (key, value) -> match value with
@@ -844,6 +846,86 @@ let wire_changes path =
   wire_notifications path |> List.filter_map ~f:(function
     | TextDocumentDidChange change -> Some change
     | _ -> None)
+;;
+
+let%expect_test "Rust Cargo resolution pools member files and keeps only live pending snapshots" =
+  with_root (fun root -> with_server_env (fun () ->
+    let path name = Filename.concat root name in
+    let write file data = Out_channel.write_all (path file) ~data in
+    List.iter [ "bin"; "ws/app/src"; "ws/lib/src"; "ws/excluded/src"; "loose" ] ~f:(fun dir ->
+      Core_unix.mkdir_p (path dir));
+    List.iter [ "ws"; "ws/app"; "ws/lib"; "ws/excluded" ] ~f:(fun name ->
+      write (name ^ "/Cargo.toml") "");
+    write "bin/cargo"
+      ("#!/bin/sh\ncase \"$5\" in */excluded/Cargo.toml) exit 1;; esac\nprintf '%s\\n' "
+       ^ Filename.quote (Yojson.Safe.to_string (`Assoc [ "root", `String (path "ws/Cargo.toml") ]))
+       ^ "\n");
+    Core_unix.chmod (path "bin/cargo") ~perm:0o755;
+    let log = path "wire.log" and payload = path "payload.log" in
+    let server = path "bin/rust-analyzer" in
+    write "bin/rust-analyzer"
+      (String.concat ~sep:" "
+         [ "#!/bin/sh\nexec"; Filename.quote (force fake); "-log"; Filename.quote log
+         ; "-payload-log"; Filename.quote payload; "-navigation"; "slang" ] ^ "\n");
+    Core_unix.chmod server ~perm:0o755;
+    Core_unix.putenv ~key:"PATH" ~data:(path "bin" ^ ":/usr/bin:/bin");
+    Core_unix.putenv ~key:"RUST_ANALYZER" ~data:server;
+    let source = Lsp_client.start_workspace ~cell_width () in
+    Monitor.protect (fun () ->
+      let a = path "ws/app/src/a.rs" and b = path "ws/lib/src/new-directory/b.rs" in
+      let excluded = path "ws/excluded/src/c.rs" and loose = path "loose/d.rs" in
+      let send = Source.send source in
+      let open_doc resource generation text =
+        send (Document_opened { resource; generation });
+        send (Document_changed { resource; text; revision = 1 })
+      in
+      open_doc a 0 "CRASH";
+      send (Document_closed { resource = a });
+      open_doc a 1 "obsolete";
+      open_doc b 2 "WARN";
+      open_doc excluded 3 "INFO";
+      open_doc loose 4 "WARN";
+      send (Document_changed { resource = a; text = "😀\nERROR"; revision = 2 });
+      send (Document_saved { resource = a; revision = 2 });
+      let%bind events = collect source (fun events ->
+        List.for_all [ a, 1, 2; b, 2, 1; excluded, 3, 1; loose, 4, 1 ] ~f:(fun (r, g, v) ->
+          List.exists events ~f:(owned_diagnostic r g v))) in
+      let servers = List.find_map_exn (List.rev events) ~f:(function Servers s -> Some s | _ -> None) in
+      List.iter [ path "ws", [ a; b ]; path "ws/excluded", [ excluded ]; path "loose", [ loose ] ]
+        ~f:(fun (root, resources) ->
+          let server = List.find_exn servers ~f:(fun s -> String.equal s.root root) in
+          if not ([%equal: string list] server.resources resources) then
+            failwith (Sexp.to_string_hum ([%sexp_of: Source_event.Server.t list] servers));
+          assert (String.equal server.program (path "bin/rust-analyzer")));
+      let%bind () = wait_for (fun () -> count_method log "textDocument/didSave" = 1) in
+      assert (count_method log "initialize" = 3 && count_method log "textDocument/didOpen" = 4);
+      assert (List.count (wire_notifications payload) ~f:(function
+        | TextDocumentDidOpen { textDocument = { languageId = "rust"; _ } } -> true | _ -> false) = 4);
+      let token request : Cobalt_completion.Model.Token.t = { resource = a; generation = 1; revision = 2; request } in
+      let cursor = String.length "😀\nERROR" in
+      send (Query { token = token 1; cursor; kind = Hover });
+      send (Complete { token = token 2; cursor; fallback_start = cursor - 5; fallback_stop = cursor; trigger = Automatic });
+      let%bind _ = collect source (fun events ->
+        List.exists events ~f:(function Query_result { result = Hover_result (Some _); _ } -> true | _ -> false)
+        && List.exists events ~f:(function Completion { candidates = _ :: _; _ } -> true | _ -> false)) in
+      send (Query { token = token 3; cursor; kind = Declaration });
+      let%bind _ = collect source (List.exists ~f:(function
+        | Source_event.Query_result { result = Locations [ target ]; _ } -> String.equal target.path a
+        | _ -> false)) in
+      assert (count_method log "textDocument/declaration" = 0 && count_method log "textDocument/definition" = 1);
+      Source.stop source;
+      let%bind () = wait_dead log in
+      Core_unix.putenv ~key:"RUST_ANALYZER" ~data:(path "missing");
+      let missing = Lsp_client.start_workspace ~cell_width () in
+      Source.send missing (Document_opened { resource = loose; generation = 5 });
+      assert (List.exists (Source.poll missing) ~f:(function
+        | Servers [ { status = Unavailable _; program; _ } ] -> String.equal program (path "missing")
+        | _ -> false));
+      Source.stop missing;
+      print_endline "Cargo members share a server; excluded and loose roots stay separate; live diagnostics, hover, completion and definition fallback; missing override reported";
+      [%expect {| Cargo members share a server; excluded and loose roots stay separate; live diagnostics, hover, completion and definition fallback; missing override reported |}];
+      return ())
+      ~finally:(fun () -> Source.stop source; return ())))
 ;;
 
 let%expect_test "sync kinds: burst coalescing, independent queues, Unicode ranges and save flush" =

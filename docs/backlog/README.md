@@ -2,11 +2,14 @@
 
 ## Silver integration
 
-- [Cobalt-side work queue](silver_integration.md): C1–C7 are closed. C8 (stage
-  checklist and aliases) and C9 (flow kickoff) remain open for owner testing.
+- [Cobalt-side work queue](silver_integration.md): C1–C9 are closed, including
+  the stage checklist and aliases (C8) and the Flow Runner (C9).
 
 ## Language-aware editing
 
+- [Rust, Haskell, and Bluespec support](language_support.md): tickets and status
+  for Rust and Haskell editing, Bluespec SystemVerilog and Classic highlighting,
+  and language feedback validated on real Bluespec projects.
 - [Symbol rename](symbol_rename.md): deferred ticket for LSP-driven rename,
   reviewed multi-file edits, unsaved-buffer application, and an explicit undo policy.
 

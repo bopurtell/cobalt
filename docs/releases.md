@@ -29,6 +29,9 @@ Optional features use host programs:
 | File discovery and project-content search | `rg` (ripgrep) |
 | Git workspace | `git` |
 | OCaml language intelligence | `ocamllsp` and the project's build environment |
+| Rust language intelligence | `rust-analyzer` and the project's Rust/Cargo toolchain |
+| Bluespec SystemVerilog completion and definitions | `blues` and a project compile database; see [setup](backlog/bsv_language_server_evaluation.md#cobalt-setup) |
+| Bluespec compiler findings | BSC and a [project check or build command](editor_reference.md#run-a-bluespec-compiler-check-or-build) |
 | Verilog/SystemVerilog language intelligence | `slang-server` and project configuration |
 | Executable `config.ml` | `ocamlc`, its matching standard library and bytecode runtime |
 | Tile Terms | A working PTY environment and `$SHELL`, or `/bin/sh` |

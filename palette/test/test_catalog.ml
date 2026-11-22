@@ -161,6 +161,8 @@ let%expect_test "the default catalog, with shortcuts derived from bindings" =
     conflict.next                  Conflict: next                         ] n
     conflict.previous              Conflict: previous                     [ n
     source.restart                 Restart diagnostic source
+    bsc.check                      Bluespec: Check project
+    bsc.build                      Bluespec: Build project
     document.lines                 Search current document lines
     project.contents               Search project contents
     project.files                  Find project files

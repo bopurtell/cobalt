@@ -47,12 +47,16 @@ let configuration = "tree-sitter.0.1.0/cobalt-ocaml-structural-v1"
 let configuration_for_language = function
   | Language.Systemverilog -> "tree-sitter-systemverilog.d6be6119/cobalt-sv-structural-v1"
   | Gas -> "tree-sitter-gas.60f44364/cobalt-gas-grammar-v2/cobalt-gas-structural-v1"
+  | Rust -> "tree-sitter-rust.18b0515f/cobalt-rust-structural-v1"
+  | Bsv -> "tree-sitter-bsv.ed1a91eb/cobalt-bsv-grammar-v1/cobalt-bsv-structural-v1"
   | Plain | Ocaml | Ocaml_interface -> configuration
 ;;
 
 let query_source = function
   | Language.Systemverilog -> Some Systemverilog_queries.source
   | Gas -> Some Gas_queries.source
+  | Rust -> Some Rust_queries.source
+  | Bsv -> Some Bsv_queries.source
   | language -> Ocaml_queries.source language
 ;;
 
@@ -60,7 +64,7 @@ let initialize language query_source =
   match language, query_source with
   | Language.Plain, _ -> Unavailable Unsupported_language
   | _, None -> Unavailable (Initialization "missing compiled highlight query")
-  | (Ocaml | Ocaml_interface | Systemverilog | Gas), Some source ->
+  | (Ocaml | Ocaml_interface | Systemverilog | Gas | Rust | Bsv), Some source ->
     (try
        let grammar =
          match language with
@@ -68,6 +72,8 @@ let initialize language query_source =
          | Ocaml_interface -> Tree_sitter_ocaml.interface ()
           | Systemverilog -> Cobalt_tree_sitter_systemverilog.language ()
           | Gas -> Cobalt_tree_sitter_gas.language ()
+          | Rust -> Cobalt_tree_sitter_rust.language ()
+          | Bsv -> Cobalt_tree_sitter_bsv.language ()
          | Plain -> assert false
        in
        let query = Tree_sitter.Query.create grammar ~source in
@@ -106,7 +112,7 @@ let supported_length length =
   length >= 0 && Int64.(of_int length <= 0xffff_ffffL)
 ;;
 
-let capture_ranges ?max_captures query categories root =
+let capture_ranges ?max_captures ~recover_bsv_keywords ~source query categories root =
   let cursor = Tree_sitter.Query_cursor.create () in
   Tree_sitter.Query_cursor.exec cursor query root;
   let rec loop count acc =
@@ -120,12 +126,18 @@ let capture_ranges ?max_captures query categories root =
       let category = categories.(capture.capture_index) in
       let acc =
         match category with
-        | None -> acc
-        | Some category ->
-          { Snapshot.Range.start = Tree_sitter.Node.start_byte capture.node
-          ; stop = Tree_sitter.Node.end_byte capture.node
-          ; category
-          } :: acc
+         | None -> acc
+         | Some category ->
+           let start = Tree_sitter.Node.start_byte capture.node in
+           let stop = Tree_sitter.Node.end_byte capture.node in
+           let category =
+             if recover_bsv_keywords
+                && Category.equal category Variable
+                && Bsv_queries.is_block_keyword (String.sub source ~pos:start ~len:(stop - start))
+             then Category.Keyword
+             else category
+           in
+           { Snapshot.Range.start; stop; category } :: acc
       in
       loop (count + 1) acc
   in
@@ -183,9 +195,12 @@ let highlight_impl ~incremental ?max_captures t ~key ~source =
           if Option.is_some old then t.incremental_count <- t.incremental_count + 1;
           let tree = Tree_sitter.Parser.parse_string ?old parser source in
           let parsed = Stdlib.Sys.time () in
-           let root = Tree_sitter.Tree.root_node tree in
-           let syntax_errors = Tree_sitter.Node.has_error root in
-           let ranges, count = capture_ranges ?max_captures query categories root in
+            let root = Tree_sitter.Tree.root_node tree in
+            let syntax_errors = Tree_sitter.Node.has_error root in
+            let recover_bsv_keywords = syntax_errors && Language.equal t.language Bsv in
+            let ranges, count =
+              capture_ranges ?max_captures ~recover_bsv_keywords ~source query categories root
+            in
            t.capture_count <- count;
            match ranges with
            | Error failure -> plain failure

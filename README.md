@@ -28,8 +28,8 @@ and status and diagnostics around the edges.*
   search, and editable directory listings for working across a project.
 - **Git without leaving the editor.** A lazygit/Magit-inspired view for diffs,
   staging, commits, branches, history, and merge or rebase conflicts.
-- **Language-aware editing.** Built-in Tree-sitter highlighting for OCaml, Verilog,
-  SystemVerilog, and GAS assembly. Attached language servers supply completion,
+- **Language-aware editing.** Built-in highlighting for Rust, Bluespec SystemVerilog,
+  OCaml, Verilog, SystemVerilog, and GAS assembly. Attached language servers supply completion,
   hover, definitions and references; OCaml also supports signature help and
   interface/source switching. Inspect servers with `Space l i`.
 - **Reusable snippets.** Searchable templates, linked fields, choices and filename

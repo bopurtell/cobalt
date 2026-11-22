@@ -82,6 +82,7 @@ module Location = struct
   type t =
     { path : string
     ; line : int option
+    ; bsc_column : int option
     ; contents : string option
     }
   [@@deriving sexp_of, equal]

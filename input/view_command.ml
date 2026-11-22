@@ -120,6 +120,8 @@ type t =
       ; request : string
       }
   | Show_language_servers
+  | Check_bsc_project
+  | Build_bsc_project
   | Restart_source
   | Kill_source
   | Toggle_zen
@@ -201,6 +203,7 @@ let scale t ~count =
   | Request_view _
   | Restart_source
   | Show_language_servers
+  | Check_bsc_project | Build_bsc_project
   | Kill_source
   | Toggle_zen
   | Toggle_bare

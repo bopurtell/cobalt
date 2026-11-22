@@ -121,6 +121,7 @@ module Outcome = struct
     ; notice : [ `Post of string | `Show of string ] option
     ; effect : Text_view.Effect.t option
     ; return : bool
+    ; open_file : View_registry.Location.t option
     }
 end
 
@@ -131,8 +132,8 @@ let perform t controller ~rows ~width action : Outcome.t =
   let document = document t editor in
   let t = fit t feedback ~document ~rows ~width in
   let selected = List.nth (entries t feedback ~document) t.selection.index in
-  let outcome ?notice ?effect ?(return = false) ?(controller = controller) tile =
-    { Outcome.tile; controller; notice; effect; return }
+  let outcome ?notice ?effect ?open_file ?(return = false) ?(controller = controller) tile =
+    { Outcome.tile; controller; notice; effect; return; open_file }
   in
   let post text = outcome t ~notice:(`Post text) in
   match action, selected with
@@ -174,6 +175,11 @@ let perform t controller ~rows ~width action : Outcome.t =
     outcome t
       ~controller:(Controller.update_feedback controller (Acknowledge_identity problem.identity))
       ~notice:(`Show "Acknowledged; problem remains active")
+  | Jump, Some { source; resource; location; _ } when Bsc.is_source source ->
+    (match location with
+     | None -> post "This problem has no document location"
+     | Some { line; column } ->
+       outcome t ~open_file:{ path = resource; line = Some line; bsc_column = Some column; contents = None })
   | Jump, Some problem ->
     if not (Option.value_map path ~default:false ~f:(Problems.Document.same_resource problem.resource))
     then post "Cross-file jump unavailable; current document kept"
@@ -216,10 +222,10 @@ let adapter : (t, action) View_registry.Adapter.t =
   ; hint
   ; perform =
       (fun t controller ~context:_ ~rows ~width action ->
-        let { Outcome.tile; controller; notice; effect; return } =
+         let { Outcome.tile; controller; notice; effect; return; open_file } =
           perform t controller ~rows ~width action
         in
-        tile, View_registry.Outcome.create ?effect ?notice ~return controller)
+         tile, View_registry.Outcome.create ?effect ?notice ?open_file ~return controller)
   ; commands
   ; signal = (fun _ _ -> None)
   ; text_area = (fun _ ~rows:_ ~width:_ -> None)

@@ -75,6 +75,7 @@ module Desk = struct
           ~open_file:
             { path = note t
             ; line = Some 2
+            ; bsc_column = None
             ; contents = Some (sprintf "version %d\nsecond line\n" t.version)
             }
           () )
@@ -97,6 +98,7 @@ module Desk = struct
             ~open_file:
               { path = note t
               ; line = Some 1
+              ; bsc_column = None
               ; contents = Some (sprintf "read back %d\n" t.version)
               }
             () )

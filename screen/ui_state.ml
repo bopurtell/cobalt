@@ -179,6 +179,10 @@ type t =
   ; document_decorations_enabled : bool
   ; document_decorations_available : bool
   ; harness_requests : Cobalt_harness.Protocol.work list
+  ; bsc_request : Bsc.request option
+  ; bsc_serial : int
+  ; bsc_running : bool
+  ; bsc_basis : (int * int) Buffer_id.Map.t option
   ; harness_busy : bool
   ; harness_root : string option
   ; waveform : Waveform_tile.t option
@@ -404,6 +408,7 @@ let create
   ; signature_serial = 0
   ; signature_help_enabled = true
   ; harness_requests = []; harness_busy = false; harness_root = None; waveform = None
+  ; bsc_request = None; bsc_serial = 0; bsc_running = false; bsc_basis = None
   ; hover = None
   ; destinations = None
   ; instances = None
@@ -629,6 +634,7 @@ let snippet_picker t = t.snippet_picker
 let hover t = t.hover
 let waveform t = t.waveform
 let take_harness_requests t = { t with harness_requests = [] }, List.rev t.harness_requests
+let take_bsc_request t = { t with bsc_request = None }, t.bsc_request
 let destinations t = t.destinations
 let instances t = t.instances
 
@@ -2671,6 +2677,44 @@ let withdraw_ask t ~width ~height =
   | _ -> t
 ;;
 
+let bsc_buffers session =
+  List.map (Session.buffers session) ~f:(fun (id, controller) ->
+    let editor = Controller.editor controller in
+    id, (Option.value_exn (Session.source_generation session id), Editor.revision editor), editor)
+;;
+
+let clear_bsc t =
+  { t with bsc_basis = None
+  ; controller = Controller.update_feedback t.controller
+      (Diagnostics_cleared { source = Bsc.source t.bsc_serial })
+  }
+;;
+
+(* A package's finding can depend on any project input. Conservatively expire
+   the whole run when any retained text changes, even in a different editor pane.
+   Opening a clean file to follow a finding merely adds it to the observed set. *)
+let validate_bsc t =
+  match t.bsc_basis with
+  | None -> t
+  | Some basis ->
+    let all = bsc_buffers (session t) in
+    if List.exists all ~f:(fun (id, stamp, editor) ->
+      match Map.find basis id with
+      | Some old -> not ([%equal: int * int] old stamp)
+      | None -> Editor.is_dirty editor)
+    then (
+      let text = sprintf "%s invalidated by editor changes; save and run again" (Bsc.source t.bsc_serial) in
+      let t = clear_bsc t in
+      let t = { t with controller = Controller.update_feedback t.controller
+          (Notify { source = "BSC"; scope = None; severity = Warning; text; history = true }) } in
+      (* A later input step may reinstall a buffered controller. Store the
+         invalidation in the session as well, so those rows cannot reappear. *)
+      let session = session t in
+      { t with session; controller = Option.value (Session.active_controller session) ~default:t.controller })
+    else { t with bsc_basis = Some (List.fold all ~init:basis ~f:(fun basis (key, data, _) ->
+      Map.set basis ~key ~data)) }
+;;
+
 (* Fit each minor view's state to its viewport and source. When the source changes
    the text of open details, say so: the view never retargets a selection silently. *)
 let synchronize t ~width ~height =
@@ -3130,6 +3174,7 @@ let apply_view (prefs : Geometry.Prefs.t) (view : View_command.t) : Geometry.Pre
   | Hover | Go_to_declaration | Go_to_definition | Jump_back | Jump_forward
   | Find_references | Select_active_instance | Go_to_instantiation
   | Show_language_servers
+  | Check_bsc_project | Build_bsc_project
   | Toggle_terminal
   | Select_terminal _
   | Adjust_terminal_size _ | Reset_terminal_size
@@ -3263,6 +3308,7 @@ let view_feedback t ~before ~width ~height (view : View_command.t) : string opti
   | Adjust_directory_size _ -> Some (sprintf "Directory width %d (requested)" t.directory_size)
   | Restart_source ->
     Some (if t.source_attached then "Diagnostic source restart requested" else no_source)
+  | Check_bsc_project | Build_bsc_project -> None
   | Kill_source ->
     Some (if t.source_attached then "Diagnostic source kill requested" else no_source)
   | Close_tab | Force_close_tab ->
@@ -3513,7 +3559,7 @@ let write_contents t ~path text =
    cursor goes to the line, clamped to the file. With [contents], the file is written
    first ([write_contents]). A failure is the view's notice. *)
 let open_location t ~width ~height ~source
-      ({ path; line; contents } : View_registry.Location.t)
+      ({ path; line; bsc_column; contents } : View_registry.Location.t)
   =
   let failed text =
     pane_notice t ~source
@@ -3525,16 +3571,28 @@ let open_location t ~width ~height ~source
     | None -> Ok (session t)
     | Some text -> write_contents t ~path text
   in
+  let position controller =
+    match line, bsc_column with
+    | Some line, Some column ->
+      let editor = Controller.editor controller in
+      if Editor.is_dirty editor then Or_error.error_string "Unsaved buffer; save and run BSC again"
+      else Or_error.map (Bsc.offset ~path (Editor.text editor) ~line ~column) ~f:Option.some
+    | _ -> Ok None
+  in
   match
     Result.bind session ~f:(fun session ->
-      Session.open_or_activate ~must_exist:true session path
+      Session.open_or_activate ~must_exist:true
+        ~validate:(fun controller -> Or_error.map (position controller) ~f:ignore) session path
       |> Result.map_error ~f:Error.to_string_hum)
   with
   | Error text -> failed text
   | Ok (session, _) ->
     let session =
-      match line, Session.active_controller session with
-      | Some line, Some controller ->
+      match line, bsc_column, Session.active_controller session with
+      | Some _, Some _, Some controller ->
+        let offset = position controller |> Or_error.ok_exn |> Option.value_exn in
+        Session.replace_active session (Controller.place_cursor controller offset |> Or_error.ok_exn)
+      | Some line, None, Some controller ->
         let lines = Text_buffer.line_count (Editor.text (Controller.editor controller)) in
         (match
            Controller.jump controller ~line:(Int.clamp_exn line ~min:1 ~max:(Int.max 1 lines))
@@ -3542,7 +3600,7 @@ let open_location t ~width ~height ~source
          with
          | Ok controller -> Session.replace_active session controller
          | Error _ -> session)
-      | Some _, None | None, _ -> session
+      | _ -> session
     in
     adopt_session_state (return_to_document (file_tab t)) session ~width ~height
 ;;
@@ -3756,7 +3814,8 @@ let receive_job t ~width ~height (event : Cobalt_vcs.Event.t) =
 (* A batch of runner events, then one synchronization. *)
 let receive_jobs t ~width ~height events =
   synchronize
-    (List.fold events ~init:t ~f:(fun t event -> receive_job t ~width ~height event))
+    (List.fold events ~init:t ~f:(fun t event -> receive_job t ~width ~height event)
+     |> validate_bsc)
     ~width ~height
 ;;
 
@@ -5147,6 +5206,27 @@ let apply_view_command t ~width ~height (view : View_command.t) =
         ; harness_requests = { action = request; location; dirty } :: t.harness_requests
         ; host = Host.with_notice t.host "Quick-Harness working..." }
   | Request_view { view; request } -> request_view t ~width ~height view request
+  | Check_bsc_project | Build_bsc_project ->
+    if t.bsc_running then { t with host = Host.with_notice t.host "A BSC command is already running" }
+    else
+      let session = session t in
+      let directory = match Session.input_directory session, path t with
+        | Some directory, _ -> directory.path
+        | None, Some path -> Filename.dirname path
+        | None, None -> Session.project_root session in
+      let action = if View_command.equal view Check_bsc_project then Bsc.Check else Bsc.Build in
+      let id = t.bsc_serial + 1 in
+      let all = bsc_buffers session in
+      let dirty = List.filter_map all ~f:(fun (_, _, editor) ->
+        if Editor.is_dirty editor then Editor.path editor else None) in
+      let basis = Buffer_id.Map.of_alist_exn (List.map all ~f:(fun (id, stamp, _) -> id, stamp)) in
+      let t = clear_bsc t in
+      let text = sprintf "%s (%s): running on saved files" (Bsc.source id) (Bsc.action_name action) in
+      { t with bsc_request = Some { id; action; directory; dirty }
+      ; bsc_serial = id; bsc_running = true; bsc_basis = Some basis
+      ; host = Host.with_notice t.host text
+      ; controller = Controller.update_feedback t.controller
+          (Notify { source = "BSC"; scope = Some directory; severity = Info; text; history = true }) }
   | Restart_source when t.source_attached ->
     let t = dismiss_signature (dismiss_completion (dismiss_navigation { t with active_instance = None; context_revisions = String.Map.empty })) in
     { t with source_commands = Restart :: t.source_commands }
@@ -6455,7 +6535,7 @@ let rec apply t ~width ~height (input : Input.t) =
   match input with
   | Pointer _ when t.exited -> t, Controller.Status.Exit
   | Pointer _ when Option.equal Bool.equal t.mouse_reporting (Some false) -> t, Running
-  | Pointer { x; y; action } -> apply_pointer t ~width ~height ~x ~y ~action, Running
+  | Pointer { x; y; action } -> apply_pointer t ~width ~height ~x ~y ~action |> validate_bsc, Running
   | _ ->
   let t = match input with
     | Key (Escape | Ctrl 'c') | Key_at { key = (Escape | Ctrl 'c'); _ } | Paste_start -> dismiss_signature t
@@ -6498,7 +6578,13 @@ let rec apply t ~width ~height (input : Input.t) =
         | File_picker_snapshot _ | File_picker_update _ | Content_picker_snapshot _ ) ) ->
       (* Bounded background turns neither save nor place views. *)
       t, Running
-    | (t, Running), _ -> signal_views t ~width ~height, Running)
+     | (t, Running), _ ->
+       (* This is after the input turn adopts its final controller. Earlier view
+          fits may run while [feed] still owns a pre-feedback controller. *)
+       let t = signal_views t ~width ~height in
+       let had_basis = Option.is_some t.bsc_basis in
+       let t = validate_bsc t in
+       (if had_basis && Option.is_none t.bsc_basis then synchronize t ~width ~height else t), Running)
 
 and apply_running t ~width ~height (input : Input.t) : t * Controller.Status.t =
   match input with
@@ -6991,6 +7077,29 @@ let receive_harness t ~width ~height ~request result =
       | Some (Error error) -> with_notice ~source:"Quick-Harness" t (summary ^ " | VCD: " ^ error)
       | None -> { t with host = Host.with_notice t.host (summary ^ " | No waveform artifact") }
 ;;
+let receive_bsc t ~width ~height (request : Bsc.request) (result : Bsc.result) =
+  if t.exited || not t.bsc_running || request.id <> t.bsc_serial then t else
+  let t = validate_bsc t in
+  let source = Bsc.source request.id in
+  let current = Option.is_some t.bsc_basis in
+  let controller =
+    if not current then t.controller else
+    let grouped = String.Map.of_alist_multi result.findings in
+    Map.fold grouped ~init:t.controller ~f:(fun ~key:resource ~data:findings controller ->
+      Controller.update_feedback controller
+        (Diagnostics_received { source; resource; findings; revision = None; current_revision = 0 }))
+  in
+  let text = sprintf "%s (%s): %s%s" source (Bsc.action_name request.action) result.status
+    (if current then "" else " — findings discarded after editor changes; save and run again") in
+  let severity : Cobalt_error.Error.Severity.t =
+    if not result.success then Error else if current then Info else Warning in
+  synchronize { t with bsc_running = false
+    ; bsc_basis = if List.is_empty result.findings then None else t.bsc_basis
+    ; host = Host.with_notice t.host text
+    ; controller = Controller.update_feedback controller
+        (Notify { source = "BSC"; scope = Some result.root; severity; text; history = true }) } ~width ~height
+;;
+
 let activate_buffer t ~width ~height id =
   let t = finalize_completion t in
   Or_error.map (Session.activate (session t) id) ~f:(fun session ->

@@ -13,3 +13,11 @@ val find_nearest : markers:string list -> string -> string
 
 (** [find_first ~markers:["dune-project"]]: the synthetic checker's root. *)
 val find : string -> string
+
+(** Nearest Cargo manifest, if present. *)
+val cargo_manifest : string -> string option
+
+(** Asynchronously ask Cargo which workspace owns this absolute manifest. Returns
+    [None] if Cargo cannot resolve it (including toolchain errors and timeout).
+    Does not fetch dependencies or build the project. *)
+val cargo_workspace : string -> string option Async.Deferred.t

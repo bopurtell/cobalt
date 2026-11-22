@@ -156,6 +156,8 @@ type t =
       that is not installed gives its notice, one that ignores it says ["<Title>:
       nothing to do for <request>"]. *)
   | Show_language_servers (** Open the live, read-only managed language server inventory. *)
+  | Check_bsc_project
+  | Build_bsc_project
   | Restart_source (** Restart the diagnostic source ([--synthetic-checker]). *)
   | Kill_source (** Crash the synthetic diagnostic source, to test the stopped state. *)
   | Toggle_zen (** Hide status temporarily, or restore saved workspace intent. *)

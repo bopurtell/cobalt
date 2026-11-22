@@ -465,6 +465,14 @@ let default =
         ~title:"Restart diagnostic source"
         ~keywords:[ "checker"; "lsp"; "diagnostics" ]
         Restart_source
+    ; view ~id:"bsc.check" ~title:"Bluespec: Check project"
+        ~description:"Run the .cobalt-bsc check command against saved files"
+        ~keywords:[ "bsc"; "bsv"; "compiler"; "diagnostics" ]
+        ~priority_aliases:[ "bsc check" ] Check_bsc_project
+    ; view ~id:"bsc.build" ~title:"Bluespec: Build project"
+        ~description:"Run the .cobalt-bsc build command against saved files"
+        ~keywords:[ "bsc"; "bsv"; "compiler"; "diagnostics" ]
+        ~priority_aliases:[ "bsc build" ] Build_bsc_project
     ; view
         ~id:"document.lines"
         ~title:"Search current document lines"

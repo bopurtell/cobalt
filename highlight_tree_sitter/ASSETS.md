@@ -10,6 +10,10 @@ AT&T/GAS assembly uses a separately vendored, locally patched **GPLv3** grammar;
 see [gas_grammar/ASSETS.md](gas_grammar/ASSETS.md) for its source, checksums,
 regeneration recipe, notices and distribution implications. This is not an MIT/ISC
 grammar, and its license does not replace the license of existing Cobalt code.
+Rust (`.rs`) and Bluespec SystemVerilog (`.bsv`) use their own vendored grammars.
+See [Rust assets](rust_grammar/ASSETS.md) and [BSV assets](bsv_grammar/ASSETS.md)
+for pins, checksums, licenses and capture limitations. Neither language requires
+a compiler or a language server for highlighting; `.bs` is not a BSV file.
 No Tree-sitter CLI, Node, or external editor installation is required.
 
 Package release: Mosaic commit `bbaec9a2b49eccc7be958df1a3fc3f53443787b8`.

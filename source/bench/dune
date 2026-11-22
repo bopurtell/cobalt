@@ -35,3 +35,10 @@
    core_unix.filename_unix async)
  (preprocess
   (pps ppx_jane)))
+
+(executable
+ (name rust_lsp_probe)
+ (modules rust_lsp_probe)
+ (libraries cobalt_source cobalt_completion cobalt_error cobalt_screen core core_unix
+   core_unix.command_unix core_unix.filename_unix async)
+ (preprocess (pps ppx_jane)))

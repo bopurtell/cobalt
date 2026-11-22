@@ -113,7 +113,7 @@ let finding_rows feedback ~document =
     List.concat_map (Diagnostics.collections diagnostics) ~f:(fun c ->
       let stale =
         c.session_ended
-        || (Document.is document c.resource
+        || (not (Cobalt_app.Bsc.is_source c.source) && Document.is document c.resource
             && Diagnostics.Collection.behind c ~revision:document.revision)
       in
       let stopped = Diagnostics.stopped diagnostics ~source:c.source in

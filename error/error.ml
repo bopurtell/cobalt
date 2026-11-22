@@ -201,6 +201,14 @@ module Diagnostics = struct
 
   let start t ~source = { t with stopped = Set.remove t.stopped source }
 
+  let clear t ~source =
+    { stopped = Set.remove t.stopped source
+    ; by_resource = Map.filter_map t.by_resource ~f:(fun by_source ->
+        let by_source = Map.remove by_source source in
+        Option.some_if (not (Map.is_empty by_source)) by_source)
+    }
+  ;;
+
   let stop t ~source =
     { stopped = Set.add t.stopped source
     ; by_resource =
@@ -239,6 +247,7 @@ type update =
       ; current_revision : int
       ; findings : Diagnostics.Finding.t list
       }
+  | Diagnostics_cleared of { source : string }
   | Source_started of { source : string; root : string }
   | Source_stopped of { source : string; root : string; reason : string }
   | Source_unavailable of { source : string; root : string; reason : string }
@@ -294,6 +303,8 @@ let rec apply t update =
          else t.history)
     }
   | Clear_history -> { t with history = History.clear t.history }
+  | Diagnostics_cleared { source } ->
+    { t with diagnostics = Diagnostics.clear t.diagnostics ~source }
   | Diagnostics_received { source; resource; revision; current_revision; findings } ->
     { t with
       diagnostics =

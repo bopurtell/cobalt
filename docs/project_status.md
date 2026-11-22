@@ -39,17 +39,17 @@ session-local rather than saved across editor restarts.
   mouse forwarding, docking, or cross-restart shell restoration.
 - **Themes:** live preview and dark/light palettes, including monochrome,
   retro-terminal, and warm paper variants. `--list-themes` is the live catalog.
-- **Highlighting:** incremental Tree-sitter parsing for OCaml, Verilog,
-  SystemVerilog, and AT&T/GAS assembly (`.s` / `.S`).
+- **Highlighting:** local syntax highlighting for Rust, Bluespec SystemVerilog,
+  OCaml, Verilog, SystemVerilog, and AT&T/GAS assembly (`.s` / `.S`).
 - **Optional Markdown styles:** `--markdown` or **Toggle document decorations**
   adds source-preserving heading/emphasis/code/link/list styles for
   `.md`/`.markdown`. Default-off; no concealed syntax, aligned tables or preview
   layout. The provider is removable at build time; a no-provider binary shares
   normal editing behavior.
-- **Diagnostics:** `ocamllsp` for OCaml and `slang-server` for Verilog/SystemVerilog,
-  with freshness tracking, a problems view, restart controls, and a live
-  **Language servers** report (`Space l i`) showing attachment and process state. Language-server
-  integration consumes diagnostics only.
+- **Language servers:** `rust-analyzer` for Rust, `ocamllsp` for OCaml,
+  `slang-server` for Verilog/SystemVerilog, and opt-in `blues lsp` for BSV
+  completion and definitions. The live **Language servers** report (`Space l i`)
+  shows attachment and process state.
 - **Git:** stage/unstage/discard files, hunks, and selected diff lines; commit,
   amend, and extend HEAD; fetch, pull, push; branch checkout/creation/merge;
   stopped merge/rebase resolution; logs and file history. See the

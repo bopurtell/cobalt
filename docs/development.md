@@ -118,6 +118,11 @@ The LSP smoke uses deterministic fake servers by default. To exercise installed
 `python3 scripts/lsp_smoke.py --real`. To check only the managed backend inventory,
 run `dune exec -j 6 source/bench/mixed_lsp_probe.exe`.
 
+With Rust, Cargo, and `rust-analyzer` installed, run
+`dune exec source/bench/rust_lsp_probe.exe` to exercise diagnostics, hover,
+completion, and cross-crate definition navigation on real projects. For BSV,
+see the [Blues/BSC probe and Cobalt terminal smoke](backlog/bsv_language_server_evaluation.md#reproduce).
+
 The VCS smoke suite uses a sandbox repository created by
 [`scripts/vcs_sandbox.sh`](../scripts/vcs_sandbox.sh). Its scenarios exercise
 staging, commits, a conflict-stopped rebase pull, pushing, and history, and check

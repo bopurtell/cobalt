@@ -88,9 +88,35 @@ module Config = struct
     }
   ;;
 
+  let rust_analyzer =
+    { source = "rust-analyzer"
+    ; prog = "rust-analyzer"
+    ; args = []
+    ; applies_to = (fun path ->
+        match snd (Filename.split_extension path) with Some "rs" -> true | _ -> false)
+    ; language_id = (fun _ -> "rust")
+    ; root_markers = [ "Cargo.toml" ]
+    ; shutdown_grace = Time_ns.Span.of_int_ms 1000
+    }
+  ;;
+
+  let blues =
+    { source = Blues_backend.source
+    ; prog = Blues_backend.prog
+    ; args = Blues_backend.args
+    ; applies_to = Blues_backend.applies_to
+    ; language_id = Blues_backend.language_id
+    ; root_markers = Blues_backend.root_markers
+    ; shutdown_grace = Time_ns.Span.of_int_ms 1000
+    }
+  ;;
+
   let resolve_builtin t =
-    if not (phys_equal t slang_server) then t
-    else
+    if phys_equal t rust_analyzer then
+      { t with prog = Option.value (Sys.getenv "RUST_ANALYZER") ~default:t.prog }
+    else if phys_equal t blues then
+      { t with prog = Blues_backend.resolve_program () }
+    else if phys_equal t slang_server then
       let prog = match Sys.getenv "SLANG_SERVER" with
         | Some prog -> prog
         | None ->
@@ -102,13 +128,26 @@ module Config = struct
              |> Option.value ~default:"slang-server")
       in
       { t with prog }
+    else t
   ;;
 
   let for_path path =
-    List.find [ ocamllsp; slang_server ] ~f:(fun t -> t.applies_to path)
+    List.find [ ocamllsp; slang_server; rust_analyzer; blues ] ~f:(fun t -> t.applies_to path)
     |> Option.map ~f:resolve_builtin
+  ;;
 
-  let root t path = Workspace_root.find_nearest ~markers:t.root_markers path
+  let uses_cargo t =
+    phys_equal t.applies_to rust_analyzer.applies_to
+    && [%equal: string list] t.root_markers rust_analyzer.root_markers
+  ;;
+
+  let root t path =
+    if uses_cargo t then
+      match Workspace_root.cargo_manifest path with
+      | Some manifest -> Filename.dirname manifest
+      | None -> Workspace_root.find_nearest ~markers:[] path
+    else Workspace_root.find_nearest ~markers:t.root_markers path
+  ;;
 end
 
 module Convert = struct
@@ -1392,11 +1431,18 @@ let same_config (a : Config.t) (b : Config.t) =
   && phys_equal a.applies_to b.applies_to && phys_equal a.language_id b.language_id
 ;;
 
+type pending_attachment =
+  { mutable changed : Source_request.t option
+  ; mutable saved : Source_request.t option
+  }
+
 let start_workspace ?(config_for_path = Config.for_path) ~cell_width () =
   Source.create (fun ~emit ->
     let pools = ref [] in
     let next_pool_id = ref 0 in
     let resources = String.Table.create () in
+    let pending = String.Table.create () in
+    let cargo_roots = String.Table.create () in
     let inventory () =
       List.map !pools ~f:(fun (root, config, driver, source, status) ->
         { Source_event.Server.source
@@ -1413,6 +1459,7 @@ let start_workspace ?(config_for_path = Config.for_path) ~cell_width () =
     in
     let publish () = emit (Source_event.Servers (inventory ())) in
     let close resource =
+      Hashtbl.remove pending resource;
       Option.iter (Hashtbl.find_and_remove resources resource) ~f:(fun (_, driver) ->
         driver.Source.Driver.handle (Document_closed { resource });
         if not (Hashtbl.exists resources ~f:(fun (_, other) -> phys_equal other driver))
@@ -1421,54 +1468,87 @@ let start_workspace ?(config_for_path = Config.for_path) ~cell_width () =
           pools := List.filter !pools ~f:(fun (_, _, other, _, _) -> not (phys_equal other driver))));
       publish ()
     in
+    let attach (config : Config.t) resource generation root =
+      let root = canonical root in
+      let file = canonical resource in
+      if Hashtbl.exists resources ~f:(fun (other_file, _) -> String.equal file other_file)
+      then emit (Owned { resource; generation; event = Unavailable
+        { source = config.source; root; reason = "another open resource has the same lexical LSP URI" } })
+      else (
+        let driver = match List.find !pools ~f:(fun (r, c, _, _, _) -> String.equal root r && same_config config c) with
+          | Some (_, _, driver, _, _) -> driver
+          | None ->
+            incr next_pool_id;
+            (* Feedback's running/stopped state is keyed by source, not root.
+               Keep each pool isolated there too, including a newly created pool
+               after its predecessor's last document closes. *)
+            let server_config =
+              { config with source = sprintf "%s#%d" config.source !next_pool_id }
+            in
+            let status = ref Source_event.Server.Starting in
+            let set_status next = status := next; publish () in
+            let driver = driver ~set_status ~config:server_config ~cell_width ~root ~emit () in
+            pools := (root, config, driver, server_config.source, status) :: !pools;
+            driver in
+        Hashtbl.set resources ~key:resource ~data:(file, driver);
+        driver.handle (Document_opened { resource; generation });
+        publish ())
+    in
     let open_document resource generation =
       close resource;
       Option.iter (config_for_path resource) ~f:(fun config ->
         let config = Config.resolve_builtin config in
-        let root = canonical (Config.root config resource) in
-        let file = canonical resource in
-        if Hashtbl.exists resources ~f:(fun (other_file, _) -> String.equal file other_file)
-        then emit (Owned { resource; generation; event = Unavailable
-          { source = config.source; root; reason = "another open resource has the same lexical LSP URI" } })
-        else (
-          let driver = match List.find !pools ~f:(fun (r, c, _, _, _) -> String.equal root r && same_config config c) with
-            | Some (_, _, driver, _, _) -> driver
-            | None ->
-              incr next_pool_id;
-              (* Feedback's running/stopped state is keyed by source, not root.
-                 Keep each pool isolated there too, including a newly created pool
-                 after its predecessor's last document closes. *)
-              let server_config =
-                { config with source = sprintf "%s#%d" config.source !next_pool_id }
-              in
-              let status = ref Source_event.Server.Starting in
-              let set_status next = status := next; publish () in
-              let driver = driver ~set_status ~config:server_config ~cell_width ~root ~emit () in
-              pools := (root, config, driver, server_config.source, status) :: !pools;
-              driver in
-          Hashtbl.set resources ~key:resource ~data:(file, driver);
-          driver.handle (Document_opened { resource; generation });
-          publish ()))
+        match (if Config.uses_cargo config then Workspace_root.cargo_manifest resource else None) with
+        | None -> attach config resource generation (Config.root config resource)
+        | Some manifest ->
+          let attachment = { changed = None; saved = None } in
+          Hashtbl.set pending ~key:resource ~data:attachment;
+          (* Coalesce concurrent opens in the same crate, but do not cache old
+             Cargo answers after resolution (the manifests may change). *)
+          let root = Hashtbl.find_or_add cargo_roots manifest ~default:(fun () ->
+            let root =
+              let%map root = Workspace_root.cargo_workspace manifest in
+              Hashtbl.remove cargo_roots manifest;
+              Option.value root ~default:(Filename.dirname manifest)
+            in
+            Shutdown.don't_finish_before (Deferred.ignore_m root);
+            root) in
+          don't_wait_for (
+            let%map root = root in
+            if Option.exists (Hashtbl.find pending resource) ~f:(phys_equal attachment) then (
+              Hashtbl.remove pending resource;
+              attach config resource generation root;
+              Option.iter (Hashtbl.find resources resource) ~f:(fun (_, driver) ->
+                Option.iter attachment.changed ~f:driver.handle;
+                Option.iter attachment.saved ~f:driver.handle))))
     in
     { Source.Driver.handle = (fun request -> match request with
         | Document_opened { resource; generation } -> open_document resource generation
         | Document_closed { resource } -> close resource
          | Inspect -> publish ()
          | Query q ->
-           (match Hashtbl.find resources q.token.resource with
-            | Some (_, driver) -> driver.handle request
-            | None -> emit (Query_result { token = q.token; cursor = q.cursor; kind = q.kind;
-                source = "lsp"; result = Query.unavailable q.kind "No language server attached to this document" }))
+            (match Hashtbl.find resources q.token.resource with
+             | Some (_, driver) -> driver.handle request
+             | None -> emit (Query_result { token = q.token; cursor = q.cursor; kind = q.kind;
+                 source = "lsp"; result = Query.unavailable q.kind
+                   (if Hashtbl.mem pending q.token.resource then "Resolving Cargo workspace"
+                    else "No language server attached to this document") }))
          | Cancel_query token ->
            Option.iter (Hashtbl.find resources token.resource) ~f:(fun (_, driver) -> driver.handle request)
-         | Document_changed { resource; _ } | Document_saved { resource; _ } ->
+         | Document_changed { resource; _ } ->
+           Option.iter (Hashtbl.find pending resource) ~f:(fun attachment ->
+             attachment.changed <- Some request);
+           Option.iter (Hashtbl.find resources resource) ~f:(fun (_, driver) -> driver.handle request)
+         | Document_saved { resource; _ } ->
+           Option.iter (Hashtbl.find pending resource) ~f:(fun attachment ->
+             if Option.is_some attachment.changed then attachment.saved <- Some request);
            Option.iter (Hashtbl.find resources resource) ~f:(fun (_, driver) -> driver.handle request)
           | Complete { token = { resource; _ }; _ } | Cancel_completion { resource; _ } ->
             Option.iter (Hashtbl.find resources resource) ~f:(fun (_, driver) -> driver.handle request)
           | Resolve_completion { token = { resource; _ }; _ } ->
             Option.iter (Hashtbl.find resources resource) ~f:(fun (_, driver) -> driver.handle request)
         | Restart | Kill -> List.iter !pools ~f:(fun (_, _, driver, _, _) -> driver.handle request))
-    ; stop = (fun () -> List.iter !pools ~f:(fun (_, _, driver, _, _) -> driver.stop ());
-        pools := []; Hashtbl.clear resources)
+     ; stop = (fun () -> List.iter !pools ~f:(fun (_, _, driver, _, _) -> driver.stop ());
+         pools := []; Hashtbl.clear resources; Hashtbl.clear pending)
     })
 ;;
