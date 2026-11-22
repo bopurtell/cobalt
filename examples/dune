@@ -1,0 +1,2 @@
+; Build the packaging smoke as its own project against an installed Cobalt.
+(dirs :standard \ hosted_consumer)

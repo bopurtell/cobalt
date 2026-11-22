@@ -1,6 +1,26 @@
 open! Core
 open! Async
 
+module Main_location = Cobalt_main_editor.Open_location
+module Session_location = Cobalt_app.Session.Open_location
+
+let to_session_request ({ project_root; relative_file; position } : Main_location.request)
+  : Session_location.request
+  =
+  let position = Option.map position ~f:(fun ({ line; column } : Main_location.position) ->
+    ({ line; column } : Session_location.position))
+  in
+  { project_root; relative_file; position }
+;;
+
+let to_transport_failure : Session_location.failure -> Main_location.failure = function
+  | Session_exited -> Session_exited
+  | Wrong_project { expected; requested } -> Wrong_project { expected; requested }
+  | Invalid_relative_file file -> Invalid_relative_file file
+  | Target_unavailable error -> Target_unavailable error
+  | Invalid_position error -> Invalid_position error
+;;
+
 let command ~document_decorations =
   Command.async
     ~summary:"Edit UTF-8, LF files and directory workspaces"
@@ -58,10 +78,15 @@ let command ~document_decorations =
           from SLANG_SERVER, PATH, or ~/slang-server/build/bin/slang-server, rooted\n\
           at .slang, then .git, else PATH's directory. Configure it in .slang/server.json.\n\
           Space l i shows attached language servers, commands, roots and status (palette: Language servers).\n\
-          Space v R restarts all managed servers; --no-lsp disables them.")
+           Space v R restarts all managed servers; --no-lsp disables them.\n\
+           --main-editor makes this session the explicit local destination for cobalt-open.\n\
+           Use the absolute startup directory (PATH itself for a directory, its parent for a file)\n\
+           with cobalt-open --project ROOT FILE [LINE [COLUMN]]. No other session is tried.")
     (let%map_open.Command path = anon (maybe ("PATH" %: Filename_unix.arg_type))
       and list_themes = flag "--list-themes" no_arg
         ~doc:" List theme IDs, titles and dark/light kinds without opening the editor"
+      and main_editor = flag "--main-editor" no_arg
+        ~doc:" Opt in as the local open-location destination for this startup directory"
       and theme = flag "--theme"
         (optional
            (Command.Arg_type.create (fun name ->
@@ -101,16 +126,20 @@ let command ~document_decorations =
        in
        (* Bonsai_term reads keys from stdin; without a terminal there it fails with a
           long message meant for its developers. *)
-        if list_themes then (
+         if list_themes && main_editor then
+           fail (Error.of_string "--main-editor requires an interactive session, not --list-themes")
+         else if list_themes then (
           List.iter Cobalt_theme.Theme.all ~f:(fun theme ->
             printf "%s\t%s\t%s\n" (Cobalt_theme.Theme.id theme)
               (Cobalt_theme.Theme.title theme)
               (match Cobalt_theme.Theme.kind theme with Dark -> "dark" | Light -> "light"));
           return ())
-        else
-        let%bind path = match path with
-          | Some path -> return path
-          | None -> fail (Error.of_string "PATH is required when editing (use --list-themes to list themes)") in
+         else
+         let%bind path = match path with
+           | Some path -> return path
+           | None when main_editor ->
+             fail (Error.of_string "--main-editor requires an editor startup PATH")
+           | None -> fail (Error.of_string "PATH is required when editing (use --list-themes to list themes)") in
         if not (Core_unix.isatty Core_unix.stdin)
        then fail (Error.of_string "standard input is not a terminal")
        else (
@@ -137,7 +166,19 @@ let command ~document_decorations =
            in
            (* One runner for the VCS view's git commands (Space g g); it inherits this
               process's environment and never prompts on the terminal. *)
-            let vcs = Cobalt_ui.Vcs_host.create () in
+             let vcs = Cobalt_ui.Vcs_host.create () in
+             let open_location_listener =
+               if not main_editor then None
+               else Some (fun ~project_root ~on_request ->
+                  let forward request =
+                    let%map result = on_request (to_session_request request) in
+                    Result.map_error result ~f:to_transport_failure
+                  in
+                  let%map result = Cobalt_main_editor.start ~project_root ~on_request:forward in
+                 Result.map result ~f:(fun listener () -> Cobalt_main_editor.stop listener)
+                 |> Result.map_error ~f:(fun error ->
+                   Error.tag error ~tag:(sprintf "--main-editor for %S" project_root)))
+             in
             (* Preserve CR (Enter) versus LF (Ctrl-J) before Notty reads stdin.
                Notty's own terminal setup retains these input flags. Restore the
                original settings after its shutdown handlers have run. *)
@@ -147,7 +188,7 @@ let command ~document_decorations =
               { tty with c_icrnl = false; c_inlcr = false; c_igncr = false }
               Core_unix.stdin ~mode:TCSANOW;
               (match%bind Cobalt_ui.Editor_view.run ~document_decorations
-                ~document_decorations_enabled:markdown ~smear_enabled ~zen:(not workspace) ~bare ?theme ~buffer_presentation ?report ?source ~vcs controller with
+                 ~document_decorations_enabled:markdown ~smear_enabled ~zen:(not workspace) ~bare ?theme ~buffer_presentation ?report ?source ~vcs ?open_location_listener controller with
             | Ok () -> return ()
             | Error error -> fail error)))
 ;;

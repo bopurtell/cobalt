@@ -1,5 +1,6 @@
 (library
  (name cobalt_config_runtime)
+ (package cobalt)
  (modules settings loader api_source compiled_cache)
  (libraries core core_unix async cobalt_completion)
  (preprocess (pps ppx_jane)))

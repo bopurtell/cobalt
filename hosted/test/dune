@@ -1,0 +1,15 @@
+(test
+ (name test_hosted_lsp)
+ (modules test_hosted_lsp)
+ (libraries cobalt_hosted core async bonsai bonsai_test bonsai_term bonsai_term_test notty-community)
+ (action (run sh %{dep:with_fake_ocamllsp.sh} %{exe:test_hosted_lsp.exe} %{exe:../../source/test/fake_lsp/fake_lsp.exe}))
+ (preprocess
+   (pps ppx_jane)))
+
+(test
+ (name test_hosted_toggle)
+ (modules test_hosted_toggle)
+ (libraries cobalt_hosted core async bonsai bonsai_test bonsai_term bonsai_term_test notty-community)
+ (action (run sh %{dep:with_fake_shell.sh} %{exe:test_hosted_toggle.exe}))
+ (preprocess
+  (pps ppx_jane)))

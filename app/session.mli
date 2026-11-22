@@ -6,7 +6,10 @@ type placement = Major | Side
 type directory_presentation =
   { buffer : Buffer_id.t; placement : placement; target_group : Group_id.t; return_target : Buffer_id.t option }
 val directory_presentation : t -> directory_presentation option
-val create : ?cwd:string -> ?keymap_config:Keymap.Config.t -> ?directory_config:Directory_buffer.Config.t -> cell_width:Cell_layout.Width.t -> Controller.t -> t
+(** [project_root] binds location requests to this session for its lifetime. It
+    defaults to the initial {!startup_directory}; a relative override is resolved
+    against [cwd]. *)
+val create : ?cwd:string -> ?project_root:string -> ?keymap_config:Keymap.Config.t -> ?directory_config:Directory_buffer.Config.t -> cell_width:Cell_layout.Width.t -> Controller.t -> t
 val buffers : t -> (Buffer_id.t * Controller.t) list
 val buffer_count : t -> int
 (** Path/membership-only cached labels in tab order; flags come from current controllers. *)
@@ -35,6 +38,7 @@ val surface : t -> directory:bool -> t
 val show_directory : ?select:string -> t -> string -> t Or_error.t
 val group_id : t -> Group_id.t
 val startup_directory : t -> string
+val project_root : t -> string
 val normalize : t -> string -> string
 val find : t -> Buffer_id.t -> Controller.t option
 val source_generation : t -> Buffer_id.t -> int option
@@ -52,6 +56,43 @@ val replace_active : t -> Controller.t -> t
      preserve session state and close a newly loaded controller. *)
 val open_or_activate : ?must_exist:bool -> ?validate:(Controller.t -> unit Or_error.t)
   -> t -> string -> (t * Buffer_id.t) Or_error.t
+
+module Open_location : sig
+  (** One-based line and one-based terminal display column, using the session's
+      width function. For [é界x], with widths 1/2/1, columns 2 and 3 select [界]
+      and column 4 selects [x], which is at UTF-8 byte offset 5 on the line. *)
+  type position = { line : int; column : int }
+
+  type request =
+    { project_root : string
+    ; relative_file : string
+    ; position : position option
+    }
+
+  type failure =
+    | Session_exited
+    | Wrong_project of { expected : string; requested : string }
+    | Invalid_relative_file of string
+    | Target_unavailable of Error.t
+    | Invalid_position of Error.t
+  [@@deriving sexp_of]
+
+  val to_error : failure -> Error.t
+end
+
+(** Open an existing file or activate its retained buffer, without reloading
+    retained text from disk. The request root must be absolute and match the
+    bound root after lexical normalization. The path must be relative and
+    resolve strictly below that root; ordinary file opens follow symlinks, so
+    this check is not a filesystem sandbox.
+
+    [None] leaves the target cursor alone. [Some position] uses normal document
+    navigation, finishing Insert/Visual if necessary. Validation uses the
+    retained text when present. On failure there is no new buffer, activation,
+    or cursor/mode change. On success the caller adopts the returned session and
+    uses the returned ID to present the active buffer. *)
+val open_location : t -> Open_location.request -> (t * Buffer_id.t, Open_location.failure) Result.t
+
 val activate : t -> Buffer_id.t -> t Or_error.t
 val close_buffer : t -> Buffer_id.t -> force:bool -> t * bool
 val close_current : t -> force:bool -> t * bool

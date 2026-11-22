@@ -2,6 +2,7 @@
 
 (library
  (name cobalt_terminal_emulator)
+ (package cobalt)
  (libraries core cobalt_terminal)
  (preprocess (pps ppx_jane))
  (foreign_stubs

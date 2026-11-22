@@ -1,6 +1,7 @@
 ; Pure picker data and acceptance boundary. IO lives in discovery/ separately.
 (library
  (name cobalt_file_picker)
+ (package cobalt)
  (libraries core cobalt_palette)
  (preprocess
   (pps ppx_jane)))

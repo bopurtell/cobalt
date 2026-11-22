@@ -1,5 +1,6 @@
 (library
  (name cobalt_terminal_host)
+ (package cobalt)
  (libraries core async cobalt_terminal cobalt_terminal_emulator)
  (preprocess (pps ppx_jane))
  (foreign_stubs (language c) (names pty_stubs) (flags (:standard -std=gnu99)))

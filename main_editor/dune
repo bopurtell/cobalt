@@ -1,0 +1,5 @@
+(library
+ (name cobalt_main_editor)
+ (public_name cobalt.main_editor)
+ (libraries cobalt_app cobalt_core core core_unix async yojson unix)
+ (preprocess (pps ppx_jane)))

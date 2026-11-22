@@ -55,6 +55,7 @@ export LC_ALL=C.UTF-8
 # The fixture lives under /tmp whatever TMPDIR is: checks match its paths on an
 # 80-column status line, and the tmux socket inside it must stay short (108 bytes).
 work=$(mktemp -d /tmp/cobalt-smoke.XXXXXX)
+mkdir "$work/home"
 screens=$(mktemp -d "${TMPDIR:-/tmp}/cobalt-smoke-screens.XXXXXX")
 # A per-run socket prevents another checkout's smoke run from sharing this session.
 tmux_cmd=(tmux -S "$work/tmux.sock" -f /dev/null)
@@ -236,7 +237,7 @@ char_under_cursor() {
 }
 
 t new-session -d -s "$session" -x 80 -y 24 \
-  "env -i HOME=$HOME PATH=$PATH LC_ALL=C.UTF-8 TERM=tmux-256color PS1='$ ' bash --norc --noprofile"
+  "env -i HOME=$work/home PATH=$PATH LC_ALL=C.UTF-8 TERM=tmux-256color PS1='$ ' bash --norc --noprofile"
 t set -g window-size manual
 t set -g default-terminal tmux-256color
 shell "cd $work"

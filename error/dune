@@ -1,5 +1,6 @@
 ; Pure shared feedback state; independent of producers and terminal views.
 (library
  (name cobalt_error)
+ (package cobalt)
  (libraries core cobalt_completion)
  (preprocess (pps ppx_jane)))

@@ -101,6 +101,7 @@ let key t (key : Key.t) ~lookup ~content ~escape ~hint : t * _ Decision.t =
 ;;
 
 let pasting t = Option.is_some t.paste
+let cancel_paste t = { t with paste = None }
 
 let invalidate_paste t id =
   match t.paste with

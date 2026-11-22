@@ -248,6 +248,7 @@ type t =
   ; terminal_preferred : Floating.Size.t option
   ; terminal_pending_j : (Time_ns.t * int) option
   ; toggle_pending : toggle_pending option
+  ; external_terminal_toggles : int option list option (** [Some] delegates toggles to the outer host. *)
   ; terminal_requests : (int * Cobalt_terminal.Model.request) list (** Newest first, stamped at enqueue. *)
   ; terminal_return : View_id.t
   ; terminal_prefix : Key.t list
@@ -452,6 +453,7 @@ let create
   ; terminal_preferred = None
   ; terminal_pending_j = None
   ; toggle_pending = None
+  ; external_terminal_toggles = None
   ; terminal_requests = []
   ; terminal_return = document_id
   ; terminal_prefix = []
@@ -512,6 +514,9 @@ let terminal_key_pending t = Option.is_some t.terminal_pending_j
 (* The existing foreground deadline tick also expires deferred completion
    acceptance, independently of animation and of further keyboard input. *)
 let toggle_key_pending t = Option.is_some t.toggle_pending || Option.is_some t.completion_acceptance
+let cancel_toggle_prefix t =
+  if Option.is_none t.toggle_pending then t else { t with toggle_pending = None }
+;;
 let terminal_capturing t =
   Option.is_some t.terminal_paste
   || (t.terminal_visible && View_id.equal
@@ -1449,6 +1454,10 @@ let message t =
 
 let pasting t = Host.pasting t.host || Option.is_some t.terminal_paste
 
+let cancel_paste t =
+  { t with host = Host.cancel_paste t.host; paste_buffer = None; terminal_paste = None }
+;;
+
 let take_clipboard t =
   let session, text = Session.take_clipboard (session t) in
   let controller = Option.value (Session.active_controller session) ~default:t.controller in
@@ -2073,31 +2082,52 @@ let start_terminal t (layout : Tile_shell.Layout.t) =
     ; terminal_requests = (t.terminal_number, Start { cwd; rows; cols }) :: t.terminal_requests }
 ;;
 
+let with_external_terminal t = { t with external_terminal_toggles = Some [] }
+
+let take_external_terminal_toggles t =
+  match t.external_terminal_toggles with
+  | Some (_ :: _ as toggles) -> { t with external_terminal_toggles = Some [] }, List.rev toggles
+  | Some [] | None -> t, []
+;;
+
+let emit_terminal_toggle t ~number toggles =
+  if Host.pasting t.host || Option.is_some t.terminal_paste then t
+  else
+    { t with external_terminal_toggles = Some (number :: toggles)
+    ; controller = Controller.cancel_pending t.controller
+    }
+;;
+
 let toggle_terminal t ~width ~height =
   let t = finalize_completion t in
-  if t.terminal_visible then hide_terminal t ~width ~height
-  else if Host.pasting t.host || Option.is_some t.terminal_paste then t
-  else match Terminal_tile.placement_with_preferred ~preferred:t.terminal_preferred ~width ~height with
-    | None -> { t with host = Host.with_notice t.host "Tile Term cannot fit; needs at least 20 columns and 6 rows" }
-    | Some layout ->
-      let previous = focused_view t ~width ~height in
-      let t = List.fold (leave_ids t) ~init:t ~f:leave in
-      let t = { t with terminal_visible = true; terminal_return = previous
-        ; host = Host.focus t.host Terminal_tile.id
-        ; controller = Controller.cancel_pending t.controller } in
-       if t.terminal_started then
-         { t with terminal_prefix = []; terminal_inspection =
-           if terminal_running t then None else Some (Terminal_tile.inspect t.terminal_snapshot) }
-       else start_terminal t layout
+  match t.external_terminal_toggles with
+  | Some toggles -> emit_terminal_toggle t ~number:None toggles
+  | None ->
+    if t.terminal_visible then hide_terminal t ~width ~height
+    else if Host.pasting t.host || Option.is_some t.terminal_paste then t
+    else match Terminal_tile.placement_with_preferred ~preferred:t.terminal_preferred ~width ~height with
+      | None -> { t with host = Host.with_notice t.host "Tile Term cannot fit; needs at least 20 columns and 6 rows" }
+      | Some layout ->
+        let previous = focused_view t ~width ~height in
+        let t = List.fold (leave_ids t) ~init:t ~f:leave in
+        let t = { t with terminal_visible = true; terminal_return = previous
+          ; host = Host.focus t.host Terminal_tile.id
+          ; controller = Controller.cancel_pending t.controller } in
+        if t.terminal_started then
+          { t with terminal_prefix = []; terminal_inspection =
+            if terminal_running t then None else Some (Terminal_tile.inspect t.terminal_snapshot) }
+        else start_terminal t layout
 ;;
 
 let select_terminal t number ~width ~height =
   let t = finalize_completion t in
   if number <= 0 then
     { t with host = Host.with_notice t.host "Tile Term ID must be positive" }
-  else if Host.pasting t.host || Option.is_some t.terminal_paste then t
-  else if number = t.terminal_number then toggle_terminal t ~width ~height
-  else
+  else match t.external_terminal_toggles with
+  | Some toggles -> emit_terminal_toggle t ~number:(Some number) toggles
+  | None when Host.pasting t.host || Option.is_some t.terminal_paste -> t
+  | None when number = t.terminal_number -> toggle_terminal t ~width ~height
+  | None ->
     let t = flush_terminal_j t in
     let t = if t.terminal_visible then hide_terminal t ~width ~height else t in
     let t = load_terminal t number (save_terminal t) in
@@ -5677,6 +5707,15 @@ let with_document_decorations ?enabled t ~available =
 let open_file t ~width ~height path =
   Or_error.map (open_file_session t ~width ~height path) ~f:(fun (t, id) ->
     release_held t ~width ~height, id)
+;;
+
+let open_location t ~width ~height request =
+  Result.map (Session.open_location (session t) request) ~f:(fun (session, id) ->
+    let t = return_to_document (file_tab t) in
+    (* Any remaining paste bytes still belong to their start owner, not the
+       location the host just opened (which might be in the same document). *)
+    let t = { t with host = Host.invalidate_paste t.host document_id } in
+    adopt_session t session ~width ~height, id)
 ;;
 let receive_harness t ~width ~height ~request result =
   let t = { t with harness_busy = false } in

@@ -123,6 +123,9 @@ def main():
     if shutil.which("tmux") is None:
         raise SystemExit("tmux is required")
     root = Path(tempfile.mkdtemp(prefix="cobalt-terminal-"))
+    # Screen assertions assume default editor settings (in particular, no gutter).
+    config_home = root / "config"
+    config_home.mkdir()
     project = root / "project"
     project.mkdir()
     fixture = project / "document.txt"
@@ -268,7 +271,8 @@ def main():
     try:
         t("new-session", "-d", "-s", "terminal", "-x", "180", "-y", "60",
           "-c", str(root),
-          "env LC_ALL=C.UTF-8 TERM=tmux-256color SHELL=/bin/sh ENV= PS1='OUTER> ' /bin/sh")
+          f"env XDG_CONFIG_HOME={shlex.quote(str(config_home))} "
+          "LC_ALL=C.UTF-8 TERM=tmux-256color SHELL=/bin/sh ENV= PS1='OUTER> ' /bin/sh")
         t("set-option", "-t", "terminal", "status", "off")
         # tmux stores OSC 52 writes in its paste buffer even without an attached
         # client, giving us an observable frontend clipboard destination.

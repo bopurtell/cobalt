@@ -133,6 +133,9 @@ For blue palettes, try `cobalt-room`, `cobalt-midnight` (deep navy),
 `cobalt-frost` (light icy blue). Preview them in the theme picker with `Space v T`,
 or launch with `cobalt --theme cobalt-midnight .`.
 
+Use [`--main-editor` and `cobalt-open`](bin/MAIN_EDITOR.md) to send a file
+location to a specific running Cobalt session.
+
 ### Linux packages
 
 Cobalt can be packaged as an extract-and-run **`.tar.gz`** containing its executable,

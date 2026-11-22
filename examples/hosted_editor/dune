@@ -1,0 +1,12 @@
+(executable
+ (name hosted_editor)
+ (libraries cobalt_app cobalt_screen cobalt_ui core core_unix core_unix.filename_unix async bonsai_term)
+ (preprocess
+  (pps ppx_jane bonsai.ppx_bonsai)))
+
+(rule
+ (alias runtest)
+ (deps test_hosted_editor.py)
+ (locks /smoke)
+ (action
+  (run python3 %{dep:test_hosted_editor.py} %{exe:hosted_editor.exe} %{exe:../../bin/cobalt.exe})))

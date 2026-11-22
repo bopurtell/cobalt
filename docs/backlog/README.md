@@ -1,5 +1,10 @@
 # Backlog
 
+## Silver integration
+
+- [Cobalt-side work queue](silver_integration.md): module boundaries, independently
+  testable tickets, and the handoff to Silver for each workflow.
+
 ## Language-aware editing
 
 - [Symbol rename](symbol_rename.md): deferred ticket for LSP-driven rename,

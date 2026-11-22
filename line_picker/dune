@@ -1,4 +1,5 @@
 (library
  (name cobalt_line_picker)
+ (package cobalt)
  (libraries cobalt_core cobalt_app cobalt_palette core)
  (preprocess (pps ppx_jane)))

@@ -1,0 +1,10 @@
+(executable
+ (name receiver)
+ (libraries cobalt_main_editor core async)
+ (preprocess (pps ppx_jane)))
+
+(rule
+ (alias runtest)
+ (deps test_transport.py)
+ (action
+  (run python3 %{dep:test_transport.py} %{exe:receiver.exe} %{exe:../../main_editor_sender/cobalt_open.exe})))

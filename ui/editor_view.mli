@@ -35,6 +35,60 @@ module Content_picker_host : sig
     }
 end
 
+type hosted =
+  { view : View.t
+    (** Exactly the positive allocation while visible and running; otherwise empty. *)
+  ; cursor : Cursor.t option
+    (** Pane-local; only available with input focus. The host translates and places it. *)
+  ; handle_event : Event.t -> unit Effect.t
+    (** Events are ignored unless this mounted pane is visible and focused. *)
+  ; open_location : Cobalt_app.Session.Open_location.request
+      -> (Cobalt_app.Buffer_id.t, [ `Closed | `Open of Cobalt_app.Session.Open_location.failure ]) Result.t Effect.t
+    (** Serialized with host input, using the live session, including while hidden. *)
+  ; shutdown : unit -> unit Effect.t
+    (** Ends this session without saving, and waits for its shutdown. Idempotent. *)
+  ; closed : bool
+    (** The session has ended, either by explicit shutdown or editor quit. *)
+  }
+
+(** Mount once per editor session, including while hidden. The component owns the
+    startup controller and supplied runtime handles, and does not start or write to
+    the physical terminal. [set_clipboard] optionally delegates plain-text clipboard
+    copies to the host. [on_toggle_terminal] delegates recognized toggles
+    ([Some id] for an explicit number, [None] for the host's current terminal)
+    instead of running an editor terminal. The default [vcs] is a fresh Git runner. Without a [source]
+    override, the editor owns a workspace LSP source that starts servers only for
+    supported documents as they open. Treat unmounting as
+    permanent teardown, not as hiding; await [shutdown] before unmounting when the
+    host needs to wait for child cleanup. See [HOSTED.md] for integration details. *)
+val hosted
+  :  ?terminal:Terminal_host.t
+  -> ?snippets:Snippet_host.t
+  -> ?configuration:Configuration_host.t
+  -> ?startup_configuration:Configuration_host.configuration
+  -> ?configuration_path:(string, string) Result.t
+  -> ?document_decorations:Document_decoration_host.Factory.t
+  -> ?document_decorations_enabled:bool
+  -> ?smear_enabled:bool
+  -> ?zen:bool
+  -> ?bare:bool
+  -> ?theme:Cobalt_theme.Theme.t
+  -> ?buffer_presentation:Cobalt_input.View_command.Buffer_presentation.t
+  -> ?report:Cobalt_screen.Report_tile.Item.t list
+  -> ?source:Cobalt_source.Source.t
+  -> ?vcs:Vcs_host.t
+  -> ?font:(Cobalt_screen.Style.t -> Theme.Font.t list)
+  -> ?file_picker:File_picker_host.t
+  -> ?content_picker:Content_picker_host.t
+  -> ?on_toggle_terminal:(int option -> unit Effect.t) Bonsai.t
+  -> ?set_clipboard:(string -> unit Effect.t) Bonsai.t
+  -> Cobalt_app.Controller.t
+  -> dimensions:Dimensions.t Bonsai.t
+  -> visible:bool Bonsai.t
+  -> focused:bool Bonsai.t
+  -> local_ Bonsai.graph
+  -> hosted Bonsai.t
+
 (** [font] gives the font styles of each part of the screen; the default is
     {!Theme.Font.default}. Current-document line work is always scheduled through
     yielded bounded turns; [file_picker] is an optional file-consumer override.
@@ -97,6 +151,17 @@ val draw_base : ?theme:Cobalt_theme.Theme.t -> ?font:(Cobalt_screen.Style.t -> T
 val draw_overlay : ?theme:Cobalt_theme.Theme.t -> ?font:(Cobalt_screen.Style.t -> Theme.Font.t list)
   -> base:View.t -> Cobalt_screen.Frame.t -> View.t
 
+type open_location_listener =
+  project_root:string
+  -> on_request:
+       (Cobalt_app.Session.Open_location.request
+        -> (unit, Cobalt_app.Session.Open_location.failure) Result.t Async.Deferred.t)
+  -> (unit -> unit Async.Deferred.t) Async.Deferred.Or_error.t
+(** Optional standalone-only adapter. Started after mounting, with the actual session
+    root and a request handler serialized with terminal input. Return an idempotent
+    stop function for editor exit or process shutdown. Startup errors end [run]
+    with the error after restoring the terminal. *)
+
 (** Runs the editor in the terminal until it exits, then stops [source] and waits for
     [vcs]'s children ({!Vcs_host.shutdown}, at most its default cap). SIGTERM,
     SIGHUP, SIGINT and SIGQUIT end the process with status 1, discarding unsaved
@@ -121,6 +186,7 @@ val run
   -> ?buffer_presentation:Cobalt_input.View_command.Buffer_presentation.t
   -> ?report:Cobalt_screen.Report_tile.Item.t list
   -> ?source:Cobalt_source.Source.t
-  -> ?vcs:Vcs_host.t
-  -> Cobalt_app.Controller.t
-  -> unit Async.Deferred.Or_error.t
+   -> ?vcs:Vcs_host.t
+   -> ?open_location_listener:open_location_listener
+   -> Cobalt_app.Controller.t
+   -> unit Async.Deferred.Or_error.t

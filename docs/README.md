@@ -39,6 +39,7 @@ user-facing behavior, start with the guides above.
 - [Workspace and tile design](workspace_tiles_design.md)
 - [Rendering design](rendering_design.md)
 - [Command palette design](command_palette_plan.md)
+- [Silver integration tickets and handoff order](backlog/silver_integration.md)
 - [Syntax-highlighting latency](syntax_highlighting_latency_plan.md)
 - [Long-line rendering](long_line_rendering.md)
 - [Picker performance and backend comparison](picker_performance_recommendation.md)

@@ -7,6 +7,7 @@
 
 (library
  (name cobalt_tile)
+ (package cobalt)
  (libraries cobalt_core cobalt_input core)
  (preprocess
   (pps ppx_jane)))

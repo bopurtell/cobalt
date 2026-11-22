@@ -5,6 +5,7 @@
 
 (library
  (name cobalt_vcs_host)
+ (package cobalt)
  (libraries cobalt_vcs core core_unix core_unix.signal_unix async)
  (preprocess
   (pps ppx_jane)))

@@ -8,6 +8,7 @@
 
 (library
  (name cobalt_screen)
+ (package cobalt)
  (libraries cobalt_harness cobalt_config_runtime cobalt_completion cobalt_terminal cobalt_theme cobalt_error cobalt_app cobalt_core cobalt_input cobalt_highlight cobalt_decoration cobalt_palette cobalt_file_picker cobalt_file_preview_model cobalt_navigation_preview_model cobalt_line_picker cobalt_content_picker cobalt_tile cobalt_vcs cobalt_vcs_git core notty-community)
  (preprocess
   (pps ppx_jane)))

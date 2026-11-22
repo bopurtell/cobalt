@@ -1,0 +1,5 @@
+(library
+ (name cobalt_terminal_pool)
+ (public_name cobalt.terminal)
+ (libraries core async cobalt_terminal cobalt_terminal_host)
+ (preprocess (pps ppx_jane)))

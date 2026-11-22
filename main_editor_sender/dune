@@ -1,0 +1,6 @@
+(executable
+ (name cobalt_open)
+ (public_name cobalt-open)
+ (package cobalt)
+ (libraries cobalt_main_editor core async)
+ (preprocess (pps ppx_jane)))

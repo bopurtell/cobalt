@@ -23,6 +23,7 @@
   base64
   bonsai
   bonsai_term
+  notty-community
   lsp
   jsonrpc
   ppx_jane))

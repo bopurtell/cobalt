@@ -73,7 +73,7 @@ def smoke(binary):
             # need not be repainted, so wait for the cleared palette region.
             until(lambda: b" " * 80 in output)
             os.write(master, b" q")
-            until(lambda: process.poll() is not None)
+            # The PTY can close just before the process becomes waitable.
             assert process.wait(timeout=5) == 0
             assert document.read_bytes() == b"X" + original
         finally:

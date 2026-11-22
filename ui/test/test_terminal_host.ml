@@ -158,26 +158,37 @@ let%expect_test "mailboxes coalesce snapshots, preserve initial failure ordering
         ; 7, Paste (String.make (1024 * 1024 + 1) 'x')
         ; 99, Start { cwd = "/"; rows = 0; cols = 30 }
         ];
-      let%bind () = Clock_ns.after (Time_ns.Span.of_ms 80.) in
-      let%bind first = within (Host.next_session_update host) in
-      let%bind second = within (Host.next_session_update host) in
-      let%bind third = within (Host.next_session_update host) in
-      let updates = List.filter_map [ first; second; third ] ~f:Fn.id in
-      assert (List.count updates ~f:(fun (id, _, _) -> id = 99) = 1);
-      (match List.filter updates ~f:(fun (id, _, _) -> id = 7) with
-       | [ (_, 1, Snapshot s); (_, 1, Failed _) ] -> assert (Option.is_none s.exited)
-       | _ -> failwith "initial snapshot must precede rejected input");
-      (* Hundreds of synchronous publications retain just the latest dimensions. *)
+      (* Publish a resize burst before yielding to the event pump. The first
+         delivered snapshot must be the latest one, before the input failure. *)
       for cols = 31 to 230 do
         Host.submit_sessions host [ 7, Resize { rows = 4; cols } ]
       done;
-      let%bind () = Clock_ns.after (Time_ns.Span.of_ms 80.) in
-      let%bind latest = within (Host.next_session_update host) in
-      (match latest with
-       | Some (7, 1, Snapshot s) -> assert (Array.length s.rows.(0) = 230)
-       | _ -> failwith "missing coalesced snapshot");
+      let rec initial ~snapshot ~rejected_input ~rejected_start =
+        if snapshot && rejected_input && rejected_start then return ()
+        else
+          match%bind Host.next_session_update host with
+          | Some (7, 1, Snapshot s) ->
+            assert (Option.is_none s.exited);
+            assert (Array.length s.rows = 4 && Array.length s.rows.(0) = 230);
+            initial ~snapshot:true ~rejected_input ~rejected_start
+          | Some (7, 1, Failed _) when snapshot && not rejected_input ->
+            initial ~snapshot ~rejected_input:true ~rejected_start
+          | Some (99, 1, Failed _) when not rejected_start ->
+            initial ~snapshot ~rejected_input ~rejected_start:true
+          | _ -> failwith "initial snapshot must precede rejected input"
+      in
+      let%bind () = within (initial ~snapshot:false ~rejected_input:false ~rejected_start:false) in
+      (* Terminal 7 can still emit output or a resize-triggered redraw. Wait for
+         its exit frame so the pending read below has no other live producer. *)
+      Host.submit_sessions host [ 7, Stop ];
+      let rec await_exit () =
+        match%bind Host.next_session_update host with
+        | Some (7, 1, Snapshot s) ->
+          if Option.is_some s.exited then return () else await_exit ()
+        | _ -> failwith "unexpected update while waiting for terminal 7 to stop"
+      in
+      let%bind () = within (await_exit ()) in
       let pending = Host.next_session_update host in
-      let%bind () = Clock_ns.after (Time_ns.Span.of_ms 30.) in
       assert (not (Deferred.is_determined pending));
       Host.submit_sessions host [ 99, Start { cwd = "/"; rows = 5; cols = 40 } ];
       let%bind update = within pending in
@@ -188,12 +199,12 @@ let%expect_test "mailboxes coalesce snapshots, preserve initial failure ordering
       let pending = Host.next_session_update host in
       Host.submit_sessions host [ 99, Paste (String.make (1024 * 1024 + 1) 'x') ];
       let rec failure pending =
-        let%bind update = within pending in
+        let%bind update = pending in
         match update with
         | Some (99, 2, Model.Failed _) -> return ()
-        | Some (_, _, Snapshot _) -> failure (Host.next_session_update host)
+        | Some (99, 2, Snapshot _) -> failure (Host.next_session_update host)
         | _ -> failwith "lost failure" in
-      let%bind () = failure pending in
+      let%bind () = within (failure pending) in
       print_endline "bounded latest snapshot; initial snapshot before failure; generation-safe pending delivery";
       [%expect {| bounded latest snapshot; initial snapshot before failure; generation-safe pending delivery |}];
       return ())

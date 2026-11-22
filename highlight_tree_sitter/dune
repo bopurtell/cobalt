@@ -1,5 +1,6 @@
 (library
  (name cobalt_highlight_tree_sitter)
+ (package cobalt)
  (private_modules ocaml_queries systemverilog_queries gas_queries)
  (libraries cobalt_highlight core tree-sitter tree-sitter.ocaml cobalt_tree_sitter_systemverilog cobalt_tree_sitter_gas)
  (preprocess (pps ppx_jane)))

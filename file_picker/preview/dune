@@ -1,4 +1,5 @@
 (library
  (name cobalt_file_preview)
+ (package cobalt)
  (libraries cobalt_file_preview_model cobalt_file_picker cobalt_core cobalt_app core core_unix async)
  (preprocess (pps ppx_jane)))

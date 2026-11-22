@@ -1,5 +1,6 @@
 (library
  (name cobalt_file_discovery)
+ (package cobalt)
  (libraries cobalt_file_picker core core_unix core_unix.filename_unix core_unix.sys_unix async)
  (preprocess
   (pps ppx_jane)))

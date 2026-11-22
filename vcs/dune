@@ -8,6 +8,7 @@
 
 (library
  (name cobalt_vcs)
+ (package cobalt)
  (libraries core)
  (preprocess
   (pps ppx_jane)))

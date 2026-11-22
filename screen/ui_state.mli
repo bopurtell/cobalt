@@ -151,10 +151,18 @@ val toggle_key_pending : t -> bool
     Insert recognizes optional positive ASCII digits followed by Space /, with
     each gap strictly less than 200ms. At 200ms the prefix is literal. Paste
     bypasses recognition. Ownership loss safely cancels the bounded prefix. *)
+val cancel_toggle_prefix : t -> t
+(** Drop an unfinished timed prefix on loss of outer input ownership. *)
 val take_terminal_requests : t -> t * Cobalt_terminal.Model.request list
 (** Legacy drain with session IDs discarded; single-session callers only. *)
 val take_terminal_session_requests : t -> t * (int * Cobalt_terminal.Model.request) list
 (** Requests carry the session that owned them when enqueued, in enqueue order. *)
+val with_external_terminal : t -> t
+(** Startup-only routing override: recognized toggles emit actions instead of
+    opening, closing or focusing a local terminal tile. *)
+val take_external_terminal_toggles : t -> t * int option list
+(** Drain recognized toggles in recognition order. [None] leaves terminal
+    selection to the host. *)
 val terminal_number : t -> int
 val terminal_numbers : t -> int list
 (** Sorted cached session IDs, including the selected session (initially 1). *)
@@ -261,6 +269,9 @@ val session : t -> Cobalt_app.Session.t
 val show_directory : ?select:string -> t -> width:int -> height:int -> string -> t Or_error.t
 val has_document : t -> bool
 val open_file : t -> width:int -> height:int -> string -> (t * Cobalt_app.Buffer_id.t) Or_error.t
+val open_location
+  : t -> width:int -> height:int -> Cobalt_app.Session.Open_location.request
+  -> (t * Cobalt_app.Buffer_id.t, Cobalt_app.Session.Open_location.failure) Result.t
 val activate_buffer : t -> width:int -> height:int -> Cobalt_app.Buffer_id.t -> t Or_error.t
 val close_current : t -> width:int -> height:int -> force:bool -> t * bool
 val close_buffer : t -> width:int -> height:int -> Cobalt_app.Buffer_id.t -> force:bool -> t * bool
@@ -480,6 +491,10 @@ val animation : t -> Animation.t
 
 (** Whether a bracketed paste is being collected. *)
 val pasting : t -> bool
+
+(** Discard an incomplete paste without dispatching its text or changing mode.
+    The outer host must not route the remainder as new editor input. *)
+val cancel_paste : t -> t
 
 (** The session clipboard queue: what the frontend
     should put on the system clipboard after the inputs it just applied, from an editor

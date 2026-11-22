@@ -1,4 +1,5 @@
 (library
  (name cobalt_file_picker_host)
+ (package cobalt)
  (libraries core core_unix async cobalt_config_runtime cobalt_file_discovery cobalt_file_picker cobalt_screen)
  (preprocess (pps ppx_jane)))

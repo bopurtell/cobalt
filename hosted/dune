@@ -1,0 +1,5 @@
+(library
+ (name cobalt_hosted)
+ (public_name cobalt.hosted)
+ (libraries cobalt_app cobalt_screen cobalt_ui core bonsai bonsai_term)
+ (preprocess (pps ppx_jane bonsai.ppx_bonsai)))

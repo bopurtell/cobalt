@@ -15,6 +15,7 @@ type directory_index =
 type t =
   { cwd : string
   ; startup_directory : string
+  ; project_root : string
   ; cell_width : Cell_layout.Width.t
   ; keymap_config : Keymap.Config.t
   ; directory_config : Directory_buffer.Config.t
@@ -66,6 +67,7 @@ let reindex t bs =
 let active_id t = t.active
 let group_id _ = Group_id.of_int 1
 let startup_directory t = t.startup_directory
+let project_root t = t.project_root
 let exited t = t.exited
 let normalize t = Resource.normalize ~cwd:t.cwd
 let find t id = Map.find t.buffer_index id |> Option.map ~f:(fun b -> b.controller)
@@ -110,17 +112,18 @@ let find_resource_buffer t resource =
   | None -> Option.map (find_directory_path t (normalize t resource)) ~f:(fun d -> Directory_buffer d)
 ;;
 
-let create ?(cwd = Core_unix.getcwd ()) ?keymap_config ?(directory_config = Directory_buffer.Config.default) ~cell_width controller =
+let create ?(cwd = Core_unix.getcwd ()) ?project_root ?keymap_config ?(directory_config = Directory_buffer.Config.default) ~cell_width controller =
   let keymap_config = Option.value keymap_config ~default:(Keymap.config (Controller.keymap controller)) in
   let path = Editor.path (Controller.editor controller) in
   let controller = Option.value_map path ~default:controller ~f:(fun p -> Controller.with_path controller (Resource.normalize ~cwd p)) in
   let directory_start = Controller.Kind.equal (Controller.kind controller) Directory in
   let startup_directory = Option.value_map path ~default:cwd ~f:(fun p -> if directory_start then Resource.normalize ~cwd p else Filename.dirname (Resource.normalize ~cwd p)) in
+  let project_root = Resource.normalize ~cwd (Option.value project_root ~default:startup_directory) in
   let directories = if directory_start then [ Directory_buffer.load ~config:directory_config ~id:(Buffer_id.of_int 1) ~path:startup_directory ~cell_width ~keymap_config () |> Or_error.ok_exn ] else [] in
   if directory_start then Controller.close controller;
   let bs = if directory_start then [] else [ { id = Buffer_id.of_int 1; controller; generation = 1 } ] in
   let buffers = lazy bs in
-  { cwd; startup_directory
+  { cwd; startup_directory; project_root
    ; cell_width; keymap_config; directory_config; buffers; labels = labels buffers
    ; order = List.map bs ~f:(fun b -> b.id)
    ; buffer_index = Buffer_id.Map.of_alist_exn (List.map bs ~f:(fun b -> b.id, b))
@@ -347,14 +350,18 @@ let directory_save ?before_mutation t d =
 ;;
 let names bs = String.concat ~sep:", " (List.map bs ~f:(fun b -> Option.value (Controller.display_path b.controller) ~default:"[unnamed]"))
 
+let context_exit editor =
+  match Editor.mode editor with
+  | Insert -> Some Command.Exit_insert
+  | Visual _ -> Some Command.Exit_visual
+  | Normal -> None
+;;
+
 let finish_context t =
   match active_controller t with
   | None -> t
   | Some c ->
-    let command = match Editor.mode (Controller.editor c) with
-      | Insert -> Some Command.Exit_insert
-      | Visual _ -> Some Command.Exit_visual
-      | Normal -> None in
+    let command = context_exit (Controller.editor c) in
     let c = match command with None -> c | Some command -> let c, _, _ = Controller.dispatch (install t c) [ Editor command ] in c in
     replace_active t (Controller.cancel_pending c)
 ;;
@@ -371,19 +378,20 @@ let activate t id =
     Ok (replace_active t (Controller.cancel_pending (install t (Option.value_exn (find t id)))))
 ;;
 
-let open_or_activate ?(must_exist = false) ?(validate = fun _ -> Ok ()) t path =
-  (* Callback exceptions are rejection too: never leak a newly loaded controller. *)
-  let validate controller = Or_error.join (Or_error.try_with (fun () -> validate controller)) in
+let open_or_activate_with ~must_exist ~open_failed ~validate t path =
   let path = normalize t path in
-  if t.exited then Or_error.error_string "Session has exited"
+  let activate t id =
+    Result.map_error (activate t id) ~f:open_failed
+    |> Result.map ~f:(fun t -> t, id)
+  in
+  if t.exited then Error (open_failed (Error.of_string "Session has exited"))
   else if Option.is_some (find_directory_path t path)
-  then Or_error.error_string "Resource belongs to a directory buffer; navigate or refresh it instead"
+  then Error (open_failed (Error.of_string "Resource belongs to a directory buffer; navigate or refresh it instead"))
   else match find_resource t path with
-  | Some (id, controller) -> Or_error.bind (validate controller) ~f:(fun () ->
-      Or_error.map (activate t id) ~f:(fun t -> t, id))
-  | None when t.exited -> Or_error.error_string "Session has exited"
+  | Some (id, controller) -> Result.bind (validate controller) ~f:(fun () -> activate t id)
   | None ->
-    Or_error.bind (Controller.open_file ~must_exist ~keymap_config:t.keymap_config ~cell_width:t.cell_width path) ~f:(fun controller ->
+    let loaded = Controller.open_file ~must_exist ~keymap_config:t.keymap_config ~cell_width:t.cell_width path in
+    Result.bind (Result.map_error loaded ~f:open_failed) ~f:(fun controller ->
       match validate controller with
       | Error error -> Controller.close controller; Error error
       | Ok () ->
@@ -395,7 +403,88 @@ let open_or_activate ?(must_exist = false) ?(validate = fun _ -> Ok ()) t path =
            ; file_lifetimes = ref ()
            ; source_changes = Set.add t.source_changes id
            ; resources = Map.set t.resources ~key:path ~data:id; next_id = t.next_id + 1; next_generation = t.next_generation + 1 } in
-         Or_error.map (activate t id) ~f:(fun t -> t, id))
+          activate t id)
+;;
+
+let open_or_activate ?(must_exist = false) ?(validate = fun _ -> Ok ()) t path =
+  (* Callback exceptions are rejection too: never leak a newly loaded controller. *)
+  let validate controller = Or_error.join (Or_error.try_with (fun () -> validate controller)) in
+  open_or_activate_with ~must_exist ~open_failed:Fn.id ~validate t path
+;;
+
+module Open_location = struct
+  type position = { line : int; column : int }
+
+  type request =
+    { project_root : string
+    ; relative_file : string
+    ; position : position option
+    }
+
+  type failure =
+    | Session_exited
+    | Wrong_project of { expected : string; requested : string }
+    | Invalid_relative_file of string
+    | Target_unavailable of Error.t
+    | Invalid_position of Error.t
+  [@@deriving sexp_of]
+
+  let to_error = function
+    | Session_exited -> Error.of_string "Session has exited"
+    | Wrong_project { expected; requested } ->
+      Error.create_s [%message "Wrong project" (expected : string) (requested : string)]
+    | Invalid_relative_file path ->
+      Error.create_s [%message "Expected a relative file below the project root" (path : string)]
+    | Target_unavailable error -> Error.tag error ~tag:"Cannot open location"
+    | Invalid_position error -> Error.tag error ~tag:"Invalid location position"
+  ;;
+end
+
+let open_location (t : t) (request : Open_location.request) =
+  let open Open_location in
+  let root = t.project_root in
+  if t.exited then Error Session_exited
+  else if Filename.is_relative request.project_root
+          || String.contains request.project_root '\000'
+          || not (String.equal root (normalize t request.project_root))
+  then Error (Wrong_project { expected = root; requested = request.project_root })
+  else
+    let file = request.relative_file in
+    let path = Resource.normalize ~cwd:root file in
+    if not (Filename.is_relative file) || String.contains file '\000'
+       || String.equal path root || not (Resource.within ~root path)
+    then Error (Invalid_relative_file file)
+    else
+      let validate controller =
+        match request.position with
+        | None -> Ok ()
+        | Some { line; column } ->
+          (* Preview the same modal exit without touching the live controller
+             or its mutable highlight runtime. Counted block insert can change
+             the text on exit, so validate against that resulting snapshot. *)
+          Or_error.try_with_join (fun () ->
+            let editor = Controller.editor controller in
+            let editor = Option.value_map (context_exit editor) ~default:editor
+              ~f:(fun command -> fst (Editor.dispatch editor command)) in
+            Or_error.map (Editor.go_to_display_position editor ~line ~column) ~f:ignore)
+          |> Result.map_error ~f:(fun error -> Invalid_position error)
+      in
+      Result.map
+        (open_or_activate_with ~must_exist:true ~open_failed:(fun e -> Target_unavailable e) ~validate t path)
+        ~f:(fun (t, id) ->
+          match request.position with
+          | None -> t, id
+          | Some { line; column } ->
+            let t = match active_controller t with
+              | Some controller when Option.is_some (context_exit (Controller.editor controller)) ->
+                finish_context t
+              | _ -> t
+            in
+            let controller = Option.value_exn (active_controller t) in
+            (* Activation selected the validated controller. Finishing its
+               mode uses the same exit command as validation above. *)
+            let controller = Controller.jump controller ~line ~column |> Or_error.ok_exn in
+            replace_active t controller, id)
 ;;
 
 let show_directory ?select t path =

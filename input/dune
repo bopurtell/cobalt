@@ -4,6 +4,7 @@
 
 (library
  (name cobalt_input)
+ (package cobalt)
  (libraries cobalt_core core)
  (preprocess
   (pps ppx_jane)))

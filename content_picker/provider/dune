@@ -1,4 +1,5 @@
 (library
  (name cobalt_content_search)
+ (package cobalt)
  (libraries cobalt_content_picker cobalt_file_picker cobalt_file_discovery core async)
  (preprocess (pps ppx_jane)))

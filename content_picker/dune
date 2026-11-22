@@ -1,4 +1,5 @@
 (library
  (name cobalt_content_picker)
+ (package cobalt)
  (libraries cobalt_file_picker cobalt_palette core yojson base64)
  (preprocess (pps ppx_jane)))

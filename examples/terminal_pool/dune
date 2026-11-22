@@ -1,0 +1,8 @@
+(executable
+ (name smoke)
+ (libraries cobalt.terminal core core_unix async)
+ (preprocess (pps ppx_jane)))
+
+(rule
+ (alias runtest)
+ (action (run %{exe:smoke.exe})))

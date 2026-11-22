@@ -1,4 +1,5 @@
 (library
  (name cobalt_theme)
+ (package cobalt)
  (libraries core)
  (preprocess (pps ppx_jane)))

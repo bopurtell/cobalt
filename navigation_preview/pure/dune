@@ -1,4 +1,5 @@
 (library
  (name cobalt_navigation_preview_model)
+ (package cobalt)
  (libraries core cobalt_core cobalt_error)
  (preprocess (pps ppx_jane)))

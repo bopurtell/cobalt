@@ -1,17 +1,14 @@
 # Terminal backend
 
-Public libraries:
+Use `cobalt.terminal` in a Dune consumer. Its `Cobalt_terminal_pool` module
+exposes the [numbered pool API](pool/cobalt_terminal_pool.mli) and the
+UI-independent [`Model`](model.mli) protocol. See the [pool-only example and
+installed-consumer check](../examples/terminal_pool/README.md). The model,
+single-shell runtime, and libvterm adapter are private implementation libraries.
 
-- `cobalt_terminal`, wrapped `Cobalt_terminal`, exposes `Model` (no Async dependency).
-- `cobalt_terminal_host`, wrapped `Cobalt_terminal_host`, exposes `Runtime`.
-- `cobalt_terminal_emulator` contains the libvterm adapter, independently testable
-  without a shell or scheduler. Frontends only need the first two libraries.
-
-`Model.mli` and `host/runtime.mli` define the frontend contract. Submit `Start`
-with the workspace directory and terminal dimensions, then consume `next_event`.
-Asynchronous frontends should consume `next_event_with_generation` instead and
-reject updates from older sessions after restart. The screen model's
-`Terminal_update` input implements this check.
+Submit `Start` with the workspace directory and terminal dimensions, then
+consume `next_update`. Route each update to its terminal number, and reject
+older generations per number if delivery may be reordered by your frontend.
 Submit keys with their original modifiers; `Char` carries the actual Unicode
 character. Submit clipboard text using `Paste`, never a sequence of key events.
 Snapshots are independent, own their cell arrays, and use zero-based coordinates.
@@ -26,10 +23,10 @@ The C-only `forkpty`/`execve` path creates a new session and real controlling
 terminal; OCaml never executes in the child. Inherited signal dispositions and
 masks are reset, and nonstandard descriptors are closed before exec.
 
-The frontend's `ui/terminal_host.ml` pools these single-shell runtimes by terminal
-number. It launches them lazily, drains hidden sessions independently, coalesces
-events per number, delivers ready sessions fairly, and shuts down the entire pool
-on editor exit. Generation checks are local to each numbered terminal.
+Standalone Cobalt delegates to the same pool available to outer hosts. The pool
+launches shells lazily, drains hidden sessions independently, coalesces events per
+number, and delivers ready sessions fairly. Keep the pool alive while a pane is
+hidden; call and await `shutdown` when its owner is going away.
 
 The nonblocking PTY master is close-on-exec. The Async pump runs independently of
 UI visibility, with a 10 ms interval and a 64 KiB per-direction work budget per
@@ -58,9 +55,10 @@ is live is ignored; after its exit event, `Start` creates a fresh session and
 clears pending old events. `Stop` requests SIGHUP of the shell and foreground
 job. After 250 ms, shutdown escalates to SIGKILL. Remaining members of the Linux
 PTY session, including background job groups, are killed when the shell exits.
-`shutdown` is idempotent, rejects further submissions, and resolves after the
-child is reaped and the PTY/emulator are closed. An idle `next_event` remains a
-wait for an event; callers should stop their consumer when their host shuts down.
+Processes that deliberately leave that session are not tracked.
+`shutdown` is idempotent, ignores further submissions, and resolves after the
+shells are reaped and the PTYs/emulators are closed. The pool's `next_update`
+returns `None` on shutdown, including an already-pending read.
 
 ## Vendor and checks
 
@@ -72,7 +70,7 @@ No system libvterm or additional OCaml package is needed. Linux linking uses
 Run only the backend tests:
 
 ```sh
-dune runtest -j 6 terminal/test
+dune runtest -j 4 terminal/test examples/terminal_pool
 ```
 
 The emulator tests cover screen editing, scrolling, alternate screens, styles,

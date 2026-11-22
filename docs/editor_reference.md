@@ -17,6 +17,14 @@ tiles are suppressed. This is separate from borderless Bare mode.
 - Tile hotkey hints, including those in Tile Terms, are hidden by default.
   In editor Normal mode, `Space v ?` toggles them for the session.
 
+To accept file jumps from Silver or a local shell, start the project with
+`cobalt --main-editor /path/to/project`. Then run
+`cobalt-open --project /path/to/project src/example.ml 8` to open line 8 in
+that editor. This reuses the receiving editor's buffer, including unsaved
+edits. `cobalt-open` is installed by the Dune package. See [selecting a main
+editor](../main_editor/README.md) for the source-checkout command, project
+matching, optional columns, and sender exit codes.
+
 ## Floating terminal
 
 The floating-terminal system is called **Tile Terms**. In Normal or Insert mode,

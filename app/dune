@@ -4,6 +4,7 @@
 
 (library
  (name cobalt_app)
+ (package cobalt)
  (foreign_stubs (language c) (names directory_fs_stubs))
  (libraries cobalt_error cobalt_core cobalt_input cobalt_highlight cobalt_highlight_tree_sitter core core_unix)
  (preprocess

@@ -26,3 +26,11 @@
  (deps test_no_provider_cli.py)
  (locks /smoke)
  (action (run python3 %{dep:test_no_provider_cli.py} %{exe:cobalt_no_provider.exe})))
+
+(rule
+ (alias runtest)
+ (deps test_main_editor_cli.py)
+ (locks /smoke)
+ (action
+  (run python3 %{dep:test_main_editor_cli.py}
+   %{exe:cobalt.exe} %{exe:../main_editor_sender/cobalt_open.exe})))
