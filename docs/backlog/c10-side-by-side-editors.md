@@ -1,6 +1,6 @@
 # C10 — Side-by-side file editors
 
-**Status:** Implemented and verified. **Tracker:** [GitHub #7](https://github.com/bopurtell/cobalt/issues/7).
+**Status:** Closed — verified and accepted by the owner. **Tracker:** [GitHub #7](https://github.com/bopurtell/cobalt/issues/7).
 
 ## Why
 

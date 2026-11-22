@@ -1,6 +1,6 @@
 # C12 — Install Cobalt from a clone
 
-**Status:** Implemented; isolated acceptance passed.
+**Status:** Closed — isolated installation checks passed and the owner accepted the installed build.
 
 ## Why
 

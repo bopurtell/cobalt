@@ -2,9 +2,8 @@
 
 ## Silver integration
 
-- [Cobalt-side work queue](silver_integration.md): C1–C6 are closed. Start with
-  C7 for no-flags discovery, C8 for the stage checklist and aliases, or C9 for
-  the flow kickoff tile. Each lists the Silver handoff needed for live acceptance.
+- [Cobalt-side work queue](silver_integration.md): C1–C7 are closed. C8 (stage
+  checklist and aliases) and C9 (flow kickoff) remain open for owner testing.
 
 ## Language-aware editing
 
@@ -22,8 +21,8 @@
 
 | Ticket | Status | Scope |
 | --- | --- | --- |
-| [C10: Side-by-side file editors](c10-side-by-side-editors.md) | Implemented and verified | Two keyboard-accessible file editor panes in the existing workspace |
-| [C11: Basic mouse support](c11-mouse-support.md) | Implemented and verified | Click-to-focus, cursor placement, file tab activation, wheel scrolling, and runtime reporting toggle |
+| [C10: Side-by-side file editors](c10-side-by-side-editors.md) | Closed | Two keyboard-accessible file editor panes in the existing workspace |
+| [C11: Basic mouse support](c11-mouse-support.md) | Closed | Click-to-focus, cursor placement, file tab activation, wheel scrolling, and runtime reporting toggle |
 
 The Oil/Dired-style directory refresh already exists: focus the listing and
 press `Space r` in Normal mode. It rereads a clean listing from disk and
@@ -33,7 +32,7 @@ refuses pending directory edits. Cached revisits do not refresh automatically;
 
 ## Installation
 
-- [C12: Install Cobalt from a clone](c12-source-install.md) (implemented):
+- [C12: Install Cobalt from a clone](c12-source-install.md) (closed):
   build and install the native commands into a user-owned prefix with one
   Silver-style `./install.sh` invocation once prerequisites are available.
 

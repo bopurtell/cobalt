@@ -1,6 +1,6 @@
 # C11 — Basic mouse support
 
-**Status:** Implemented and verified.
+**Status:** Closed — verified and accepted by the owner.
 
 ## Why
 
