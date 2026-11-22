@@ -6,3 +6,12 @@
   (select provider_adapter.ml from
    (cobalt_markdown -> provider_adapter.enabled.ml)
    (-> provider_adapter.disabled.ml))))
+
+; Removing silver_overview/ selects the unavailable composition, without pulling
+; Silver protocol or transport into the editor libraries.
+(library
+ (name cobalt_silver_composition)
+ (libraries cobalt_ui core
+  (select silver_adapter.ml from
+   (cobalt_silver_overview -> silver_adapter.enabled.ml)
+   (-> silver_adapter.disabled.ml))))

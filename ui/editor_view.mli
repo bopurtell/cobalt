@@ -185,6 +185,7 @@ val run
   -> ?font:(Cobalt_screen.Style.t -> Theme.Font.t list)
   -> ?buffer_presentation:Cobalt_input.View_command.Buffer_presentation.t
   -> ?report:Cobalt_screen.Report_tile.Item.t list
+  -> ?silver_overview:Silver_overview_host.t
   -> ?source:Cobalt_source.Source.t
    -> ?vcs:Vcs_host.t
    -> ?open_location_listener:open_location_listener

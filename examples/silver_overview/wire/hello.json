@@ -1,0 +1,30 @@
+{
+  "request": {
+    "method": "GET",
+    "target": "/api/hello",
+    "headers": {
+      "Host": "127.0.0.1:40293",
+      "Connection": "close"
+    },
+    "body": ""
+  },
+  "response": {
+    "status": 200,
+    "reason": "OK",
+    "headers": [
+      [
+        "content-type",
+        "application/sexp"
+      ],
+      [
+        "content-length",
+        "361"
+      ],
+      [
+        "connection",
+        "close"
+      ]
+    ],
+    "body": "((application_version 0.1.0)(protocol_versions(1))(instance_id 536090-1795310838980729094-0d1d3168)(capabilities(snapshot updates open-project submit-job refresh-integration generate-rtl cancel-job read-log read-artifact read-hierarchy workspace asic asic-ensure-discovered-v1 simulation simulation-ensure-discovered-v1 source-bundle-preparation-v1 authoring)))"
+  }
+}

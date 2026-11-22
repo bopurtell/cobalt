@@ -79,6 +79,7 @@ let default =
   let problems = View_id.of_string "problems"
   and history = View_id.of_string "history"
   and demo_report = View_id.of_string "demo-report"
+  and silver_overview = View_id.of_string "silver-overview"
   and vcs = View_id.of_string "vcs" in
   create
      [ editor ~id:"file.save" ~title:"Save buffer" ~keywords:[ "write"; "w"; "file"; "directory"; "apply"; "permanent delete" ] Save
@@ -341,6 +342,16 @@ let default =
         ~title:"Focus demo report"
         ~keywords:[ "demo" ]
         (Focus_view demo_report)
+    ; view
+        ~id:"silver-overview.toggle"
+        ~title:"Toggle Silver overview"
+        ~keywords:[ "companion"; "run"; "status" ]
+        (Toggle_view silver_overview)
+    ; view
+        ~id:"silver-overview.focus"
+        ~title:"Focus Silver overview"
+        ~keywords:[ "companion"; "run"; "status" ]
+        (Focus_view silver_overview)
     ; view
         ~id:"vcs.open"
         ~title:"VCS: open or focus"

@@ -66,6 +66,12 @@ leave as data and are submitted to their hosts after the transition. File and
 content pickers, diagnostic sources, the VCS runner, and Tile Terms use these
 boundaries to keep process and I/O ownership separate from screen rendering.
 
+The optional [Silver overview](../silver_overview/README.md) follows the same
+boundary. `bin/composition/` selects the Silver adapter or a stub. The adapter
+owns the daemon connection, project and attempt identity, retries, and cached
+status. The tile receives display rows and returns a refresh request; rendering
+or scrolling it never performs a network read.
+
 Tile Terms pair numbered UI sessions with a lazy pool of single-shell PTY
 runtimes. Hidden sessions continue draining output; snapshots and failures carry
 their terminal number and generation to prevent cross-session delivery. See the

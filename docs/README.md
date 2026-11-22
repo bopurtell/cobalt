@@ -12,6 +12,8 @@
   editing semantics, workspace controls, Git, diagnostics, and Tile Terms.
 - [Directory workspace](directory_workspace.md): file tabs, directory navigation,
   marks, creation, rename, copy, move, deletion, and recovery.
+- [Silver overview](../bin/SILVER_OVERVIEW.md): watch a simulation attempt from
+  the editor and distinguish a current result from a stale or unavailable one.
 - [Pickers](pickers.md): current-document lines, project files, content search,
   setup, provider limits, and integration status.
 - [Project status](project_status.md): platform support, limitations, and

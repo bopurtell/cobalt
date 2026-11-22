@@ -1,7 +1,7 @@
 # Silver integration: Cobalt-side tickets
 
-**Status:** C1–C4 have Cobalt implementations and local harnesses; C5 and C6
-are proposed. Use these as implementation slices, not duplicate feature
+**Status:** C1–C5 are implemented. C5 has also passed its live two-window
+handoff; C6 is proposed. Use these as implementation slices, not duplicate feature
 trackers. Silver's `docs/cobalt_editor_roadmap.md` owns the user workflows and
 end-to-end acceptance. “Ready for Silver” here means a Cobalt interface is usable
 and demonstrated against a local harness. It does not mean the two apps have
@@ -113,6 +113,16 @@ state; late replies cannot overwrite the new binding. Closing the tile never
 cancels a run. Demonstrate ordinary standalone editing with the adapter absent.
 **Live handoff:** bind the tile and a Silver window to the same run and compare
 their observed status without coupling scroll, focus or window lifetime.
+
+**Silver protocol:** the Testing daemon serves `POST /api/v1/simulation`
+with `Content-Type: application/sexp` and `X-Workbench-Protocol: 1`.
+`Get` reads the project's simulation snapshot; `Observe` reads a named
+attempt. Both requests carry the daemon instance ID and project ID. The
+authoritative types are in Silver's `protocol/simulation.ml`.
+
+**Handoff:** [watch an attempt](../../bin/SILVER_OVERVIEW.md), inspect the
+[adapter contract](../../silver_overview/README.md), or [reproduce the two-window
+acceptance check and captured exchanges](../../examples/silver_overview/README.md).
 
 ## C6 — Run a Silver command from the editor
 

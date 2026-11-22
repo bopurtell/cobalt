@@ -1321,6 +1321,7 @@ let bare t = Presentation.equal t.presentation Bare
 let suppress_workspace t = Presentation.suppress_workspace t.presentation
 let leave_bare t = if bare t then { t with presentation = Workspace; rows = None } else t
 let views t = t.views
+let map_view t key ~f = { t with views = View_registry.map t.views key ~f }
 
 (* The session's file buffers for a view's context ([View_registry.Context]), by id,
    the active one's latest state included. *)

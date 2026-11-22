@@ -1,0 +1,7 @@
+(library
+ (name cobalt_silver_overview)
+ (public_name cobalt.silver_overview)
+ (wrapped false)
+ (private_modules silver_http)
+ (libraries core core_unix async)
+ (preprocess (pps ppx_jane)))

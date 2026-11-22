@@ -1,0 +1,33 @@
+{
+  "request": {
+    "method": "POST",
+    "target": "/api/v1/open-project",
+    "headers": {
+      "Host": "127.0.0.1:40293",
+      "Connection": "close",
+      "Content-Type": "application/sexp",
+      "X-Workbench-Protocol": "1",
+      "Content-Length": "150"
+    },
+    "body": "((\"instance_id\" \"536090-1795310838980729094-0d1d3168\") (\"root\" \"/tmp/opencode/c5-live-vhimbvie/project with spaces\") (\"environment\" \"Inherit_daemon\"))"
+  },
+  "response": {
+    "status": 200,
+    "reason": "OK",
+    "headers": [
+      [
+        "content-type",
+        "application/sexp"
+      ],
+      [
+        "content-length",
+        "400"
+      ],
+      [
+        "connection",
+        "close"
+      ]
+    ],
+    "body": "(Ok((project((id 536090-1795310838980729094-0d1d3168-project-1)(root((path\"/tmp/opencode/c5-live-vhimbvie/project with spaces\")))(name c5_live_fixture)(integration((level Generic_dune)(manifest Absent)(driver Absent)))(targets())(configurations())))(environment((selection Inherit_daemon)(provenance\"daemon process\")(dune_version 3.24.2)(command_prefix())))(workspace((contexts(default))(items())))))"
+  }
+}

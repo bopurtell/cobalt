@@ -21,7 +21,8 @@ let create ?(path = "a") () =
     Bindings.create
       ((Bindings.to_list Bindings.default
         |> List.filter ~f:(fun (keys, _) ->
-          not ([%equal: Key.t list] keys (leader_v 'T'))))
+           not (List.exists [ 'T'; 'S' ] ~f:(fun c ->
+             [%equal: Key.t list] keys (leader_v c)))))
        @ [ leader_v 'x', Bindings.Target.View (Focus_view Counter.id)
          ; leader_v 'X', View (Toggle_view Counter.id)
          ; place 'T' Tab

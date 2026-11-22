@@ -1,0 +1,33 @@
+{
+  "request": {
+    "method": "POST",
+    "target": "/api/v1/simulation",
+    "headers": {
+      "Host": "127.0.0.1:40293",
+      "Connection": "close",
+      "Content-Type": "application/sexp",
+      "X-Workbench-Protocol": "1",
+      "Content-Length": "166"
+    },
+    "body": "((\"instance_id\" \"536090-1795310838980729094-0d1d3168\") (\"project\" \"536090-1795310838980729094-0d1d3168-project-1\") (\"operation\" (\"Observe\" \"unallocated-c5-attempt\")))"
+  },
+  "response": {
+    "status": 200,
+    "reason": "OK",
+    "headers": [
+      [
+        "content-type",
+        "application/sexp"
+      ],
+      [
+        "content-length",
+        "64"
+      ],
+      [
+        "connection",
+        "close"
+      ]
+    ],
+    "body": "(Error((kind Not_found)(message\"Simulation attempt not found\")))"
+  }
+}

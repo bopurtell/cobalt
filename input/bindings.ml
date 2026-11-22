@@ -114,6 +114,7 @@ let default =
   let problems = View_id.of_string "problems"
   and history = View_id.of_string "history"
   and demo_report = View_id.of_string "demo-report"
+  and silver_overview = View_id.of_string "silver-overview"
   and vcs = View_id.of_string "vcs" in
   (* The VCS workspace. [Focus_view] opens the hidden view as a tab (it opens in
      [Tab]), activates it where it is, or toggles focus with the editor, so [g g] and
@@ -242,6 +243,8 @@ let default =
     ; view 'o' (Focus_view problems)
     ; view 'd' (Toggle_view demo_report)
     ; view 'D' (Focus_view demo_report)
+    ; view 'S' (Toggle_view silver_overview)
+    ; view 'U' (Focus_view silver_overview)
     ; view 'm' (Toggle_view history)
     ; view 'M' (Focus_view history)
     ; [ leader; Key.char 'l'; Key.char 'i' ], View Show_language_servers

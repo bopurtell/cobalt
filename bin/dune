@@ -2,7 +2,7 @@
  (name cobalt)
  (public_name cobalt)
  (modules cobalt)
- (libraries cobalt_cli cobalt_document_decorations))
+ (libraries cobalt_cli cobalt_document_decorations cobalt_silver_composition))
 
 (executable
  (name cobalt_no_provider)
@@ -34,3 +34,12 @@
  (action
   (run python3 %{dep:test_main_editor_cli.py}
    %{exe:cobalt.exe} %{exe:../main_editor_sender/cobalt_open.exe})))
+
+(rule
+ (alias runtest)
+ (enabled_if %{lib-available:cobalt_silver_overview})
+ (deps test_silver_cli.py)
+ (locks /smoke)
+ (action
+  (run python3 %{dep:test_silver_cli.py}
+   %{exe:cobalt.exe} %{exe:cobalt_no_provider.exe})))

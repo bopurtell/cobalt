@@ -296,6 +296,10 @@ val presentation : t -> Presentation.t
 (** The registered views and their placements. *)
 val views : t -> View_registry.t
 
+(** Update the content state of a registered view without changing its placement,
+    focus or the editor session. The frontend must invalidate cached frames. *)
+val map_view : t -> 'a Type_equal.Id.t -> f:('a -> 'a) -> t
+
 (** Whether a registered view is placed (requested), even if zen or a small screen
     leaves it without an allocation, or it is an inactive tab. *)
 val view_visible : t -> Cobalt_tile.View_id.t -> bool

@@ -117,7 +117,7 @@ type open_location_listener =
   -> on_request:(Open_location.request -> (unit, Open_location.failure) Result.t Async.Deferred.t)
   -> (unit -> unit Async.Deferred.t) Async.Deferred.Or_error.t
 
-let component ?terminal ?snippets ?configuration ?startup_configuration ?configuration_path ?document_decorations ?document_decoration_host ?(document_decorations_enabled = false) ?(smear_enabled = false) ?(zen = false) ?bare ?theme ?buffer_presentation ?report ?source ?vcs ?font ?file_picker ?content_picker ?on_toggle_terminal ?on_open_location_ready ~set_clipboard controller ~exit ~blank_on_close ~dimensions ~visible ~focused (local_ graph)
+let component ?terminal ?snippets ?configuration ?startup_configuration ?configuration_path ?document_decorations ?document_decoration_host ?(document_decorations_enabled = false) ?(smear_enabled = false) ?(zen = false) ?bare ?theme ?buffer_presentation ?report ?(silver_overview : Silver_overview_host.t option) ?source ?vcs ?font ?file_picker ?content_picker ?on_toggle_terminal ?on_open_location_ready ~set_clipboard controller ~exit ~blank_on_close ~dimensions ~visible ~focused (local_ graph)
   =
   let dimensions = let%arr { Dimensions.width; height } = dimensions in
     { Dimensions.width = Int.max 0 width; height = Int.max 0 height } in
@@ -155,7 +155,8 @@ let component ?terminal ?snippets ?configuration ?startup_configuration ?configu
     | None, Some host -> host.File_picker_host.initial_ui
     | None, None ->
       let ui = Ui_state.create ~smear_enabled ?bare ?theme ?buffer_presentation ?report
-        ~source_attached:(Option.is_some source) ~views:[ vcs_entry ] controller in
+        ~source_attached:(Option.is_some source)
+        ~views:[ Silver_overview_host.entry silver_overview; vcs_entry ] controller in
       (* Headless assembly retains Workspace. Enter Zen through the normal command
          path only for frontend startup; Bare keeps its Workspace return target.
          The first render reconciles the actual terminal dimensions. *)
@@ -249,6 +250,8 @@ let component ?terminal ?snippets ?configuration ?startup_configuration ?configu
       ~f:Content_picker_tile.session)) in
   let stopping = Async.Ivar.create () in
   let finished = Async.Ivar.create () in
+  let silver_open = ref false in
+  let silver_initial_rows = Option.map silver_overview ~f:(fun host -> host.rows ()) in
   let stopped () = Async.Ivar.is_full stopping in
   let stop () =
     if not (stopped ()) then (
@@ -260,6 +263,7 @@ let component ?terminal ?snippets ?configuration ?startup_configuration ?configu
       Document_decoration_host.clear document_decorations;
       Word_index_host.stop word_index;
       Snippet_host.stop snippets;
+      Option.iter silver_overview ~f:(fun host -> host.shutdown ());
       Option.iter source ~f:Cobalt_source.Source.stop;
       Option.iter !active_file_session ~f:(fun session ->
         Cobalt_file_picker.Interaction.cancel session ~release:(fun () -> ()));
@@ -345,6 +349,13 @@ let component ?terminal ?snippets ?configuration ?startup_configuration ?configu
                | `Navigation_preview snapshot ->
                  Frame.Cache.invalidate render_cache;
                   Ui_state.receive_navigation_preview model snapshot
+                | `Silver_changed ->
+                  (match silver_overview with
+                   | Some host when !silver_open ->
+                     Frame.Cache.invalidate render_cache;
+                     Ui_state.map_view model Silver_overview_tile.key ~f:(fun tile ->
+                       Silver_overview_tile.with_rows tile (host.rows ()))
+                   | _ -> model)
                | `Harness (request, result) ->
                  Frame.Cache.invalidate render_cache;
                  Ui_state.receive_harness model ~width ~height ~request result
@@ -356,7 +367,7 @@ let component ?terminal ?snippets ?configuration ?startup_configuration ?configu
             (* Capture belongs to the model at this transition, not the last
                displayed handler: several events can arrive before a redraw. *)
             let inputs = match action with
-                 | `Words _ | `Snippets _ | `Configuration _ | `Navigation_preview _ | `Harness _
+                 | `Words _ | `Snippets _ | `Configuration _ | `Navigation_preview _ | `Harness _ | `Silver_changed
                   | `Shutdown | `Lost_input | `Open_location _ -> []
                | `Inputs inputs -> inputs
                | `Event _ when not accepts_input -> []
@@ -403,6 +414,29 @@ let component ?terminal ?snippets ?configuration ?startup_configuration ?configu
             let model, status = Frame.Cache.apply_inputs render_cache ~after_step:activate_pickers model ~width ~height inputs in
             let model = synchronize_navigation_preview (synchronize_preview model)
               |> Document_decoration_host.follow ~width ~height document_decorations in
+             let model = match silver_overview with
+              | None -> model
+              | Some host ->
+                (* Only closing the placement releases observation; Zen, another
+                   tab, and compact allocation do not change the binding. *)
+                let shown = not (Ui_state.exited model)
+                  && Ui_state.view_visible model Silver_overview_tile.id in
+                let model, intent = Silver_overview_host.take_intent model in
+                let changed = not (Bool.equal shown !silver_open) in
+                silver_open := shown;
+                if changed || Option.is_some intent then
+                  Bonsai.Apply_action_context.schedule_event context
+                    (Effect.of_thunk (fun () ->
+                       if not (stopped ()) then
+                         if changed then (if shown then host.show () else host.hide ())
+                         else
+                           match intent with
+                           | Some Refresh when shown -> host.refresh ()
+                           | _ -> ()));
+                if changed && not shown then
+                  Ui_state.map_view model Silver_overview_tile.key ~f:(fun tile ->
+                    Silver_overview_tile.with_rows tile (Option.value_exn silver_initial_rows))
+                else model in
             current_ui := model;
             if not !navigation_preview_pumping
                && Option.is_some (Navigation_preview_host.snapshot navigation_preview)
@@ -587,6 +621,20 @@ let component ?terminal ?snippets ?configuration ?startup_configuration ?configu
       pump ())
     graph;
   Bonsai.Edge.lifecycle ~on_activate:(let%arr inject in inject []) graph;
+   Option.iter silver_overview ~f:(fun host ->
+     Bonsai.Edge.lifecycle
+       ~on_activate:(let%arr inject_action in
+         let rec pump () =
+           (* Invalidate with the latest cached rows, not a captured snapshot;
+              pending notifications cannot reinstall an old binding's rows. *)
+           let after = host.revision () in
+           let%bind.Effect () = inject_action `Silver_changed in
+           let%bind.Effect changed = Effect.of_deferred_thunk (fun () ->
+             until_stopping (fun () -> host.await_change ~after)) in
+           match changed with None -> Effect.Ignore | Some () -> pump ()
+         in
+         pump ())
+       graph);
   (* Source events enter like keys, as inputs of their own transition, one bounded batch
      at a time, so keys typed during a burst are handled between batches. *)
    Option.iter source ~f:(fun source ->
@@ -735,7 +783,7 @@ let hosted ?terminal ?snippets ?configuration ?startup_configuration ?configurat
 let app_with_terminal ~terminal ?snippets ?configuration ?startup_configuration ?configuration_path
     ?document_decorations ?document_decoration_host ?document_decorations_enabled ?smear_enabled
     ?zen ?bare ?theme ?buffer_presentation ?report ?source ?vcs ?font ?file_picker ?content_picker
-    ?on_open_location_ready controller ~exit ~dimensions (local_ graph) =
+    ?silver_overview ?on_open_location_ready controller ~exit ~dimensions (local_ graph) =
   let set_clipboard =
     let%arr write = Expert.Write_to_tty.write_string_to_tty graph in
     fun text -> write (Osc52.set_clipboard text)
@@ -743,7 +791,7 @@ let app_with_terminal ~terminal ?snippets ?configuration ?startup_configuration 
   let surface = component ~terminal ?snippets ?configuration ?startup_configuration ?configuration_path
       ?document_decorations ?document_decoration_host ?document_decorations_enabled ?smear_enabled
       ?zen ?bare ?theme ?buffer_presentation ?report ?source ?vcs ?font ?file_picker ?content_picker
-      ?on_open_location_ready ~set_clipboard controller ~exit ~blank_on_close:false ~dimensions ~visible:(Bonsai.return true)
+      ?silver_overview ?on_open_location_ready ~set_clipboard controller ~exit ~blank_on_close:false ~dimensions ~visible:(Bonsai.return true)
       ~focused:(Bonsai.return true) graph in
   let set_cursor = Effect.set_cursor graph in
   Bonsai.Edge.after_display (let%arr surface and set_cursor in set_cursor surface.cursor) graph;
@@ -759,10 +807,17 @@ let app ?terminal ?snippets ?configuration ?startup_configuration ?configuration
     ?report ?source ?vcs ?font ?file_picker ?content_picker controller ~exit ~dimensions graph
 ;;
 
-let run ?configuration ?startup_configuration ?configuration_path ?document_decorations ?document_decorations_enabled ?(smear_enabled = false) ?(zen = false) ?bare ?theme ?font ?buffer_presentation ?report ?source ?vcs ?(open_location_listener : open_location_listener option) controller =
+let run ?configuration ?startup_configuration ?configuration_path ?document_decorations ?document_decorations_enabled ?(smear_enabled = false) ?(zen = false) ?bare ?theme ?font ?buffer_presentation ?report ?(silver_overview : Silver_overview_host.t option) ?source ?vcs ?(open_location_listener : open_location_listener option) controller =
   let document_decoration_host = Document_decoration_host.create
     (Option.value document_decorations ~default:Document_decoration_host.Factory.unavailable) in
   let decorations_at_shutdown = ref (Some document_decoration_host) in
+  let silver_at_shutdown = ref silver_overview in
+  let stop_silver () =
+    Option.iter !silver_at_shutdown ~f:(fun host -> host.shutdown ());
+    silver_at_shutdown := None
+  in
+  Option.iter silver_overview ~f:(fun _ ->
+    Async.Shutdown.at_shutdown (fun () -> stop_silver (); Async.return ()));
   Async.Shutdown.at_shutdown (fun () ->
     Option.iter !decorations_at_shutdown ~f:Document_decoration_host.clear;
     decorations_at_shutdown := None;
@@ -831,8 +886,9 @@ let run ?configuration ?startup_configuration ?configuration_path ?document_deco
        ~dispose:true
        ~mouse:No_mouse_events
        ~bpaste:true
-          (app_with_terminal ~terminal ~configuration ~startup_configuration ?configuration_path ~document_decoration_host ?document_decorations_enabled ~smear_enabled ~zen ?bare ?theme ?buffer_presentation ?report ?source ?vcs ?font ?on_open_location_ready controller))
+          (app_with_terminal ~terminal ~configuration ~startup_configuration ?configuration_path ~document_decoration_host ?document_decorations_enabled ~smear_enabled ~zen ?bare ?theme ?buffer_presentation ?report ?silver_overview ?source ?vcs ?font ?on_open_location_ready controller))
       ~f:(fun result ->
+       stop_silver ();
        let%bind.Async.Deferred () = stop_listener () in
        Document_decoration_host.clear document_decoration_host;
        decorations_at_shutdown := None;
