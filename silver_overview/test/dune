@@ -15,9 +15,28 @@
  (preprocess (pps ppx_jane)))
 
 (test
+ (name test_kickoff_flow)
+ (modules test_kickoff_flow)
+ (libraries cobalt_silver_overview core async)
+ (preprocess (pps ppx_jane)))
+
+(test
  (name test_connection)
  (modules test_connection)
  (libraries cobalt_silver_overview core core_unix async)
+ (preprocess (pps ppx_jane)))
+
+(test
+ (name test_flow)
+ (modules test_flow)
+ (libraries cobalt_silver_overview core async)
+ (preprocess (pps ppx_jane)))
+
+(test
+ (name test_recorded_flow)
+ (modules test_recorded_flow)
+ (libraries cobalt_silver_overview core async)
+ (deps wb095-c8.sexp wb095-c9.sexp)
  (preprocess (pps ppx_jane)))
 
 (rule

@@ -44,13 +44,28 @@ module Test_action = struct
   ;;
 end
 
+module Connection = struct
+  module Id = struct
+    type t = int [@@deriving sexp_of, equal]
+    let of_int n = n
+  end
+
+  type row = { id : Id.t; title : string }
+  type lookup = { rows : row list; error : string option }
+
+  type selection =
+    | Share of Id.t
+    | Manual of { endpoint : string; project_root : string }
+  [@@deriving sexp_of, equal]
+end
+
 module Intent = struct
   type t =
     | Refresh
     | Launch of Target.t
     | Apply_settings of Target.t * (string * string) list
     | Connections of int
-    | Connect of { endpoint : string; project_root : string }
+    | Connect of { generation : int; selection : Connection.selection }
   [@@deriving sexp_of, equal]
 end
 

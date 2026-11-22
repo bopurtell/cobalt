@@ -4,6 +4,7 @@ module Host = Cobalt_ui.Silver_overview_host
 module Adapter = Silver_overview
 module Testing = Adapter.Testing
 module Quick = Silver_quick_launch
+module Flow = Silver_flow
 module Connection = Silver_connection
 module Tile = Cobalt_screen.Silver_overview_tile
 
@@ -35,10 +36,17 @@ type session =
   (* Observation is disposable; project/model/acknowledgement are editor-session
      state. Rebinding the observation can never retarget a submitted test. *)
   { observation : Adapter.t
+  ; flow : Flow.t
+  ; flow_service : Testing.project -> Flow.service
+  ; stage_projection : Stage_projection.t
+  ; mutable pending_flow_projects : Testing.project list
   ; mutable binding : Host.binding option
   ; mutable shown : bool
   ; mutable stopped : bool
   ; mutable connect_request : int
+  ; mutable connecting : bool
+  ; mutable shared_project : bool
+  ; mutable shared_snapshot : Adapter.snapshot option
   ; mutable connection_serial : int
   ; mutable view_serial : int
   ; mutable project : Testing.project option
@@ -46,8 +54,10 @@ type session =
   ; mutable model : Quick.t
   ; mutable status : string
   ; mutable pending_project : Testing.project option
-  ; mutable known_endpoints : string list
-  ; mutable offered_endpoints : Connection.candidate list
+  ; share_fixture : string option
+  ; mutable lookup_request : int
+  ; mutable candidate_serial : int
+  ; mutable offered_shares : (Host.Connection.Id.t * Connection.Share.t) list
   ; mutable revision : int
   ; mutable changed : unit Ivar.t
   }
@@ -90,9 +100,43 @@ let invalidate session reason =
 
 let stop_project session =
   Option.iter session.project ~f:(fun project ->
-    if not (Option.exists session.pending_project ~f:(phys_equal project)) then
+    if not (Option.exists session.pending_project ~f:(phys_equal project))
+       && not (List.mem session.pending_flow_projects project ~equal:phys_equal)
+    then
       Testing.close project);
   session.project <- None
+;;
+
+let close_retired_project session project =
+  if not (Option.exists session.project ~f:(phys_equal project))
+     && not (Option.exists session.pending_project ~f:(phys_equal project))
+     && not (List.mem session.pending_flow_projects project ~equal:phys_equal)
+  then Testing.close project
+;;
+
+(* The Flow model owns catalog, settings/drafts, and generation fencing for both
+   surfaces. Keep the exact verified project alive only for an already-dispatched
+   submission, also when the user switches project while its reply is pending. *)
+let bind_flow session project =
+  let service = session.flow_service project in
+  let prepare request =
+    service.prepare request >>| Result.map ~f:(fun (prepared : Flow.prepared) ->
+       let submit ~still_current =
+        session.pending_flow_projects <- project :: session.pending_flow_projects;
+         Monitor.protect (fun () -> prepared.submit ~still_current) ~finally:(fun () ->
+          let rec remove_one = function
+            | [] -> []
+            | head :: rest when phys_equal head project -> rest
+            | head :: rest -> head :: remove_one rest
+          in
+          session.pending_flow_projects <- remove_one session.pending_flow_projects;
+          close_retired_project session project;
+          return ())
+      in
+      { prepared with submit })
+  in
+  Flow.bind session.flow { service with prepare };
+  don't_wait_for (Flow.refresh session.flow)
 ;;
 
 let start_observation session =
@@ -105,7 +149,11 @@ let start_observation session =
 let discover session serial binding project =
   session.status <- "Loading Silver test catalog…";
   touch session;
-  Testing.discover project >>| fun result ->
+  let on_snapshot =
+    Option.some_if session.shared_project (fun snapshot ->
+      if current session serial then session.shared_snapshot <- Some snapshot)
+  in
+  Testing.discover ~may_start:(not session.shared_project) ?on_snapshot project >>| fun result ->
   if current session serial then (
     (match result with
      | Ok catalog ->
@@ -124,46 +172,61 @@ let discover session serial binding project =
     touch session)
 ;;
 
-let connect session (binding : Host.binding) ~announce =
+let connect session ~announce ~shared verify =
   session.connect_request <- session.connect_request + 1;
   let request = session.connect_request in
-  session.status <- "Connecting to Silver…";
+  session.connecting <- true;
   touch session;
-  let candidate =
-    match List.find session.offered_endpoints ~f:(fun candidate ->
-      String.equal (Connection.endpoint candidate) binding.endpoint) with
-    | Some candidate -> Ok candidate
-    | None -> Connection.explicit binding.endpoint
-  in
-  (match candidate with
-   | Ok candidate ->
-     Connection.connect candidate ~project_root:binding.project_root
-     >>| Result.map ~f:(fun project -> project, Connection.endpoint candidate)
-   | Error _ as error -> return error)
-  >>= fun result ->
+  verify () >>= fun result ->
   if session.stopped || request <> session.connect_request then (
     Result.iter result ~f:(fun (project, _) -> Testing.close project);
-    return (Error "Silver connection superseded"))
-  else
+    return None)
+  else (
+    session.connecting <- false;
     match result with
     | Error reason ->
-      session.status <- reason;
+      if Option.is_none session.project then session.status <- reason;
       touch session;
-      return (Error reason)
-    | Ok (project, endpoint) ->
+      return (Some (Error reason))
+    | Ok (project, (binding : Host.binding)) ->
       session.connection_serial <- session.connection_serial + 1;
       let serial = session.connection_serial in
-      let binding = { binding with endpoint; project_root = Testing.project_root project } in
-      invalidate session "Silver connection changed; reselect a test";
-      stop_project session;
-      session.binding <- Some binding;
-      session.project <- Some project;
-      session.known_endpoints <-
-        binding.endpoint :: List.filter session.known_endpoints
-          ~f:(fun endpoint -> not (String.equal endpoint binding.endpoint));
+      let binding = { binding with project_root = Testing.project_root project } in
+       invalidate session "Silver connection changed; reselect a test";
+       stop_project session;
+       session.binding <- Some binding;
+       session.project <- Some project;
+        session.shared_project <- shared;
+        session.shared_snapshot <- None;
+       bind_flow session project;
       if announce then start_observation session;
       don't_wait_for (discover session serial binding project);
-      return (Ok ())
+      return (Some (Ok ("Connected to Silver · " ^ binding.project_root))))
+;;
+
+let connect_explicit session (binding : Host.binding) ~announce =
+  connect session ~announce ~shared:false (fun () ->
+    match Connection.explicit binding.endpoint with
+    | Error reason -> return (Error reason)
+    | Ok candidate ->
+      let endpoint = Connection.endpoint candidate in
+      Connection.connect candidate ~project_root:binding.project_root
+      >>| Result.map ~f:(fun project -> project, { binding with endpoint }))
+;;
+
+let connect_selected session (selection : Host.Connection.selection) =
+  match selection with
+  | Manual { endpoint; project_root } ->
+    connect_explicit session { endpoint; project_root; run = None } ~announce:true
+  | Share id ->
+    connect session ~announce:true ~shared:true (fun () ->
+      match List.Assoc.find session.offered_shares id ~equal:Host.Connection.Id.equal with
+      | None -> return (Error "Silver share choice is stale; rediscover")
+      | Some share ->
+        let endpoint = Connection.Share.endpoint share in
+        let project_root = Connection.Share.project_root share in
+        let binding : Host.binding = { endpoint; project_root; run = None } in
+        Connection.Share.connect share >>| Result.map ~f:(fun project -> project, binding))
 ;;
 
 let launch session (launch : Quick.launch) =
@@ -178,7 +241,7 @@ let launch session (launch : Quick.launch) =
       let { Quick.suite; cases; seed; parameters } = launch.selection in
       Testing.launch catalog ~suite ~cases ~seed ~parameters >>| fun result ->
       session.pending_project <- None;
-      if not (Option.exists session.project ~f:(phys_equal project)) then Testing.close project;
+       close_retired_project session project;
       touch session;
       (match result with
        | Accepted { attempt_id; job_id } ->
@@ -321,10 +384,12 @@ let refresh session =
   start_observation session;
   match session.binding, session.project with
   | Some binding, Some project ->
+    don't_wait_for (Flow.refresh session.flow);
     session.connection_serial <- session.connection_serial + 1;
     let serial = session.connection_serial in
     don't_wait_for (discover session serial binding project)
-  | Some binding, None -> don't_wait_for (connect session binding ~announce:false >>| ignore)
+  | Some binding, None when not session.connecting ->
+    don't_wait_for (connect_explicit session binding ~announce:false >>| ignore)
   | _ -> ()
 ;;
 
@@ -339,22 +404,87 @@ let watch_observation session =
   don't_wait_for (loop (Adapter.revision session.observation))
 ;;
 
+let watch_flow session =
+  let rec loop after =
+    Flow.await_change session.flow ~after >>= fun () ->
+    if session.stopped then return ()
+    else (
+      touch session;
+      loop (Flow.revision session.flow))
+  in
+  don't_wait_for (loop (Flow.revision session.flow))
+;;
+
 let rows session =
+  (if session.connecting then [ "Connecting to Silver…" ] else []) @
   match session.binding with
   | None -> [ session.status ]
   | Some ({ run = Some _; _ } as binding) ->
     observation_rows binding (Adapter.latest session.observation)
   | Some binding ->
     [ session.status; "Project: " ^ binding.project_root; "Endpoint: " ^ binding.endpoint ]
+    @ (match session.shared_project, session.project with
+       | true, Some project ->
+         [ "Project ID: " ^ Testing.project_id project
+         ; "Instance: " ^ Testing.instance_id project
+         ]
+        | _ -> [])
+    @ Option.value_map session.shared_snapshot ~default:[] ~f:(fun snapshot ->
+        List.concat_map snapshot.attempts ~f:attempt_rows
+        @ (if snapshot.truncated then [ "More attempts omitted" ] else []))
 ;;
 
-let connections session () =
-  Connection.lookup ~known:session.known_endpoints () >>| fun lookup ->
-  session.offered_endpoints <- lookup.candidates;
-  List.map lookup.candidates ~f:Connection.endpoint
+let connections session ~generation =
+  let empty : Host.Connection.lookup = { rows = []; error = None } in
+  if session.stopped || generation <= session.lookup_request then return empty
+  else (
+    session.lookup_request <- generation;
+    session.offered_shares <- [];
+    let%map (lookup : Connection.Share.lookup) =
+      match session.share_fixture with
+      | None -> Connection.Share.lookup_live ()
+      | Some file -> Connection.Share.lookup ~file
+    in
+    if session.stopped || generation <> session.lookup_request then empty
+    else (
+      let module Share = Connection.Share in
+      let offer_ids = List.map lookup.shares ~f:Share.offer_id in
+      let offer_label share =
+        let id = Share.offer_id share in
+        let rec distinguish length =
+          let prefix = String.prefix id length in
+          if length >= String.length id
+             || not (List.exists offer_ids ~f:(fun other ->
+               not (String.equal id other) && String.is_prefix other ~prefix))
+          then prefix
+          else distinguish (length + 1)
+        in
+        distinguish 12
+      in
+      let rows =
+        List.map lookup.shares ~f:(fun share ->
+          session.candidate_serial <- session.candidate_serial + 1;
+          let id = Host.Connection.Id.of_int session.candidate_serial in
+          session.offered_shares <- (id, share) :: session.offered_shares;
+          let title =
+            match Share.mode share with
+            | None ->
+              sprintf "Offered · %s/%s · %s · %s @ %s"
+                (Share.offer_id share) (Share.project_id share) (Share.project_root share)
+                (Share.instance_id share) (Share.endpoint share)
+            | Some mode ->
+              let label = match mode with Share.Embedded -> "embedded" | Attached -> "attached" in
+              sprintf "%s [%s · %s] · %s @ %s"
+                (Filename.basename (Share.project_root share)) label
+                (offer_label share)
+                (Share.project_root share) (Share.endpoint share)
+          in
+          { Host.Connection.id; title })
+      in
+      { Host.Connection.rows; error = lookup.error }))
 ;;
 
-let factory : Host.factory =
+let factory_with_flow_service flow_service : Host.factory =
   Some (fun ~test_default binding ->
     let binding = Option.map binding ~f:(fun (binding : Host.binding) ->
       match Connection.explicit binding.endpoint with
@@ -373,10 +503,17 @@ let factory : Host.factory =
     in
     let session =
       { observation = Adapter.create ()
+      ; flow = Flow.create ()
+      ; flow_service
+      ; stage_projection = Stage_projection.create ()
+      ; pending_flow_projects = []
       ; binding
       ; shown = false
       ; stopped = false
       ; connect_request = 0
+      ; connecting = false
+       ; shared_project = false
+       ; shared_snapshot = None
       ; connection_serial = 0
       ; view_serial = 0
       ; project = None
@@ -384,15 +521,19 @@ let factory : Host.factory =
       ; model
       ; status = "Connect to a Silver project first"
       ; pending_project = None
-      ; known_endpoints = Option.to_list (Option.map binding ~f:(fun binding -> binding.endpoint))
-      ; offered_endpoints = []
+      ; share_fixture =
+          Option.filter (Sys.getenv "COBALT_SILVER_SHARE_FIXTURE") ~f:(Fn.non String.is_empty)
+      ; lookup_request = 0
+      ; candidate_serial = 0
+      ; offered_shares = []
       ; revision = 0
       ; changed = Ivar.create ()
       }
     in
     watch_observation session;
+    watch_flow session;
     Option.iter binding ~f:(fun binding ->
-      don't_wait_for (connect session binding ~announce:false >>| ignore));
+      don't_wait_for (connect_explicit session binding ~announce:false >>| ignore));
     let show () =
       session.shown <- true;
       start_observation session
@@ -404,6 +545,8 @@ let factory : Host.factory =
     let shutdown () =
       if not session.stopped then (
         session.stopped <- true;
+        Flow.unbind session.flow;
+        List.iter session.pending_flow_projects ~f:Testing.close;
         Option.iter session.pending_project ~f:Testing.close;
         stop_project session;
         Adapter.shutdown session.observation;
@@ -416,14 +559,23 @@ let factory : Host.factory =
     ; test_action = (fun () -> test_action session)
     ; apply_settings = apply_settings session
     ; launch = run_row session
+    ; stages = (fun () -> Stage_projection.snapshot session.stage_projection session.flow)
+    ; launch_stage = Stage_projection.launch session.stage_projection session.flow
     ; connections = connections session
-    ; connect = (fun binding -> connect session binding ~announce:true)
+    ; connect = connect_selected session
     ; show
     ; hide
     ; refresh = (fun () -> refresh session)
     ; revision = (fun () -> session.revision)
     ; await_change = (fun ~after ->
       if after <> session.revision then Deferred.unit else Ivar.read session.changed)
-    ; shutdown
+     ; shutdown
+     ; kickoff =
+         Some
+           (Silver_kickoff_adapter.create ~flow:session.flow ~changed:(fun () -> touch session)
+              ~project_root:(fun () ->
+                Option.map session.binding ~f:(fun binding -> binding.project_root)))
     })
 ;;
+
+let factory = factory_with_flow_service Flow.production

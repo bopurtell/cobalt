@@ -14,5 +14,11 @@
  (libraries cobalt_ui cobalt_screen core async
   (select silver_adapter.ml from
    (cobalt_silver_overview -> silver_adapter.enabled.ml)
-   (-> silver_adapter.disabled.ml)))
+    (-> silver_adapter.disabled.ml))
+    (select stage_projection.ml from
+     (cobalt_silver_overview -> stage_projection.enabled.ml)
+     (-> stage_projection.disabled.ml))
+    (select silver_kickoff_adapter.ml from
+    (cobalt_silver_overview -> silver_kickoff_adapter.enabled.ml)
+    (-> silver_kickoff_adapter.disabled.ml)))
  (preprocess (pps ppx_jane)))

@@ -157,6 +157,10 @@ module Wire = struct
     field sexp "instance_id" |> identity
   ;;
 
+  let hello_with_capabilities sexp =
+    hello sexp, List.map (field sexp "capabilities" |> values) ~f:identity
+  ;;
+
   let opened ~project_root = result (fun payload ->
     let project = field payload "project" in
     let root = field (field project "root") "path" |> identity in
@@ -225,6 +229,23 @@ module Wire = struct
   let open_project_request ~instance_id ~project_root =
     post ~path:"/api/v1/open-project"
       [ "instance_id", atom instance_id; "root", atom project_root; "environment", atom "Inherit_daemon" ]
+  ;;
+
+  let existing_project_request ~instance_id =
+    post ~path:"/api/v1/snapshot" [ "instance_id", atom instance_id ]
+  ;;
+
+  let existing_project ~instance_id ~project_root ~project_id = result (fun payload ->
+    let instance = field (field payload "cursor") "instance_id" |> identity in
+    if not (String.equal instance instance_id)
+    then invalid "Silver snapshot belongs to a different daemon instance";
+    match List.filter (field payload "projects" |> values) ~f:(fun project ->
+      String.equal (field project "id" |> identity) project_id) with
+    | [ project ] ->
+      let root = field (field project "root") "path" |> identity in
+      if not (String.equal root project_root)
+      then invalid "Silver shared project has a different root"
+    | _ -> invalid "Silver shared project ID is no longer available")
   ;;
 
   let simulation_request ~instance_id ~project_id operation =
@@ -449,10 +470,15 @@ module Testing = struct
     { connection : connection
     ; instance_id : string
     ; project_id : string
+    ; capabilities : string list
     }
 
   let close project = Ivar.fill_if_empty project.connection.closed ()
   let project_root project = project.connection.project_root
+  let endpoint project = project.connection.endpoint
+  let instance_id project = project.instance_id
+  let project_id project = project.project_id
+  let supports project capability = List.mem project.capabilities capability ~equal:String.equal
 
   let send ?deadline connection request =
     let timeout =
@@ -500,8 +526,17 @@ module Testing = struct
       Error (sprintf "Silver HTTP %d%s" status reason)
   ;;
 
-  let connect ?(peer = http_peer) ?(timeout = Time_ns.Span.of_int_sec 5)
-        ?expected_instance_id ~endpoint ~project_root () =
+  let send_bound project ~path operation =
+    send project.connection
+      (Wire.post ~path
+         [ "instance_id", Wire.atom project.instance_id
+         ; "project", Wire.atom project.project_id
+         ; "operation", operation
+         ])
+  ;;
+
+  let verify ?(peer = http_peer) ?(timeout = Time_ns.Span.of_int_sec 5)
+        ?expected_instance_id ~endpoint ~project_root resolve =
     if not (valid_identity endpoint)
     then return (Error "Invalid explicit Silver endpoint")
     else if not (valid_identity project_root) || Filename.is_relative project_root
@@ -510,18 +545,33 @@ module Testing = struct
     then return (Error "Silver request timeout must be positive")
     else (
       let connection = { peer; endpoint; project_root; timeout; closed = Ivar.create () } in
-      match%bind read connection Wire.hello_request Wire.hello with
+      match%bind read connection Wire.hello_request Wire.hello_with_capabilities with
       | Error _ as error -> return error
-      | Ok instance_id
+      | Ok (instance_id, _)
         when Option.exists expected_instance_id ~f:(fun expected ->
           not (String.equal instance_id expected)) ->
         return (Error "Silver advertisement names a different daemon instance")
-      | Ok instance_id ->
-        let%map project =
-          read connection (Wire.open_project_request ~instance_id ~project_root)
-            (Wire.opened ~project_root)
-        in
-        Result.map project ~f:(fun project_id -> { connection; instance_id; project_id }))
+      | Ok (instance_id, capabilities) ->
+        let%map project = resolve connection instance_id in
+        Result.map project ~f:(fun project_id -> { connection; instance_id; project_id; capabilities }))
+  ;;
+
+  let connect ?peer ?timeout ?expected_instance_id ~endpoint ~project_root () =
+    verify ?peer ?timeout ?expected_instance_id ~endpoint ~project_root
+      (fun connection instance_id ->
+         read connection (Wire.open_project_request ~instance_id ~project_root)
+           (Wire.opened ~project_root))
+  ;;
+
+  let attach_existing ?peer ?timeout ~instance_id ~endpoint ~project_root ~project_id () =
+    if not (valid_identity instance_id && valid_identity project_id)
+    then return (Error "Invalid Silver share instance or project ID")
+    else
+      verify ?peer ?timeout ~expected_instance_id:instance_id ~endpoint ~project_root
+        (fun connection instance_id ->
+           read connection (Wire.existing_project_request ~instance_id)
+             (Wire.existing_project ~instance_id ~project_root ~project_id)
+           >>| Result.map ~f:(fun () -> project_id))
   ;;
 
   type parameter =
@@ -657,10 +707,26 @@ module Testing = struct
     Wire.simulation_request ~instance_id:project.instance_id ~project_id:project.project_id operation
   ;;
 
-  let discover ?(discovery_timeout = Time_ns.Span.of_int_sec 30) project =
+  let discover ?(discovery_timeout = Time_ns.Span.of_int_sec 30) ?(may_start = true)
+      ?on_snapshot project =
     let deadline = Time_ns.add (Time_ns.now ()) discovery_timeout in
     let read_catalog operation =
-      read ~deadline project.connection (rpc project (Wire.atom operation)) (catalog_state project)
+      let decode wire =
+        let catalog = catalog_state project wire in
+        let status =
+          Option.map on_snapshot ~f:(fun _ ->
+            let binding =
+              { endpoint = endpoint project; project_root = project_root project; run = None }
+            in
+            Wire.snapshot ~binding ~instance_id:project.instance_id ~project_id:project.project_id
+              wire)
+        in
+        catalog, status
+      in
+      let%map result = read ~deadline project.connection (rpc project (Wire.atom operation)) decode in
+      Result.map result ~f:(fun (catalog, status) ->
+        Option.iter (Option.both on_snapshot status) ~f:(fun (f, status) -> f status);
+        catalog)
     in
     let rec get operation ~may_start =
       match%bind read_catalog operation with
@@ -679,7 +745,7 @@ module Testing = struct
           let%bind () = Deferred.any_unit [ Ivar.read project.connection.closed; Clock_ns.after pause ] in
           get "Get" ~may_start:false)
     in
-    get "Get" ~may_start:true
+    get "Get" ~may_start
   ;;
 
   type acceptance = { attempt_id : string; job_id : string }

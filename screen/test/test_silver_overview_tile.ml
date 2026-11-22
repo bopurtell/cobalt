@@ -184,26 +184,57 @@ let%test_unit "catalog changes require a new tile selection and drafts retain th
   assert ([%equal: Tile.Intent.t list] (snd (take ui)) [ Launch new_seeded ])
 ;;
 
-let%test_unit "connection picker lists known endpoints, accepts explicit input, and fences old replies" =
+let%test_unit "share picker captures identity, keeps the manual route, and fences old replies" =
+  let module Connect = Tile.Connection in
   let ui = test_ui (Unavailable "Connect to a Silver project first") in
   let ui = Ui_state.with_silver_connection ui ~project_root:"/startup/project" in
-  let ui = run ui " vU ccsilver connect<CR>" in
-  let ui, intents = take ui in
-  let generation =
-    match intents with [ Connections generation ] -> generation | _ -> assert false
+  let open_picker ui =
+    let ui = run ui " ccsilver connect<CR>" in
+    match take ui with
+    | ui, [ Connections generation ] -> ui, generation
+    | _ -> assert false
   in
-  let ui = Ui_state.receive_silver_connections ui ~generation [ "http://localhost:3000" ] in
-  assert (has ui "http://localhost:3000");
-  let ui = run ui "<CR>" in
-  assert (String.equal (focus ui) "silver-overview");
+  let ui, generation = open_picker ui in
+  assert (has ui "Looking for Silver shares");
+  let a = Connect.Id.of_int 41 and b = Connect.Id.of_int 92 in
+  let lookup : Connect.lookup =
+    { rows =
+        [ { id = a; title = "Offered · alpha · /startup/project" }
+        ; { id = b; title = "Offered · beta · /other/project" }
+        ]
+    ; error = None
+    }
+  in
+  let ui = Ui_state.receive_silver_connections ui ~generation lookup in
+  assert (has ui "/startup/project" && has ui "/other/project");
+  let ui = run ui "beta<CR>" in
+  assert (String.equal (focus ui) "document");
+  assert (Option.equal String.equal (Ui_state.capture_notice ui) (Some "Connecting to Silver…"));
   let ui, intents = take ui in
   assert ([%equal: Tile.Intent.t list] intents
-    [ Connect { endpoint = "http://localhost:3000"; project_root = "/startup/project" } ]);
-  let ui = run ui " ccsilver connect<CR>" in
-  let ui, _ = take ui in
-  let ui = Ui_state.receive_silver_connections ui ~generation [ "http://localhost:3000" ] in
-  assert (not (has ui "http://localhost:3000"));
+    [ Connect { generation; selection = Share b } ]);
+  let ui = run ui " vU" in
+  let ui, later = open_picker ui in
+  let ui = Ui_state.receive_silver_connections ui ~generation lookup in
+  assert (not (has ui "/other/project"));
+  let ui = Ui_state.receive_silver_connections ui ~generation:later
+      { rows = []; error = Some "Malformed fixture" } in
+  assert (has ui "Malformed fixture");
   let ui = run ui "http://127.0.0.1:4200<CR>" in
-  assert ([%equal: Tile.Intent.t list] (snd (take ui))
-    [ Connect { endpoint = "http://127.0.0.1:4200"; project_root = "/startup/project" } ])
+  let ui, intents = take ui in
+  assert ([%equal: Tile.Intent.t list] intents
+    [ Connect { generation = later
+              ; selection = Manual { endpoint = "http://127.0.0.1:4200"
+                                   ; project_root = "/startup/project" } } ]);
+  let ui = Ui_state.receive_silver_connect_result ui ~generation (Ok "Stale success") in
+  assert (Option.equal String.equal (Ui_state.capture_notice ui) (Some "Connecting to Silver…"));
+  let ui = Ui_state.receive_silver_connect_result ui ~generation:later (Error "Unreachable") in
+  assert (Option.equal String.equal (Ui_state.capture_notice ui) (Some "Unreachable"));
+  assert (String.equal (focus ui) "silver-overview");
+  let ui, cancelled = open_picker ui in
+  let ui = Ui_state.receive_silver_connections ui ~generation:cancelled { rows = []; error = None } in
+  assert (has ui "No Silver project shares");
+  let ui = run ui "<Esc>" in
+  let ui = Ui_state.receive_silver_connections ui ~generation:cancelled lookup in
+  assert (String.equal (focus ui) "silver-overview" && not (has ui "/other/project"))
 ;;

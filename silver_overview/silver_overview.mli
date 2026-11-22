@@ -96,10 +96,34 @@ module Testing : sig
     -> unit
     -> (project, string) result Async.Deferred.t
 
+  (** Require this exact instance and already-open project ID/root, using
+      [hello] and the read-only v1 snapshot. Never calls [open-project]. *)
+  val attach_existing
+    :  ?peer:peer
+    -> ?timeout:Core.Time_ns.Span.t
+    -> instance_id:string
+    -> endpoint:string
+    -> project_root:string
+    -> project_id:string
+    -> unit
+    -> (project, string) result Async.Deferred.t
+
   (** Abandon local requests and invalidate this project's catalogs. Does not
       cancel attempts or shut down the daemon. *)
   val close : project -> unit
   val project_root : project -> string
+  val endpoint : project -> string
+  val instance_id : project -> string
+  val project_id : project -> string
+  val supports : project -> string -> bool
+
+  (** Shared bound transport for optional companion adapters. Uses the same
+      peer, lifetime and timeout as the verified project; does not retry. *)
+  val send_bound
+    :  project
+    -> path:string
+    -> Core.Sexp.t
+    -> (response, string) result Async.Deferred.t
 
   type parameter =
     { key : string
@@ -122,9 +146,13 @@ module Testing : sig
 
   (** Read the current catalog, starting at most one provider discovery if needed.
       Polls only while discovery is in progress and only up to [discovery_timeout]
-      (default 30 seconds). Does not start a simulation. *)
+      (default 30 seconds). Does not start a simulation. Pass [~may_start:false]
+      for a read-only check. [on_snapshot] receives the bounded attempt summary
+      from the same response, scoped to the exact verified project. *)
   val discover
     :  ?discovery_timeout:Core.Time_ns.Span.t
+    -> ?may_start:bool
+    -> ?on_snapshot:(snapshot -> unit)
     -> project
     -> (catalog, string) result Async.Deferred.t
 

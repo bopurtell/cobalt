@@ -164,8 +164,10 @@ val take_external_terminal_toggles : t -> t * int option list
 
 val with_host_commands : t -> Cobalt_palette.Catalog.Host_command.t list -> t
 val with_silver_test : t -> Silver_overview_tile.Test_action.t -> t
+val with_silver_stage : t -> Silver_stage_tile.Snapshot.t -> t
 val with_silver_connection : t -> project_root:string -> t
-val receive_silver_connections : t -> generation:int -> string list -> t
+val receive_silver_connections : t -> generation:int -> Silver_overview_tile.Connection.lookup -> t
+val receive_silver_connect_result : t -> generation:int -> (string, string) result -> t
 val with_silver_result : t -> (string, string) result -> t
 val take_host_command_requests : t -> t * string list
 (** Drain recognized toggles in recognition order. [None] leaves terminal

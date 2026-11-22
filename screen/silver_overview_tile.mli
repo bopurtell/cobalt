@@ -1,5 +1,5 @@
-(** Presents Silver display rows and captured test selections. No connection or
-    freshness decisions are made here. *)
+(** Presents Silver display rows and captures test selections and opaque share
+    choices. No connection or freshness decisions are made here. *)
 open! Core
 
 val id : Cobalt_tile.View_id.t
@@ -27,13 +27,28 @@ module Test_action : sig
   val title : t -> string
 end
 
+module Connection : sig
+  module Id : sig
+    type t [@@deriving sexp_of, equal]
+    val of_int : int -> t
+  end
+
+  type row = { id : Id.t; title : string }
+  type lookup = { rows : row list; error : string option }
+
+  type selection =
+    | Share of Id.t
+    | Manual of { endpoint : string; project_root : string }
+  [@@deriving sexp_of, equal]
+end
+
 module Intent : sig
   type t =
     | Refresh
     | Launch of Target.t
     | Apply_settings of Target.t * (string * string) list
     | Connections of int
-    | Connect of { endpoint : string; project_root : string }
+    | Connect of { generation : int; selection : Connection.selection }
   [@@deriving sexp_of, equal]
 end
 

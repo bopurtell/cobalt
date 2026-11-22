@@ -140,8 +140,9 @@ def test(binary, wire):
                     send(ui, [b" cc", b"test"])
                     ui.see(b"FIFO / smoke")
                     assert b"Choose a Silver test" not in ui.output
-                # No CLI binding: an advertised daemon is suggested but not contacted
-                # until selected. The same UI also accepts a typed loopback URL.
+                # No CLI binding: a native daemon advertisement is not a project
+                # share. The picker still accepts a typed loopback URL.
+                env.pop("COBALT_SILVER_SHARE_FIXTURE", None)
                 metadata = Path(temp) / "hardcaml-workbench/daemon.sexp"
                 metadata.parent.mkdir()
                 metadata.write_text(f"((endpoint {endpoint})(instance_id fixture)(pid {os.getpid()}))")
@@ -152,9 +153,9 @@ def test(binary, wire):
                 with editor(binary, local_file, env, []) as ui:
                     ui.see(b"CONNECT_FROM_CODE")
                     send(ui, [b" cc", b"silver connect", b"\r"])
-                    ui.see(endpoint.encode())
+                    ui.see(b"No Silver project shares")
                     assert len(requests) == count, requests
-                    send(ui, [b"\r"])
+                    send(ui, [endpoint.encode(), b"\r"])
                     wait(lambda: len(requests) >= count + 3)
                     send(ui, [b" vz", b" vU"])
                     ui.see(b"seeded")

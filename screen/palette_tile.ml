@@ -73,6 +73,7 @@ let interpret (keys : Key.t list) : action Cobalt_tile.Content_key.t =
 let hint = "Type to search; Ctrl-w deletes a word, Tab/Shift-Tab or Ctrl-n/p select, Enter runs"
 let update t ~rows event = fit { t with palette = Palette.update t.palette event } ~rows
 let with_catalog t catalog = { t with palette = Palette.with_catalog t.palette catalog }
+let with_empty t empty = { t with empty }
 let prompt = Picker_text.prompt
 
 (* The prompt and as much of the query's end as leaves a cell for the cursor. *)

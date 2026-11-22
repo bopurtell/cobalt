@@ -2,8 +2,9 @@
 
 ## Silver integration
 
-- [Cobalt-side work queue](silver_integration.md): module boundaries, independently
-  testable tickets, and the handoff to Silver for each workflow.
+- [Cobalt-side work queue](silver_integration.md): C1–C6 are closed. Start with
+  C7 for no-flags discovery, C8 for the stage checklist and aliases, or C9 for
+  the flow kickoff tile. Each lists the Silver handoff needed for live acceptance.
 
 ## Language-aware editing
 
@@ -16,6 +17,25 @@
   proposed ticket backlog for SV design/verification, Xilinx register terminology,
   core/testing/Jane Street OCaml, Signal-first Hardcaml design/verification, and
   collection discovery and activation.
+
+## Editor and workspace tickets
+
+| Ticket | Status | Scope |
+| --- | --- | --- |
+| [C10: Side-by-side file editors](c10-side-by-side-editors.md) | Proposed | Two keyboard-accessible file editor panes in the existing workspace |
+| [C11: Basic mouse support](c11-mouse-support.md) | Proposed | Opt-in click-to-focus, cursor placement, file tab activation, and wheel scrolling |
+
+The Oil/Dired-style directory refresh already exists: focus the listing and
+press `Space r` in Normal mode. It rereads a clean listing from disk and
+refuses pending directory edits. Cached revisits do not refresh automatically;
+`:e!` reloads files, not directory listings. See the
+[directory workspace reference](../directory_workspace.md#navigation-tabs-and-opening).
+
+## Installation
+
+- [C12: Install Cobalt from a clone](c12-source-install.md) (proposed):
+  build and install the native commands into a user-owned prefix with one
+  Silver-style `./install.sh` invocation once prerequisites are available.
 
 ## Deferred workspace work
 

@@ -1,13 +1,13 @@
 # Silver integration: Cobalt-side tickets
 
-**Status:** C1–C5 are **closed** for their Cobalt-side scope; their handoff
-evidence is linked below. C5 also passed its live two-window check. C6 is
-**in progress**, starting with test quick launch. Use these as implementation slices, not duplicate feature
-trackers. Silver's `docs/cobalt_editor_roadmap.md` owns the user workflows and
-end-to-end acceptance. “Ready for Silver” here means a Cobalt interface is usable
-and demonstrated against a local harness. It does not mean the two apps have
-been integrated. Keep example requests, replies and harness instructions with
-the module that implements them so Silver can consume the same examples.
+**Status:** C1–C6 are **closed** for their Cobalt-side scope. C5 and C6 passed
+live two-window checks for simulation observation and test quick launch,
+respectively. C7–C9 are active implementation slices, not duplicate feature
+trackers. Silver's `docs/cobalt_editor_roadmap.md` and the named WB tickets own
+the user workflows and end-to-end acceptance. “Ready for Silver” means the
+Cobalt interface works against a local harness, not that the two apps have been
+integrated. The WB records live under Silver's `docs/features/integrations/`.
+Keep fixture exchanges and harness instructions with their adapter.
 
 ## Ticket status and handoffs
 
@@ -18,10 +18,18 @@ the module that implements them so Silver can consume the same examples.
 | [C3: Terminal handoff](#c3--expose-toggleterm-as-a-host-action) | Closed | WB-089/090: numbered shells and focus |
 | [C4: Main editor destination](#c4--address-an-opted-in-standalone-editor) | Closed | Silver navigation: second destination for the same location |
 | [C5: Companion overview](#c5--optional-silver-module-and-overview-tile) | Closed | Cobalt-first monitoring against a real Silver endpoint |
-| [C6: Companion commands](#c6--run-a-silver-command-from-the-editor) | In progress | WB-093: test quick launch first, then stage quick launch |
+| [C6: Test quick launch](#c6--run-a-silver-test-from-the-editor) | Closed | WB-093: tile `R` and exact `test`; no stage launch |
+| [C7: Discover/connect wizard](#c7--discover-and-connect-to-a-shared-silver-project) | Live embedded + attached verified | WB-094: two-app acceptance passed |
+| [C8: Stage checklist and aliases](#c8--stage-checklist-and-palette-aliases) | Fixture verified | WB-095: native two-window comparison pending |
+| [C9: Flow kickoff tile](#c9--flow-kickoff-tile) | Fixture verified | WB-095: live plan and accepted workflow comparison pending |
 
-**Next:** C6 builds on C5's connection model. Use the two delivery slices below;
-Silver WB-093 is the single end-to-end acceptance record.
+**Parallel order:** start C7's picker against fixture advertisements while
+C8 and C9 start against a fake launch service with an explicit project binding.
+C8 and C9 should first agree on a small shared launch interface (cached catalog,
+captured intent, typed result); then build their surfaces in parallel. Neither
+needs the other's UI, C7's real share publisher, or Silver's embedded editor.
+Integrate and test the shared WB-095 wire adapter once Silver supplies the
+contract and fixtures below. C7 live acceptance has its own publisher gate.
 
 ## C1 — Open a location in a live session
 
@@ -121,19 +129,14 @@ authoritative types are in Silver's `protocol/simulation.ml`.
 [adapter contract](../../silver_overview/README.md), or [reproduce the two-window
 acceptance check and captured exchanges](../../examples/silver_overview/README.md).
 
-## C6 — Run a Silver command from the editor
+## C6 — Run a Silver test from the editor
 
-**Status: slice 1 implemented and live-tested; slice 2 proposed.** One optional Silver module owns the connection,
-selected targets, settings, launch requests and acknowledgements. It may split those
-responsibilities into internal modules. Tiles render module state and emit intents;
-tile `R` and palette commands invoke the same launch operation.
-
-**Connect once.** `Silver: Connect…` lists known or advertised local Silver
-connections and accepts an explicit endpoint. Verify Silver's handshake before
-binding. A project binding suffices before the first attempt exists. Changing
-buffers or hiding a tile neither retargets commands nor drops pending results.
-
-**Slice 1 — test quick launch**
+**Closed (WB-093): test quick launch only.** The optional Silver composition
+owns the verified project binding, test catalog, settings and acknowledgements.
+The tile and exact `test` invoke the same launch operation. A project binding
+suffices before the first attempt exists; hiding the tile does not drop it or
+retarget a pending launch. Stage work moved to C8/WB-095 and is not delivered
+by C6.
 
 The [launch adapter](../../silver_overview/README.md#testing-quick-launch)
 documents the verified connection, discovery digest and one-shot submission.
@@ -144,33 +147,164 @@ The [two-window acceptance harness](../../examples/silver_overview/README.md#c6-
 verified that applying `n=50` created no attempt, then tile `R` and palette
 `test` each created a distinct passing attempt with that value in Silver.
 
-- Render suites and their variants in a compact tile. `R` on a suite launches with
-  configured/catalog defaults; `R` on a variant launches that variant. `Enter`
-  opens a floating field editor. Apply returns to the row **without launching**;
-  cancel leaves its previous values intact.
-- Keep overrides per project/suite/variant for the session, including across tile
+- The tile lists suites and variants; `R` runs the selected row. `Enter` opens
+  a floating field editor; Apply returns to the row **without launching**, and
+  cancel leaves the previous values intact.
+- Overrides are scoped per project/suite/variant for the session, including across tile
   close/reopen. Exact palette alias `test` uses the configured default target,
   otherwise the last launched target for that project (not the last browsed row).
   If neither exists, open the picker. Show the resolved target and non-default
   values in the result, e.g. `Run test · FIFO / seeded · n=50`.
-- Launch saved project inputs. Capture the selection and discovery digest together;
-  a stale catalog requires a fresh selection rather than a silent substitution.
+- Launch uses saved project inputs and captures the selection and discovery
+  digest together. A stale catalog requires reselection, not substitution.
+  Results distinguish rejection from unconfirmed delivery; reconnect never
+  replays a submission. The watched attempt is independent.
 
-**Slice 2 — stage quick launch.** `R` on a checklist row runs the active flow
-through that stage using Silver's quick-launch rules and defaults. Exact palette
-aliases `synth`, `timing` and `routing` target their named stages regardless of
-the selected row. For these fundamental aliases and `test`, put the action in
-**row 1, selected** on an exact query. More text resumes normal search. An
-unavailable exact action shows its reason; Enter must not launch another match.
+**Regression coverage:** `dune runtest silver_overview screen bin` covers the
+model, fake peer, headless tile/palette routing and standalone PTY. The
+[captured Testing exchanges](../../examples/silver_overview/wire/) are reusable
+regression fixtures, not ASIC launch examples.
 
-**Focus and results.** Keep focus in the invoking tile after `R`; dismissing the
-palette restores its caller. Show acceptance and the run/attempt identity without
-replacing a watched run. Separate rejection from a lost acknowledgement; never
-resubmit automatically on reconnect. Closing Cobalt leaves Silver's work running.
+## C7 — Discover and connect to a shared Silver project
 
-**Handoff to WB-093:** capture one real catalog/launch/reply exchange and use
-it as a fake-peer fixture. Verify one submission per invocation, focus, and
-unconfirmed delivery. Then run two live checks: (1) change `n=10` to `50`,
-launch via `R`, hide the tile and launch via palette `test` from code; Silver
-must show two distinct attempts for the same target with `n=50`; (2) compare
-a checklist `R` launch with an exact alias launch through the same stage.
+**WB-094-editor-project-sharing.** From ordinary standalone Cobalt, open
+`Silver: Discover/Connect…`, list local project shares with their project
+identity and availability, and bind only after explicit selection and
+verification. Keep the existing explicit endpoint/project route, including the
+CLI, as a fallback. A daemon address alone is not a project share. Do not scan
+ports or directories, infer a share from the active buffer, or auto-start a
+daemon. No prior run/attempt is required.
+
+**Implemented:** the picker reads Silver's locked WB-094 live registry. See the
+[publication contract and fixture](../../silver_overview/README.md#discoverconnect-wb-094)
+and [standalone fake-peer terminal test](../../bin/test_silver_share_cli.py).
+The Cobalt-only fixture remains a separate input, not a production index.
+
+**Start here:** [`Silver_connection`](../../silver_overview/silver_connection.mli)
+already lists one native `daemon.sexp` plus known endpoints, validates loopback
+URLs, and injects a fake peer for `hello` and exact-root project open. The
+[composition](../../bin/composition/silver_adapter.enabled.ml) already swaps
+command bindings only after verification; the [host interface](../../ui/silver_overview_host.mli)
+and [`Ui_state`](../../screen/ui_state.ml) implement a generation-fenced endpoint
+picker tied to the editor's startup root. Today the host hands the picker URL
+strings, not project choices. Extend that seam with display rows and opaque
+candidate IDs that retain the advertised identity; don't round-trip an
+advertised selection as free-form URL input. Keep file lookup, handshake and
+binding outside the tile. Show empty, malformed, withdrawn, unreachable and
+connecting states with a usable manual route. A failed or superseded connect
+must not replace the current working binding, retarget pending work, or silently
+open a different project.
+
+**Ready for Silver:** extend
+[`test_connection`](../../silver_overview/test/test_connection.ml) with a
+temporary share source and injected peer; check exact root/instance, stale,
+duplicate or withdrawn choices, failed verification, and no launch RPC. Extend
+the [headless picker tests](../../screen/test/test_silver_overview_tile.ml)
+for no-flags entry, two projects (including one not at the editor startup root),
+manual fallback, late lookup/connect, and focus return. Add a `bin` fake-peer
+PTY test from ordinary startup; preserve the no-adapter startup smoke check.
+
+**Live acceptance (Silver WB-094):** Select a share from unflagged Cobalt, compare backend/project
+and retained attempt identity and outcome, then launch a test from Cobalt and
+find it in Silver alongside that history. Check withdrawal or project switch
+with an active job and independent offers: only discoverability changes, not
+the service, job or history. A withdrawn offer cannot be used as a share
+even if an explicit connection still works. These gates do not block the
+fixture-backed wizard or manual path.
+
+## C8 — Stage checklist and palette aliases
+
+**Implemented:** the [shared launch adapter](../../silver_overview/FLOW.md)
+uses advertised fresh stage endpoints and Silver's `Stage_fresh` /
+`Launch_fresh` operations. The [terminal test](../../bin/test_silver_stage_cli.py)
+exercises the checklist and exact aliases against an offline peer.
+
+**WB-095-companion-flow-launch.** A checklist renders the connected project's
+launchable stages and disabled reasons, not invented run evidence. Focused `R`
+launches the active flow through the selected stage, including a supported
+fresh endpoint before any prior run. Preserve applicable flow/profile settings
+and explicit assignments, or use the target's declared defaults if no
+settings apply; change only the endpoint. Reject stale explicit inputs rather
+than falling back. Exact `synth`, `timing` and `routing`
+target their named stages independently of the selected row; resolve through
+Silver's declared capabilities/defaults, never by guessing endpoint IDs or
+using another target's profile. The exact action is row 1 and selected, even
+when unavailable. Enter on an unavailable exact query reports why and cannot
+dispatch a runner-up. Additional query text restores ordinary search. `R` keeps
+tile focus; accepting/dismissing the palette returns to its caller.
+
+**Start here:** reuse the cached rows / captured intent pattern in
+[`Silver_overview_host`](../../ui/silver_overview_host.mli), the `test` path in
+[`Ui_state`](../../screen/ui_state.ml), and
+[`priority_alias`/`exact_only`](../../palette/catalog.mli). Put ASIC catalog
+mapping, resolution and submit orchestration in the optional adapter, separate
+from the test model and from watched simulation state. Use the same typed
+submit path for checklist and palette. Capture the binding, catalog generation
+and resolved target with each intent; revalidate before submission instead of
+substituting new inputs. Cobalt should not duplicate Silver's provider policy
+or launch on render, discovery, or selection.
+
+**Ready for Silver:** add headless `screen` tests for a selected row that differs
+from the alias, all three exact queries, unavailable Enter/no fallback, extra
+text, focus, and palette dispatch with the checklist hidden. In `silver_overview`
+test the launch seam with a fake service: one submit per ready intent, none
+for stale/unsupported targets, matching captured inputs for equivalent `R`
+and alias actions, and no replay after an unconfirmed reply. Surface accepted
+identity without replacing the watched attempt.
+
+**Handoff / live blocker:** Silver's `terminal/stage_action.ml`,
+`terminal/stage_launch_commands.ml` and `protocol/asic.ml` are references, not
+a Cobalt launch contract. The current Cobalt handshake checks `simulation`,
+not flow readiness. Silver must pin the capability check and public resolution source
+(target, flow/profile/defaults, stage-to-endpoint mappings including timing)
+and confirm the native submission sequence and response identities, including
+`Stage_fresh` / `Launch_fresh` if that is the agreed path. Capture a real
+catalog/resolve/stage/submit exchange and stale/unsupported cases. Compare
+checklist `R` and each alias with Silver's native resolution through the same
+stage using an explicit project binding. Compare target, flow, profile and
+endpoint and verify distinct acknowledged runs; do not claim live parity
+before that.
+
+## C9 — Flow kickoff tile
+
+**Implemented:** see [kickoff controls](../../bin/SILVER_OVERVIEW.md#kick-off-a-named-flow),
+the [adapter's plan/submit contract](../../silver_overview/FLOW.md), and the
+[terminal regression test](../../bin/test_silver_kickoff_cli.py). The latter
+checks project switching during preparation, exact reviewed values, and
+acknowledgement while hidden. A live Silver comparison remains outstanding.
+
+**WB-095-companion-flow-launch.** Add a dedicated tile for selecting a named
+flow and its declared inputs, reviewing the resolved preview, and explicitly
+choosing **Kickoff**. Show the resolved chip/variant, flow, profile, endpoint
+and parameter values supplied by Silver. Disable Kickoff with a reason for
+missing, pending, failed or stale preparation; submit only the exact ready
+preview. Opening the tile, editing/applying inputs and preparing a preview
+do not start execution. Kickoff uses saved project inputs; no editor auto-save.
+Show pending, accepted identity, rejection or unconfirmed delivery without
+stealing focus or changing a watched run. Hiding the tile must not discard
+a pending reply or cancel Silver's work.
+
+**Start here:** model the draft separately from the test model
+([`Silver_quick_launch`](../../silver_overview/silver_quick_launch.mli) is an
+example of captured edits and explicit apply). Mount the new tile using the
+[optional composition](../../bin/composition/dune) and the
+[view registry seam](../../ui/silver_overview_host.ml). Consume the shared
+C8/C9 launch interface against a fake service, not C8's checklist or a live
+daemon. Snapshot binding, catalog generation and preview identity at Kickoff;
+invalidate stale drafts or plans visibly, never pick a replacement silently.
+
+**Ready for Silver:** add model tests for declared defaults, input validation
+and stale generations; headless tile tests for edit/cancel/Apply and preview
+versus Kickoff, focus and hide/reopen; fake-service (and `bin` PTY) tests for exactly one
+submission with the reviewed values, switching project during planning, delayed
+acknowledgements, and no automatic replay. Test with an explicit project
+binding and keep no-Silver editing unaffected.
+
+**Handoff / live blocker:** in addition to C8's shared wire contract, Silver
+must identify the authoritative flow input schema and the exact plan/preview
+or intent identity required to launch the reviewed inputs, with real native
+catalog, preparation, submission and acceptance fixtures. Compare a non-default
+Cobalt preview with Silver's native plan, verify preview alone creates no run,
+then Kickoff once and identify the accepted run in Silver with those exact
+inputs. A stale or unavailable preview must create no run. This needs the real
+flow service, not C7 project sharing or completion of the C8 UI.

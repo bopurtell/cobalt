@@ -57,6 +57,7 @@ val hint : string
 (** Apply [event], then {!fit} to [rows]. *)
 val update : t -> rows:int -> Palette.Event.t -> t
 val with_catalog : t -> Catalog.t -> t
+val with_empty : t -> string -> t
 
 (** The text-entry point after the query on the prompt row, in a [width]-cell content
     area: a bar, always within the area when [width > 0]. *)

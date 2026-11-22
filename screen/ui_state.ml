@@ -238,11 +238,14 @@ type t =
   ; palette : Palette_tile.t option (** Open, and then focused, or closed. *)
   ; palette_caller : View_id.t option
   ; silver_picker : (string * Silver_overview_tile.Target.t) list option
-  ; silver_connections : (int * (string * string) list) option
+  ; silver_connections : (int * (string * Silver_overview_tile.Connection.row) list) option
+  ; silver_connecting : int option
   ; silver_connection_generation : int
   ; silver_project_root : string option
   ; silver_test : Silver_overview_tile.Test_action.t
   ; palette_silver_test : Silver_overview_tile.Test_action.t option
+  ; silver_stage : Silver_stage_tile.Snapshot.t
+  ; palette_silver_stage : Silver_stage_tile.Snapshot.t option
   ; terminal_visible : bool
   ; terminal_number : int
   ; terminal_sessions : terminal_session Int.Map.t
@@ -460,10 +463,13 @@ let create
    ; palette_caller = None
    ; silver_picker = None
    ; silver_connections = None
+   ; silver_connecting = None
    ; silver_connection_generation = 0
    ; silver_project_root = None
    ; silver_test = Unavailable "No Silver project is bound"
    ; palette_silver_test = None
+   ; silver_stage = Silver_stage_tile.Snapshot.unavailable Silver_stage_tile.adapter_unavailable
+   ; palette_silver_stage = None
   ; terminal_visible = false
   ; terminal_number = 1
   ; terminal_sessions = Int.Map.empty
@@ -2043,7 +2049,8 @@ let leave t id =
   else if View_id.equal id Palette_tile.id
   then (* Leaving closes the palette and discards its query; nothing runs. *)
      { t with palette = None; palette_origin = None; palette_caller = None
-     ; silver_picker = None; silver_connections = None; palette_silver_test = None }
+      ; silver_picker = None; silver_connections = None; palette_silver_test = None
+      ; palette_silver_stage = None }
   else if View_id.equal id Help_tile.id
   then { t with help = None }
   else if is_ask id
@@ -2119,6 +2126,43 @@ let with_host_commands t host_commands =
 ;;
 
 let silver_test_id = "silver.test"
+let silver_stage_open_id = "silver.stage.open"
+let silver_stage_toggle_id = "silver.stage.toggle"
+
+let silver_stage_entries t =
+  let view_entries =
+    if not (View_registry.installed t.views Silver_stage_tile.id) then []
+    else
+      [ Cobalt_palette.Catalog.Entry.create_host ~id:silver_stage_open_id
+           ~title:Silver_stage_tile.title
+           ~aliases:[ "silver stages"; "open stage checklist"; "synth checklist"
+                    ; "timing checklist"; "routing checklist" ] ()
+      ; Cobalt_palette.Catalog.Entry.create_host ~id:silver_stage_toggle_id
+          ~title:("Toggle " ^ Silver_stage_tile.title) ()
+      ]
+  in
+  view_entries @ List.map Silver_stage_tile.Alias.all ~f:(fun alias ->
+    let action = Silver_stage_tile.Snapshot.alias t.silver_stage alias in
+    Cobalt_palette.Catalog.Entry.create_host ~id:(Silver_stage_tile.Alias.command_id alias)
+      ~title:(Silver_stage_tile.Action.title alias action)
+      ~priority_alias:(Silver_stage_tile.Alias.query alias) ~exact_only:true ())
+;;
+
+let with_silver_stage t snapshot =
+  let t = map_view t Silver_stage_tile.key ~f:(fun tile ->
+    Silver_stage_tile.with_snapshot tile snapshot)
+  in
+  { t with silver_stage = snapshot }
+;;
+
+let silver_stage_alias ~matches =
+  List.find Silver_stage_tile.Alias.all ~f:matches
+;;
+
+let palette_stage_alias t ~matches =
+  Option.map (Option.both t.palette_silver_stage (silver_stage_alias ~matches))
+    ~f:(fun (snapshot, alias) -> Silver_stage_tile.Snapshot.alias snapshot alias)
+;;
 let silver_connect_id = "silver.connect"
 let silver_test_entry action =
   Cobalt_palette.Catalog.Entry.create_host ~id:silver_test_id
@@ -2128,7 +2172,7 @@ let silver_test_entry action =
 
 let silver_connect_entry =
   Cobalt_palette.Catalog.Entry.create_host ~id:silver_connect_id
-    ~title:"Silver: Connect…" ~aliases:[ "endpoint"; "silver connect" ] ()
+    ~title:"Silver: Discover/Connect…" ~aliases:[ "endpoint"; "silver connect" ] ()
 ;;
 
 let with_silver_connection t ~project_root = { t with silver_project_root = Some project_root }
@@ -3085,7 +3129,7 @@ let scroll_view t ~width ~height (scroll : View_command.Scroll.t) ~count =
 ;;
 
 (* A capture notice in the focused view's footer, also reported as feedback from it. *)
-let pane_notice t ~source text =
+let pane_notice ?(severity = Cobalt_error.Error.Severity.Info) ?(history = false) t ~source text =
   { t with
     host = Host.with_notice t.host text
   ; controller =
@@ -3094,9 +3138,9 @@ let pane_notice t ~source text =
         (Notify
            { source = View_id.to_string source
            ; scope = path t
-           ; severity = Info
+           ; severity
            ; text
-           ; history = false
+           ; history
            })
   }
 ;;
@@ -3971,7 +4015,10 @@ let open_palette t ~width ~height =
     let catalog =
       Cobalt_palette.Catalog.create
          (List.map local ~f:fst @ Cobalt_palette.Catalog.entries globals
-          @ [ silver_test_entry t.silver_test ]
+           @ [ silver_test_entry t.silver_test ]
+           @ silver_stage_entries t
+           @ (if View_registry.installed t.views Silver_kickoff_tile.id
+              then Silver_kickoff_tile.palette_entries else [])
           @ if Option.is_some t.silver_project_root then [ silver_connect_entry ] else [])
       |> Result.ok |> Option.value ~default:globals
       |> fun catalog -> Cobalt_palette.Catalog.with_host_commands catalog t.host_commands
@@ -3994,6 +4041,7 @@ let open_palette t ~width ~height =
        ; palette_origin = origin
        ; palette_caller = Some (Option.value origin ~default:current)
        ; palette_silver_test = Some t.silver_test
+       ; palette_silver_stage = Some t.silver_stage
       }
     in
     { t with
@@ -4034,16 +4082,17 @@ let open_silver_picker t ~width ~height =
   ;;
 
 let connection_catalog entries =
-  List.map entries ~f:(fun (id, endpoint) ->
-    Cobalt_palette.Catalog.Entry.create_host ~id ~title:endpoint ())
+  List.map entries ~f:(fun (id, (row : Silver_overview_tile.Connection.row)) ->
+    let title = Cobalt_file_picker.Model.Candidate.display_text row.title in
+    Cobalt_palette.Catalog.Entry.create_host ~id ~title ())
   |> Cobalt_palette.Catalog.create |> Or_error.ok_exn
 ;;
 
 let open_silver_connections t ~width ~height =
   let generation = t.silver_connection_generation + 1 in
   let palette =
-    Palette_tile.create ~title:"Silver: Connect…" ~empty:"Type an endpoint, then press Enter"
-      ~instructions:"Type a URL or Tab to choose | Enter connects | Esc cancels"
+    Palette_tile.create ~title:"Silver: Discover/Connect…" ~empty:"Looking for Silver shares…"
+      ~instructions:"Tab chooses | Type URL for editor root | Enter connects | Esc cancels"
       (connection_catalog []) { mode = Normal } ~token:document_id ~bindings:[]
     |> Palette_tile.fit ~rows:(minor_rows t ~width ~height Palette_tile.id)
   in
@@ -4055,15 +4104,24 @@ let open_silver_connections t ~width ~height =
   ; silver_connection_generation = generation }
 ;;
 
-let receive_silver_connections t ~generation endpoints =
+let receive_silver_connections t ~generation (lookup : Silver_overview_tile.Connection.lookup) =
   match t.silver_connections, t.palette with
   | Some (current, _), Some palette when generation = current ->
     let entries =
-      List.filter endpoints ~f:(fun endpoint -> not (String.is_empty (String.strip endpoint)))
-      |> List.mapi ~f:(fun i endpoint -> sprintf "silver.endpoint.%d" i, endpoint)
+      List.mapi lookup.rows ~f:(fun i row -> sprintf "silver.share.%d" i, row)
     in
+    let empty =
+      let reason =
+        Option.value lookup.error ~default:
+          (if List.is_empty entries then "No Silver project shares" else "No matching Silver shares")
+      in
+      reason ^ " · type a URL for the editor root"
+    in
+    let host = Option.value_map lookup.error ~default:t.host ~f:(Host.with_notice t.host) in
     { t with silver_connections = Some (generation, entries)
-    ; palette = Some (Palette_tile.with_catalog palette (connection_catalog entries)) }
+    ; host
+    ; palette = Some (Palette_tile.with_catalog palette (connection_catalog entries)
+                      |> Fn.flip Palette_tile.with_empty empty) }
   | _ -> t
 ;;
 
@@ -4850,25 +4908,41 @@ let accept_palette t ~width ~height palette =
      map_view t Silver_overview_tile.key ~f:(fun tile ->
        Silver_overview_tile.enqueue tile (Launch target))
    in
+    let run_stage intent =
+      let t = close_palette t ~width ~height in
+      map_view t Silver_stage_tile.key ~f:(fun tile -> Silver_stage_tile.enqueue tile intent)
+    in
+    let open_stage t =
+      let t = close_palette t ~width ~height in
+      let t = if zen t then apply_view_command t ~width ~height Toggle_zen else t in
+      if View_id.equal (focused_view t ~width ~height) Silver_stage_tile.id
+      then t
+      else apply_view_command t ~width ~height (Focus_view Silver_stage_tile.id)
+    in
   let selected = Cobalt_palette.Palette.accept palette ~context in
   let connect =
     Option.map (Option.both t.silver_connections t.silver_project_root)
-      ~f:(fun ((_, entries), project_root) ->
+      ~f:(fun ((generation, entries), project_root) ->
         let query = String.strip (Cobalt_palette.Palette.query palette) in
-        let endpoint =
-          if String.is_substring query ~substring:"://" then query
+        let selection : Silver_overview_tile.Connection.selection option =
+          if String.is_substring query ~substring:"://"
+          then Some (Manual { endpoint = query; project_root })
           else
             match selected with
             | Execute { target = Host id; _ } ->
-              List.Assoc.find entries id ~equal:String.equal |> Option.value ~default:query
-            | _ -> query
+              List.Assoc.find entries id ~equal:String.equal
+              |> Option.map ~f:(fun (row : Silver_overview_tile.Connection.row) ->
+                Silver_overview_tile.Connection.Share row.id)
+            | _ -> None
         in
-        if String.is_empty endpoint
-        then { t with host = Host.with_notice t.host "Choose or type a Silver endpoint" }
-        else
+        match selection with
+        | None -> { t with host = Host.with_notice t.host "Choose a Silver share or type a URL" }
+        | Some selection ->
           let t = close_palette t ~width ~height in
+          let t = { t with silver_connecting = Some generation
+                         ; host = Host.with_notice t.host "Connecting to Silver…" } in
           map_view t Silver_overview_tile.key ~f:(fun tile ->
-            Silver_overview_tile.enqueue tile (Connect { endpoint; project_root })))
+            Silver_overview_tile.enqueue tile (Connect { generation; selection })))
   in
   match connect, selected with
   | Some t, _ -> t, Controller.Status.Running
@@ -4886,12 +4960,28 @@ let accept_palette t ~width ~height palette =
     (match List.Assoc.find (Option.value_exn t.silver_picker) id ~equal:String.equal with
      | Some target -> launch target, Running
      | None -> refuse "The test selection is unavailable; nothing ran", Running)
-  | None, Execute { target = Host id; _ } when String.equal id silver_test_id ->
+   | None, Execute { target = Host id; _ } when String.equal id silver_test_id ->
     (match t.palette_silver_test with
      | Some (Run target) -> launch target, Running
      | Some Pick -> open_silver_picker t ~width ~height, Running
      | Some (Unavailable reason) -> refuse (sprintf "Run test: %s; nothing ran" reason), Running
-     | None -> refuse "Run test is unavailable; nothing ran", Running)
+      | None -> refuse "Run test is unavailable; nothing ran", Running)
+     | None, Execute { target = Host id; _ } when String.equal id silver_stage_open_id ->
+       open_stage t, Running
+     | None, Execute { target = Host id; _ } when String.equal id silver_stage_toggle_id ->
+       if view_visible t Silver_stage_tile.id
+       then place_view (close_palette t ~width ~height) ~width ~height Silver_stage_tile.id Hidden, Running
+       else open_stage t, Running
+   | None, Execute { target = Host id; _ }
+     when Option.is_some (silver_stage_alias ~matches:(fun alias ->
+       String.equal id (Silver_stage_tile.Alias.command_id alias))) ->
+     (match palette_stage_alias t ~matches:(fun alias ->
+        String.equal id (Silver_stage_tile.Alias.command_id alias)) with
+      | Some (Ready intent) -> run_stage intent, Running
+       | Some (Blocked reason) ->
+         pane_notice (close_palette t ~width ~height) ~source:Silver_stage_tile.id
+           ~severity:Error ~history:true (reason ^ "; nothing ran"), Running
+      | None -> refuse "Silver stage launch unavailable; nothing ran", Running)
   | None, Execute { target = Host id; _ } when String.equal id silver_connect_id
                                                && Option.is_some t.silver_project_root ->
     open_silver_connections t ~width ~height, Running
@@ -4945,7 +5035,8 @@ let feed_palette t ~width ~height palette key =
       ~escape:None
       ~hint:Palette_tile.hint
   in
-  let t = { t with host } in
+   let t = { t with host } in
+   let query = String.strip (Cobalt_palette.Palette.query (Palette_tile.palette palette)) in
   match decision with
   | Handled -> t, Controller.Status.Running
    | Return -> close_palette t ~width ~height, Running
@@ -4953,8 +5044,11 @@ let feed_palette t ~width ~height palette key =
   | Workspace view -> apply_view_command t ~width ~height view, Running
    | Content (Event (Next | Previous))
       when Option.is_none t.silver_picker && Option.is_none t.silver_connections
-          && (match t.palette_silver_test with Some (Unavailable _) -> true | _ -> false)
-          && String.Caseless.equal (String.strip (Cobalt_palette.Palette.query (Palette_tile.palette palette))) "test" ->
+           && ((match t.palette_silver_test with
+                | Some (Unavailable _) -> String.Caseless.equal query "test"
+                | _ -> false)
+               || Option.is_some (palette_stage_alias t ~matches:(fun alias ->
+                    String.Caseless.equal query (Silver_stage_tile.Alias.query alias)))) ->
      t, Running
    | Content (Event event) ->
     ( { t with
@@ -5921,6 +6015,12 @@ let with_silver_result t result =
   ; controller = Controller.update_feedback t.controller
       (Notify { source = "silver-overview"; scope = None; severity; text; history = true })
   }
+;;
+
+let receive_silver_connect_result t ~generation result =
+  if Option.equal Int.equal t.silver_connecting (Some generation)
+  then with_silver_result { t with silver_connecting = None } result
+  else t
 ;;
 
 let document_decorations_enabled t = t.document_decorations_enabled

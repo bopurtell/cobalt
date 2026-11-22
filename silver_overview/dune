@@ -3,5 +3,6 @@
  (public_name cobalt.silver_overview)
  (wrapped false)
  (private_modules silver_http)
- (libraries core core_unix async)
+ (libraries core core_unix async yojson)
+ (foreign_stubs (language c) (names silver_share_fs_stubs))
  (preprocess (pps ppx_jane)))

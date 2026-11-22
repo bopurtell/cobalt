@@ -156,7 +156,12 @@ let component ?layout ?terminal ?snippets ?configuration ?startup_configuration 
     | None, None ->
       let ui = Ui_state.create ?layout ~smear_enabled ?bare ?theme ?buffer_presentation ?report
         ~source_attached:(Option.is_some source)
-        ~views:[ Silver_overview_host.entry silver_overview; vcs_entry ] controller in
+        ~views:
+           [ Silver_overview_host.entry silver_overview
+           ; Silver_overview_host.stage_entry silver_overview
+          ; Silver_kickoff_host.entry (Option.bind silver_overview ~f:(fun host -> host.kickoff))
+          ; vcs_entry
+          ] controller in
       (* Headless assembly retains Workspace. Enter Zen through the normal command
          path only for frontend startup; Bare keeps its Workspace return target.
          The first render reconciles the actual terminal dimensions. *)
@@ -374,9 +379,12 @@ let component ?layout ?terminal ?snippets ?configuration ?startup_configuration 
                 | `Silver_feedback result ->
                   Frame.Cache.invalidate render_cache;
                   Ui_state.with_silver_result model result
-                | `Silver_connections (generation, endpoints) ->
-                  Frame.Cache.invalidate render_cache;
-                  Ui_state.receive_silver_connections model ~generation endpoints
+                 | `Silver_connections (generation, lookup) ->
+                   Frame.Cache.invalidate render_cache;
+                   Ui_state.receive_silver_connections model ~generation lookup
+                 | `Silver_connect_result (generation, result) ->
+                   Frame.Cache.invalidate render_cache;
+                   Ui_state.receive_silver_connect_result model ~generation result
                | `Harness (request, result) ->
                  Frame.Cache.invalidate render_cache;
                  Ui_state.receive_harness model ~width ~height ~request result
@@ -389,7 +397,8 @@ let component ?layout ?terminal ?snippets ?configuration ?startup_configuration 
                displayed handler: several events can arrive before a redraw. *)
             let inputs = match action with
                   | `Words _ | `Snippets _ | `Configuration _ | `Navigation_preview _ | `Harness _
-                  | `Silver_changed | `Silver_feedback _ | `Silver_connections _
+                   | `Silver_changed | `Silver_feedback _ | `Silver_connections _
+                   | `Silver_connect_result _
                   | `Shutdown | `Lost_input | `Open_location _ -> []
                | `Inputs inputs -> inputs
                | `Event _ when not accepts_input -> []
@@ -426,7 +435,13 @@ let component ?layout ?terminal ?snippets ?configuration ?startup_configuration 
                let changed = not (Bool.equal shown !silver_open) in
                silver_open := shown;
                if changed then (if shown then host.show () else host.hide ());
-               let model, intents = Silver_overview_host.take_intents model in
+                let model, intents = Silver_overview_host.take_intents model in
+                let model, stage_intents = Silver_overview_host.take_stage_intents model in
+                List.iter stage_intents ~f:(fun intent ->
+                  let result = host.launch_stage intent in
+                  Bonsai.Apply_action_context.schedule_event context
+                    (let%bind.Effect result = Effect.of_deferred_thunk (fun () -> result) in
+                     Bonsai.Apply_action_context.inject context (`Silver_feedback result)));
                let model =
                  List.fold intents ~init:model ~f:(fun model intent ->
                    match intent with
@@ -449,19 +464,27 @@ let component ?layout ?terminal ?snippets ?configuration ?startup_configuration 
                      model
                    | Connections generation ->
                      Bonsai.Apply_action_context.schedule_event context
-                       (let%bind.Effect endpoints = Effect.of_deferred_thunk host.connections in
-                        Bonsai.Apply_action_context.inject context
-                          (`Silver_connections (generation, endpoints)));
-                     model
-                   | Connect { endpoint; project_root } ->
-                     let request = host.connect { endpoint; project_root; run = None } in
-                     Bonsai.Apply_action_context.schedule_event context
-                       (let%bind.Effect result = Effect.of_deferred_thunk (fun () -> request) in
-                        let result = Result.map result ~f:(fun () -> "Connected to Silver · " ^ endpoint) in
-                        Bonsai.Apply_action_context.inject context (`Silver_feedback result));
+                        (let%bind.Effect lookup =
+                           Effect.of_deferred_thunk (fun () -> host.connections ~generation) in
+                         Bonsai.Apply_action_context.inject context
+                           (`Silver_connections (generation, lookup)));
+                      model
+                    | Connect { generation; selection } ->
+                      let request = host.connect selection in
+                      Bonsai.Apply_action_context.schedule_event context
+                        (let%bind.Effect result = Effect.of_deferred_thunk (fun () -> request) in
+                         match result with
+                         | None -> Effect.Ignore
+                         | Some result ->
+                           Bonsai.Apply_action_context.inject context
+                             (`Silver_connect_result (generation, result)));
                      model)
                in
-               if changed || not (List.is_empty intents)
+                let model =
+                  Option.value_map host.kickoff ~default:model
+                    ~f:(Silver_kickoff_host.dispatch model)
+                in
+                if changed || not (List.is_empty intents) || not (List.is_empty stage_intents)
                then Silver_overview_host.synchronize model host
                else model
            in
