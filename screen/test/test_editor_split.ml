@@ -36,7 +36,7 @@ let show_pair ui left right ~focused =
   assert ([%equal: (Buffer_id.t * bool) list] ids expected)
 ;;
 
-let%test_unit "only the focused split title has one trailing title-colored cell" =
+let%test_unit "both split titles have one trailing cell in their own title style" =
   with_files (fun _ a b _ ->
     let ui = create a in
     let aid = active ui in
@@ -51,8 +51,7 @@ let%test_unit "only the focused split title has one trailing title-colored cell"
         | (span : Span.t) :: rest when x > 0 -> from (x - span.width) rest
         | spans when x = 0 -> spans
         | _ -> failwith "expected a title at the start of the pane" in
-      let label = (if focused then "> " else "  ") ^ Filename.basename path
-        ^ (if focused then " " else "") in
+      let label = (if focused then "> " else "  ") ^ Filename.basename path ^ " " in
       match from allocation.x row with
       | title :: background :: _ ->
         assert (String.equal title.text label && title.width = String.length label);

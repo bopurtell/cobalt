@@ -350,10 +350,9 @@ let rec prepare_document ?highlights ?decorations ?allocation ?reserve_status_ro
     let marker = if editor_focused then "> " else "  " in
     let spans = Span.create style marker ~width:2 ::
       Span.keep_right (Span.of_text (label ^ suffix) ~style ~special:Title_special)
-        ~n:(rect.width - 2) ~marker_style:Title_special in
+        ~n:(rect.width - 3) ~marker_style:Title_special in
     let remaining = rect.width - Span.total_width spans in
-    let padding = if editor_focused && remaining > 0 then 1 else 0 in
-    rect, spans @ [ Span.blank style padding; Span.blank Status (remaining - padding) ]) in
+    rect, spans @ [ Span.blank style 1; Span.blank Status (remaining - 1) ]) in
   let hotkey_hints = Ui_state.hotkey_hints ui in
   let view_tile id (layout : Tile_shell.Layout.t) =
     let width = layout.content.width and rows = layout.content.height in
