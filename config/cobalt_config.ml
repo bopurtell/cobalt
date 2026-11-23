@@ -10,6 +10,8 @@ let min_prefix_chars = ref 1
 let prefer_local_snippets = ref true
 let line_numbers = ref false
 let relative_line_numbers = ref false
+let startup_workspace = ref false
+let startup_silver_overview = ref true
 let theme = ref "vim-classic"
 let completion_colors = ref []
 
@@ -38,6 +40,8 @@ end
 module View = struct
   let set_line_numbers value = line_numbers := value
   let set_relative_line_numbers value = relative_line_numbers := value
+  let set_startup_workspace value = startup_workspace := value
+  let set_startup_silver_overview value = startup_silver_overview := value
 end
 
 module File_picker = struct
@@ -111,7 +115,7 @@ let write_result path =
   let number n = line (string_of_int n) in
   let operations = List.rev !(Snippets.operations) in
   if List.length operations > 1000 then invalid_arg "snippets exceeds 1000 operations";
-  line "COBALT_SETTINGS_6";
+  line "COBALT_SETTINGS_7";
   List.iter (fun value -> line (string_of_bool value)) [!enabled; !ghost_preview];
   number !min_prefix_chars;
   List.iter (fun value -> line (string_of_bool value)) [!prefer_local_snippets; !line_numbers];
@@ -143,6 +147,8 @@ let write_result path =
   line (string_of_bool !(File_picker.include_ignored));
   number !(File_picker.max_candidates);
   number !(File_picker.max_total_path_bytes);
+  line (string_of_bool !startup_workspace);
+  line (string_of_bool !startup_silver_overview);
   let channel = open_out_bin path in
   Fun.protect ~finally:(fun () -> close_out channel) (fun () ->
     output_string channel (Buffer.contents buffer))

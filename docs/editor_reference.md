@@ -5,11 +5,14 @@ checks for [Cobalt](../README.md).
 
 ## Startup defaults
 
-`cobalt PATH` starts with the **Vim Classic** (`vim-classic`) colour scheme in
-**Zen**: the document retains its frame, while status and supporting workspace
-tiles are suppressed. This is separate from borderless Bare mode.
+With no personal configuration, `cobalt PATH` starts with the **Vim Classic**
+(`vim-classic`) colour scheme in **Zen**: the document retains its frame, while
+status and supporting workspace tiles are suppressed. This is separate from
+borderless Bare mode.
 
 - `Space v z` toggles Zen/Workspace; `--workspace` starts directly in Workspace.
+- [Personal configuration](configuration.md#starting-with-just-the-editor-status-and-problems)
+  can start in Workspace and hide Silver Overview on ordinary launches.
 - `--bare` (alias `--superzen`) starts borderless and takes priority over the Zen
   default and `--workspace`. `Space v B` toggles Bare; startup Bare returns to
   Workspace when disabled.

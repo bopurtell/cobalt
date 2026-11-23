@@ -68,6 +68,7 @@ let decode text =
     | "COBALT_SETTINGS_4" -> 4
     | "COBALT_SETTINGS_5" -> 5
     | "COBALT_SETTINGS_6" -> 6
+    | "COBALT_SETTINGS_7" -> 7
     | _ -> failwith "malformed or unsupported settings result" in
   let completion_enabled = boolean () in
   let completion_ghost_preview = boolean () in
@@ -122,14 +123,17 @@ let decode text =
     let include_ignored = boolean () in
     let max_candidates = number "file picker candidate limit" ~max:Int.max_value in
     let max_total_path_bytes = number "file picker path byte limit" ~max:Int.max_value in
-    { Settings.File_picker.include_ignored; max_candidates; max_total_path_bytes }) in
+     { Settings.File_picker.include_ignored; max_candidates; max_total_path_bytes }) in
+  let startup_workspace = if version >= 7 then boolean () else Settings.default.startup_workspace in
+  let startup_silver_overview =
+    if version >= 7 then boolean () else Settings.default.startup_silver_overview in
   (match !lines with
    | [ "" ] -> ()
    | _ -> failwith "malformed settings result framing");
   Settings.validate
     { completion_enabled; signature_help_enabled; completion_ghost_preview; completion_min_prefix_chars
     ; completion_prefer_local_snippets; completion_colors; line_numbers; relative_line_numbers
-    ; file_picker; theme; snippets }
+    ; startup_workspace; startup_silver_overview; file_picker; theme; snippets }
   |> Or_error.ok_exn
 ;;
 

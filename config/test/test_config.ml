@@ -52,6 +52,8 @@ let () =
   Completion.set_prefer_local_snippets false;
   View.set_line_numbers true;
   View.set_relative_line_numbers true;
+  View.set_startup_workspace true;
+  View.set_startup_silver_overview false;
   File_picker.set_include_ignored true;
   File_picker.set_max_candidates 100_000;
   File_picker.set_max_total_path_bytes (64 * 1024 * 1024);
@@ -61,6 +63,7 @@ let () =
       { completion_enabled = false; signature_help_enabled = false; completion_ghost_preview = true
       ; completion_min_prefix_chars = 3; completion_prefer_local_snippets = false
       ; completion_colors = []; line_numbers = true; relative_line_numbers = true
+      ; startup_workspace = true; startup_silver_overview = false
       ; file_picker = { include_ignored = true; max_candidates = 100_000
                       ; max_total_path_bytes = 64 * 1024 * 1024 }
       ; theme = "custom-theme"; snippets = [] } in
@@ -254,11 +257,19 @@ let () = Snippets.add ~id:"invalid.first" ~prefix:"q" "${UNKNOWN}";
       |> Or_error.ok_exn in
     check (Settings.File_picker.equal picker.file_picker expected.file_picker)
       "v6 file picker roundtrip";
+    check (not picker.startup_workspace && picker.startup_silver_overview)
+      "v6 startup layout defaults";
     List.iter [""; "true\n"; "true\n100000\n"; "TRUE\n100000\n67108864\n";
                "true\n0\n67108864\n"; "true\n100000\n0\n"; "true\n-1\n1\n";
                "true\n01\n1\n"; "true\n1\n1\nextra\n"] ~f:(fun suffix ->
       check (Result.is_error (Loader.For_testing.decode (protocol6 ^ suffix)))
         "malformed v6 picker setting accepted");
+    let protocol7 = String.substr_replace_first protocol6 ~pattern:"COBALT_SETTINGS_6"
+      ~with_:"COBALT_SETTINGS_7" ^ "true\n100000\n67108864\n" in
+    List.iter [""; "true\n"; "TRUE\nfalse\n"; "false\n0\n"; "true\nfalse\nextra\n"]
+      ~f:(fun suffix ->
+        check (Result.is_error (Loader.For_testing.decode (protocol7 ^ suffix)))
+          "malformed v7 startup settings accepted");
     let%bind () = Deferred.List.iter ~how:`Sequential
       ["set_max_candidates", 0; "set_max_candidates", -1;
        "set_max_total_path_bytes", 0; "set_max_total_path_bytes", -1]

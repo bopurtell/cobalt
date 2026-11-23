@@ -353,6 +353,10 @@ val views : t -> View_registry.t
     focus or the editor session. The frontend must invalidate cached frames. *)
 val map_view : t -> 'a Type_equal.Id.t -> f:('a -> 'a) -> t
 
+(** Before first render, hide the overview without uninstalling it or changing its
+    usual placement when explicitly reopened. *)
+val hide_initial_silver_overview : t -> t
+
 (** Whether a registered view is placed (requested) and not explicitly hidden,
     even if zen or a small screen leaves it without an allocation, or it is an inactive tab. *)
 val view_visible : t -> Cobalt_tile.View_id.t -> bool

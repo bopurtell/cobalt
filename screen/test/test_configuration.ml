@@ -11,14 +11,13 @@ let text t = Text_buffer.to_string (Editor.text (editor t))
 let apply ?theme_override t settings =
   Ui_state.apply_configuration ?theme_override t settings |> Result.ok_or_failwith
 let reload t = press t " ccconfiguration.reload<CR>"
-let configured = { Settings.completion_enabled = false
+let configured = { Settings.default with completion_enabled = false
   ; signature_help_enabled = false
   ; completion_ghost_preview = true; completion_min_prefix_chars = 3
   ; completion_prefer_local_snippets = false; line_numbers = true
-  ; relative_line_numbers = false
   ; file_picker = { include_ignored = true; max_candidates = 100_000
                   ; max_total_path_bytes = 64 * 1024 * 1024 }
-  ; theme = Theme.id (List.last_exn Theme.all); snippets = []; completion_colors = [] }
+  ; theme = Theme.id (List.last_exn Theme.all) }
 
 let%test_unit "startup application is explicit; session toggles and removed fields reset on reload" =
   let t = Helpers.ui "unsaved" in

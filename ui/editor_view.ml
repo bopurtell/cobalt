@@ -88,8 +88,10 @@ module Content_picker_host = struct
     }
 end
 
-let apply_startup_configuration ?theme_override ui result =
-  let apply settings = Ui_state.apply_configuration ?theme_override ui settings in
+let apply_startup_configuration ?theme_override ~configure_layout ui result =
+  let apply settings =
+    Result.map (Ui_state.apply_configuration ?theme_override ui settings)
+      ~f:(configure_layout settings) in
   match Result.bind result ~f:apply with
   | Ok ui -> ui
   | Error error ->
@@ -117,7 +119,7 @@ type open_location_listener =
   -> on_request:(Open_location.request -> (unit, Open_location.failure) Result.t Async.Deferred.t)
   -> (unit -> unit Async.Deferred.t) Async.Deferred.Or_error.t
 
-let component ?layout ?terminal ?snippets ?configuration ?startup_configuration ?configuration_path ?document_decorations ?document_decoration_host ?(document_decorations_enabled = false) ?(smear_enabled = false) ?mouse ?(zen = false) ?bare ?theme ?appearance ?buffer_presentation ?report ?(silver_overview : Silver_overview_host.t option) ?source ?vcs ?font ?file_picker ?content_picker ?on_toggle_terminal ?host_commands ?on_host_command ?on_open_location_ready ?(hosted_silver_navigation = false) ?(standalone_layouts = false) ~set_clipboard controller ~exit ~blank_on_close ~dimensions ~visible ~focused (local_ graph)
+let component ?layout ?terminal ?snippets ?configuration ?startup_configuration ?configuration_path ?document_decorations ?document_decoration_host ?(document_decorations_enabled = false) ?(smear_enabled = false) ?mouse ?(zen = false) ?bare ?theme ?appearance ?buffer_presentation ?report ?(silver_overview : Silver_overview_host.t option) ?(force_startup_silver_overview = false) ?source ?vcs ?font ?file_picker ?content_picker ?on_toggle_terminal ?host_commands ?on_host_command ?on_open_location_ready ?(hosted_silver_navigation = false) ?(standalone_layouts = false) ~set_clipboard controller ~exit ~blank_on_close ~dimensions ~visible ~focused (local_ graph)
   =
   let dimensions = let%arr { Dimensions.width; height } = dimensions in
     { Dimensions.width = Int.max 0 width; height = Int.max 0 height } in
@@ -155,7 +157,7 @@ let component ?layout ?terminal ?snippets ?configuration ?startup_configuration 
     | Some host, None -> host.Content_picker_host.initial_ui
     | None, Some host -> host.File_picker_host.initial_ui
     | None, None ->
-       let ui = Ui_state.create ?layout ~standalone_layouts
+       Ui_state.create ?layout ~standalone_layouts
          ~smear_enabled ?bare ?theme ?buffer_presentation ?report
         ~source_attached:(Option.is_some source)
         ~views:
@@ -164,15 +166,7 @@ let component ?layout ?terminal ?snippets ?configuration ?startup_configuration 
           ; Silver_kickoff_host.entry (Option.bind silver_overview ~f:(fun host -> host.kickoff))
           ; Silver_kickoff_host.review_entry (Option.bind silver_overview ~f:(fun host -> host.kickoff))
           ; vcs_entry
-          ] controller in
-      (* Headless assembly retains Workspace. Enter Zen through the normal command
-         path only for frontend startup; Bare keeps its Workspace return target.
-         The first render reconciles the actual terminal dimensions. *)
-      if zen && not (Ui_state.bare ui) then
-        fst (Ui_state.apply_all ui ~width:0 ~height:0
-          (List.map (String.to_list " vz") ~f:(fun c ->
-             Ui_state.Input.Key (Cobalt_input.Key.char c))))
-      else ui in
+           ] controller in
   let configuration_path = Option.value_or_thunk configuration_path ~default:(fun () ->
     match Cobalt_config_runtime.Loader.config_path ~getenv:Sys.getenv with
     | Some path -> Ok path
@@ -184,8 +178,24 @@ let component ?layout ?terminal ?snippets ?configuration ?startup_configuration 
     | Some host ->
       Silver_overview_host.synchronize initial_ui host |> Ui_state.with_silver_connection ~project_root
   in
-  let initial_ui = Option.value_map startup_configuration ~default:initial_ui
-    ~f:(apply_startup_configuration ?theme_override:theme initial_ui) in
+  let configure_layout (settings : Cobalt_config_runtime.Settings.t) ui =
+    match content_picker, file_picker with
+    | Some _, _ | _, Some _ -> ui
+    | None, None ->
+      let ui =
+        if standalone_layouts && not (force_startup_silver_overview || settings.startup_silver_overview)
+        then Ui_state.hide_initial_silver_overview ui
+        else ui in
+      (* Enter Zen via the usual transition. Bare keeps its Workspace return target. *)
+      if zen && not (Ui_state.bare ui || (standalone_layouts && settings.startup_workspace))
+      then fst (Ui_state.apply_all ui ~width:0 ~height:0
+        (List.map (String.to_list " vz") ~f:(fun c ->
+           Ui_state.Input.Key (Cobalt_input.Key.char c))))
+      else ui in
+  let initial_ui = match startup_configuration with
+    | None -> configure_layout Cobalt_config_runtime.Settings.default initial_ui
+    | Some result ->
+      apply_startup_configuration ?theme_override:theme ~configure_layout initial_ui result in
   let initial_ui = if Option.is_some appearance
     then Ui_state.with_external_appearance initial_ui else initial_ui in
   let appearance = match appearance with
@@ -927,7 +937,7 @@ let hosted ?layout ?terminal ?snippets ?configuration ?startup_configuration ?co
 let app_with_terminal ~terminal ?snippets ?configuration ?startup_configuration ?configuration_path
     ?document_decorations ?document_decoration_host ?document_decorations_enabled ?smear_enabled
     ?mouse ?zen ?bare ?theme ?buffer_presentation ?report ?source ?vcs ?font ?file_picker ?content_picker
-    ?silver_overview ?on_open_location_ready controller ~exit ~dimensions (local_ graph) =
+    ?silver_overview ?force_startup_silver_overview ?on_open_location_ready controller ~exit ~dimensions (local_ graph) =
   let set_clipboard =
     let%arr write = Expert.Write_to_tty.write_string_to_tty graph in
     fun text -> write (Osc52.set_clipboard text)
@@ -935,7 +945,7 @@ let app_with_terminal ~terminal ?snippets ?configuration ?startup_configuration 
   let surface = component ~terminal ?snippets ?configuration ?startup_configuration ?configuration_path
       ?document_decorations ?document_decoration_host ?document_decorations_enabled ?smear_enabled
       ?mouse ?zen ?bare ?theme ?buffer_presentation ?report ?source ?vcs ?font ?file_picker ?content_picker
-       ?silver_overview ?on_open_location_ready ~standalone_layouts:true
+       ?silver_overview ?force_startup_silver_overview ?on_open_location_ready ~standalone_layouts:true
        ~set_clipboard controller ~exit ~blank_on_close:false ~dimensions ~visible:(Bonsai.return true)
       ~focused:(Bonsai.return true) graph in
   let set_cursor = Effect.set_cursor graph in
@@ -952,7 +962,7 @@ let app ?terminal ?snippets ?configuration ?startup_configuration ?configuration
     ?report ?source ?vcs ?font ?file_picker ?content_picker controller ~exit ~dimensions graph
 ;;
 
-let run ?configuration ?startup_configuration ?configuration_path ?document_decorations ?document_decorations_enabled ?(smear_enabled = false) ?(mouse = true) ?(zen = false) ?bare ?theme ?font ?buffer_presentation ?report ?(silver_overview : Silver_overview_host.t option) ?source ?vcs ?(open_location_listener : open_location_listener option) controller =
+let run ?configuration ?startup_configuration ?configuration_path ?document_decorations ?document_decorations_enabled ?(smear_enabled = false) ?(mouse = true) ?(zen = false) ?bare ?theme ?font ?buffer_presentation ?report ?(silver_overview : Silver_overview_host.t option) ?force_startup_silver_overview ?source ?vcs ?(open_location_listener : open_location_listener option) controller =
   let document_decoration_host = Document_decoration_host.create
     (Option.value document_decorations ~default:Document_decoration_host.Factory.unavailable) in
   let decorations_at_shutdown = ref (Some document_decoration_host) in
@@ -1031,7 +1041,7 @@ let run ?configuration ?startup_configuration ?configuration_path ?document_deco
        ~dispose:true
        ~mouse:(if mouse then All_mouse_events_except_hover else No_mouse_events)
        ~bpaste:true
-          (app_with_terminal ~terminal ~configuration ~startup_configuration ?configuration_path ~document_decoration_host ?document_decorations_enabled ~smear_enabled ~mouse ~zen ?bare ?theme ?buffer_presentation ?report ?silver_overview ?source ?vcs ?font ?on_open_location_ready controller))
+          (app_with_terminal ~terminal ~configuration ~startup_configuration ?configuration_path ~document_decoration_host ?document_decorations_enabled ~smear_enabled ~mouse ~zen ?bare ?theme ?buffer_presentation ?report ?silver_overview ?force_startup_silver_overview ?source ?vcs ?font ?on_open_location_ready controller))
       ~f:(fun result ->
        stop_silver ();
        let%bind.Async.Deferred () = stop_listener () in

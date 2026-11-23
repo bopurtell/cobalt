@@ -8,6 +8,10 @@ notification containing the diagnostic. Existing controller and assembly options
 are retained. An explicit `theme` is passed as `theme_override` and retained by
 screen across reloads. The CLI parses `--theme` as an option, so omission does not
 override the configuration. `--list-themes` returns before `run` and never loads it.
+Standalone assembly also applies the startup Workspace and Silver Overview
+settings before the first draw, after validating the full snapshot. These two
+settings are not read by live reload. Bare takes precedence over startup Zen,
+and an explicit Silver binding keeps the overview in the initial workspace.
 
 Direct `Editor_view.app` assembly does not execute startup configuration. Tests can
 inject `startup_configuration` (including an error) and a `Configuration_host`

@@ -22,6 +22,8 @@ type t =
   ; completion_colors : (string * string) list
   ; line_numbers : bool
   ; relative_line_numbers : bool
+  ; startup_workspace : bool
+  ; startup_silver_overview : bool
   ; file_picker : File_picker.t
   ; theme : string
   ; snippets : Cobalt_completion.User_snippets.operation list
@@ -37,6 +39,8 @@ let default =
   ; completion_colors = []
   ; line_numbers = false
   ; relative_line_numbers = false
+  ; startup_workspace = false
+  ; startup_silver_overview = true
   ; file_picker = File_picker.default
   ; theme = "vim-classic"
   ; snippets = []

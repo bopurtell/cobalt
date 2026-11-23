@@ -72,6 +72,8 @@ let () =
 | `Signature_help.set_enabled` | `true` | Automatically show server-provided call signatures while typing |
 | `View.set_line_numbers` | `false` | Show absolute line numbers; applies across presentation profiles |
 | `View.set_relative_line_numbers` | `false` | Show relative line numbers; enable both number settings for hybrid mode |
+| `View.set_startup_workspace` | `false` | Start standalone Cobalt in Workspace instead of Zen |
+| `View.set_startup_silver_overview` | `true` | Include Silver Overview in the initial standalone workspace |
 | `File_picker.set_include_ignored` | `false` | Include files excluded by Git/ripgrep ignore rules in Find project files |
 | `File_picker.set_max_candidates` | `50_000` | Positive file discovery candidate limit |
 | `File_picker.set_max_total_path_bytes` | `8 * 1024 * 1024` | Positive retained candidate path-string budget, in bytes |
@@ -97,6 +99,27 @@ configuration at startup and on reload.
 These setters are the initial supported API. Other editor options retain their
 existing CLI/keybinding behavior; arbitrary editor commands and external OCaml
 packages are not exposed through this configuration API.
+
+### Starting with just the editor, Status, and Problems
+
+Add this to `config.ml`:
+
+```ocaml
+let () =
+  Cobalt_config.View.set_startup_workspace true;
+  Cobalt_config.View.set_startup_silver_overview false
+```
+
+History is already hidden at startup. `--workspace` still selects Workspace
+and honors the Overview setting; `--bare` takes precedence and returns to that
+workspace when toggled off. An explicit `--silver-endpoint` and
+`--silver-project` launch still starts in Workspace with Overview, unless you
+also pass `--bare`.
+
+These settings apply only at startup; reloading does not rearrange the current
+session. `Space v z` still toggles Zen, `Space v S` toggles Overview, and
+`Space v m` toggles History. **Layout: Default** and **Layout: Silver** still
+apply their built-in layouts, both of which include Overview when available.
 
 ### Finding ignored files
 
@@ -186,10 +209,11 @@ Select **Reload configuration** in the command palette (`Space c c`) to:
 3. Validate all settings, including the theme and snippet declarations.
 4. Apply settings and the snippet catalog together.
 
-Removing a setter restores that setting's default on reload. Successful reloads
-discard temporary changes to supported settings while preserving buffers, unsaved
-text, and unrelated layout preferences. Completion menus and theme previews are
-dismissed when the new settings take effect. A missing file reloads defaults.
+For settings other than the startup layout, removing a setter restores its default
+on reload. Successful reloads discard temporary changes to those settings while
+preserving buffers, unsaved text, and live layout preferences. Completion menus
+and theme previews are dismissed when the new settings take effect. A missing
+file reloads defaults.
 
 A compile, execution, or validation failure preserves the current settings/catalog and
 reports the error. At startup, failure uses defaults and reports the diagnostic

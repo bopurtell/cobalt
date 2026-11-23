@@ -11,6 +11,8 @@ let () =
   Signature_help.set_enabled true;
   View.set_line_numbers false;
   View.set_relative_line_numbers false; (* Set both number switches true for hybrid. *)
+  View.set_startup_workspace false; (* Set true to start outside Zen. *)
+  View.set_startup_silver_overview true; (* Set false to hide it on ordinary launches. *)
   File_picker.set_include_ignored false;
   File_picker.set_max_candidates 50_000;
   File_picker.set_max_total_path_bytes (8 * 1024 * 1024);

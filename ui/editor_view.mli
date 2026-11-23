@@ -187,13 +187,16 @@ val run
     -> ?smear_enabled:bool (** Disabled by default; Space v s toggles at runtime. *)
      -> ?mouse:bool (** Initial standalone terminal mouse reporting; true by default.
                          Toggle in the command palette without restarting. *)
-   -> ?zen:bool (** Start in Zen; false by default. [bare] takes precedence. *)
+   -> ?zen:bool (** Start in Zen unless config prefers Workspace. False by default;
+                      [bare] takes precedence. *)
    -> ?bare:bool (** Start in borderless document presentation. *)
    -> ?theme:Cobalt_theme.Theme.t (** Initial theme; Space v T previews and chooses themes. *)
   -> ?font:(Cobalt_screen.Style.t -> Theme.Font.t list)
   -> ?buffer_presentation:Cobalt_input.View_command.Buffer_presentation.t
   -> ?report:Cobalt_screen.Report_tile.Item.t list
-  -> ?silver_overview:Silver_overview_host.t
+   -> ?silver_overview:Silver_overview_host.t
+   -> ?force_startup_silver_overview:bool (** Ignore the overview visibility preference,
+                                            e.g. when a Silver project was explicitly bound. *)
   -> ?source:Cobalt_source.Source.t
    -> ?vcs:Vcs_host.t
    -> ?open_location_listener:open_location_listener

@@ -44,13 +44,14 @@ def command(tty, query, title=None):
     tty.send(b"\r")
 
 
-def workspace(tty, description, *, silver=False, zen=False, marker=SECOND_LINE, offset=2, extra=()):
+def workspace(tty, description, *, silver=False, zen=False, overview=True,
+              marker=SECOND_LINE, offset=2, extra=()):
     def visible():
         text = tty.text
         return ("╭─ Commands" not in text and marker in text
                 and tile(text, "Status") != zen
                 and tile(text, "Problems") == (not silver and not zen)
-                and tile(text, SILVER[0]) != zen
+                and tile(text, SILVER[0]) == (overview and not zen)
                 and all(tile(text, name) == silver for name in SILVER[1:])
                 and not tile(text, "History") and not tile(text, REVIEW)
                 and all(word in text for word in extra)
@@ -108,6 +109,52 @@ def disconnected(binary, file, env):
         tty.send(b" w q")
         tty.finish(before)
     assert file.read_text(encoding="utf-8") == ORIGINAL.replace(SECOND_LINE, DIRTY_LINE)
+
+
+def configured_startup(binary, file, env, config):
+    with terminal([binary, "--no-lsp", str(file)], env) as (tty, before):
+        workspace(tty, "ordinary startup still defaults to Zen without configuration",
+                  zen=True, marker=FIRST_LINE, offset=0)
+        tty.send(b" q")
+        tty.finish(before)
+    source = ("open Cobalt_config\nlet () =\n"
+              "  View.set_startup_workspace true;\n"
+              "  View.set_startup_silver_overview false\n")
+    config.write_text(source, encoding="utf-8")
+    with terminal([binary, "--no-lsp", str(file)], env) as (tty, before):
+        # Verify the initial frame before any key or resize.
+        workspace(tty, "ordinary startup shows only Status and Problems",
+                  overview=False, marker=FIRST_LINE, offset=0)
+        open_at_second_line(tty)
+        tty.send(b" vz")
+        workspace(tty, "Zen is still available", zen=True)
+        tty.send(b" vz")
+        workspace(tty, "leaving Zen retains the startup band", overview=False)
+        tty.send(b" vS")
+        workspace(tty, "hidden overview can be toggled on")
+        command(tty, "Reload configuration")
+        workspace(tty, "reload keeps the live overview visible",
+                  extra=("Configuration reloaded",))
+        tty.send(b" vS")
+        workspace(tty, "overview can be toggled off again", overview=False)
+        command(tty, "Layout: Silver")
+        workspace(tty, "Silver preset overrides the startup band", silver=True)
+        command(tty, "Layout: Default")
+        workspace(tty, "Default remains the built-in preset")
+        tty.send(b" q")
+        tty.finish(before)
+    for flags in (["--workspace"], ["--workspace", "--bare"]):
+        with terminal([binary, "--no-lsp", *flags, str(file)], env) as (tty, before):
+            tty.see(FIRST_LINE)
+            if "--bare" in flags:
+                assert not any(tile(tty.text, name) for name in ("Status", "Problems", *SILVER))
+                assert tty.text.startswith(FIRST_LINE), tty.text
+                tty.send(b" vB")
+            workspace(tty, "explicit Workspace or return from Bare respects the startup band",
+                      overview=False, marker=FIRST_LINE, offset=0)
+            tty.send(b" q")
+            tty.finish(before)
+    assert config.read_text(encoding="utf-8") == source
 
 
 @contextmanager
@@ -169,11 +216,13 @@ def bound_but_unavailable(binary, file, env, project):
     original = file.read_text(encoding="utf-8")
     with unavailable_peer(project) as url:
         flags = ["--silver-endpoint", url, "--silver-project", str(project)]
-        with terminal([binary, "--no-lsp", "--workspace", *flags, str(file)], env) as (tty, before):
+        with terminal([binary, "--no-lsp", *flags, str(file)], env) as (tty, before):
             open_at_second_line(tty)
-            command(tty, "Layout: Silver")
             expected = (f"Project:  {project}", "Silver does not advertise ASIC operations",
                         "Silver Testing provider is not configured")
+            workspace(tty, "explicit Silver launch shows Overview despite startup preference",
+                      extra=expected[:1])
+            command(tty, "Layout: Silver")
             workspace(tty, "Silver shows the exact explicit project even without providers",
                       silver=True, extra=expected)
             command(tty, "Layout: Default")
@@ -201,8 +250,11 @@ def main():
         file.write_text(ORIGINAL, encoding="utf-8")
         disconnected(binary, file, env)
         file.write_text(ORIGINAL, encoding="utf-8")
+        config = root / "config" / "cobalt" / "config.ml"
+        config.parent.mkdir(parents=True)
+        configured_startup(binary, file, env, config)
         bound_but_unavailable(binary, file, env, project)
-    print("Workspace presets CLI: live palette, Zen, focus, dirty editor, and read-only Silver binding")
+    print("Workspace presets CLI: configured startup, live palette, Zen, focus, dirty editor, and read-only Silver binding")
 
 
 if __name__ == "__main__":

@@ -17,6 +17,8 @@ module Settings : sig
     ; completion_colors : (string * string) list
     ; line_numbers : bool
     ; relative_line_numbers : bool
+    ; startup_workspace : bool
+    ; startup_silver_overview : bool
     ; file_picker : File_picker.t
     ; theme : string
     ; snippets : Cobalt_completion.User_snippets.operation list
@@ -31,7 +33,7 @@ module Loader : sig
 end
 ```
 
-Defaults, in record-field order: `true`, `true`, `false`, `1`, `true`, `[]`, `false`, `false`,
+Defaults, in record-field order: `true`, `true`, `false`, `1`, `true`, `[]`, `false`, `false`, `false`, `true`,
 `{ include_ignored = false; max_candidates = 50_000; max_total_path_bytes = 8 * 1024 * 1024 }`,
 `"vim-classic"`, `[]`. Validation requires positive file-picker limits, a positive
 minimum prefix and a theme that is nonempty after trimming whitespace. The screen must check theme existence
@@ -54,6 +56,8 @@ let () =
   Signature_help.set_enabled true;
   View.set_line_numbers false;
   View.set_relative_line_numbers false;
+  View.set_startup_workspace false;
+  View.set_startup_silver_overview true;
   File_picker.set_include_ignored false;
   File_picker.set_max_candidates 50_000;
   File_picker.set_max_total_path_bytes (8 * 1024 * 1024);
@@ -73,6 +77,8 @@ end
 module View : sig
   val set_line_numbers : bool -> unit
   val set_relative_line_numbers : bool -> unit
+  val set_startup_workspace : bool -> unit
+  val set_startup_silver_overview : bool -> unit
 end
 module Signature_help : sig val set_enabled : bool -> unit end
 module File_picker : sig
@@ -178,7 +184,7 @@ details, not supported user API.
   and line numbers. Argument vectors are passed directly, without a shell.
 - Source and result reads are each capped at **1 MiB**; nonregular files are
   rejected. The helper bounds its entire encoded result to 1 MiB before writing,
-   and accepts at most **1000 snippet operations**. `COBALT_SETTINGS_6` uses newline
+   and accepts at most **1000 snippet operations**. `COBALT_SETTINGS_7` uses newline
   framing: magic; enabled; ghost; minimum prefix; prefer local; line numbers;
   hex theme; signature-help enabled; decimal operation count; then ordered operations. A `disable` tag
   is followed by hex ID. An `add` tag is followed by hex ID, hex prefix, decimal
@@ -187,7 +193,9 @@ details, not supported user API.
    `collection` operation tag is followed by hex collection name and enabled
     boolean. After the operations, version 4 appends a canonical decimal color
      count (maximum **11**) followed by that many hex role / hex color pairs.
-     Version 6 appends the file-picker include-ignored boolean, candidate limit,
+      Version 7 appends the startup Workspace and Silver Overview booleans;
+      versions 2–6 use the built-in startup layout defaults.
+      Version 6 appends the file-picker include-ignored boolean, candidate limit,
      and path-byte limit (canonical positive decimals), after the relative-number
      switch. Versions 2–5 remain supported and use default file-picker settings.
      Version 5 appends a relative-line-numbers boolean after the colors; versions

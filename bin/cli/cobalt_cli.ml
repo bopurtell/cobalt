@@ -237,7 +237,8 @@ let command ~document_decorations ~silver_overview =
                   factory ~test_default:silver_test_default silver_binding) in
                (match%bind Cobalt_ui.Editor_view.run ~document_decorations
                     ~document_decorations_enabled:markdown ~smear_enabled ~mouse:(not no_mouse)
-                   ~zen:(not workspace && Option.is_none silver_binding)
+                    ~zen:(not workspace && Option.is_none silver_binding)
+                    ~force_startup_silver_overview:(Option.is_some silver_binding)
                   ~bare ?theme ~buffer_presentation ?report ?silver_overview ?source ~vcs ?open_location_listener controller with
             | Ok () -> return ()
             | Error error -> fail error)))
