@@ -119,11 +119,11 @@ let%expect_test "Space g g opens a tab with the repository; s, f and h move, foc
       focused vcs; vcs (Tab); active tab vcs; file a.txt line 1
        1:a.txt [2:VCS: main]                                                                              |
       ╭─ VCS: work (main) ───────────────────────────────────────────────────────────────────────────────╮|
-      │ Head: main 387d257                    │ 0 Diff: Unstaged changes                                 │|
+      │ Head: main 387d257                    │ 0 Diff: Unstaged: a.txt                                  │|
       │                                       │ diff --git a/a.txt b/a.txt                               │|
       │ 1 Files (1)                           │ index f384549..6addb9b 100644                            │|
-      │ > - Unstaged changes (1)              │ --- a/a.txt                                              │|
-      │   modified   a.txt                    │ +++ b/a.txt                                              │|
+      │   - Unstaged changes (1)              │ --- a/a.txt                                              │|
+      │ > modified   a.txt                    │ +++ b/a.txt                                              │|
       │                                       │ @@ -1,4 +1,4 @@                                          │|
       │                                       │  one                                                     │|
       │                                       │ -two                                                     │|
@@ -139,7 +139,7 @@ let%expect_test "Space g g opens a tab with the repository; s, f and h move, foc
       │ > - Recent commits (1)                │                                                          │|
       │   ● 387d257 (HEAD -> main) first      │                                                          │|
       │                                       │                                                          │|
-      ╰─ Files 1/2 ──────────────────────────────────────────────────────────────────────────────────────╯|
+      ╰─ Files 2/2 ──────────────────────────────────────────────────────────────────────────────────────╯|
        NORMAL  VCS: main VCS focused                                                                      |
       cursor: none
       |}];
@@ -152,8 +152,8 @@ let%expect_test "Space g g opens a tab with the repository; s, f and h move, foc
       ╭─ VCS: work (main) ────────────────────────────╮|
       │ Head: main 387d257                            │|
       │ 1 Files (1)                                   │|
-      │ > - Unstaged changes (1)                      │|
-      │   modified   a.txt                            │|
+      │   - Unstaged changes (1)                      │|
+      │ > modified   a.txt                            │|
       │                                               │|
       │                                               │|
       │                                               │|
@@ -162,7 +162,7 @@ let%expect_test "Space g g opens a tab with the repository; s, f and h move, foc
       │ 3 Commits (1)                                 │|
       │ > - Recent commits (1)                        │|
       │ ───────────────────────────────────────────── │|
-      │  0 Diff: Unstaged changes                     │|
+      │  0 Diff: Unstaged: a.txt                      │|
       │  diff --git a/a.txt b/a.txt                   │|
       │  index f384549..6addb9b 100644                │|
       │  --- a/a.txt                                  │|
@@ -216,8 +216,8 @@ let%expect_test "saving a file in the repository refreshes the view once" =
       ╭─ VCS: work (main) ────────────────────────────╮|
       │ Head: main 387d257                            │|
       │ 1 Files (1)                                   │|
-      │ > - Unstaged changes (1)                      │|
-      │   modified   a.txt                            │|
+      │   - Unstaged changes (1)                      │|
+      │ > modified   a.txt                            │|
       │                                               │|
       │                                               │|
       │                                               │|
@@ -226,7 +226,7 @@ let%expect_test "saving a file in the repository refreshes the view once" =
       │ 3 Commits (1)                                 │|
       │ > - Recent commits (1)                        │|
       │ ───────────────────────────────────────────── │|
-      │  0 Diff: Unstaged changes                     │|
+      │  0 Diff: Unstaged: a.txt                      │|
       │  diff --git a/a.txt b/a.txt                   │|
       │  index f384549..e6cb1bc 100644                │|
       │  --- a/a.txt                                  │|
@@ -236,7 +236,7 @@ let%expect_test "saving a file in the repository refreshes the view once" =
       │   one                                         │|
       │  -two                                         │|
       │  +TWO                                         │|
-      ╰─ Files 1/2 ───────────────────────────────────╯|
+      ╰─ Files 2/2 ───────────────────────────────────╯|
       cursor: 6,1 Block
       |}];
     (* A save outside the repository does not refresh it. *)
@@ -255,9 +255,8 @@ let%expect_test "e in the diff opens the file at the line: from a tab, and besid
   with_repo (fun repo ->
     let t = create ~cwd:repo.work (Fixture.path repo "b.txt") in
     let t = run repo t " gg" in
-    (* The Files panel starts on the section header; j selects a.txt, Enter focuses
-       its diff, and the cursor goes to the +TWO line. *)
-    let t = run repo t "j<CR>jjjjjjj" in
+    (* Files starts on a.txt; Enter focuses its diff, and the cursor goes to +TWO. *)
+    let t = run repo t "<CR>jjjjjjj" in
     let state = vcs t in
     print_s
       [%sexp
@@ -267,7 +266,6 @@ let%expect_test "e in the diff opens the file at the line: from a tab, and besid
     where t;
     [%expect {|
       jobs: detect g1.1, refresh g1.2, diff g1.3
-      jobs: diff g1.4
       ((focus Diff)
        (cursor ((selected ((Item (section unstaged) (key a.txt)))) (folded ()))))
       focused vcs; vcs (Tab); active tab vcs; file b.txt line 1
@@ -675,7 +673,7 @@ let%expect_test "lines of two files, and an untracked file's lines, are refused"
     Fixture.write repo "new.txt" "new\n";
     let t = act repo (create ~cwd:repo.work (Fixture.path repo "a.txt")) " gg" in
     (* Rows: untracked header, new.txt, unstaged header (both files' diff). *)
-    let t = act repo (act repo t "jj") "<Tab>VG" in
+    let t = act repo (act repo t "j") "<Tab>VG" in
     let t = act repo t "s" in
     outcome repo t;
     let t = act repo (act repo t "<Tab>k") "<Tab>GV" in

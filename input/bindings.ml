@@ -10,6 +10,7 @@ module Target = struct
     | Scroll of View_command.Scroll.t
     | Delete_operator
     | Yank_operator
+    | Toggle_comment_lines
     | Shift_lines of { right : bool }
     | Delete_chars_forward
     | Delete_chars_backward
@@ -152,6 +153,7 @@ let default =
     ; move [ '_' ] First_nonblank_down
     ; move [ 'g'; '_' ] Last_nonblank
     ; move [ 'g'; 'g' ] First_line
+    ; [ Key.char 'g'; Key.char 'c' ], Toggle_comment_lines
     ; move [ 'G' ] Last_line
      ; move [ '%' ] Matching_delimiter
     (* Conflict markers: vim-unimpaired's jumps, and smerge's letters for the side

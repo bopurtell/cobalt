@@ -496,11 +496,12 @@ let%expect_test "n on an unborn branch is refused; the branch keys are local to 
     print_endline (names t);
     [%expect
       {|
-      jobs: detect g1.1, refresh g1.2
+      jobs: detect g1.1, refresh g1.2, diff g1.3
       focused vcs
       notice: There is no commit yet: commit before branching; nothing ran
       refresh toggle-log leave focus-files focus-branches focus-commits focus-diff toggle-diff new-branch previous-branch log commit fetch pull push merge copy next previous first last half-page-down half-page-up
-      refresh toggle-log leave focus-files focus-branches focus-commits focus-diff toggle-diff toggle-fold stage unstage discard stage-all unstage-all log commit fetch pull push merge copy next previous first last half-page-down half-page-up
+      jobs: diff g1.4
+      refresh toggle-log leave focus-files focus-branches focus-commits focus-diff toggle-diff select stage unstage discard stage-all unstage-all log commit fetch pull push merge copy next previous first last half-page-down half-page-up
       |}])
 ;;
 
@@ -534,7 +535,7 @@ let%expect_test "a rebase pull stops on a conflict: the summary says press r; r 
       | Rebasing main onto 6b0cb12 (press r)
       log: [exit 1] git pull --progress --rebase
             "Could not apply 71ae0ce... Ours"
-      refresh toggle-log leave focus-files focus-branches focus-commits focus-diff toggle-diff toggle-fold stage unstage discard stage-all unstage-all log commit fetch pull push rebase merge copy next previous first last half-page-down half-page-up
+      refresh toggle-log leave focus-files focus-branches focus-commits focus-diff toggle-diff select stage unstage discard stage-all unstage-all log commit fetch pull push rebase merge copy next previous first last half-page-down half-page-up
       |}];
     let t = run repo t "r" in
     where repo t;

@@ -134,7 +134,7 @@ let with_remote f =
 
 let%expect_test "the list panels and the diff, normal and Visual" =
   with_remote (fun repo ->
-    let t = run repo (create repo) " gg" in
+    let t = run repo (run repo (create repo) " gg") "k" in
     footer "Files, a header" t;
     let t = run repo t "jjj" in
     footer "Files, a file" t;
@@ -377,7 +377,7 @@ let%expect_test "outside a repository" =
 let%expect_test "at 80 columns the longer footers are cut, after ? help" =
   with_remote (fun repo ->
     let width = 80 in
-    let t = run ~width repo (create repo) " gg" in
+    let t = run ~width repo (run ~width repo (create repo) " gg") "k" in
     footer ~width "Files" t;
     let t = run ~width repo t "2" in
     footer ~width "Branches" t;

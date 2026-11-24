@@ -109,6 +109,30 @@ let%test_unit "BSV highlights packages, interfaces, modules, rules, methods and 
   Provider.close provider
 ;;
 
+let%test_unit "Classic uses BH tokens and signatures instead of BSV or GHC syntax" =
+  let source = {|package Pulse where
+interface Pulse =
+    pulse :: Action
+mkPulse = module
+    r <- mkReg 8'hff
+    rules
+      "tick": when r /= '0 ==> action { r := 0 }
+--@ tick
+{- outer {- nested -} still a comment -}
+|} in
+  let provider = Provider.create ~language:Classic in
+  let result = highlight provider source in
+  expect_status result.status (Highlighted { syntax_errors = false });
+  List.iter
+    [ "package", Category.Keyword; "Pulse", Module; "interface", Keyword
+    ; "pulse", Function; "Action", Type; "module", Keyword; "8'hff", Number
+    ; "rules", Keyword; "\"tick\"", String; "when", Keyword; "'0", Number
+    ; "==>", Operator; "action", Keyword; "--@ tick", Comment
+    ; "{- outer {- nested -} still a comment -}", Comment
+    ] ~f:(expect_token result.snapshot ~source);
+  Provider.close provider
+;;
+
 let%test_unit "Rust and BSV retain unrelated captures while incomplete; incremental results match fresh" =
   List.iter
     [ Language.Rust, rust, "let count = 0xff_u32;", "let count = ;",

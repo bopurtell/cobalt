@@ -1,4 +1,6 @@
-# C11 — Basic mouse support
+<a id="c11--basic-mouse-support"></a>
+
+# CB-011 — Basic mouse support
 
 **Status:** Closed — verified and accepted by the owner.
 
@@ -21,7 +23,7 @@ editors leave terminal reporting to their host.
 | --- | --- |
 | Left-click file text | Focus that editor and place the cursor. Preserve Normal or Insert mode; in Visual mode, end the selection and place the cursor. |
 | Left-click an Oil/Dired row | Focus the directory and move the cursor to the row. Do not open, mark, rename, or apply anything. `Enter` still opens the entry. |
-| Left-click a visible file tab | Activate it as if selected by keyboard. Once [C10](c10-side-by-side-editors.md) lands, target the focused editor pane and follow C10's rule for files already visible. |
+| Left-click a visible file tab | Activate it as if selected by keyboard. Once [CB-010](c10-side-by-side-editors.md) lands, target the focused editor pane and follow CB-010's rule for files already visible. |
 | Wheel over file text or a directory listing | Scroll the pane under the pointer without moving its cursor, changing its selection, or stealing focus. The cursor may go offscreen. The next keyboard command that moves the cursor or edits text brings it back into view. |
 | Click a gutter, border, divider, or unsupported tile | Do nothing. A modal overlay blocks mouse events from reaching the workspace underneath it. |
 
@@ -64,8 +66,8 @@ editors leave terminal reporting to their host.
 ## Follow-ups, not v1
 
 Drag selection, double-click actions, dragging split dividers, mouse controls
-for VCS and pickers, and forwarding mouse input to embedded terminals. C11
-can ship before C10; verify targeting across both editors once both land.
+for VCS and pickers, and forwarding mouse input to embedded terminals. CB-011
+can ship before CB-010; verify targeting across both editors once both land.
 
 ## Headless evidence
 
@@ -74,5 +76,5 @@ zero-based pointer input through the screen transition and checks rendered
 frames. It covers character-cell mapping, modal and paste capture, directory
 row selection without opening or marking, independent sidebar and file
 viewports, keyboard re-follow and undo, tab overflow, and visible/hidden editor
-targeting with C10. Run the headless suites with `dune runtest -j4 screen app core`
+targeting with CB-010. Run the headless suites with `dune runtest -j4 screen app core`
 and the standalone PTY suite with `dune build -j4 @bin/mouse-cli-test`.

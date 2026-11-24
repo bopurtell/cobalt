@@ -99,8 +99,8 @@ let%expect_test "deleting and renaming tracked files in a directory buffer refre
       ╭─ VCS: work (main) ────────────────────────────╮|
       │ Head: main f357226                            │|
       │ 1 Files (1)                                   │|
-      │ > - Unstaged changes (1)                      │|
-      │   deleted    b.txt                            │|
+      │   - Unstaged changes (1)                      │|
+      │ > deleted    b.txt                            │|
       │                                               │|
       │                                               │|
       │                                               │|
@@ -117,9 +117,9 @@ let%expect_test "deleting and renaming tracked files in a directory buffer refre
       │ 1 Files (3)                                   │|
       │   - Untracked files (1)                       │|
       │   a.txt.renamed                               │|
-      │ > - Unstaged changes (2)                      │|
+      │   - Unstaged changes (2)                      │|
       │   deleted    a.txt                            │|
-      │   deleted    b.txt                            │|
+      │ > deleted    b.txt                            │|
       |}];
     let t = requests t in
     [%expect {| () |}];

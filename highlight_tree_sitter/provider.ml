@@ -48,6 +48,8 @@ let configuration_for_language = function
   | Language.Systemverilog -> "tree-sitter-systemverilog.d6be6119/cobalt-sv-structural-v1"
   | Gas -> "tree-sitter-gas.60f44364/cobalt-gas-grammar-v2/cobalt-gas-structural-v1"
   | Rust -> "tree-sitter-rust.18b0515f/cobalt-rust-structural-v1"
+  | Classic -> "cobalt-classic-lexical-v1"
+  | Cpp -> "tree-sitter-cpp.0.23.4/cobalt-cpp-structural-v1"
   | Bsv -> "tree-sitter-bsv.ed1a91eb/cobalt-bsv-grammar-v1/cobalt-bsv-structural-v1"
   | Plain | Ocaml | Ocaml_interface -> configuration
 ;;
@@ -56,6 +58,8 @@ let query_source = function
   | Language.Systemverilog -> Some Systemverilog_queries.source
   | Gas -> Some Gas_queries.source
   | Rust -> Some Rust_queries.source
+  | Classic -> Some Classic_queries.source
+  | Cpp -> Some Cpp_queries.source
   | Bsv -> Some Bsv_queries.source
   | language -> Ocaml_queries.source language
 ;;
@@ -64,7 +68,7 @@ let initialize language query_source =
   match language, query_source with
   | Language.Plain, _ -> Unavailable Unsupported_language
   | _, None -> Unavailable (Initialization "missing compiled highlight query")
-  | (Ocaml | Ocaml_interface | Systemverilog | Gas | Rust | Bsv), Some source ->
+  | (Ocaml | Ocaml_interface | Systemverilog | Gas | Rust | Bsv | Classic | Cpp), Some source ->
     (try
        let grammar =
          match language with
@@ -72,7 +76,9 @@ let initialize language query_source =
          | Ocaml_interface -> Tree_sitter_ocaml.interface ()
           | Systemverilog -> Cobalt_tree_sitter_systemverilog.language ()
           | Gas -> Cobalt_tree_sitter_gas.language ()
-          | Rust -> Cobalt_tree_sitter_rust.language ()
+           | Rust -> Cobalt_tree_sitter_rust.language ()
+           | Classic -> Cobalt_tree_sitter_classic.language ()
+           | Cpp -> Cobalt_tree_sitter_cpp.language ()
           | Bsv -> Cobalt_tree_sitter_bsv.language ()
          | Plain -> assert false
        in

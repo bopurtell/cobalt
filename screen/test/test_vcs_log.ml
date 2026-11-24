@@ -436,7 +436,6 @@ let%expect_test "l f from Files and from a commit's diff; Enter in the history l
     Fixture.write repo "z.txt" "z\nzz\nzzz\n";
     let t = run repo (create repo) " gg" in
     (* Files: the selected item. *)
-    let t = run repo t "j" in
     let t = run repo t "l" in
     popup_rows t;
     let t = run repo t "f" in
@@ -463,7 +462,6 @@ let%expect_test "l f from Files and from a commit's diff; Enter in the history l
     diff_line t);
   [%expect {|
     jobs: detect g1.1, refresh g1.2, diff g1.3
-    jobs: diff g1.4
     ╭─ Log ────────────────────────────────────────────────────────────────────╮
     │ Switches                                                                 │
     │ * -g  Show the graph (--graph)                                           │
@@ -475,17 +473,17 @@ let%expect_test "l f from Files and from a commit's diff; Enter in the history l
     │   a  Log all branches                                                    │
     │   f  History of z.txt                                                    │
     ╰──────────────────────────────────────────────────────────────────────────╯
-    jobs: refresh g1.5
+    jobs: refresh g1.4
     focused vcs (Commits)
     | 3 Commits (2)
     | > - History of z.txt (2)
     |   e2a83de (tag: v1) two
     |   4976aae one
-    jobs: diff g1.6, diff g1.7
+    jobs: diff g1.5, diff g1.6
     focused vcs (Diff)
     diff line 18: diff --git a/z.txt b/z.txt
-    jobs: refresh g1.8
-    jobs: diff g1.9, diff g1.10
+    jobs: refresh g1.7
+    jobs: diff g1.8, diff g1.9
     focused vcs (Commits)
     notice: Select a file first: a Files item, or a file in the diff
     ╭─ Log ────────────────────────────────────────────────────────────────────╮
@@ -499,7 +497,7 @@ let%expect_test "l f from Files and from a commit's diff; Enter in the history l
     │   a  Log all branches                                                    │
     │   f  History of b.txt                                                    │
     ╰──────────────────────────────────────────────────────────────────────────╯
-    jobs: refresh g1.11
+    jobs: refresh g1.10
     focused vcs (Commits)
     | 3 Commits (4)
     | > - History of b.txt (4)
@@ -507,7 +505,7 @@ let%expect_test "l f from Files and from a commit's diff; Enter in the history l
     |   b97a857 rename
     |   e2a83de (tag: v1) two
     |   4976aae one
-    jobs: diff g1.12, diff g1.13
+    jobs: diff g1.11, diff g1.12
     diff line 10: diff --git a/a.txt b/b.txt
     |}]
 ;;

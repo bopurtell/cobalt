@@ -1,8 +1,8 @@
 # Silver integration: Cobalt-side tickets
 
-**Status:** C1–C9 are **closed** for their Cobalt-side scope. C5 and C6 passed
+**Status:** CB-001–CB-009 are **closed** for their Cobalt-side scope. CB-005 and CB-006 passed
 live two-window checks for simulation observation and test quick launch,
-respectively. C8–C9 are live-verified implementation slices, not duplicate feature
+respectively. CB-008–CB-009 are live-verified implementation slices, not duplicate feature
 trackers. Silver's `docs/cobalt_editor_roadmap.md` and the named WB tickets own
 the user workflows and end-to-end acceptance. “Ready for Silver” means the
 Cobalt interface works against a local harness, not that the two apps have been
@@ -13,24 +13,26 @@ Keep fixture exchanges and harness instructions with their adapter.
 
 | Ticket | Status | Handoff |
 | --- | --- | --- |
-| [C1: Session open](#c1--open-a-location-in-a-live-session) | Closed | Silver WB-087/088: generic location, including test declarations |
-| [C2: Hosted view](#c2--host-the-real-editor-view) | Closed | WB-087: persistent embedded editing |
-| [C3: Terminal handoff](#c3--expose-toggleterm-as-a-host-action) | Closed | WB-089/090: numbered shells and focus |
-| [C4: Main editor destination](#c4--address-an-opted-in-standalone-editor) | Closed | Silver navigation: second destination for the same location |
-| [C5: Companion overview](#c5--optional-silver-module-and-overview-tile) | Closed | Cobalt-first monitoring against a real Silver endpoint |
-| [C6: Test quick launch](#c6--run-a-silver-test-from-the-editor) | Closed | WB-093: tile `R` and exact `test`; no stage launch |
-| [C7: Discover/connect wizard](#c7--discover-and-connect-to-a-shared-silver-project) | Closed | WB-094: owner-accepted after live embedded and attached verification |
-| [C8: Stage checklist and aliases](#c8--stage-checklist-and-palette-aliases) | Closed | WB-095: native launch parity and live stage progress verified |
-| [C9: Flow Runner](#c9--flow-kickoff-tile) | Closed | WB-095: flow selection through checklist `R` and explicit reviewed launch verified |
+| [CB-001: Session open](#cb-001--open-a-location-in-a-live-session) | Closed | Silver WB-087/088: generic location, including test declarations |
+| [CB-002: Hosted view](#cb-002--host-the-real-editor-view) | Closed | WB-087: persistent embedded editing |
+| [CB-003: Terminal handoff](#cb-003--expose-toggleterm-as-a-host-action) | Closed | WB-089/090: numbered shells and focus |
+| [CB-004: Main editor destination](#cb-004--address-an-opted-in-standalone-editor) | Closed | Silver navigation: second destination for the same location |
+| [CB-005: Companion overview](#cb-005--optional-silver-module-and-overview-tile) | Closed | Cobalt-first monitoring against a real Silver endpoint |
+| [CB-006: Test quick launch](#cb-006--run-a-silver-test-from-the-editor) | Closed | WB-093: tile `R` and exact `test`; no stage launch |
+| [CB-007: Discover/connect wizard](#cb-007--discover-and-connect-to-a-shared-silver-project) | Closed | WB-094: owner-accepted after live embedded and attached verification |
+| [CB-008: Stage checklist and aliases](#cb-008--stage-checklist-and-palette-aliases) | Closed | WB-095: native launch parity and live stage progress verified |
+| [CB-009: Flow Runner](#cb-009--flow-kickoff-tile) | Closed | WB-095: flow selection through checklist `R` and explicit reviewed launch verified |
 
-**Verification:** C7 reads Silver's locked share registry; C8 and C9 share
+**Verification:** CB-007 reads Silver's locked share registry; CB-008 and CB-009 share
 one flow adapter and can also use an explicit project binding. To rerun the
-two-app checks, use Silver's `scripts/test-editor-project-sharing.py` (C7)
+two-app checks, use Silver's `scripts/test-editor-project-sharing.py` (CB-007)
 and `scripts/test-companion-flow-launch.py --slice c8|c9` (one slice per run).
 Point `--cobalt` at the binary under test. Both harnesses create private projects
 and state; WB-094 and WB-095 record the commands and expected results.
 
-## C1 — Open a location in a live session
+<a id="c1--open-a-location-in-a-live-session"></a>
+
+## CB-001 — Open a location in a live session
 
 **Owner:** session/buffer management (`app/`, with UI navigation where needed).
 Expose a typed operation for an existing editor session: project root, relative
@@ -46,7 +48,9 @@ a missing target or wrong project returns a failure without creating a buffer.
 harness](../../app/OPEN_LOCATION.md). The API uses one-based display columns;
 convert source byte offsets before handing them to Cobalt.
 
-## C2 — Host the real editor view
+<a id="c2--host-the-real-editor-view"></a>
+
+## CB-002 — Host the real editor view
 
 **Owner:** UI/composition. Exercise a bounded editor surface with size, focus,
 input, open-location and shutdown. Choose a hosted component or supervised
@@ -55,7 +59,7 @@ terminal. Keep Cobalt's tile composition, commands and Git view inside the
 surface; hiding the view is distinct from ending the session.
 
 **Ready for Silver:** a sample host puts a sibling pane beside Cobalt, opens a
-file via C1, resizes, transfers focus, then hides and restores the editor without
+file via CB-001, resizes, transfers focus, then hides and restores the editor without
 losing edits. A Cobalt-only binding works unchanged in hosted and standalone
 mode; no host-side command registration. Document how Silver runs this demo.
 
@@ -66,7 +70,9 @@ the [`cobalt.hosted` API](../../ui/HOSTED.md), [two-pane demo and automated
 PTY test](../../examples/hosted_editor/README.md), and [external Dune
 consumer](../../examples/hosted_consumer/README.md).
 
-## C3 — Expose ToggleTerm as a host action
+<a id="c3--expose-toggleterm-as-a-host-action"></a>
+
+## CB-003 — Expose ToggleTerm as a host action
 
 **Owner:** input/UI emits the *recognized* numbered toggle. An injected handler
 chooses standalone Cobalt's usual pool or the outer host. Review
@@ -84,9 +90,11 @@ for shells and the hosted editor's [`on_toggle_terminal` callback](../../hosted/
 for input. A numbered toggle carries `Some n`; an unnumbered toggle carries
 `None`, leaving the most-recent selection with the frontend that owns the pool.
 
-## C4 — Address an opted-in standalone editor
+<a id="c4--address-an-opted-in-standalone-editor"></a>
 
-**Owner:** a session adapter delivers C1; the tile never listens for requests.
+## CB-004 — Address an opted-in standalone editor
+
+**Owner:** a session adapter delivers CB-001; the tile never listens for requests.
 Allow one live Cobalt instance to be explicitly selected as “main” for a
 project. Begin with a session-lived local transport (a user-local socket is one
 option); specify selection, project scope, teardown and an acknowledged result.
@@ -102,7 +110,9 @@ Silver owns the destination picker/bindings and unavailable-destination UX.
 endpoint lifetime](../../main_editor/README.md). A lost acknowledgement is
 distinct from an editor rejection: do not retry an open automatically.
 
-## C5 — Optional Silver module and overview tile
+<a id="c5--optional-silver-module-and-overview-tile"></a>
+
+## CB-005 — Optional Silver module and overview tile
 
 **Owner:** an optional Silver-integration module, selected at composition time
 like the [decoration provider](../architecture.md#boundaries). It owns endpoint,
@@ -128,14 +138,16 @@ authoritative types are in Silver's `protocol/simulation.ml`.
 [adapter contract](../../silver_overview/README.md), or [reproduce the two-window
 acceptance check and captured exchanges](../../examples/silver_overview/README.md).
 
-## C6 — Run a Silver test from the editor
+<a id="c6--run-a-silver-test-from-the-editor"></a>
+
+## CB-006 — Run a Silver test from the editor
 
 **Closed (WB-093): test quick launch only.** The optional Silver composition
 owns the verified project binding, test catalog, settings and acknowledgements.
 The tile and exact `test` invoke the same launch operation. A project binding
 suffices before the first attempt exists; hiding the tile does not drop it or
-retarget a pending launch. Stage work moved to C8/WB-095 and is not delivered
-by C6.
+retarget a pending launch. Stage work moved to CB-008/WB-095 and is not delivered
+by CB-006.
 
 The [launch adapter](../../silver_overview/README.md#testing-quick-launch)
 documents the verified connection, discovery digest and one-shot submission.
@@ -164,7 +176,9 @@ model, fake peer, headless tile/palette routing and standalone PTY. The
 [captured Testing exchanges](../../examples/silver_overview/wire/) are reusable
 regression fixtures, not ASIC launch examples.
 
-## C7 — Discover and connect to a shared Silver project
+<a id="c7--discover-and-connect-to-a-shared-silver-project"></a>
+
+## CB-007 — Discover and connect to a shared Silver project
 
 **WB-094-editor-project-sharing.** From ordinary standalone Cobalt, open
 `Silver: Discover/Connect…`, list local project shares with their project
@@ -211,7 +225,9 @@ the service, job or history. A withdrawn offer cannot be used as a share
 even if an explicit connection still works. These gates do not block the
 fixture-backed wizard or manual path.
 
-## C8 — Stage checklist and palette aliases
+<a id="c8--stage-checklist-and-palette-aliases"></a>
+
+## CB-008 — Stage checklist and palette aliases
 
 **Implemented:** the [shared launch adapter](../../silver_overview/FLOW.md)
 uses advertised fresh stage endpoints and Silver's `Stage_fresh` /
@@ -258,11 +274,13 @@ and alias actions, and no replay after an unconfirmed reply. Surface accepted
 identity without replacing the watched attempt.
 
 **Handoff:** WB-095 records the seven-run comparison against native Silver.
-The [captured C8 fixture](../../silver_overview/test/wb095-c8.sexp) replays the
+The [captured CB-008 fixture](../../silver_overview/test/wb095-c8.sexp) replays the
 wire contract in Cobalt. The live comparison covers default configuration;
 explicit nondefault stage settings also have adapter tests.
 
-## C9 — Flow kickoff tile
+<a id="c9--flow-kickoff-tile"></a>
+
+## CB-009 — Flow kickoff tile
 
 **Accepted workflow:** Keep the editor visible beside a small flow selector.
 `j`/`k` chooses the active flow without submitting. Open the command palette
@@ -295,7 +313,7 @@ a pending reply or cancel Silver's work.
 example of captured edits and explicit apply). Mount the new tile using the
 [optional composition](../../bin/composition/dune) and the
 [view registry seam](../../ui/silver_overview_host.ml). Consume the shared
-C8/C9 launch interface against a fake service, not C8's checklist or a live
+CB-008/CB-009 launch interface against a fake service, not CB-008's checklist or a live
 daemon. Snapshot binding, catalog generation and preview identity at Kickoff;
 invalidate stale drafts or plans visibly, never pick a replacement silently.
 
@@ -306,7 +324,7 @@ submission with the reviewed values, switching project during planning, delayed
 acknowledgements, and no automatic replay. Test with an explicit project
 binding and keep no-Silver editing unaffected.
 
-**Handoff:** the [captured C9 fixture](../../silver_overview/test/wb095-c9.sexp)
+**Handoff:** the [captured CB-009 fixture](../../silver_overview/test/wb095-c9.sexp)
 preserves the real preparation and submission exchanges. The WB-095 two-window
 check verifies preview alone creates no run and a superseded preview cannot
 start a workflow. It exercises the real service with deterministic producers,

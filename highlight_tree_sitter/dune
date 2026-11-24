@@ -1,8 +1,8 @@
 (library
  (name cobalt_highlight_tree_sitter)
  (package cobalt)
- (private_modules ocaml_queries systemverilog_queries gas_queries rust_queries bsv_queries)
+ (private_modules ocaml_queries systemverilog_queries gas_queries rust_queries bsv_queries classic_queries cpp_queries)
  (libraries cobalt_highlight core tree-sitter tree-sitter.ocaml
    cobalt_tree_sitter_systemverilog cobalt_tree_sitter_gas
-   cobalt_tree_sitter_rust cobalt_tree_sitter_bsv)
+    cobalt_tree_sitter_rust cobalt_tree_sitter_bsv cobalt_tree_sitter_classic cobalt_tree_sitter_cpp)
  (preprocess (pps ppx_jane)))

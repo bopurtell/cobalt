@@ -16,6 +16,18 @@ for pins, checksums, licenses and capture limitations. Neither language requires
 a compiler or a language server for highlighting; `.bs` is not a BSV file.
 No Tree-sitter CLI, Node, or external editor installation is required.
 
+Classic (`.bs`) uses Cobalt's own lexical [grammar](classic_grammar/grammar.js)
+and `classic_queries.ml`. It recognizes BH keywords, signatures, literals and
+nested comments; it does not parse layout or validate BSC syntax. To regenerate,
+copy `grammar.js` into a temporary directory, run `tree-sitter generate --no-bindings`
+with CLI 0.20.8 there, then copy `src/parser.c` and `src/tree_sitter/parser.h` back
+into `classic_grammar/` preserving the header subdirectory. The CLI's MIT notice
+is included in `classic_grammar/LICENSE.tree-sitter`.
+
+C++ uses a [vendored grammar](cpp_grammar/ASSETS.md) and predicate-free
+structural captures in `cpp_queries.ml`. Include paths and declarations are
+highlighted without loading headers or resolving foreign symbols.
+
 Package release: Mosaic commit `bbaec9a2b49eccc7be958df1a3fc3f53443787b8`.
 Archive SHA-256:
 `9e4e90d17f9b2af1b07071fe425bc2c519c849c4f1d1ab73cde512be2d874849`.

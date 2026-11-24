@@ -132,6 +132,17 @@ let%test_unit "shift prefixes show counts and cancel without leaking state" =
   assert (Option.is_some (Keymap.notice keymap))
 ;;
 
+let%test_unit "Visual gc toggles comments without stealing bare c or a find target" =
+  let _, normal = route_keys ~mode:Normal (keys "gc3gc") in
+  assert ([%equal: Keymap.Action.t list] normal
+    [ Editor (Toggle_comment_lines 1); Editor (Toggle_comment_lines 3) ]);
+  let _, actions = route_keys ~mode:(Visual `Linewise) (keys "gccfc") in
+  assert ([%equal: Keymap.Action.t list] actions
+    [ Editor Visual_toggle_comments; Editor Visual_change
+    ; Editor (Move { motion = Find { target = Uchar.of_char 'c'; direction = Forward; till = false }; count = None })
+    ])
+;;
+
 let%test_unit "Visual shifts count steps in every selection kind and respect pending finds" =
   List.iter [ `Characterwise; `Linewise; `Blockwise ] ~f:(fun kind ->
     let _, actions = route_keys ~mode:(Visual kind) (keys "3><") in

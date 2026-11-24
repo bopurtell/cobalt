@@ -50,9 +50,9 @@ let show ?(width = 10) ?(rows = 3) t =
   let selected offset =
     Option.exists selection ~f:(fun (start, stop) -> start <= offset && offset < stop)
   in
-  List.iteri (Text_view.rows t ~width) ~f:(fun i (row : Text_view.Row.t) ->
-    if i >= Text_view.top t && i < Text_view.top t + rows
-    then (
+  Text_view.map_visible_rows t ~width ~rows ~f:Fn.id
+  |> List.iteri ~f:(fun i (row : Text_view.Row.t) ->
+      let i = Text_view.top t + i in
       let cells =
         Array.to_list row.glyphs
         |> List.map ~f:(fun (g : Cobalt_core.Cell_layout.Glyph.t) ->
@@ -63,11 +63,67 @@ let show ?(width = 10) ?(rows = 3) t =
       in
       let empty = if Array.is_empty row.glyphs && i = cursor_row then "#" else "" in
       let break = if Option.exists row.break ~f:selected then "$" else "" in
-      printf "%2d |%s%s%s|\n" i (String.concat cells) empty break));
+      printf "%2d |%s%s%s|\n" i (String.concat cells) empty break);
   printf "top %d cursor %d\n" (Text_view.top t) (Text_view.cursor t)
 ;;
 
 let create text = Text_view.create ~cell_width text
+
+let%test_unit "fit, movement, selection, and unchanged text reuse wrapped rows" =
+  let width = 4 and rows = 2 in
+  let t = create "abcdef\n123456\n" in
+  let first t = List.hd_exn (Text_view.map_visible_rows t ~width ~rows ~f:Fn.id) in
+  let original = first t in
+  let t = Text_view.fit t ~width ~rows in
+  let t = type_ t ~width ~rows "vj" in
+  assert (phys_equal original (first t));
+  assert (Text_view.row_count t ~width = 5);
+  let t, result = Text_view.update t "abcdef\n123456\n" in
+  (match result with
+   | `Same -> ()
+   | `Changed _ -> assert false);
+  assert (phys_equal original (first t));
+  let updated, result = Text_view.update t "ABCDEF\n123456\n" in
+  (match result with
+   | `Changed true -> ()
+   | `Same | `Changed false -> assert false);
+  assert (not (phys_equal original (first updated)));
+  assert (String.equal (first updated).glyphs.(0).text "A");
+  assert (phys_equal original (first t));
+  (* The old width is evicted, even for an older cursor state of this snapshot. *)
+  assert (Text_view.row_count t ~width:6 = 3);
+  assert (not (phys_equal original (first t)))
+;;
+
+let%expect_test "resize recomputes row counts, cursor and visible slice but keeps Visual bytes" =
+  let t = type_ (create "abcdEF\nxyz\n\nlast!") ~width:4 ~rows:2 "Gv" in
+  let show_size t ~width =
+    let t = Text_view.fit t ~width ~rows:2 in
+    printf "%d rows\n" (Text_view.row_count t ~width);
+    show t ~width ~rows:2;
+    t
+  in
+  let t = show_size t ~width:4 in
+  let t = show_size t ~width:6 in
+  let t = show_size t ~width:4 in
+  (* A footer count and a viewport at the end do not need the earlier rows. *)
+  assert (List.is_empty (Text_view.map_visible_rows t ~width:4 ~rows:0 ~f:Fn.id));
+  assert (List.length (Text_view.map_visible_rows t ~width:4 ~rows:100 ~f:Fn.id) = 2);
+  [%expect {|
+    6 rows
+     4 |last|
+     5 |#[!]|
+    top 4 cursor 16
+    4 rows
+     2 ||
+     3 |last#[!]|
+    top 2 cursor 16
+    6 rows
+     4 |last|
+     5 |#[!]|
+    top 4 cursor 16
+    |}]
+;;
 
 let%expect_test "movement reaches rows beyond the viewport and keeps the cursor visible" =
   let t = create "alpha beta gamma delta epsilon zeta eta theta iota kappa" in

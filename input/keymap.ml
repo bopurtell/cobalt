@@ -111,6 +111,8 @@ let resolve t ~keys (target : Bindings.Target.t) =
     reset t, [ Editor (Delete_chars_forward (Option.value count ~default:1)) ]
   | Shift_lines { right }, count ->
     reset t, [ Editor (Shift_lines { right; count = Option.value count ~default:1 }) ]
+  | Toggle_comment_lines, count ->
+    reset t, [ Editor (Toggle_comment_lines (Option.value count ~default:1)) ]
   | Delete_chars_backward, count ->
     reset t, [ Editor (Delete_chars_backward (Option.value count ~default:1)) ]
   | Delete_to_line_end, count ->
@@ -334,7 +336,10 @@ let feed_visual_key t key =
     reset t, [ Action.Editor (Command.Visual_insert { append; count = Option.value t.count ~default:1 }) ]
   in
   (* A pending sequence, such as [f] waiting for its character, takes the key. *)
-  if (not (List.is_empty t.pending)) || Option.is_some t.find
+  if [%equal: Key.t list] t.pending [ Key.char 'g' ] && Key.equal key (Key.char 'c')
+     && Option.is_none t.find && Option.is_none t.operator
+  then reset t, [ Action.Editor Command.Visual_toggle_comments ]
+  else if (not (List.is_empty t.pending)) || Option.is_some t.find
   then feed_normal_key t key
   else (
     match key with

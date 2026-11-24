@@ -106,6 +106,9 @@ type t =
   { text : string
   ; lines : Line.t array
   ; cell_width : (Cell_layout.Width.t[@sexp.opaque])
+  ; wrapped : ((int * Row.t array) option ref[@sexp.opaque])
+  (* Cursor/selection/scroll states share this one slot for their text snapshot.
+     A resize replaces the entry; different text gets a new slot. *)
   ; cursor : int
   ; visual : (Kind.t * int) option (** Kind and anchor. *)
   ; want : int option (** Preferred display column within a row. *)
@@ -130,6 +133,7 @@ let create ~cell_width text =
   { text
   ; lines = split ~cell_width text
   ; cell_width
+  ; wrapped = ref None
   ; cursor = 0
   ; visual = None
   ; want = None
@@ -145,57 +149,92 @@ let read_only = "read-only; edits unavailable"
 let last_line t = Array.length t.lines - 1
 
 let line_index t offset =
-  let rec go i = if i > 0 && t.lines.(i).start > offset then go (i - 1) else i in
-  go (last_line t)
+  match
+    Array.binary_search
+      t.lines
+      `Last_less_than_or_equal_to
+      offset
+      ~compare:(fun (line : Line.t) offset -> Int.compare line.start offset)
+  with
+  | Some i -> i
+  | None -> 0
 ;;
 
 let line_of t offset = t.lines.(line_index t offset)
 
 (* {1 Layout} *)
 
-let rows_of_line t i (line : Line.t) ~width =
-  let break =
-    Option.some_if (i < last_line t) (line.start + line.length)
-  in
-  let row glyphs ~last =
-    let glyphs = Array.of_list_rev glyphs in
-    { Row.line_start = line.start
-    ; glyphs
-    ; first_col = (if Array.is_empty glyphs then 0 else glyphs.(0).col)
-    ; break = (if last then break else None)
-    }
-  in
-  let rows, current, _ =
-    Array.fold line.glyphs ~init:([], [], 0) ~f:(fun (rows, current, used) glyph ->
-      if used > 0 && used + glyph.width > width
-      then row current ~last:false :: rows, [ glyph ], glyph.width
-      else rows, glyph :: current, used + glyph.width)
-  in
-  List.rev (row current ~last:true :: rows)
+let make_row (line : Line.t) glyphs ~break =
+  { Row.line_start = line.start
+  ; glyphs
+  ; first_col = (if Array.is_empty glyphs then 0 else glyphs.(0).col)
+  ; break
+  }
+;;
+
+let wrap t ~width =
+  Array.foldi t.lines ~init:[] ~f:(fun i rows line ->
+    let break = Option.some_if (i < last_line t) (line.start + line.length) in
+    let glyphs = line.glyphs in
+    if Cell_layout.total_width glyphs <= width
+    then make_row line glyphs ~break :: rows
+    else (
+      let length = Array.length glyphs in
+      let row first stop ~break =
+        let glyphs =
+          if first = 0 && stop = length
+          then glyphs
+          else Array.sub glyphs ~pos:first ~len:(stop - first)
+        in
+        make_row line glyphs ~break
+      in
+      let rec loop rows first index used =
+        if index = length
+        then row first length ~break :: rows
+        else (
+          let cells = glyphs.(index).width in
+          if used > 0 && used + cells > width
+          then loop (row first index ~break:None :: rows) index (index + 1) cells
+          else loop rows first (index + 1) (used + cells))
+      in
+      loop rows 0 0 0))
+  |> Array.of_list_rev
 ;;
 
 let layout t ~width =
   let width = Int.max 1 width in
-  Array.of_list (List.concat_mapi (Array.to_list t.lines) ~f:(fun i line ->
-    rows_of_line t i line ~width))
+  match !(t.wrapped) with
+  | Some (cached_width, rows) when cached_width = width -> rows
+  | _ ->
+    let rows = wrap t ~width in
+    t.wrapped := Some (width, rows);
+    rows
 ;;
 
 let rows t ~width = Array.to_list (layout t ~width)
+let row_count t ~width = Array.length (layout t ~width)
 
-(* The row holding [offset]: the last row of its line starting at or before it. *)
-let row_index rows offset ~line_start =
-  Array.foldi rows ~init:None ~f:(fun i found (row : Row.t) ->
-    if row.line_start <> line_start
-    then found
-    else (
-      match found, row.glyphs with
-      | None, _ -> Some i
-      | Some _, [||] -> found
-      | Some _, glyphs -> if line_start + glyphs.(0).pos <= offset then Some i else found))
-  |> Option.value ~default:0
+let map_visible_rows t ~width ~rows:viewport ~f =
+  let rows = layout t ~width in
+  let count = Int.min viewport (Array.length rows - t.top) in
+  List.init (Int.max 0 count) ~f:(fun i -> f rows.(t.top + i))
 ;;
 
-let cursor_row t rows = row_index rows t.cursor ~line_start:(line_of t t.cursor).start
+(* The last row starting at or before the cursor. Each logical line, including
+   an empty one, has a row starting at its first byte. *)
+let cursor_row t rows =
+  match
+    Array.binary_search
+      rows
+      `Last_less_than_or_equal_to
+      t.cursor
+      ~compare:(fun (row : Row.t) offset ->
+        let pos = if Array.is_empty row.glyphs then 0 else row.glyphs.(0).pos in
+        Int.compare (row.line_start + pos) offset)
+  with
+  | Some i -> i
+  | None -> 0
+;;
 
 let column_in (row : Row.t) offset =
   Array.find row.glyphs ~f:(fun g -> row.line_start + g.pos = offset)
@@ -220,8 +259,27 @@ let position_in t (row : Row.t) col =
 (* The nearest cursor position at or before [offset] on its line. *)
 let valid t offset =
   let offset = Int.clamp_exn offset ~min:0 ~max:(String.length t.text) in
-  let positions = Line.positions (line_of t offset) in
-  Array.fold positions ~init:positions.(0) ~f:(fun best p -> if p <= offset then p else best)
+  let line = line_of t offset in
+  let rec preceding i =
+    if i < 0
+    then (
+      (* A line may start with zero-width glyphs. Use its first visible glyph,
+         or the line start when there is none. *)
+      Array.find line.glyphs ~f:(fun g -> g.width > 0)
+      |> Option.value_map ~default:line.start ~f:(fun g -> line.start + g.pos))
+    else (
+      let glyph = line.glyphs.(i) in
+      if glyph.width > 0 then line.start + glyph.pos else preceding (i - 1))
+  in
+  match
+    Array.binary_search
+      line.glyphs
+      `Last_less_than_or_equal_to
+      (offset - line.start)
+      ~compare:(fun (g : Glyph.t) pos -> Int.compare g.pos pos)
+  with
+  | Some i -> preceding i
+  | None -> preceding (-1)
 ;;
 
 let jump t offset = { t with cursor = valid t offset; visual = None; want = None }
@@ -604,10 +662,10 @@ let update t text =
   if String.equal text t.text
   then t, `Same
   else (
-    let rows = layout t ~width:Int.max_value in
     let line = line_index t t.cursor in
-    let col = column_in rows.(line) t.cursor in
+    let unwrapped t i = make_row t.lines.(i) t.lines.(i).glyphs ~break:None in
+    let col = column_in (unwrapped t line) t.cursor in
     let fresh = { (create ~cell_width:t.cell_width text) with top = t.top } in
-    let row = (layout fresh ~width:Int.max_value).(Int.min line (last_line fresh)) in
+    let row = unwrapped fresh (Int.min line (last_line fresh)) in
     { fresh with cursor = position_in fresh row col }, `Changed (Option.is_some t.visual))
 ;;

@@ -157,7 +157,7 @@ val update : t -> string -> t * [ `Same | `Changed of bool ]
 module Row : sig
   type t =
     { line_start : int (** Offset of the row's logical line; glyph [pos]es add to it. *)
-    ; glyphs : Cobalt_core.Cell_layout.Glyph.t array
+    ; glyphs : Cobalt_core.Cell_layout.Glyph.t array (** Shared; do not mutate. *)
     ; first_col : int (** Display column of the row's first cell within its line. *)
     ; break : int option
     (** The offset of the line break ending this row's logical line, on its last
@@ -168,6 +168,14 @@ end
 
 (** Every row at [width]. *)
 val rows : t -> width:int -> Row.t list
+
+(** Total wrapped rows at [width], without copying the layout. *)
+val row_count : t -> width:int -> int
+
+(** Map at most [rows] wrapped rows starting at {!top}. Fit first to update the
+    viewport for this width. Layout is shared across cursor/selection/scroll
+    states of the same text snapshot, caching only the most recent width. *)
+val map_visible_rows : t -> width:int -> rows:int -> f:(Row.t -> 'a) -> 'a list
 
 (** The cursor's row and the column within it, after {!fit}. *)
 val cursor_cell : t -> width:int -> int * int

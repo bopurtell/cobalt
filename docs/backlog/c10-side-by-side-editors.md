@@ -1,4 +1,6 @@
-# C10 — Side-by-side file editors
+<a id="c10--side-by-side-file-editors"></a>
+
+# CB-010 — Side-by-side file editors
 
 **Status:** Closed — verified and accepted by the owner. **Tracker:** [GitHub #7](https://github.com/bopurtell/cobalt/issues/7).
 
@@ -49,7 +51,7 @@ on two files at once, such as an implementation and its tests.
 
 No simultaneous views of one file, stacked or nested splits, pane-local tab
 groups, simultaneous editor and VCS major splits, mouse gestures, or
-cross-session layout persistence. [C11](c11-mouse-support.md) does not block this
+cross-session layout persistence. [CB-011](c11-mouse-support.md) does not block this
 ticket.
 
 ## Implementation and verification
@@ -68,5 +70,5 @@ ticket.
   production picker, saved just the focused file, narrowed to 31 columns and
   widened without changing focus, force-reloaded the other pane, and confirmed
   guarded quit still caught unsaved edits after closing the split.
-- C11 can use `Ui_state.editor_panes` for rendered file identities, geometry and
+- CB-011 can use `Ui_state.editor_panes` for rendered file identities, geometry and
   scroll, and `Ui_state.activate_buffer` to activate a file by ID.

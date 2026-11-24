@@ -1,4 +1,6 @@
-# C12 — Install Cobalt from a clone
+<a id="c12--install-cobalt-from-a-clone"></a>
+
+# CB-012 — Install Cobalt from a clone
 
 **Status:** Closed — isolated installation checks passed and the owner accepted the installed build.
 
@@ -93,7 +95,7 @@ artifacts.
 - Verified with opam 2.5.0, OxCaml `5.2.0+ox` (`oxcaml-compiler.5.2.0minus39`),
   Jane Street `v0.18~preview.130.106+341`, Dune 3.24.2, GCC and `gzip`.
   [`source_install_smoke.py`](../../scripts/source_install_smoke.py) passed on a
-  private copy of the integrated C10/C11/C12 working tree, including untracked
+  private copy of the integrated CB-010/CB-011/CB-012 working tree, including untracked
   source files and the optional modules, using `/var/tmp` on ext4.
 
   ```sh

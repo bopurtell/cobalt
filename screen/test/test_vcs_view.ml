@@ -102,14 +102,14 @@ let%expect_test "wide: lists beside the diff, which follows the selection" =
   [%expect {|
      1:a.txt [2:VCS: main]                                                                              |
     ╭─ VCS: work (main) ───────────────────────────────────────────────────────────────────────────────╮|
-    │ Head: main 86abc9c                    │ 0 Diff: none                                             │|
-    │                                       │ No diff for this row                                     │|
-    │ 1 Files (4)                           │                                                          │|
-    │ > - Untracked files (1)               │                                                          │|
-    │   new.txt                             │                                                          │|
-    │   - Unstaged changes (1)              │                                                          │|
-    │   modified   a.txt                    │                                                          │|
-    │   - Staged changes (2)                │                                                          │|
+    │ Head: main 86abc9c                    │ 0 Diff: Untracked: new.txt                               │|
+    │                                       │ diff --git a/new.txt b/new.txt                           │|
+    │ 1 Files (4)                           │ new file mode 100644                                     │|
+    │   - Untracked files (1)               │ index 0000000..92d5444                                   │|
+    │ > new.txt                             │ --- /dev/null                                            │|
+    │   - Unstaged changes (1)              │ +++ b/new.txt                                            │|
+    │   modified   a.txt                    │ @@ -0,0 +1 @@                                            │|
+    │   - Staged changes (2)                │ +fresh                                                   │|
     │   modified   b.txt                    │                                                          │|
     │   deleted    gone.txt                 │                                                          │|
     │                                       │                                                          │|
@@ -122,7 +122,7 @@ let%expect_test "wide: lists beside the diff, which follows the selection" =
     │ > - Recent commits (1)                │                                                          │|
     │   ● 86abc9c (HEAD -> main) First      │                                                          │|
     │                                       │                                                          │|
-    ╰─ Files 1/7 ──────────────────────────────────────────────────────────────────────────────────────╯|
+    ╰─ Files 2/7 ──────────────────────────────────────────────────────────────────────────────────────╯|
      NORMAL  VCS: main VCS focused                                                                      |
     cursor: none
     |}]
@@ -245,6 +245,84 @@ let print_log env t =
       (String.concat (List.map entry.output ~f:(fun line -> " | " ^ relative env line))))
 ;;
 
+let%expect_test "large staged set opens on one file; refresh preserves files and headers" =
+  with_env (fun env ->
+    Fixture.write env.repo "base.txt" "base\n";
+    commit env "Base";
+    for index = 0 to 400 do
+      Fixture.write env.repo (sprintf "file-%03d.txt" index) "staged\n"
+    done;
+    git env [ "add"; "." ];
+    let run_previews t keys_ =
+      let t, jobs =
+        Vcs_driver.settle
+          env.repo
+          (keys env t keys_)
+          ~width:env.width
+          ~height:env.height
+      in
+      let paths =
+        List.filter_map jobs ~f:(fun (job : Job.t) ->
+          if Option.equal String.equal job.lane (Some "diff")
+          then (
+            match job.steps with
+            | [ Run spec ] -> Some (List.drop_while spec.args ~f:(Fn.non (String.equal "--")))
+            | _ -> failwith "Expected a single diff command")
+          else None)
+      in
+      print_s [%sexp (paths : string list list)];
+      describe t;
+      t
+    in
+    let t = run_previews (create env) " vx" in
+    let t = run env t "j" in
+    let t = run_previews t "gr" in
+    let t = run_previews t "gg" in
+    let t = run env t "<CR>" in
+    let t = run_previews t "gr" in
+    let v = state t in
+    printf
+      "staged folded: %b\n"
+      (Set.mem (Vcs_view.cursor v Files).folded (Panel.Section_id.of_string "staged")));
+  [%expect {|
+    ((-- file-000.txt))
+    Files: staged "file-000.txt"; diff (Staged(file-000.txt)), 1 file(s)
+    ((-- file-001.txt))
+    Files: staged "file-001.txt"; diff (Staged(file-001.txt)), 1 file(s)
+    ((--))
+    Files: header staged; diff (Staged()), 401 file(s)
+    ((--))
+    Files: header staged; diff (Staged()), 401 file(s)
+    staged folded: true
+    |}]
+;;
+
+let%expect_test "Files with no selection skips folded sections when changes return" =
+  with_env (fun env ->
+    Fixture.write env.repo "a.txt" "one\n";
+    Fixture.write env.repo "b.txt" "two\n";
+    commit env "Base";
+    Fixture.write env.repo "a.txt" "changed\n";
+    let t = run env (create env) " vx" in
+    let t = run env t "k<CR>" in
+    commit env "Clean";
+    let t = run env t "gr" in
+    describe t;
+    Fixture.write env.repo "a.txt" "changed again\n";
+    Fixture.write env.repo "b.txt" "staged\n";
+    git env [ "add"; "b.txt" ];
+    let t = run env t "gr" in
+    describe t;
+    printf
+      "unstaged folded: %b\n"
+      (Set.mem (Vcs_view.cursor (state t) Files).folded (Panel.Section_id.of_string "unstaged")));
+  [%expect {|
+    Files: none; diff empty
+    Files: staged "b.txt"; diff (Staged(b.txt)), 1 file(s)
+    unstaged folded: true
+    |}]
+;;
+
 let%expect_test "hidden, the view runs nothing; shown, it detects, refreshes and diffs" =
   with_env (fun env ->
     changes env;
@@ -254,16 +332,20 @@ let%expect_test "hidden, the view runs nothing; shown, it detects, refreshes and
     let t = run_jobs env t "l" in
     let t = run_jobs env t " vx" in
     describe t;
-    (* Moving onto a file fetches its diff; the diff follows. *)
+    (* Selecting the header clears the file preview; moving back fetches it. *)
+    let t = run_jobs env t "k" in
+    describe t;
     let t = run_jobs env t "j" in
     describe t;
     screen env t);
   [%expect {|
     jobs while hidden: 0
     ran: []
-    ran: [detect g1.1; refresh g1.2]
+    ran: [detect g1.1; refresh g1.2; diff g1.3]
+    Files: untracked "new.txt"; diff (Untracked new.txt), 1 file(s)
+    ran: []
     Files: header untracked; diff no diff
-    ran: [diff g1.3]
+    ran: [diff g1.4]
     Files: untracked "new.txt"; diff (Untracked new.txt), 1 file(s)
      1:a.txt [2:VCS: main]                                                                              |
     ╭─ VCS: work (main) ───────────────────────────────────────────────────────────────────────────────╮|
@@ -339,7 +421,7 @@ let%expect_test "stacked and single frames, in both focuses" =
   with_env ~width:60 ~height:40 (fun env ->
     changes env;
     let t = run env (create env) " vx" in
-    let t = run env t "jjj" in
+    let t = run env t "jj" in
     screen env t;
     let t = run env t "<Tab>" in
     top env t 3;
@@ -430,7 +512,7 @@ let%expect_test "the command log, on and off" =
   with_env (fun env ->
     changes env;
     let t = run env (create env) " vx" in
-    let t = run env t "jjj@" in
+    let t = run env t "jj@" in
     screen env t;
     print_log env t;
     let t = run env t "@" in
@@ -526,7 +608,7 @@ let%expect_test "panel and focus keys: 1 2 3 0 Tab Escape, moves, folds, Enter" 
     <Tab>  Commits: recent "86abc9cc4620ec0c4c959534c1888fc32537f9cc"; diff (Commit 86abc9cc4620ec0c4c959534c1888fc32537f9cc), 3 file(s)
     <Tab>  Diff (follows Commits): recent "86abc9cc4620ec0c4c959534c1888fc32537f9cc"; diff (Commit 86abc9cc4620ec0c4c959534c1888fc32537f9cc), 3 file(s)
     <Esc>  Commits: recent "86abc9cc4620ec0c4c959534c1888fc32537f9cc"; diff (Commit 86abc9cc4620ec0c4c959534c1888fc32537f9cc), 3 file(s)
-    1      Files: header untracked; diff no diff
+    1      Files: untracked "new.txt"; diff (Untracked new.txt), 1 file(s)
     G      Files: staged "gone.txt"; diff (Staged(gone.txt)), 1 file(s)
     gg     Files: header untracked; diff no diff
     k      Files: header untracked; diff no diff
@@ -549,7 +631,7 @@ let%expect_test "y copies a path, a branch name, an abbreviated hash; q and Esca
   with_env (fun env ->
     changes env;
     let t = run env (create env) " vx" in
-    let t = run env t "y" in
+    let t = run env t "ky" in
     notice t;
     let t = clipboard t in
     let t = run env t "jjjy" in
@@ -585,7 +667,7 @@ let%expect_test "g r refreshes; @ toggles the log; ? and the palette list the co
   with_env (fun env ->
     changes env;
     let t = run env (create env) " vx" in
-    let t = run_jobs env t "gr" in
+    let t = run_jobs env t "kgr" in
     let t = run_jobs env t "jgr" in
     describe t;
     let help t =
@@ -609,8 +691,8 @@ let%expect_test "g r refreshes; @ toggles the log; ? and the palette list the co
     let t = run env t "focus commits<CR>" in
     describe t);
   [%expect {|
-    ran: [refresh g1.3]
-    ran: [diff g1.4; refresh g1.5; diff g1.6]
+    ran: [refresh g1.4]
+    ran: [diff g1.5; refresh g1.6; diff g1.7]
     Files: untracked "new.txt"; diff (Untracked new.txt), 1 file(s)
     g r      refresh         Refresh
     @        toggle-log      Show or hide the command log
@@ -680,7 +762,7 @@ let%expect_test "the diff follows the selection across files, headers and commit
     changes env;
     let t = run env (create env) " vx" in
     let t =
-      List.fold [ "j"; "j"; "j"; "j"; "j"; "j"; "j"; "3"; "j"; "k"; "2"; "j"; "1" ]
+      List.fold [ "k"; "j"; "j"; "j"; "j"; "j"; "j"; "j"; "3"; "j"; "k"; "2"; "j"; "1" ]
         ~init:t
         ~f:(fun t keys_ ->
           let t = run_jobs env t keys_ in
@@ -697,23 +779,25 @@ let%expect_test "the diff follows the selection across files, headers and commit
     let t = run env t "<Tab>3j" in
     screen env t);
   [%expect {|
-    ran: [diff g1.3]
-    Files: untracked "new.txt"; diff (Untracked new.txt), 1 file(s)
+    ran: []
+    Files: header untracked; diff no diff
     ran: [diff g1.4]
-    Files: header unstaged; diff (Unstaged()), 1 file(s)
+    Files: untracked "new.txt"; diff (Untracked new.txt), 1 file(s)
     ran: [diff g1.5]
-    Files: unstaged "a.txt"; diff (Unstaged(a.txt)), 1 file(s)
+    Files: header unstaged; diff (Unstaged()), 1 file(s)
     ran: [diff g1.6]
-    Files: header staged; diff (Staged()), 2 file(s)
+    Files: unstaged "a.txt"; diff (Unstaged(a.txt)), 1 file(s)
     ran: [diff g1.7]
-    Files: staged "b.txt"; diff (Staged(b.txt)), 1 file(s)
+    Files: header staged; diff (Staged()), 2 file(s)
     ran: [diff g1.8]
+    Files: staged "b.txt"; diff (Staged(b.txt)), 1 file(s)
+    ran: [diff g1.9]
     Files: staged "gone.txt"; diff (Staged(gone.txt)), 1 file(s)
     ran: []
     Files: staged "gone.txt"; diff (Staged(gone.txt)), 1 file(s)
     ran: []
     Commits: header recent; diff no diff
-    ran: [diff g1.9]
+    ran: [diff g1.10]
     Commits: recent "86abc9cc4620ec0c4c959534c1888fc32537f9cc"; diff (Commit 86abc9cc4620ec0c4c959534c1888fc32537f9cc), 3 file(s)
     ran: []
     Commits: header recent; diff no diff
@@ -721,7 +805,7 @@ let%expect_test "the diff follows the selection across files, headers and commit
     Branches: header local; diff no diff
     ran: []
     Branches: local "main"; diff no diff
-    ran: [diff g1.10]
+    ran: [diff g1.11]
     Files: staged "gone.txt"; diff (Staged(gone.txt)), 1 file(s)
      0|diff --git a/gone.txt b/gone.txt
      1|deleted file mode 100644
@@ -774,7 +858,7 @@ let%expect_test "counts in the diff: 10j, 2k, 12G; digits switch panels only fro
     commit env "First";
     Fixture.write env.repo "long.txt" (String.concat (List.init 30 ~f:(sprintf "line %d\n")));
     let t = run env (create env) " vx" in
-    let t = run env t "j<Tab>" in
+    let t = run env t "<Tab>" in
     let footer t =
       Frame.to_string (Frame.render t ~width:env.width ~height:env.height)
       |> String.split_lines
@@ -828,7 +912,6 @@ let%expect_test "padding: a blank column each side of the diff, blank rows betwe
     commit env "First";
     Fixture.write env.repo "wide.txt" (String.make 70 'x' ^ "\n");
     let t = run env (create env) " vx" in
-    let t = run env t "j" in
     screen env t;
     (* The text cursor follows the padding: [$] is the wrapped line's last glyph. *)
     let t = run env t "<Tab>G$" in
@@ -893,7 +976,7 @@ let%expect_test "the diff's text keys, Visual and copying; edits are refused" =
   with_env (fun env ->
     changes env;
     let t = run env (create env) " vx" in
-    let t = run env t "jjj<Tab>" in
+    let t = run env t "jj<Tab>" in
     print_diff t;
     let t =
       List.fold
@@ -962,7 +1045,7 @@ let%expect_test "e and Enter in the diff open the file at the line: +, -, contex
     git env [ "rm"; "-q"; "gone.txt" ];
     let t = run env (create env ~file:"z.txt" ~text:"x\n") " vx" in
     (* Unstaged: a.txt, z.txt; then the staged deletion. *)
-    let t = run env t "j<CR>" in
+    let t = run env t "<CR>" in
     print_diff t;
     (* Back to the VCS tab (the open file replaced it), then to a line. *)
     let back t = if String.equal (focused env t) "vcs" then t else run env t " vx" in
@@ -1071,7 +1154,7 @@ let%expect_test "a conflict: the section, its combined diff, conflict markers, h
   with_env (fun env ->
     conflicting_branches env;
     git_fails env [ "merge"; "-q"; "other" ];
-    let t = run env (create env) " vx" in
+    let t = run env (run env (create env) " vx") "k" in
     screen env t;
     let t = run env t "<Tab>" in
     print_diff t;
@@ -1160,7 +1243,7 @@ let%expect_test "a rebase in progress, then a detached HEAD" =
     git rebase other: exit 1
      1:a.txt [2:VCS]                                                                                    |
     ╭─ VCS: work (detached at eb03179) ────────────────────────────────────────────────────────────────╮|
-    │ Head: detached at eb03179             │ 0 Diff: Conflicted: aa.txt, du.txt, ud.txt, uu.txt       │|
+    │ Head: detached at eb03179             │ 0 Diff: Conflicted: aa.txt                               │|
     │ Rebasing main onto eb03179 (press r)  │ diff --cc aa.txt                                         │|
     │                                       │ index 950b81b,b19a1e9..0000000                           │|
     │ 1 Files (4)                           │ --- a/aa.txt                                             │|
@@ -1329,14 +1412,14 @@ let%expect_test "stale reports are logged but never applied" =
     g1.2 status: exit 0
     g1.2 for-each-ref: exit 0
     g1.2 log: exit 0
-    g1.4 status: exit 0
-    g1.4 for-each-ref: exit 0
-    g1.4 log: exit 0
-    g1.3 status: exit 0 (stale)
-    g1.3 for-each-ref: exit 0 (stale)
-    g1.3 log: exit 0 (stale)
-    Files: header untracked; diff no diff (loading)
-    Files: header untracked; diff no diff
+    g1.5 status: exit 0
+    g1.5 for-each-ref: exit 0
+    g1.5 log: exit 0
+    g1.4 status: exit 0 (stale)
+    g1.4 for-each-ref: exit 0 (stale)
+    g1.4 log: exit 0 (stale)
+    Files: untracked "new.txt"; diff (Untracked new.txt), 1 file(s) (loading)
+    Files: untracked "new.txt"; diff (Untracked new.txt), 1 file(s)
     stamps generation 3
     |}]
 ;;
@@ -1356,7 +1439,7 @@ let%expect_test "selection identity across refreshes, and the removed-item rule"
       describe t;
       t
     in
-    let t = step t ~stage:None "jj" in
+    let t = step t ~stage:None "j" in
     (* The selected file moves to Staged: the next item of its section. *)
     let t = step t ~stage:(Some "c.txt") "gr" in
     (* No next item: the previous one. *)
@@ -1369,7 +1452,7 @@ let%expect_test "selection identity across refreshes, and the removed-item rule"
     let t = step t ~stage:None "gr" in
     ignore (t : Ui_state.t));
   [%expect {|
-    jj             Files: unstaged "c.txt"; diff (Unstaged(c.txt)), 1 file(s)
+    j              Files: unstaged "c.txt"; diff (Unstaged(c.txt)), 1 file(s)
     stage c.txt    Files: unstaged "d.txt"; diff (Unstaged(d.txt)), 1 file(s)
     stage d.txt    Files: unstaged "a.txt"; diff (Unstaged(a.txt)), 1 file(s)
     stage a.txt    Files: header staged; diff (Staged()), 3 file(s)
@@ -1410,8 +1493,8 @@ let%expect_test "a save under the repository refreshes once; others do not" =
     let _ = run_jobs env t "ix<Esc> w" in
     ());
   [%expect {|
-    ran: [refresh g1.3]
-    Files: header untracked; diff no diff
+    ran: [refresh g1.4; diff g1.5]
+    Files: untracked "new.txt"; diff (Untracked new.txt), 1 file(s)
     ran: []
     |}]
 ;;
@@ -1424,7 +1507,7 @@ let%expect_test "a truncated file, and a diff cut at its output limit" =
     Fixture.write env.repo "huge.txt"
       (lines (fun i -> if i % 10 = 5 then sprintf "changed %d\n" i else sprintf "line %d\n" i));
     let t = run env (create env) " vx" in
-    let t = run env t "j<CR>G" in
+    let t = run env t "<CR>G" in
     let text = Cobalt_tile.Text_view.text (diff_view t) in
     printf "%d lines\n" (List.length (String.split_lines text));
     screen env t;
@@ -1465,7 +1548,7 @@ let%expect_test "a truncated file, and a diff cut at its output limit" =
     ╰─ Diff 2247-2255/2255 ────────────────────────────────────────────────────────────────────────────╯|
      NORMAL  VCS: main VCS focused                                                                      |
     cursor: 42,11 Block
-    refresh g1.5
+    refresh g1.4
     Files: unstaged "huge.txt"; diff (Unstaged(huge.txt)), 1 file(s)
      0|diff --git a/huge.txt b/huge.txt
      1|index 2b2535c..0da8039 100644
@@ -1510,7 +1593,6 @@ let%expect_test "paths with spaces, unicode and control bytes are escaped for di
     List.iter [ "with space.txt"; "ünïcødé.txt"; "ctl\001\027.txt"; "line\nbreak.txt" ]
       ~f:(fun file -> Fixture.write env.repo file "x\n");
     let t = run env (create env) " vx" in
-    let t = run env t "j" in
     screen env t;
     let t = run env t "<Tab>" in
     print_diff t;
@@ -1549,7 +1631,7 @@ let%expect_test "diff lines are styled by kind" =
   with_env ~width:84 ~height:16 (fun env ->
     changes env;
     let t = run env (create env) " vx" in
-    let t = run env t "jjj" in
+    let t = run env t "jj" in
     Frame.to_string_styled (Frame.render t ~width:env.width ~height:env.height)
     |> String.split_lines
     |> List.iter ~f:(fun line ->

@@ -1,9 +1,26 @@
 # Backlog
 
+## Ticket IDs
+
+Use **`CB-NNN`** for every Cobalt ticket: uppercase `CB`, a hyphen, and a
+number padded to at least three digits. Use one sequence across all topics.
+Assign the next unused number here when creating a ticket, put it in the ticket
+heading, and keep it when the ticket moves or closes. Don't reuse closed IDs.
+Silver's `WB-` identifiers refer to Silver tickets and remain separate.
+
+| Assigned IDs | Tickets | Previous IDs (same order) |
+| --- | --- | --- |
+| CB-001–CB-009 | [Silver integration](silver_integration.md) | C1–C9 |
+| CB-010–CB-012 | [Side-by-side editors](c10-side-by-side-editors.md), [mouse support](c11-mouse-support.md), [source install](c12-source-install.md) | C10–C12 |
+| CB-013–CB-015 | [VCS performance](vcs_large_diffs.md) | VCS-PERF-01–03 |
+| CB-016–CB-021 | [Language support](language_support.md) | LANG-01–06 |
+| CB-022–CB-031 | [Snippet collections](snippet_collections.md) | SNIP-01–10 |
+| CB-032 | [Symbol rename](symbol_rename.md) | Previously unnumbered |
+
 ## Silver integration
 
-- [Cobalt-side work queue](silver_integration.md): C1–C9 are closed, including
-  the stage checklist and aliases (C8) and the Flow Runner (C9).
+- [Cobalt-side work queue](silver_integration.md): CB-001–CB-009 are closed, including
+  the stage checklist and aliases (CB-008) and the Flow Runner (CB-009).
 
 ## Language-aware editing
 
@@ -24,8 +41,8 @@
 
 | Ticket | Status | Scope |
 | --- | --- | --- |
-| [C10: Side-by-side file editors](c10-side-by-side-editors.md) | Closed | Two keyboard-accessible file editor panes in the existing workspace |
-| [C11: Basic mouse support](c11-mouse-support.md) | Closed | Click-to-focus, cursor placement, file tab activation, wheel scrolling, and runtime reporting toggle |
+| [CB-010: Side-by-side file editors](c10-side-by-side-editors.md) | Closed | Two keyboard-accessible file editor panes in the existing workspace |
+| [CB-011: Basic mouse support](c11-mouse-support.md) | Closed | Click-to-focus, cursor placement, file tab activation, wheel scrolling, and runtime reporting toggle |
 
 The Oil/Dired-style directory refresh already exists: focus the listing and
 press `Space r` in Normal mode. It rereads a clean listing from disk and
@@ -33,9 +50,14 @@ refuses pending directory edits. Cached revisits do not refresh automatically;
 `:e!` reloads files, not directory listings. See the
 [directory workspace reference](../directory_workspace.md#navigation-tabs-and-opening).
 
+## Version control
+
+- [Large staged diffs: startup, redraws, and switching files](vcs_large_diffs.md):
+  CB-013–CB-015 implemented and tested against Silver's 417-file change set.
+
 ## Installation
 
-- [C12: Install Cobalt from a clone](c12-source-install.md) (closed):
+- [CB-012: Install Cobalt from a clone](c12-source-install.md) (closed):
   build and install the native commands into a user-owned prefix with one
   Silver-style `./install.sh` invocation once prerequisites are available.
 

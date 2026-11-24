@@ -1,0 +1,9 @@
+(library
+ (name cobalt_tree_sitter_classic)
+ (package cobalt)
+ (libraries tree-sitter)
+ (foreign_stubs
+  (language c)
+  (names parser binding)
+  (flags (:standard -I.))
+  (extra_deps tree_sitter/parser.h)))

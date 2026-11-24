@@ -273,7 +273,7 @@ type t =
   ; refresh_error : string option
   ; diff : Diff_state.t
   ; diff_text : Vcs_diff_text.t
-  ; diff_shown : B.diff_target option (** The target [diff_text] shows. *)
+  ; diff_shown : B.diff_target option (** The target whose patch is displayed, if any. *)
   ; diff_view : Text_view.t
   ; diff_area : int * int (** The diff text's width and rows, as last fitted. *)
   ; log_visible : bool
@@ -692,14 +692,8 @@ let layout t ~rows ~width =
    wide: none below 10 columns. *)
 let diff_pad width = if width >= 10 then 1 else 0
 
-(* Where the diff text is drawn: the diff part (else the whole viewport) below its
-   title row, inside its padding. *)
-let diff_text_rect t ~rows ~width =
-  let (rect : Geometry.Rect.t) =
-    Option.value
-      (layout t ~rows ~width).diff
-      ~default:{ Geometry.Rect.x = 0; y = 0; width; height = rows }
-  in
+(* Where the diff text is drawn, below the title row and inside the padding. *)
+let diff_content_rect (rect : Geometry.Rect.t) =
   let pad = diff_pad rect.width in
   { Geometry.Rect.x = rect.x + pad
   ; y = rect.y + 1
@@ -708,14 +702,20 @@ let diff_text_rect t ~rows ~width =
   }
 ;;
 
+let diff_text_rect t ~rows ~width =
+  Option.value
+    (layout t ~rows ~width).diff
+    ~default:{ Geometry.Rect.x = 0; y = 0; width; height = rows }
+  |> diff_content_rect
+;;
+
 (* The diff text's width and rows in the viewport. *)
 let diff_area t ~rows ~width =
   let rect = diff_text_rect t ~rows ~width in
   Int.max 1 rect.width, Int.max 1 rect.height
 ;;
 
-let fit t ~rows ~width =
-  let layout = layout t ~rows ~width in
+let fit_layout t (layout : Layout.t) =
   let t =
     match layout.lists with
     | None -> t
@@ -723,9 +723,15 @@ let fit t ~rows ~width =
       List.fold (lists_plan t ~rows:rect.height).bodies ~init:t ~f:(fun t (focus, body) ->
         fit_list t focus ~body)
   in
-  let width, rows = diff_area t ~rows ~width in
-  { t with diff_view = Text_view.fit t.diff_view ~width ~rows; diff_area = width, rows }
+  match layout.diff with
+  | None -> t
+  | Some rect ->
+    let rect = diff_content_rect rect in
+    let width = Int.max 1 rect.width and rows = Int.max 1 rect.height in
+    { t with diff_view = Text_view.fit t.diff_view ~width ~rows; diff_area = width, rows }
 ;;
+
+let fit t ~rows ~width = fit_layout t (layout t ~rows ~width)
 
 let end_visual t =
   match Text_view.escape t.diff_view with
@@ -883,7 +889,7 @@ let issue t (purpose : Purpose.t) steps =
      | Diff target ->
        ( set_diff_text
            { t with diff = Failed (target, message) }
-           ~shown:(Some target)
+           ~shown:None
            (Vcs_diff_text.of_message ("Diff failed: " ^ message))
        , [] )
      | Mutate | Prepare _ -> t, [])
@@ -917,7 +923,15 @@ let request_diff ?(force = false) t =
     if (not force)
        && Option.equal B.equal_diff_target (Diff_state.target t.diff) (Some target)
     then t, []
-    else issue { t with diff = Loading target } (Diff target) (B.diff repository target)
+    else (
+      let t = { t with diff = Loading target } in
+      (* Keep the user's position on a refresh, not on a different patch. *)
+      let t =
+        if Option.equal B.equal_diff_target t.diff_shown (Some target)
+        then t
+        else set_diff_text t ~shown:None (Vcs_diff_text.of_message "Loading diff...")
+      in
+      issue t (Diff target) (B.diff repository target))
 ;;
 
 let clear_snapshot t =
@@ -996,6 +1010,25 @@ let graph_of (snapshot : B.snapshot) =
     | Unequal_lengths -> String.Map.empty)
 ;;
 
+(* Only Files defaults to an item: its section headers can request aggregate
+   patches. Reconciliation still owns existing selections and their fallbacks. *)
+let reconcile_cursor focus (cursor : Panel.Cursor.t) ~previous ~(current : _ Panel.t) =
+  let first_item =
+    match focus, cursor.selected with
+    | Focus.Files, None ->
+      List.find_map current.sections ~f:(fun section ->
+        if Set.mem cursor.folded section.id
+        then None
+        else
+          Option.map (List.hd section.items) ~f:(fun item ->
+            Panel.Position.Item { section = section.id; key = item.key }))
+    | _ -> None
+  in
+  match first_item with
+  | Some position -> { cursor with selected = Some position }
+  | None -> Panel.Cursor.reconcile cursor ~previous ~current
+;;
+
 let apply_snapshot t (snapshot : B.snapshot) =
   let current = B.panels snapshot in
   let reconcile t focus =
@@ -1009,7 +1042,7 @@ let apply_snapshot t (snapshot : B.snapshot) =
         t
         focus
         { state with
-          cursor = Panel.Cursor.reconcile state.cursor ~previous:before ~current:now
+          cursor = reconcile_cursor focus state.cursor ~previous:before ~current:now
         }
   in
   let t = List.fold Focus.lists ~init:t ~f:reconcile in
@@ -1150,8 +1183,15 @@ let finished t (report : Job.Report.t) =
          | (Diff _ | Mutate | Prepare _), true -> t, [], None
        in
        end_settled_mutation t ~purpose ~current, jobs, notice
-     | Mutate | Prepare _ -> t, [], None
-     | Diff target ->
+      | Mutate | Prepare _ -> t, [], None
+      | Diff target ->
+        (* A row with no target does not issue a replacement job in the diff lane. *)
+        let current =
+          current
+          && (match t.diff with
+              | Loading wanted -> B.equal_diff_target target wanted
+              | Empty | No_diff | Loaded _ | Failed _ -> false)
+        in
        let parsed =
          if report.cancelled
          then None
@@ -1160,7 +1200,7 @@ let finished t (report : Job.Report.t) =
        (* Only failed diffs reach the log. *)
        let t =
          match parsed with
-         | Some (Error _) -> log_report t report ~stale:(not used)
+          | Some (Error _) -> log_report t report ~stale:(not current)
          | Some (Ok _) | None -> t
        in
        if not current
@@ -1172,7 +1212,7 @@ let finished t (report : Job.Report.t) =
          | None ->
            ( set_diff_text
                { t with diff = Failed (target, "cancelled") }
-               ~shown:(Some target)
+                ~shown:None
                (Vcs_diff_text.of_message "Diff cancelled; g r reads it again")
            , []
            , None )
@@ -1196,7 +1236,7 @@ let finished t (report : Job.Report.t) =
            let message = one_line (Error.to_string_hum error) in
            ( set_diff_text
                { t with diff = Failed (target, message) }
-               ~shown:(Some target)
+                ~shown:None
                (Vcs_diff_text.of_message ("Diff failed: " ^ message))
            , []
            , None )))
@@ -2325,10 +2365,13 @@ let perform t controller ~context ~rows ~width action =
          ~effect:
            (Text_view.Effect.Copy
               (Cobalt_core.Register.Text { text = item_name item; kind = Characterwise })))
-  | Text action ->
-    let w, h = diff_area t ~rows ~width in
-    let diff_view, effect = Text_view.perform t.diff_view ~width:w ~rows:h action in
-    outcome { t with diff_view } ?effect
+   | Text action ->
+     (match t.diff, t.diff_shown with
+      | Loading _, None -> outcome t
+      | _ ->
+        let w, h = diff_area t ~rows ~width in
+        let diff_view, effect = Text_view.perform t.diff_view ~width:w ~rows:h action in
+        outcome { t with diff_view } ?effect)
   | Open_file ->
     (match open_target t with
      | `Open location -> outcome t ~open_file:location
@@ -2529,17 +2572,13 @@ let diff_row (row : Text_view.Row.t) ~width ~selected ~style =
 ;;
 
 let diff_body t ~width ~rows =
-  let view = Text_view.fit t.diff_view ~width:(Int.max 1 width) ~rows:(Int.max 1 rows) in
   let selected =
-    match Text_view.selection view with
+    match Text_view.selection t.diff_view with
     | Some (start, stop) when Focus.equal t.focus Diff ->
       fun offset -> start <= offset && offset < stop
     | Some _ | None -> fun _ -> false
   in
-  Text_view.rows view ~width
-  |> Fn.flip List.drop (Text_view.top view)
-  |> Fn.flip List.take (Int.max 0 rows)
-  |> List.map ~f:(fun (row : Text_view.Row.t) ->
+  Text_view.map_visible_rows t.diff_view ~width ~rows ~f:(fun (row : Text_view.Row.t) ->
     let style =
       Option.value_map
         (Vcs_diff_text.kind_at_start t.diff_text row.line_start)
@@ -2868,8 +2907,8 @@ let diff_hints t ~visual =
 let render t ~hotkey_hints ~focused:_ ~notice ~pending ~width ~rows : Tile_shell.Content.t =
   let width = Int.max 0 width
   and rows = Int.max 0 rows in
-  let t = fit t ~rows ~width in
   let layout = layout t ~rows ~width in
+  let t = fit_layout t layout in
   let log = Option.map layout.log ~f:(fun rect -> rect, log_part t rect) in
   let main_rows = Option.value_map layout.log ~default:rows ~f:(fun rect -> rect.y) in
   let parts =
@@ -2911,8 +2950,8 @@ let render t ~hotkey_hints ~focused:_ ~notice ~pending ~width ~rows : Tile_shell
       match t.focus with
       | Diff ->
         let w, h = t.diff_area in
-        let view = Text_view.fit t.diff_view ~width:w ~rows:h in
-        let total = List.length (Text_view.rows view ~width:w) in
+        let view = t.diff_view in
+        let total = Text_view.row_count view ~width:w in
         let top = Text_view.top view in
         let visual =
           match Text_view.visual view with

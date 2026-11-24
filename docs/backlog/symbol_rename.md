@@ -1,4 +1,4 @@
-# Ticket: language-server symbol rename
+# CB-032 — Language-server symbol rename
 
 **Status:** Deferred — revisit on a later day; implementation has not started.
 **Requested:** 2026-11-03.

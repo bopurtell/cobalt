@@ -34,6 +34,7 @@ module Target : sig
     (** [View_command.Scroll], with the count if one was typed. *)
     | Delete_operator (** [d], whose following motion is parsed by the keymap. *)
     | Yank_operator (** [y], whose following motion is parsed by the keymap. *)
+    | Toggle_comment_lines (** [gc] toggles the counted number of lines. *)
     | Shift_lines of { right : bool }
     (** Shift the counted number of lines (default 1). The editor owns indent width;
         defaults bind complete [>>] and [<<] sequences, not motion operators. *)

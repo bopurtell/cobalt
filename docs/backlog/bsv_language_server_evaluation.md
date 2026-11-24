@@ -1,4 +1,4 @@
-# LANG-05: Bluespec SystemVerilog language server evaluation
+# CB-020: Bluespec SystemVerilog language server evaluation
 
 **Decision:** Ship opt-in `.bsv` completion and cross-package definition jumps
 with [Blues](https://docs.rs/crate/blues-lsp/0.1.4) (`blues-lsp` **0.1.4**).

@@ -6,16 +6,16 @@ issues. See the [user guide](../snippets.md) for shipped behavior.
 
 ## Implementation checkpoint
 
-- SNIP-01: implemented optional single collection membership, parent toggles,
+- CB-022: implemented optional single collection membership, parent toggles,
   last-matching-toggle precedence, all-enabled defaults, and backward-compatible
   configuration/legacy JSON loading. IDs remain independent of membership.
-- SNIP-02–08: shipped an initial catalog of 93 templates: 28 SV design, 10 SV
+- CB-023–CB-029: shipped an initial catalog of 93 templates: 28 SV design, 10 SV
   verification, 11 core OCaml, 3 testing, 6 Jane Street, 24 Hardcaml design, and
   11 Hardcaml verification. Xilinx terms are searchable cross-references to
   generic RTL; primitive instantiation and trigger aliases remain future choices.
-- SNIP-09: collection search and row/preview display implemented. Project-specific
+- CB-030: collection search and row/preview display implemented. Project-specific
   activation, dedicated filter controls, tags, and aliases remain deferred.
-- SNIP-10: parser/expansion, linked editing, collection behavior, configuration,
+- CB-031: parser/expansion, linked editing, collection behavior, configuration,
   and picker tests pass. Hardcaml APIs were checked against the installed v0.18
   preview and representative code type-checked. SV simulator/linter validation
   and real-workflow acceptance remain follow-ups.
@@ -80,20 +80,22 @@ variations such as edge selection.
 
 | Ticket | Priority | Work |
 | --- | --- | --- |
-| SNIP-01 | First | Collection metadata and compatibility design |
-| SNIP-02 | First | SV design starter expansion |
-| SNIP-03 | First | Register vocabulary and Xilinx cross-references |
-| SNIP-04 | First | SV verification starter expansion |
-| SNIP-05 | Next | Core OCaml structural templates |
-| SNIP-06 | Next | OCaml testing and Jane Street templates |
-| SNIP-07 | Next | Signal-first Hardcaml design templates |
-| SNIP-08 | Next | Hardcaml verification templates |
-| SNIP-09 | Later | Collection discovery and project activation |
-| SNIP-10 | Alongside catalog work | Template acceptance and real-use review |
+| CB-022 | First | Collection metadata and compatibility design |
+| CB-023 | First | SV design starter expansion |
+| CB-024 | First | Register vocabulary and Xilinx cross-references |
+| CB-025 | First | SV verification starter expansion |
+| CB-026 | Next | Core OCaml structural templates |
+| CB-027 | Next | OCaml testing and Jane Street templates |
+| CB-028 | Next | Signal-first Hardcaml design templates |
+| CB-029 | Next | Hardcaml verification templates |
+| CB-030 | Later | Collection discovery and project activation |
+| CB-031 | Alongside catalog work | Template acceptance and real-use review |
 
 Content work can begin under existing IDs/descriptions before collection UI lands.
 
-## SNIP-01 — Collection metadata and compatibility
+<a id="snip-01--collection-metadata-and-compatibility"></a>
+
+## CB-022 — Collection metadata and compatibility
 
 Define how a snippet belongs to a collection, how users enable/disable a
 collection, and how bundled and personal templates participate. Keep scope
@@ -111,7 +113,9 @@ Acceptance:
 - Catalog/settings reload remains coherent and rejects invalid configuration
   without replacing the last good state.
 
-## SNIP-02 — SV design starter expansion
+<a id="snip-02--sv-design-starter-expansion"></a>
+
+## CB-023 — SV design starter expansion
 
 | Pattern | Candidate trigger | Useful fields / behavior |
 | --- | --- | --- |
@@ -138,7 +142,9 @@ rather than silently choosing one-hot encoding or a recovery scheme. Review
 whether abbreviated reset variants need clearer descriptions or additional
 active-low variants. Do not automatically expose SV-only constructs in Verilog.
 
-## SNIP-03 — Register vocabulary and Xilinx cross-references
+<a id="snip-03--register-vocabulary-and-xilinx-cross-references"></a>
+
+## CB-024 — Register vocabulary and Xilinx cross-references
 
 Explore searchable terminology and optional aliases for familiar primitive names:
 
@@ -163,7 +169,9 @@ Acceptance:
 - Consider analogous terminology in Hardcaml register descriptions, while
   preserving its API semantics and avoiding claims about synthesis mapping.
 
-## SNIP-04 — SV verification starter expansion
+<a id="snip-04--sv-verification-starter-expansion"></a>
+
+## CB-025 — SV verification starter expansion
 
 Candidate templates:
 
@@ -181,7 +189,9 @@ sampling, reset-disable behavior, and overlapping/nonoverlapping implication.
 Keep clocks/resets consistent in a full testbench and use useful linked fields.
 Larger UVM/class-based suites remain a future decision, not a first-batch dependency.
 
-## SNIP-05 — Core OCaml structural templates
+<a id="snip-05--core-ocaml-structural-templates"></a>
+
+## CB-026 — Core OCaml structural templates
 
 Candidates: module/struct, module type/signature, functor, record, variant,
 abstract interface type, `val`, labeled-argument function, recursive function,
@@ -192,7 +202,9 @@ Acceptance: favor structural boilerplate over very short expansions; review
 `.ml` versus `.mli` applicability; keep generic templates independent of Base,
 Core, and Hardcaml. Select a consistent abbreviation scheme before bundling.
 
-## SNIP-06 — OCaml testing and Jane Street ecosystem
+<a id="snip-06--ocaml-testing-and-jane-street-ecosystem"></a>
+
+## CB-027 — OCaml testing and Jane Street ecosystem
 
 Candidates: `let%expect_test`, `let%test_unit`, sexp conversion/deriving patterns,
 Result/Or_error handling, and Core Command scaffolds. Keep testing templates in
@@ -203,7 +215,9 @@ Acceptance: pick conventions based on representative user code; distinguish
 Base and Core APIs; identify required libraries/PPXs. Error handling templates
 should express the intended return type and not silently introduce exceptions.
 
-## SNIP-07 — Signal-first Hardcaml design
+<a id="snip-07--signal-first-hardcaml-design"></a>
+
+## CB-028 — Signal-first Hardcaml design
 
 | Pattern | Candidate trigger | Intended scaffold |
 | --- | --- | --- |
@@ -225,7 +239,9 @@ reset conventions, and hierarchical wrapper against real modules before fixing
 template bodies. Do not guess function signatures. Link repeated interface and
 signal names, and keep larger scaffolds navigable with a reasonable field count.
 
-## SNIP-08 — Hardcaml verification
+<a id="snip-08--hardcaml-verification"></a>
+
+## CB-029 — Hardcaml verification
 
 Candidates: cycle simulator creation, input/output handle binding, input
 stimulus, stepping/reset sequences, output checks, an expect-test skeleton,
@@ -237,7 +253,9 @@ clock observation timing clear; identify optional waveform/test dependencies;
 support testing Signal-first designs without requiring the Always DSL. Keep
 simulation helpers distinct from synthesizable design patterns.
 
-## SNIP-09 — Discovery and project activation
+<a id="snip-09--discovery-and-project-activation"></a>
+
+## CB-030 — Discovery and project activation
 
 - Show collection identity in picker rows/previews and support collection search
   or filters, including design/verification and a parent Hardcaml view.
@@ -254,7 +272,9 @@ their triggers; disabled collections do not appear in completion or the picker;
 scope restrictions still apply. Distinguish picker filtering from disabling a
 collection. Defaults and project precedence require a documented decision.
 
-## SNIP-10 — Acceptance and real-use review
+<a id="snip-10--acceptance-and-real-use-review"></a>
+
+## CB-031 — Acceptance and real-use review
 
 For each batch, review expansion at representative indentation, linked fields,
 choice behavior, final cursor, undo, and picker discoverability. Use meaningful

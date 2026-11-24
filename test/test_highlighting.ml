@@ -72,7 +72,11 @@ let%test_unit "case-sensitive detection, initial highlights and per-document ide
     ; Some "f.s", Gas; Some "f.S", Gas; Some "f.asm", Plain
     ; Some "f.ASM", Plain; Some "f.s.bak", Plain; Some "f.S.bak", Plain
     ; Some "f.rs", Rust; Some "f.RS", Plain; Some "f.rs.bak", Plain
-    ; Some "f.bsv", Bsv; Some "f.BSV", Plain; Some "f.bsv.bak", Plain; Some "f.bs", Plain
+    ; Some "f.cc", Cpp; Some "f.cpp", Cpp; Some "f.cxx", Cpp; Some "f.C", Cpp
+    ; Some "f.hh", Cpp; Some "f.hpp", Cpp; Some "f.hxx", Cpp
+    ; Some "f.cc.bak", Plain; Some "f.h", Plain; Some "f.c", Plain
+    ; Some "f.bsv", Bsv; Some "f.BSV", Plain; Some "f.bsv.bak", Plain
+    ; Some "f.bs", Classic; Some "f.bs.bak", Plain; Some "f.hs", Plain
     ] ~f:(fun (path, language) ->
       assert (Language.equal (Language.of_path path) language);
       let initial = match language with
@@ -81,6 +85,8 @@ let%test_unit "case-sensitive detection, initial highlights and per-document ide
          | Gas -> ".text\nmain:\n movq $1, %rax\n ret\n"
          | Rust -> "fn main() { let n = 10; }\n"
          | Bsv -> "package Example; endpackage\n"
+         | Classic -> "package Example where\n"
+         | Cpp -> "extern \"C\" int tick() { return 1; }\n"
         | Ocaml | Plain -> "let f x = x\n"
       in
       let t = create ?path initial in

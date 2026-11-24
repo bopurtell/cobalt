@@ -372,7 +372,7 @@ let%expect_test "s, u and S U in the Files panel: one job each, then a refresh; 
     changes env;
     let t = run env (create env) " vx" in
     (* Rows: untracked header, new.txt, unstaged header, a.txt, staged header, b.txt. *)
-    let t = run env t "jjj" in
+    let t = run env t "jj" in
     report env t;
     let t = run env t "s" in
     report env t;
@@ -449,7 +449,7 @@ let%expect_test "s, u and S U in the Files panel: one job each, then a refresh; 
 let%expect_test "x asks first (default No); y runs it and reloads the open buffer" =
   with_env (fun env ->
     changes env;
-    let t = run env (run env (create env) " vx") "jjj" in
+    let t = run env (run env (create env) " vx") "jj" in
     let t = run env t "x" in
     report env t;
     let t = run env t "n" in
@@ -485,7 +485,7 @@ let%expect_test "x asks first (default No); y runs it and reloads the open buffe
 let%expect_test "deleting an untracked file marks its open buffer missing" =
   with_env (fun env ->
     changes env;
-    let t = run env (run env (create ~file:"new.txt" env) " vx") "j" in
+    let t = run env (create ~file:"new.txt" env) " vx" in
     let t = run env t "xy" in
     report env t;
     status env;
@@ -507,7 +507,7 @@ let%expect_test "a work-tree rewrite is refused while a buffer in the repository
   with_env (fun env ->
     changes env;
     (* Unsaved text in the editor's a.txt. *)
-    let t = run env (run env (create env) "ix<Esc> vx") "jjj" in
+    let t = run env (run env (create env) "ix<Esc> vx") "jj" in
     let t = run env t "x" in
     report env t;
     status env;
@@ -558,7 +558,7 @@ let%expect_test "a work-tree rewrite is refused while a buffer in the repository
      question was up refuses the confirmed plan. *)
   with_env (fun env ->
     changes env;
-    let t = run env (run env (create env) " vx") "jjjx" in
+    let t = run env (run env (create env) " vx") "jjx" in
     report env t;
     let dirty =
       View_registry.Context.create (fun () ->
@@ -603,7 +603,7 @@ let%expect_test "busy until the refresh after a mutation is applied; failures ar
   =
   with_env (fun env ->
     changes env;
-    let t = run env (run env (create env) " vx") "jjj" in
+    let t = run env (run env (create env) " vx") "jj" in
     (* Jobs stay queued: the mutation is in flight. *)
     let t = keys env t "s" in
     report env t;
@@ -668,7 +668,7 @@ let%expect_test "busy until the refresh after a mutation is applied; failures ar
       | Stage_all | Unstage_all | Finish_commit _ | Extend _ | Fetch | Pull _ | Push _ | Checkout _ | Checkout_previous | Create_branch _ | Abort _
      | Continue _ | Skip_rebase_commit | Merge _ | Resolve _ -> None
     in
-    let t = run env (run env (create ~override env) " vx") "jjj" in
+    let t = run env (run env (create ~override env) " vx") "jj" in
     let t = run env t "s" in
     report env t;
     print_log env t;
@@ -1042,7 +1042,7 @@ let%expect_test "Visual across files is refused; busy, the staging warning and t
   with_env (fun env ->
     two_files env;
     (* Unsaved text in the editor's a.txt; the diff of the unstaged section. *)
-    let t = run env (run env (create env) "ix<Esc> vx") "<Tab>" in
+    let t = run env (run env (create env) "ix<Esc> vx") "k<Tab>" in
     print_diff t;
     let t = run env t "7jVjj" in
     let t = run env t "s" in

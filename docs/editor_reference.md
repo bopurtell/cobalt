@@ -331,6 +331,8 @@ Backend details and focused checks are in [`terminal/README.md`](../terminal/REA
 | Visual | `d` / `c` / `y` | Delete / change / yank the selected range |
 | Visual | `I` / `A` | On a block: insert before / append after it on every line; `2I` repeats the text |
 | Visual | `>` / `<` | Shift selected lines right / left; a count selects indentation steps (`3>`) |
+| Normal | `gc` | Toggle a line comment on the current line. `3gc` toggles three lines starting here; `u` undoes the whole edit. |
+| Visual | `gc` | Toggle line comments on the selected rows (`//` for C++, Rust, Verilog/SystemVerilog and BSV; `--` for Bluespec Classic; `#` for GAS). Skips blank lines and preserves indentation. If every nonblank row is commented, removes one layer; otherwise adds one layer to all of them. |
 | Visual | `Escape` | Cancel selection without moving the cursor |
 | Insert | text, `Backspace`, `Delete` | Edit |
 | Insert | `Enter` | New line, indented like the current one |
@@ -687,6 +689,10 @@ project with `blues_compdb.json` or `blues.toml`. See the [setup and sample
 compile database](backlog/bsv_language_server_evaluation.md#cobalt-setup).
 Use `Ctrl-n` in Insert mode for completion and `gd` in Normal mode to jump.
 Blues does not provide hover or BSC type checking.
+
+Bluespec Classic (`.bs`, also called BH) has its own built-in highlighting.
+Visual `gc` toggles `--` comments. For type errors, use the saved-file BSC
+check below; there is no Classic LSP integration for completion or navigation.
 
 #### Run a Bluespec compiler check or build
 
@@ -1354,7 +1360,11 @@ merge or rebase in progress) above three list panels: **Files** (Conflicted,
 Untracked, Unstaged and Staged sections), **Branches** and **Commits** (the log
 chosen with `l`, at first HEAD's latest 200 commits, with a graph). The diff panel
 beside them follows the selection: a file's unstaged or staged diff, a section's
-combined diff, or a commit's `git show`, which starts with the commit's file list. In a narrow placement,
+combined diff, or a commit's `git show`, which starts with the commit's file list.
+With no prior selection, Files opens on the first changed file. Select the
+**Staged** or **Unstaged** header to see the whole section's patch. When you
+switch files, the preview shows a loading row until the new patch is ready.
+In a narrow placement,
 such as the split, the lists stack above the diff; when even that does not fit,
 only the focused part shows. `@` shows the command log at the bottom: each git
 command with its exit status and, on failure, its output (a fetch, pull or push also
@@ -2075,7 +2085,8 @@ the editor, discarding unsaved changes, after restoring the terminal.
 
 Cobalt highlights OCaml implementation (`.ml`) and interface (`.mli`) files, plus
 SystemVerilog (`.sv`, `.svh`), Verilog (`.v`, `.vh`), Rust (`.rs`), Bluespec
-SystemVerilog (`.bsv`), and AT&T/GAS assembly (`.s`, `.S`) locally.
+SystemVerilog (`.bsv`), Bluespec Classic (`.bs`), C++ (`.cc`, `.cpp`, `.cxx`, `.C`, `.hh`, `.hpp`, `.hxx`),
+and AT&T/GAS assembly (`.s`, `.S`) locally.
 `.asm` is unsupported, not Intel syntax.
 Verilog uses the SystemVerilog grammar. Suffix detection is case-sensitive: `.ML`,
 `.SV`, extensionless files, unsupported languages, and buffers without a path stay
@@ -2148,7 +2159,7 @@ The GAS grammar handles compiler debug `.file`/`.loc` whitespace-separated argum
 and their following instructions; other directive argument lists remain comma-separated.
 Building needs a C compiler and gzip, not Node, a Tree-sitter CLI or grammar
 regeneration. Queries are Cobalt-owned, predicate-free strings in
-the `highlight_tree_sitter/` query modules. Rust and BSV use separate vendored
+the `highlight_tree_sitter/` query modules. Rust, BSV and C++ use separate vendored
 grammars; see the [highlight asset records](../highlight_tree_sitter/ASSETS.md).
 Packaging,
 ownership and unresolved bundled-asset provenance/license-notice findings are

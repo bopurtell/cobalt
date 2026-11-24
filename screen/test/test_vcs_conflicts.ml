@@ -241,7 +241,7 @@ let%expect_test "a merge from m m stops on conflicts; x takes theirs, restores m
       | Merging 9777158 (press m)
       log: [exit 1] git merge --no-edit --end-of-options other
       status: UU f, UU g, UU h
-      refresh toggle-log leave focus-files focus-branches focus-commits focus-diff toggle-diff toggle-fold stage unstage discard stage-all unstage-all log commit fetch pull push merge copy next previous first last half-page-down half-page-up
+      refresh toggle-log leave focus-files focus-branches focus-commits focus-diff toggle-diff select stage unstage discard stage-all unstage-all log commit fetch pull push merge copy next previous first last half-page-down half-page-up
       |}];
     (* The section header: the backend's refusal. *)
     let t = run repo t "ggx" in
@@ -264,9 +264,10 @@ let%expect_test "a merge from m m stops on conflicts; x takes theirs, restores m
     status repo;
     file repo "f";
     [%expect {|
+      jobs: diff g1.6
       focused vcs
       notice: Resolve conflicted files one at a time (x on a file); nothing ran
-      jobs: diff g1.6
+      jobs: diff g1.7
       ((Item (section conflicted) (key f)))
       discard: Resolve the conflicted file (take a side)
       focused popup; popup Resolve f
@@ -281,7 +282,7 @@ let%expect_test "a merge from m m stops on conflicts; x takes theirs, restores m
       │ any edits to the file are lost; it is marked resolved.       │
       │ y yes   n no (default)                                       │
       ╰──────────────────────────────────────────────────────────────╯
-      jobs: - g1.7, refresh g1.8, diff g1.9
+      jobs: - g1.8, refresh g1.9, diff g1.10
       focused vcs
       log: [exit 0] git --literal-pathspecs checkout --theirs -- f
       log: [exit 0] git --literal-pathspecs add --all -- f
@@ -306,7 +307,7 @@ let%expect_test "a merge from m m stops on conflicts; x takes theirs, restores m
     status repo;
     file repo "g";
     [%expect {|
-      jobs: refresh g1.10, diff g1.11
+      jobs: refresh g1.11, diff g1.12
       ((Item (section conflicted) (key g)))
       focused confirm; confirm Resolve g
       ╭─ Resolve g ──────────────────────────────────────────────────╮
@@ -314,11 +315,11 @@ let%expect_test "a merge from m m stops on conflicts; x takes theirs, restores m
       │ lost.                                                        │
       │ y yes   n no (default)                                       │
       ╰──────────────────────────────────────────────────────────────╯
-      jobs: - g1.12, refresh g1.13, diff g1.14
+      jobs: - g1.13, refresh g1.14, diff g1.15
       focused vcs
       status: M  f, UU g, UU h
       g: "<<<<<<< ours\nours\n=======\ntheirs\n>>>>>>> theirs\n"
-      jobs: - g1.15, refresh g1.16, diff g1.17
+      jobs: - g1.16, refresh g1.17, diff g1.18
       focused vcs
       status: M  f, UU h
       g: "ours\n"
@@ -363,13 +364,13 @@ let%expect_test "a merge from m m stops on conflicts; x takes theirs, restores m
       focused document
       message: Kept upper (HEAD)
       editor: h line 1 (dirty) "ours\n"
-      jobs: refresh g1.18, diff g1.19
+      jobs: refresh g1.19, diff g1.20
       focused document
       message: Wrote $DIR/work/h (5 bytes)
       editor: h line 1 "ours\n"
       focused vcs
       notice: Resolve the conflicted files first (s marks one resolved); nothing ran
-      jobs: - g1.20, refresh g1.21, diff g1.22
+      jobs: - g1.21, refresh g1.22, diff g1.23
       focused vcs
       status: M  f
       |}];
@@ -404,9 +405,9 @@ let%expect_test "a merge from m m stops on conflicts; x takes theirs, restores m
       notice: Commit merge refused: unsaved changes in h; save or undo them first; nothing ran
       message: Commit merge refused: unsaved changes in h; save or undo them first; nothing ran
       status: M  f
-      jobs: refresh g1.23, diff g1.24
+      jobs: refresh g1.24, diff g1.25
       editor: h line 1 "ours\n"
-      jobs: - g1.25, refresh g1.26
+      jobs: - g1.26, refresh g1.27
       focused vcs
       | Head: main b0afaab
       HEAD: Merge branch 'other' < Ours < Theirs < Base; branch main
@@ -456,7 +457,7 @@ let%expect_test "a rebase pull stops; r r with an unsaved buffer is refused; r r
       message: Pull from origin/main (rebase) failed: Stopped on conflicts: resolve each file (x, or Space x in the editor), mark it resolved with s, then continue
       | Head: detached at 6b0cb12
       | Rebasing main onto 6b0cb12 (press r)
-      refresh toggle-log leave focus-files focus-branches focus-commits focus-diff toggle-diff toggle-fold stage unstage discard stage-all unstage-all log commit fetch pull push rebase merge copy next previous first last half-page-down half-page-up
+      refresh toggle-log leave focus-files focus-branches focus-commits focus-diff toggle-diff select stage unstage discard stage-all unstage-all log commit fetch pull push rebase merge copy next previous first last half-page-down half-page-up
       rebase: Continue, skip or abort the rebase (the rebase popup)
       focused popup; popup Rebasing
       ╭─ Rebasing ─────────────────────────────────────────╮

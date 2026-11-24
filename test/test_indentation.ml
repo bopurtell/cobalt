@@ -40,6 +40,40 @@ let assert_oldest t =
             (Some (Info "Already at oldest change")))
 ;;
 
+let%test_unit "Visual gc round-trips mixed DPI lines and undoes the whole selection" =
+  let original = "\t// existing\n  \n  dpi_tick();\ntail();" in
+  let t = Editor.with_path (create original) "bridge.cc" in
+  let toggle = [ Enter_visual `Linewise; move ~count:2 Down; Visual_toggle_comments ] in
+  let commented = run t toggle in
+  assert_text commented "\t// // existing\n  \n  // dpi_tick();\ntail();";
+  assert (Mode.equal (Editor.mode commented) Normal);
+  assert_text (run commented [ Undo ]) original;
+  assert_text (run commented toggle) original
+;;
+
+let%test_unit "Normal gc counts from the cursor and clamps at EOF" =
+  let original = "package Pulse where\n  tick = action\n    fire" in
+  let t = Editor.with_path (create original) "Pulse.bs" in
+  let t = run t [ move Down; Toggle_comment_lines 8 ] in
+  assert_text t "package Pulse where\n  -- tick = action\n    -- fire";
+  assert_text (run t [ Toggle_comment_lines 1 ])
+    "package Pulse where\n  tick = action\n    -- fire";
+  assert_text (run t [ Undo ]) original
+;;
+
+let%test_unit "Visual block gc toggles full rows using each language's line marker" =
+  List.iter
+    [ "bridge.cc", "//"; "sim.rs", "//"; "Top.bsv", "//"
+    ; "top.v", "//"; "top.sv", "//"; "startup.s", "#"; "Classic.bs", "--"
+    ] ~f:(fun (path, marker) ->
+      let original = "  first\n\tsecond\nthird" in
+      let t = Editor.with_path (create original) path in
+      let toggle = [ Enter_visual `Blockwise; move Down; Visual_toggle_comments ] in
+      let commented = run t toggle in
+      assert_text commented ("  " ^ marker ^ " first\n\t" ^ marker ^ " second\nthird");
+      assert_text (run commented toggle) original)
+;;
+
 let%test_unit "Normal count selects lines, clamps at EOF, and is one cleanly undoable edit" =
   let original = "header\n  let café = 1\n\tprint café\nfooter\n" in
   let register = Register.Text { text = "keep me"; kind = Characterwise } in

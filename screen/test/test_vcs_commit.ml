@@ -819,9 +819,9 @@ let%expect_test "busy: c c and c e while a mutation runs; Space g c and g a whil
     head repo;
     [%expect {|
       focused vcs; tabs [a.txt *VCS: main]; file a.txt line 1
-      notice: Busy: Stage unstaged changes (1 file); nothing ran
+      notice: Busy: Stage b.txt; nothing ran
       focused vcs; tabs [a.txt *VCS: main]; file a.txt line 1
-      notice: Busy: Stage unstaged changes (1 file); nothing ran
+      notice: Busy: Stage b.txt; nothing ran
       jobs: - g1.4, refresh g1.5, diff g1.6
       jobs: commit g1.7
       focused document; tabs [a.txt VCS: main *COBALT_COMMIT_EDITMSG]; file COBALT_COMMIT_EDITMSG line 1

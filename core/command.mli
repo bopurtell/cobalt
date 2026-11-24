@@ -82,6 +82,8 @@ type t =
   | Exit_visual
   | Visual_delete
   | Visual_yank
+  | Visual_toggle_comments
+  | Toggle_comment_lines of int
   | Visual_change
   | Visual_insert of { append : bool; count : int }
   (** Block insert: [I] before the block, or [A] ([append]) after it, on every line;

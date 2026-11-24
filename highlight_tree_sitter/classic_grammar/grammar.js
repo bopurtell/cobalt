@@ -1,0 +1,33 @@
+// A highlighting grammar, not a layout-sensitive Bluespec typechecker/parser.
+module.exports = grammar({
+  name: 'bluespec_classic',
+  word: $ => $.identifier,
+  rules: {
+    source_file: $ => repeat(choice(
+      $.identifier, $.capitalized, $.keyword, $.package_ref, $.signature_op,
+      $.operator, $.punctuation, $.number, $.string, $.character,
+      $.line_comment, $.block_comment, $.pragma_delimiter, $.system_task,
+    )),
+    package_ref: $ => prec.right(seq($.package_keyword, optional(alias($.capitalized, $.package_name)))),
+    package_keyword: _ => choice('package', 'import', 'qualified'),
+    keyword: _ => choice('action', 'case', 'class', 'data', 'deriving', 'do',
+      'else', 'foreign', 'if', 'in', 'coherent', 'incoherent', 'infix',
+      'infixl', 'infixr', 'interface', 'instance', 'let', 'letseq', 'of',
+      'primitive', 'rules', 'signature', 'struct', 'module', 'then', 'type',
+      'valueOf', 'stringOf', 'verilog', 'synthesize', 'when', 'where'),
+    identifier: _ => /[a-z_][a-zA-Z0-9_']*/,
+    capitalized: _ => /[A-Z][a-zA-Z0-9_']*/,
+    system_task: _ => /\$[a-zA-Z_][a-zA-Z0-9_$]*/,
+    signature_op: _ => '::',
+    operator: _ => /[!#$%&*+.\/<=>?@\\^|:~\-\p{Sm}]+/,
+    punctuation: _ => /[()\[\]{},;`]/,
+    pragma_delimiter: _ => choice('{-#', '#-}'),
+    number: _ => choice(/'([01])/, /([0-9]+'h|0[xX])[a-fA-F0-9_]+/,
+      /([0-9]+'b|0[bB])[01_]+/, /([0-9]+'o|0[oO])[0-7_]+/,
+      /[0-9]+'d[0-9_]+/, /[0-9][0-9_]*(\.[0-9]+)?([eE][-+]?[0-9]+)?/),
+    string: _ => /"([^"\\\n]|\\.)*"/,
+    character: _ => /'([^'\\\n]|\\[a-zA-Z0-9]+|\\.)'/,
+    line_comment: _ => token(/--+(@[^\n]*|[^!#$%&*+.\/<=>?@\\^|:~\-\n][^\n]*)?/),
+    block_comment: $ => seq('{-', repeat(choice($.block_comment, /[^{}\-]+/, '{', '}', '-')), '-}'),
+  },
+});

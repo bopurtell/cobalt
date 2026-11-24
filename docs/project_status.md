@@ -39,7 +39,7 @@ session-local rather than saved across editor restarts.
   mouse forwarding, docking, or cross-restart shell restoration.
 - **Themes:** live preview and dark/light palettes, including monochrome,
   retro-terminal, and warm paper variants. `--list-themes` is the live catalog.
-- **Highlighting:** local syntax highlighting for Rust, Bluespec SystemVerilog,
+- **Highlighting:** local syntax highlighting for C++, Rust, Bluespec Classic and Bluespec SystemVerilog,
   OCaml, Verilog, SystemVerilog, and AT&T/GAS assembly (`.s` / `.S`).
 - **Optional Markdown styles:** `--markdown` or **Toggle document decorations**
   adds source-preserving heading/emphasis/code/link/list styles for

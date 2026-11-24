@@ -4,7 +4,7 @@
 (library
  (name cobalt_core)
  (package cobalt)
- (libraries core)
+ (libraries core cobalt_highlight)
  ; ppx_expect v0.18~preview drops the directory from a test file's path when
  ; registering a test, then rebuilds it at exit from the bare filename plus
  ; -source-tree-root. This trailing `.` (the runner's cwd, where dune copies the

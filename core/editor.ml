@@ -439,18 +439,20 @@ let shift t ~first ~last ~right ~count ~inserting =
   else commit (edit (commit t) ~text ~cursor)
 ;;
 
-let shift_lines t ~right ~count =
+let counted_lines t count =
   check_count count;
   let first = cursor_line t in
   let last = first + Int.min (count - 1) (B.line_count t.text - first - 1) in
+  first, last
+;;
+
+let shift_lines t ~right ~count =
+  let first, last = counted_lines t count in
   shift t ~first ~last ~right ~count:1 ~inserting:false
 ;;
 
-let visual_shift t ~right ~count =
-  check_count count;
-  match t.selection with
-  | None -> t
-  | Some selection ->
+let selected_lines t =
+  Option.map t.selection ~f:(fun selection ->
     let start = Int.min selection.anchor selection.active in
     let stop = Int.max selection.anchor selection.active in
     let first = B.line_of_offset t.text start in
@@ -460,7 +462,49 @@ let visual_shift t ~right ~count =
          && stop = B.line_start t.text last
       then last - 1 else last
     in
-    shift t ~first ~last ~right ~count ~inserting:false
+    first, last)
+;;
+
+let visual_shift t ~right ~count =
+  check_count count;
+  match selected_lines t with
+  | None -> t
+  | Some (first, last) -> shift t ~first ~last ~right ~count ~inserting:false
+;;
+
+let toggle_comments t (first, last) =
+  let marker =
+    match Cobalt_highlight.Language.of_path t.path with
+    | Cpp | Rust | Systemverilog | Bsv -> Some "//"
+    | Gas -> Some "#"
+    | Classic -> Some "--"
+    | Plain | Ocaml | Ocaml_interface -> None
+  in
+  match marker with
+  | None -> { t with message = Some (Info "No line comment syntax for this file") }
+  | Some marker ->
+    let rows =
+      List.range first last ~stop:`inclusive
+      |> List.filter_map ~f:(fun line ->
+        let row = B.line_text t.text line in
+        let indent, _ = Indentation.prefix row in
+        if indent = String.length row then None
+        else (
+          let body = String.drop_prefix row indent in
+          let marked = String.is_prefix body ~prefix:marker in
+          let width = String.length marker in
+          let space = String.length body > width && Char.equal body.[width] ' ' in
+          Some (B.line_start t.text line + indent, marked, width + Bool.to_int space)))
+    in
+    let uncomment = List.for_all rows ~f:(fun (_, marked, _) -> marked) in
+    let text = List.fold (List.rev rows) ~init:t.text ~f:(fun text (pos, _, width) ->
+      if uncomment then replace text ~pos ~len:width ""
+      else replace text ~pos ~len:0 (marker ^ " "))
+    in
+    let cursor = B.line_start text first + fst (Indentation.prefix (B.line_text text first)) in
+    let t = { t with mode = Normal; selection = None } in
+    if List.is_empty rows then set_cursor t cursor
+    else commit (edit (commit t) ~text ~cursor)
 ;;
 
 let insert_shift t ~right =
@@ -1329,6 +1373,9 @@ let dispatch_command t (command : Command.t) =
      | Some selection -> leave_visual t ~cursor:selection.active, [])
   | Visual_delete -> visual_delete t ~change:false, []
   | Visual_yank -> visual_yank t, []
+  | Visual_toggle_comments ->
+    Option.value_map (selected_lines t) ~default:t ~f:(toggle_comments t), []
+  | Toggle_comment_lines count -> toggle_comments t (counted_lines t count), []
   | Visual_change ->
     (match t.selection with
      | Some { kind = `Blockwise; _ } -> block_change t, []
@@ -1350,9 +1397,10 @@ let dispatch t (command : Command.t) =
   let applies =
     match command, t.mode with
     | Shift_lines _, (Insert | Visual _)
+    | Toggle_comment_lines _, (Insert | Visual _)
     | Insert_shift _, (Normal | Visual _)
-    | Visual_shift _, (Normal | Insert) -> false
-    | Visual_shift _, Visual _ -> true
+    | (Visual_shift _ | Visual_toggle_comments), (Normal | Insert) -> false
+    | (Visual_shift _ | Visual_toggle_comments), Visual _ -> true
     | (Enter_insert _ | Open_line_below | Open_line_above | Enter_visual _ | Exit_visual), Insert
     | ( ( Exit_insert
         | Insert_text _

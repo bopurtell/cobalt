@@ -1,10 +1,10 @@
 # Tickets: Rust, Haskell, and Bluespec support
 
-**Status:** LANG-01 (Rust), LANG-03 (BSV highlighting), and LANG-04 (compiler
+**Status:** CB-016 (Rust), CB-018 (BSV highlighting), and CB-019 (compiler
 feedback) implemented and verified. See [running a project check or build](../editor_reference.md#run-a-bluespec-compiler-check-or-build).
-LANG-05 selected Blues for opt-in BSV completion and definition
+CB-020 selected Blues for opt-in BSV completion and definition
 jumps; see the [real-project evaluation](bsv_language_server_evaluation.md).
-LANG-02 (Haskell) and LANG-06 (Bluespec Classic highlighting) remain proposed.
+CB-021 (Bluespec Classic highlighting) is implemented; CB-017 (Haskell) remains proposed.
 **Requested:** 2026-11-22.
 
 ## Goal
@@ -23,12 +23,12 @@ Verilog/SystemVerilog and GHC Haskell, respectively.
 
 | Ticket | Priority | User-visible result |
 | --- | --- | --- |
-| [LANG-01](#lang-01--rust-editing) | First | Rust highlighting and language intelligence in Cargo projects |
-| [LANG-02](#lang-02--haskell-editing) | Independent | Haskell highlighting and language intelligence in a GHC project |
-| [LANG-03](#lang-03--bluespec-systemverilog-highlighting) | First for Bluespec | Useful `.bsv` highlighting without any external tool |
-| [LANG-04](#lang-04--bluespec-compiler-feedback) | Next for Bluespec | Build/check errors that jump to `.bsv` or `.bs` source |
-| [LANG-05](#lang-05--evaluate-bluespec-systemverilog-language-intelligence) | Follow-up | Validate which `.bsv` IDE features are worth shipping |
-| [LANG-06](#lang-06--bluespec-classic-highlighting) | Independent | Useful `.bs` highlighting without treating it as `.hs` |
+| [CB-016](#cb-016--rust-editing) | First | Rust highlighting and language intelligence in Cargo projects |
+| [CB-017](#cb-017--haskell-editing) | Independent | Haskell highlighting and language intelligence in a GHC project |
+| [CB-018](#cb-018--bluespec-systemverilog-highlighting) | First for Bluespec | Useful `.bsv` highlighting without any external tool |
+| [CB-019](#cb-019--bluespec-compiler-feedback) | Next for Bluespec | Build/check errors that jump to `.bsv` or `.bs` source |
+| [CB-020](#cb-020--evaluate-bluespec-systemverilog-language-intelligence) | Follow-up | Validate which `.bsv` IDE features are worth shipping |
+| [CB-021](#cb-021--bluespec-classic-highlighting) | Independent | Useful `.bs` highlighting without treating it as `.hs` |
 
 ## Shared acceptance
 
@@ -49,7 +49,9 @@ Verilog/SystemVerilog and GHC Haskell, respectively.
 The implementation is open. Formatting, rename, semantic coloring, and new
 keybindings are not required for these tickets.
 
-## LANG-01 — Rust editing
+<a id="lang-01--rust-editing"></a>
+
+## CB-016 — Rust editing
 
 **Goal:** Open `.rs` files in a Cargo project and use normal Cobalt editing
 commands without configuring each file or workspace member by hand.
@@ -67,7 +69,9 @@ commands without configuring each file or workspace member by hand.
 - [ ] Opening a loose `.rs` file still gives a usable editing experience even
       when no Cargo project can be loaded.
 
-## LANG-02 — Haskell editing
+<a id="lang-02--haskell-editing"></a>
+
+## CB-017 — Haskell editing
 
 **Goal:** Open ordinary `.hs` files and use Haskell language intelligence with
 a project-compatible GHC and Haskell Language Server (HLS).
@@ -84,7 +88,9 @@ a project-compatible GHC and Haskell Language Server (HLS).
       diagnose a GHC/HLS mismatch, and any untested project layouts.
 - [ ] Literate Haskell (`.lhs`) and Bluespec Classic are out of scope.
 
-## LANG-03 — Bluespec SystemVerilog highlighting
+<a id="lang-03--bluespec-systemverilog-highlighting"></a>
+
+## CB-018 — Bluespec SystemVerilog highlighting
 
 **Goal:** Read and edit `.bsv` source even without a Bluespec toolchain.
 
@@ -97,7 +103,9 @@ a project-compatible GHC and Haskell Language Server (HLS).
       regular Verilog support.
 - [ ] This ticket can close without a Bluespec compiler or language server.
 
-## LANG-04 — Bluespec compiler feedback
+<a id="lang-04--bluespec-compiler-feedback"></a>
+
+## CB-019 — Bluespec compiler feedback
 
 **Goal:** From Cobalt, explicitly run a project's normal BSC check/build and
 jump from a compiler finding to the offending source.
@@ -116,7 +124,9 @@ jump from a compiler finding to the offending source.
       buffers implicitly, and distinguish a missing tool or failed launch from
       a successful run with no findings.
 
-## LANG-05 — Evaluate Bluespec SystemVerilog language intelligence
+<a id="lang-05--evaluate-bluespec-systemverilog-language-intelligence"></a>
+
+## CB-020 — Evaluate Bluespec SystemVerilog language intelligence
 
 **Goal:** Decide whether an available BSV server adds enough value beyond
 highlighting and compiler feedback to ship.
@@ -133,19 +143,21 @@ highlighting and compiler feedback to ship.
       features and document its limits. If not, keep the highlighting and
       compiler workflows independent of the server.
 
-## LANG-06 — Bluespec Classic highlighting
+<a id="lang-06--bluespec-classic-highlighting"></a>
+
+## CB-021 — Bluespec Classic highlighting
 
 **Goal:** Make `.bs` files readable without routing them through GHC/HLS or
 waiting on a Classic language server.
 
 ### Acceptance criteria
 
-- [ ] Highlight representative Classic source, including package/module
+- [x] Highlight representative Classic source, including package/module
       structure, rules, methods, types, comments, and literals. Check against
       real `.bs` files, not just equivalent Haskell examples.
-- [ ] Opening `.bs` never starts HLS. In a project with both `.bs` and `.bsv`,
+- [x] Opening `.bs` never starts HLS. In a project with both `.bs` and `.bsv`,
       each file retains highlighting for its own syntax.
-- [ ] Compiler feedback is tracked in LANG-04; semantic navigation and
+- [x] Compiler feedback is tracked in CB-019; semantic navigation and
       completion are not required for this ticket.
 
 ## References
