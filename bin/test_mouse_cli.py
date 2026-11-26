@@ -177,9 +177,10 @@ def test(binary, root, env):
                  + tty.report(16, "first line") + b"iN\x1b")
         tty.see("click:aNbcd")
         tty.keys(tty.report(65, "click:aNbcd") * 80)
-        tty.wait(lambda: "row-060" in tty.screen.text and "click:aNbcd" not in tty.screen.text,
-                 "wheel-down moves viewport away from cursor")
-        assert not tty.screen.cursor_visible, "offscreen cursor is still drawn"
+        # The viewport repaint and cursor visibility can arrive in separate PTY reads.
+        tty.wait(lambda: "row-060" in tty.screen.text
+                 and "click:aNbcd" not in tty.screen.text and not tty.screen.cursor_visible,
+                 "wheel-down moves viewport away from cursor and hides it")
         tty.keys(tty.report(64, "row-060") * 80)
         tty.see("first line")
         tty.keys(tty.report(65, "click:aNbcd") * 80)
