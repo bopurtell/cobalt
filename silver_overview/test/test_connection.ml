@@ -87,14 +87,14 @@ let test_paths directory =
     ~f:(fun dir -> Core_unix.mkdir dir ~perm:0o700);
   let destinations = [ runtime; state; home_state ] in
   List.iteri destinations ~f:(fun i root ->
-    let published = Filename.concat root "hardcaml-workbench" in
+    let published = Filename.concat root "silver" in
     Core_unix.mkdir published ~perm:0o700;
     write published (metadata ~endpoint:(sprintf "http://127.0.0.1:%d" (9000 + i)) ()));
-  let check ~runtime ~state index =
+  let check ~runtime ~state expected =
     let%map result =
       Process.run
         ~prog:Sys.executable_name
-        ~args:[ "--check-default-path"; sprintf "http://127.0.0.1:%d" (9000 + index) ]
+        ~args:[ "--check-default-path"; expected ]
         ~env:(`Extend [ "XDG_RUNTIME_DIR", runtime; "XDG_STATE_HOME", state; "HOME", home ])
         ()
     in
@@ -102,12 +102,26 @@ let test_paths directory =
   in
   Monitor.protect
     (fun () ->
-      let%bind () = check ~runtime ~state 0 in
-      let%bind () = check ~runtime:"" ~state 1 in
-      check ~runtime:"" ~state:"" 2)
+      let%bind () = check ~runtime ~state "http://127.0.0.1:9000" in
+      let%bind () = check ~runtime:"" ~state "http://127.0.0.1:9001" in
+      let%bind () = check ~runtime:"" ~state:"" "http://127.0.0.1:9002" in
+      let canonical = Filename.concat runtime "silver" in
+      let legacy = Filename.concat runtime "hardcaml-workbench" in
+      Core_unix.rename ~src:canonical ~dst:legacy;
+      Monitor.protect
+        (fun () ->
+          let%bind () = check ~runtime ~state "http://127.0.0.1:9000" in
+          (* Even an empty canonical directory conflicts with active legacy state. *)
+          Core_unix.mkdir canonical ~perm:0o700;
+          Monitor.protect
+            (fun () -> check ~runtime ~state "conflict")
+            ~finally:(fun () -> Core_unix.rmdir canonical; return ()))
+        ~finally:(fun () ->
+          Core_unix.rename ~src:legacy ~dst:canonical;
+          return ()))
     ~finally:(fun () ->
       List.iter destinations ~f:(fun root ->
-        let published = Filename.concat root "hardcaml-workbench" in
+        let published = Filename.concat root "silver" in
         Core_unix.unlink (path published);
         Core_unix.rmdir published);
       List.iter [ runtime; state; home_state; Filename.concat home ".local"; home ] ~f:Core_unix.rmdir;
@@ -372,8 +386,23 @@ let main () =
 
 let () =
   let check expected =
-    let%map found = Connection.lookup () in
-    assert (List.equal String.equal (List.map found.candidates ~f:Connection.endpoint) [ expected ])
+    let%bind found = Connection.lookup () in
+    if String.equal expected "conflict"
+    then (
+      let error = Option.value_exn found.advertisement_error in
+      assert (List.is_empty found.candidates);
+      assert (String.is_prefix error ~prefix:"Conflicting Silver state directories:");
+      let%bind shares = Connection.Share.lookup_live () in
+      assert (List.is_empty shares.shares && Option.equal String.equal shares.error (Some error));
+      let explicit = Filename.concat (Sys.getenv_exn "XDG_RUNTIME_DIR") "hardcaml-workbench" in
+      let%map found = Connection.lookup ~directory:explicit () in
+      assert (Option.is_none found.advertisement_error);
+      assert (List.equal String.equal (List.map found.candidates ~f:Connection.endpoint)
+                [ "http://127.0.0.1:9000" ]))
+    else (
+      assert (Option.is_none found.advertisement_error);
+      assert (List.equal String.equal (List.map found.candidates ~f:Connection.endpoint) [ expected ]);
+      return ())
   in
   let run =
     match Array.to_list (Sys.get_argv ()) with

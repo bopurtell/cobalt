@@ -1,0 +1,79 @@
+name: Cobalt native CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - oxcaml
+  workflow_dispatch:
+    inputs:
+      cold:
+        description: Benchmark cold provisioning (skip cache restore and save)
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.event_name == 'pull_request' && format('cobalt-native-pr-{0}', github.event.pull_request.number) || format('cobalt-native-run-{0}-{1}', github.run_id, github.run_attempt) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  native:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    env:
+      OPAMROOT: /home/runner/.cobalt-ci-opam
+      OPAMSWITCH: 5.2.0+ox
+      OPAMJOBS: 2
+      COBALT_BUILD_JOBS: 2
+      DUNE_CACHE: disabled
+      SEGMENT_DOWNLOAD_TIMEOUT_MINS: 30
+    steps:
+      - name: Check out the selected revision
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Prepare the Linux build host
+        run: |
+          # Reclaim space on the disposable hosted runner for OxCaml and its archive.
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc
+          time bash scripts/ci/toolchain.sh host
+          df -h .
+
+      - name: Check cache policy and workflow triggers
+        run: python3 -B scripts/ci/test_cache.py
+
+      - name: Calculate the toolchain key
+        id: setup
+        run: |
+          key=$(bash scripts/ci/toolchain.sh key)
+          echo "key=$key" | tee -a "$GITHUB_OUTPUT"
+
+      - name: Restore exact toolchain
+        id: restore
+        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.cold) }}
+        uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: ${{ env.OPAMROOT }}
+          key: ${{ steps.setup.outputs.key }}
+
+      - name: Provision compiler and third-party dependencies
+        if: ${{ steps.restore.outputs.cache-hit != 'true' }}
+        run: time bash scripts/ci/toolchain.sh provision
+
+      - name: Verify restored toolchain
+        if: ${{ steps.restore.outputs.cache-hit == 'true' }}
+        run: time bash scripts/ci/toolchain.sh verify
+
+      - name: Save newly provisioned toolchain
+        if: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/oxcaml' && !(github.event_name == 'workflow_dispatch' && inputs.cold) && steps.restore.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: ${{ env.OPAMROOT }}
+          key: ${{ steps.setup.outputs.key }}
+
+      - name: Build and test this checkout
+        run: PATH=/usr/bin:/bin /usr/bin/opam exec --readonly --switch="$OPAMSWITCH" -- bash scripts/ci/check.sh

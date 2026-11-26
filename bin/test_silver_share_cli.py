@@ -12,7 +12,7 @@ from test_silver_cli import editor, wait
 from test_silver_quick_launch_cli import send
 
 
-def test(binary, *, live=False):
+def test(binary, *, live=False, runtime_name="silver"):
     # Dune may set TMPDIR to a group-writable sandbox parent that a live reader rejects.
     parent = os.getenv("COBALT_TEST_SHARE_TMPDIR", "/tmp") if live else None
     with tempfile.TemporaryDirectory(prefix="cobalt-silver-share-", dir=parent) as temp:
@@ -26,7 +26,7 @@ def test(binary, *, live=False):
         env = dict(os.environ, HOME=temp, XDG_CONFIG_HOME=temp, XDG_RUNTIME_DIR=temp,
                    COBALT_SILVER_SHARE_FIXTURE=str(fixture), TERM="xterm-256color",
                    COLORTERM="truecolor", LC_ALL="C.UTF-8")
-        registry = directory / "hardcaml-workbench/editor-shares/v1"
+        registry = directory / runtime_name / "editor-shares/v1"
         ids = {name: (ch + "0" * 31) for name, ch in (("alpha", "a"), ("beta", "b"))}
         publishers = {}
         if live:
@@ -179,10 +179,11 @@ def test(binary, *, live=False):
                 server.shutdown()
                 for fd in publishers.values():
                     fd.close()
-    source = "locked registry" if live else "fixture"
+    source = f"locked registry ({runtime_name})" if live else "fixture"
     print(f"Silver share {source}: exact project, no launch/open, withdrawal and superseded connect")
 
 
 if __name__ == "__main__":
     test(str(Path(sys.argv[1]).resolve()))
     test(str(Path(sys.argv[1]).resolve()), live=True)
+    test(str(Path(sys.argv[1]).resolve()), live=True, runtime_name="hardcaml-workbench")

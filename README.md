@@ -1,5 +1,7 @@
 # Cobalt
 
+[![Native build and tests on oxcaml](https://github.com/bopurtell/cobalt/actions/workflows/ci.yml/badge.svg?branch=oxcaml)](https://github.com/bopurtell/cobalt/actions/workflows/ci.yml?query=branch%3Aoxcaml)
+
 **A modal terminal editor with a tile-based workspace.**
 
 Cobalt brings Vim-style editing, floating shells, code completion, language-server

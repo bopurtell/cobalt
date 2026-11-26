@@ -263,7 +263,7 @@ def private_fixture(args, evidence, *, quick_launch=False):
     if quick_launch:
         provider = evidence / "quick_launch_provider.py"
         shutil.copyfile(Path(__file__).with_name(provider.name), provider)
-    (project / "hardcaml-workbench-simulation.sexp").write_text(codec.sexp([
+    (project / "silver-simulation.sexp").write_text(codec.sexp([
         ("schema_version", 1), ("provider_executable", sys.executable),
         ("provider_args", [provider, "--control", control, "--calls", calls]),
         ("discovery_timeout_seconds", 10), ("run_timeout_seconds", 20),

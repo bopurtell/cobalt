@@ -65,8 +65,11 @@ and late-reply tests without any daemon.
 With an adapter-enabled build, **Silver: Discover/Connect…** is available in
 the standalone palette without Silver flags or a prior run. Lookup reads only
 `editor-shares/v1/` under Silver's native runtime directory:
-`$XDG_RUNTIME_DIR/hardcaml-workbench`, falling back to
-`$XDG_STATE_HOME/hardcaml-workbench`, then `$HOME/.local/state/hardcaml-workbench`.
+`$XDG_RUNTIME_DIR/silver`, falling back to
+`$XDG_STATE_HOME/silver`, then `$HOME/.local/state/silver`.
+Within the selected parent, an existing `hardcaml-workbench` directory is
+used if `silver` is absent; if both exist discovery reports a conflict and
+does not read either registry.
 It never contacts a daemon during lookup, searches ports, or infers a share from
 editor files. Native `daemon.sexp` alone is not a project share. For manual use,
 enter a loopback URL to open the editor's startup root, or use `--silver-endpoint`
@@ -141,9 +144,10 @@ publisher or backend identity.
 
 Separately from project shares, `Silver_connection.lookup` lists the daemon advertised to Silver's own native
 client, plus caller-supplied known endpoints. It reads only `daemon.sexp` in
-`$XDG_RUNTIME_DIR/hardcaml-workbench`, or (if unset or empty)
-`${XDG_STATE_HOME:-$HOME/.local/state}/hardcaml-workbench`. An explicit discovery
+`$XDG_RUNTIME_DIR/silver`, or (if unset or empty)
+`${XDG_STATE_HOME:-$HOME/.local/state}/silver`. An explicit discovery
 directory can be passed to `lookup` to match a daemon's `--discovery-dir`.
+The same legacy-directory fallback and conflict handling apply as for shares.
 There is no registry of all daemon processes or port scanning: a daemon
 without an advertisement in that directory must be known to the caller or
 entered explicitly. `Silver_connection.explicit` validates a loopback HTTP URL

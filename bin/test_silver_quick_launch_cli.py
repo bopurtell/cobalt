@@ -144,7 +144,7 @@ def test(binary, wire):
                 # No CLI binding: a native daemon advertisement is not a project
                 # share. The picker still accepts a typed loopback URL.
                 env.pop("COBALT_SILVER_SHARE_FIXTURE", None)
-                metadata = Path(temp) / "hardcaml-workbench/daemon.sexp"
+                metadata = Path(temp) / "silver/daemon.sexp"
                 metadata.parent.mkdir(mode=0o700)
                 metadata.write_text(f"((endpoint {endpoint})(instance_id fixture)(pid {os.getpid()}))")
                 metadata.chmod(0o600)

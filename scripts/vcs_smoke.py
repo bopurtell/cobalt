@@ -241,7 +241,13 @@ def run(smoke):
             "modified   src/main.ml", "notes.txt")
     s.check("tab strip labels the view 'VCS: main'", "[2:VCS: main]" in s.rows()[0],
             s.rows()[0])
+    s.selected("notes.txt")
+    s.shows("0 Diff: Untracked: notes.txt")
+    # Startup selects the first file, so explicitly move to the section header
+    # before exercising header help and navigating to the unstaged file.
+    s.footer_is("Files 2/6")
     s.save("view")
+    s.keys("g", "g")
     s.footer_is("Files 1/6")
     s.keys("Space", "v", "?")
     s.footer_is("Files 1/6 | ? help, s x S U, Enter fold, Tab diff, c commit")

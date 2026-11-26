@@ -36,6 +36,8 @@ let candidate source ?instance_id text =
 
 let explicit text = candidate Explicit text
 
+exception Conflicting_state_directories of string
+
 let native_directory () =
   let nonempty_env name =
     Option.filter (Sys.getenv name) ~f:(Fn.non String.is_empty)
@@ -47,7 +49,20 @@ let native_directory () =
       Option.value_or_thunk (nonempty_env "XDG_STATE_HOME") ~default:(fun () ->
         Filename.concat (Sys_unix.home_directory ()) ".local/state")
   in
-  Filename.concat root "hardcaml-workbench"
+  (* Match Silver's native runtime selection, including existing legacy state.
+     Do not silently choose between two independent daemon/share histories. *)
+  let canonical = Filename.concat root "silver" in
+  let legacy = Filename.concat root "hardcaml-workbench" in
+  let exists path =
+    try ignore (Core_unix.lstat path : Core_unix.stats); true with
+    | Core_unix.Unix_error (Core_unix.ENOENT, _, _) -> false
+  in
+  match exists canonical, exists legacy with
+  | true, true ->
+    raise (Conflicting_state_directories
+             (sprintf "Conflicting Silver state directories: %s and %s" canonical legacy))
+  | false, true -> legacy
+  | _ -> canonical
 ;;
 
 exception Invalid_advertisement
@@ -95,6 +110,7 @@ let read_advertisement directory =
      | Ok advertised -> Ok (Some advertised)
      | Error reason -> Error ("Invalid Silver daemon advertisement: " ^ reason))
   with
+  | Conflicting_state_directories error -> Error error
   | Core_unix.Unix_error (Core_unix.ENOENT, _, _) -> Ok None
   | Core_unix.Unix_error _ -> Error "Cannot read Silver daemon advertisement"
   | _ -> Error "Invalid Silver daemon advertisement"
@@ -346,8 +362,13 @@ module Share = struct
   ;;
 
   let lookup_live ?directory () =
-    let directory = Option.value_or_thunk directory ~default:native_directory in
-    In_thread.run (fun () -> read_registry directory)
+    In_thread.run (fun () ->
+      try
+        let directory = Option.value_or_thunk directory ~default:native_directory in
+        read_registry directory
+      with
+      | Conflicting_state_directories error -> { shares = []; error = Some error }
+      | _ -> { shares = []; error = Some "Cannot locate Silver shares" })
   ;;
 
   let revalidate share =

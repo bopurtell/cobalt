@@ -19,6 +19,10 @@ depends: [
   "lsp"
   "jsonrpc"
   "ppx_jane"
+  "bonsai_test" {with-test}
+  "bonsai_term_test" {with-test}
+  "expect_test_helpers_core" {with-test}
+  "expect_test_helpers_async" {with-test}
   "odoc" {with-doc}
 ]
 build: [

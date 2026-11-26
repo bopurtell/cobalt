@@ -17,10 +17,12 @@ type lookup =
   }
 
 (** Read at most one Silver [daemon.sexp] advertisement. The default directory
-    matches Silver's native client: [$XDG_RUNTIME_DIR/hardcaml-workbench], or
-    [$XDG_STATE_HOME/hardcaml-workbench], or
-    [$HOME/.local/state/hardcaml-workbench]. [directory] can name the exact
+    matches Silver's native client: [$XDG_RUNTIME_DIR/silver], or
+    [$XDG_STATE_HOME/silver], or
+    [$HOME/.local/state/silver]. [directory] can name the exact
     directory passed to Silver's [--discovery-dir]. A missing file is normal.
+    Within the selected parent, an existing [hardcaml-workbench] directory
+    is used when [silver] is absent; coexistence reports a conflict.
 
     [known] is caller-supplied (for example, the current configured endpoint).
     Invalid known entries are omitted. Duplicates favor the advertisement so

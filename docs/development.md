@@ -58,6 +58,58 @@ filesystem with enough space for the fresh build.
 Keep the combined job pool at **20 or fewer** across concurrent commands. The
 commands here leave headroom; reduce `-j` further when other builds are running.
 
+## Native CI
+
+[Cobalt native CI](https://github.com/bopurtell/cobalt/actions/workflows/ci.yml)
+runs on pull requests and pushes to `oxcaml`. Updating a PR cancels its
+superseded run. On Ubuntu 24.04, CI restores an exact match for the compiled
+OxCaml switch or provisions it using the
+[pinned repository snapshots](../scripts/ci/toolchain.sh) and
+[Cobalt's package manifest](../cobalt.opam). Only the dedicated opam root is cached, under
+the same absolute path and runner identity. Every run builds the checked-out
+source into a fresh `_build` and tests that binary.
+
+To reproduce the build and regression steps with the
+[development switch](source-install.md#prerequisites), install the test
+dependencies if needed, then run the same check as CI:
+
+```sh
+opam install --switch=5.2.0+ox --deps-only --with-test .
+opam exec --readonly --switch=5.2.0+ox -- bash scripts/ci/check.sh
+```
+
+The timed commands, in order, are:
+
+```sh
+dune build --root . -j 2
+dune runtest --root . -j 1 --force
+dune build --root . -j 1 @smoke @scripts/smoke-markdown
+python3 -B -m unittest discover -s packaging/tests -p test_package_release.py
+```
+
+The terminal suites use tmux and PTYs; the check script gives them an empty
+`XDG_CONFIG_HOME` so personal Cobalt settings do not change the screens under
+test. The LSP and Silver checks use local
+fixtures, without a graphical desktop or running service. For interoperability
+with a separately built Silver daemon and client, see the
+[live acceptance commands](../examples/silver_overview/README.md).
+Run `python3 -B scripts/ci/test_cache.py` for the offline CI policy checks and
+`actionlint .github/workflows/ci.yml` for workflow lint.
+
+**Confirm a miss and a hit:** the first push to `oxcaml` with a new toolchain
+key should miss in **Restore exact toolchain**, run **Provision compiler and
+third-party dependencies**, and report a successful save. After it finishes,
+choose **Actions → Cobalt native CI → Run workflow**, select `oxcaml`, and leave
+**Benchmark cold provisioning** unchecked. Look for the same key, an exact
+restore hit, **Verify restored toolchain** instead of provisioning, and a fresh
+build and test. A source-only push can serve as the second run too. Compare
+total job durations (including cache transfer) and the individual phase timings.
+If the keys differ, check for runner image or system package updates as well
+as changes to the dependency inputs.
+PRs can restore eligible caches; only non-PR `oxcaml` runs publish misses.
+For a cold timing independent of existing caches, check the benchmark box:
+that run neither restores nor saves.
+
 ## Terminal smoke tests
 
 The headless test suite covers editing, input, file I/O, highlighting, screen

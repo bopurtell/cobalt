@@ -26,4 +26,8 @@
   notty-community
   lsp
   jsonrpc
-  ppx_jane))
+  ppx_jane
+  (bonsai_test :with-test)
+  (bonsai_term_test :with-test)
+  (expect_test_helpers_core :with-test)
+  (expect_test_helpers_async :with-test)))
