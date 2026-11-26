@@ -13,7 +13,8 @@ and build from source; the direction and design decisions are mine.
 
 [Getting started](#getting-started) · [Keybindings](docs/editor_reference.md#keys) ·
 [Configuration](docs/configuration.md) · [Packaging](docs/releases.md) ·
-[Documentation](docs/README.md)
+[Local documentation](docs/README.md) ·
+[Online documentation](https://bopurtell.github.io/clockmaker-docs/cobalt/)
 
 ![Cobalt editing OCaml hardware-design code, with file tabs, a directory browser, status, problems, and notification history.](docs/images/daily-workspace.png)
 
