@@ -339,11 +339,7 @@ let%expect_test "file history follows a rename (--follow)" =
     |}]
 ;;
 
-let%expect_test "--follow across a rename made on a merged branch misses the old name's \
-                 edits on the other side"
-  =
-  (* git 2.43's --follow tracks one name for the whole walk: once it passes the rename
-     it looks for the old name everywhere, and before that the new name everywhere. *)
+let%expect_test "file history follows git across a rename made on a merged branch" =
   Fixture.with_repo (fun t ->
     Fixture.write t "old.txt" "one\n";
     commit t "add old";
@@ -354,13 +350,15 @@ let%expect_test "--follow across a rename made on a merged branch misses the old
     Fixture.write t "old.txt" "one\nmain\n";
     commit t "main edits old";
     git t [ "merge"; "-q"; "--no-ff"; "-m"; "merge side"; "side" ];
-    show t { default with path = Some "new.txt" };
-    show t { default with path = Some "new.txt"; first_parent = true });
+    (* Git 2.53 omits "main edits old" in the full walk; 2.56 includes it.
+       Cobalt should return exactly the installed Git's commits, in order. *)
+    let history = { default with path = Some "new.txt" } in
+    let expected = Fixture.git t [ "log"; "--follow"; "--format=%H"; "HEAD"; "--"; "new.txt" ] in
+    let actual = List.map (snapshot t history).commits ~f:(fun c -> c.hash) in
+    [%test_eq: string list] (String.split_lines expected) actual;
+    show t { history with first_parent = true });
   [%expect
     {|
-    History of new.txt
-      (side) side renames to new
-      add old
     History of new.txt (first parent)
       (HEAD -> main) merge side
       main edits old

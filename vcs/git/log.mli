@@ -38,9 +38,8 @@ end
     - [-- <path>] with a path; [--] alone otherwise.
     [--follow] (checked on git 2.43) combines with [--first-parent] (a merge is then
     listed when its diff against its first parent changes the file) and with
-    [--no-merges]. It follows one name for the whole walk, switching to the old name
-    at the rename: when the rename was made on one side of a merge, edits under the
-    old name on the other side are missing (without [--first-parent]).
+    [--no-merges]. When one side of a merge renames the file, whether the full walk
+    includes edits under the old name on the other side depends on the Git version.
     Raises if [scope.limit] is not positive. On an unborn branch git exits 128
     (["bad revision 'HEAD'"]); [Backend.snapshot] reads that as no commits. *)
 val command : cwd:string -> Log_scope.t -> Exec.Spec.t
