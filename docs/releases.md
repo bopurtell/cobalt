@@ -43,6 +43,27 @@ terminal supplies fonts, so the archive does not need screenshot fonts.
 
 ## Build a package
 
+### GitHub Actions
+
+Native CI builds, tests and smoke-tests packages on Ubuntu 24.04 and 26.04.
+Each runner uploads its binary archive, source archive, manifest and checksums
+to the workflow run. The packages are built on the runner from its checked-out
+revision, without installing Cobalt on the developer's machine.
+
+Pushing a release tag such as `v0.1.1` also attaches both sets of packages to
+a draft GitHub release after both runners pass. To rebuild an existing tag,
+run **Cobalt native CI** manually from `oxcaml` and enter the tag in the
+`release_tag` input. An existing draft's release notes are preserved; published
+releases are not updated. Review and publish the draft manually.
+
+Release package versions include the runner OS to avoid filename collisions,
+for example `cobalt-0.1.1-ubuntu-24.04-linux-x86_64.tar.gz` and
+`cobalt-0.1.1-ubuntu-26.04-linux-x86_64.tar.gz`. Prefer the Ubuntu 24.04
+build for compatibility with older glibc hosts; consult each manifest for its
+actual minimum glibc version.
+
+### Local packaging
+
 With the development switch active, from the repository root:
 
 ```sh

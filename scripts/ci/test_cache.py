@@ -65,7 +65,7 @@ class WorkflowTests(unittest.TestCase):
                          ["pull_request", "push", "workflow_dispatch"])
         self.assertRegex(triggers, r"(?m)^  pull_request:\s*\n  push:")
         self.assertRegex(triggers, r"(?m)^  push:\n    branches:\n      - oxcaml\n"
-                         r"  workflow_dispatch:")
+                         r"    tags:\n      - 'v\*'\n  workflow_dispatch:")
         self.assertRegex(triggers, r"(?m)^      cold:\n"
                          r"(?:        [^\n]*\n)*?        type: boolean\n"
                          r"        default: false$")
